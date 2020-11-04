@@ -1,0 +1,23 @@
+[package]
+name = "clvm_rs"
+version = "0.1.0"
+authors = ["Richard Kiss <him@richardkiss.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "clvm_rs"
+crate-type = ["cdylib"]
+
+[dependencies.pyo3]
+version = "0.12.1"
+features = ["extension-module"]
+
+[dependencies]
+uint = "0.5.0"
+hex = "0.3.2"
+sha2 = "0.8.0"
+
+[dev-dependencies]
+hex = "0.3.2"
