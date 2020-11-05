@@ -85,6 +85,11 @@ impl PySExp {
     pub fn nullp(&self) -> bool {
         self.node.nullp()
     }
+
+    pub fn cons(&self, other: &PySExp) -> PyResult<PySExp> {
+        let node = Node::pair(&self.node, &other.node);
+        Ok(PySExp { node })
+    }
 }
 
 impl From<Node> for PySExp {

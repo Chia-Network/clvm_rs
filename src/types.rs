@@ -26,6 +26,8 @@ pub trait OperatorLookupT {
     fn f_for_operator(&self, op: &[u8]) -> Option<&Box<dyn OperatorFT>>;
 }
 
+pub type OperatorHandler = Box<dyn Fn(&[u8], &Node) -> Result<Reduction, EvalErr>>;
+
 pub type OperatorLookup = Box<dyn OperatorLookupT>;
 
 pub trait PostEval {

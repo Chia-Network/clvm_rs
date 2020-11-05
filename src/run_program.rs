@@ -1,7 +1,7 @@
 use super::node::{Node, SExp};
 use super::number::Number;
 
-use super::types::{EvalErr, OperatorLookup, OperatorLookupT, PostEval, PreEval, Reduction};
+use super::types::{EvalErr, OperatorHandler, OperatorLookup, PostEval, PreEval, Reduction};
 
 /*
 #[derive(Debug, Clone)]
@@ -21,7 +21,7 @@ type RPCOperator = dyn FnOnce(&mut RunProgramContext) -> Result<u32, EvalErr>;
 
 pub struct RunProgramContext<'a> {
     quote_kw: u8,
-    operator_lookup: &'a dyn OperatorLookupT,
+    operator_lookup: &'a OperatorHandler,
     pre_eval: Option<&'a dyn PreEval>,
     val_stack: Vec<Node>,
     op_stack: Vec<Box<RPCOperator>>,
@@ -40,7 +40,7 @@ impl RunProgramContext<'_> {
     }
 }
 
-pub fn traverse_path(path_node: &Node, args: &Node) -> Result<Reduction, EvalErr> {
+fn traverse_path(path_node: &Node, args: &Node) -> Result<Reduction, EvalErr> {
     /*
     Follow integer `NodePath` down a tree.
     */
@@ -67,7 +67,7 @@ pub fn traverse_path(path_node: &Node, args: &Node) -> Result<Reduction, EvalErr
     Ok(Reduction(arg_list.clone(), cost))
 }
 
-pub fn swap_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
+fn swap_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
     /* Swap the top two operands. */
     let v2 = rpc.pop()?;
     let v1 = rpc.pop()?;
@@ -76,7 +76,7 @@ pub fn swap_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
     Ok(0)
 }
 
-pub fn cons_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
+fn cons_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
     /* Join the top two operands. */
     let v1 = rpc.pop()?;
     let v2 = rpc.pop()?;
@@ -156,7 +156,7 @@ fn eval_pair(rpc: &mut RunProgramContext, program: &Node, args: &Node) -> Result
     }
 }
 
-pub fn eval_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
+fn eval_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
     /*
     Pop the top value and treat it as a (program, args) pair, and manipulate
     the op & value stack to evaluate all the arguments and apply the operator.
@@ -183,21 +183,15 @@ pub fn eval_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
     }
 }
 
-pub fn apply_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
+fn apply_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
     let operand_list = rpc.pop()?;
     let operator = rpc.pop()?;
     match operator.sexp() {
         SExp::Pair(_, _) => Err(EvalErr(operator, "internal error".into())),
         SExp::Atom(op_as_atom) => {
-            let f = rpc.operator_lookup.f_for_operator(&op_as_atom);
-            match f {
-                None => Err(EvalErr(operator, "unimplemented operator".into())),
-                Some(f1) => {
-                    let r: Reduction = f1.apply_op(&operand_list)?;
-                    rpc.push(r.0);
-                    Ok(r.1)
-                }
-            }
+            let r = (rpc.operator_lookup)(&op_as_atom, &operand_list)?;
+            rpc.push(r.0);
+            Ok(r.1)
         }
     }
 }
@@ -207,7 +201,7 @@ pub fn run_program(
     args: &Node,
     quote_kw: u8,
     max_cost: u32,
-    operator_lookup: &dyn OperatorLookupT,
+    operator_lookup: &OperatorHandler,
     pre_eval: Option<&dyn PreEval>,
 ) -> Result<Reduction, EvalErr> {
     let values: Vec<Node> = vec![Node::pair(program, args)];

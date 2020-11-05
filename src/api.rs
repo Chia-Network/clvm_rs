@@ -4,11 +4,12 @@ use super::pysexp::PySExp;
 use super::run_program::run_program;
 use super::serialize::{node_from_stream, node_to_stream};
 use super::types::{
-    EvalContext, EvalErr, FApply, OperatorFT, OperatorLookup, OperatorLookupT, PostEval, PreEval,
-    Reduction,
+    EvalContext, EvalErr, FApply, OperatorFT, OperatorHandler, OperatorLookup, OperatorLookupT,
+    PostEval, PreEval, Reduction,
 };
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
+use pyo3::types::PyTuple;
+use pyo3::types::{PyBytes, PyDict};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 use std::io::Cursor;
@@ -111,10 +112,32 @@ pub struct PyOperatorLookup {
     pub val: DefaultOperatorLookupT,
 }
 
-impl OperatorLookupT for PyOperatorLookup {
+/*
+impl OperatorHandler for PyOperatorLookup {
     fn f_for_operator(&self, op: &[u8]) -> Option<&Box<dyn OperatorFT>> {
         self.val.f_for_operator(op)
     }
+}
+*/
+
+fn op_handler_for_py(obj: &PyAny) -> OperatorHandler {
+    let local_obj: PyObject = obj.into();
+    let func = Box::new(move |op: &[u8], argument_list: &Node| {
+        let pysexp: PySExp = argument_list.clone().into();
+        let r1 = Python::with_gil(|py| local_obj.call1(py, (op, pysexp)));
+        match r1 {
+            Err(e) => argument_list.err("fooooooooo"),
+            Ok(o) => Python::with_gil(|py| {
+                let pair: &PyTuple = o.extract(py).unwrap();
+                let i0: u32 = pair.get_item(0).extract()?;
+                let i1: PyRef<PySExp> = pair.get_item(1).extract()?;
+                let n = i1.node.clone();
+                let r: Reduction = Reduction(n, i0);
+                Ok(r)
+            }),
+        }
+    });
+    func
 }
 
 #[pyfunction]
@@ -190,7 +213,7 @@ fn py_run_program(
     args: &PySExp,
     quote_kw: u8,
     max_cost: u32,
-    op_lookup: &PyOperatorLookup,
+    op_lookup: &PyAny,
     pre_eval: PyObject,
 ) -> PyResult<(String, PySExp, u32)> {
     let py_pre_eval_inner: PyPreEval = PyPreEval {
@@ -204,12 +227,14 @@ fn py_run_program(
         py_pre_eval = None;
     }
 
+    let new_operator_for_opcode = op_handler_for_py(op_lookup);
+
     let r: Result<Reduction, EvalErr> = run_program(
         &program.node,
         &args.node,
         quote_kw,
         max_cost,
-        op_lookup,
+        &new_operator_for_opcode,
         py_pre_eval,
     );
     match r {
