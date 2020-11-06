@@ -99,7 +99,7 @@ impl From<Node> for PySExp {
 }
 
 impl IntoPy<PySExp> for Node {
-    fn into_py(self, py: Python<'_>) -> PySExp {
+    fn into_py(self, _py: Python<'_>) -> PySExp {
         PySExp { node: self }
     }
 }

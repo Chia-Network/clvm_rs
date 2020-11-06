@@ -1,4 +1,4 @@
-use super::types::{OperatorFT, OperatorLookupT};
+use super::types::OperatorFT;
 use std::collections::HashMap;
 
 pub struct Pair(Vec<u8>, Box<dyn OperatorFT>);
@@ -16,11 +16,5 @@ impl OpLookupHash {
             map.insert(name, func);
         }
         OpLookupHash { map }
-    }
-}
-
-impl OperatorLookupT for OpLookupHash {
-    fn f_for_operator(&self, op: &[u8]) -> Option<&Box<dyn OperatorFT>> {
-        self.map.get(op)
     }
 }

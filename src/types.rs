@@ -6,8 +6,6 @@ pub struct EvalContext {
     pub apply_f: Box<dyn FApply>,
 }
 
-pub type FLookup = [Option<OperatorF>; 256];
-
 #[derive(Debug, Clone)]
 pub struct EvalErr(pub Node, pub String);
 
@@ -20,15 +18,11 @@ pub trait OperatorFT {
     fn apply_op(&self, node: &Node) -> Result<Reduction, EvalErr>;
 }
 
-pub type OperatorF = Box<dyn OperatorFT>;
-
 pub trait OperatorLookupT {
-    fn f_for_operator(&self, op: &[u8]) -> Option<&Box<dyn OperatorFT>>;
+    fn f_for_operator(&self, op: &[u8]) -> Option<&dyn OperatorFT>;
 }
 
 pub type OperatorHandler = Box<dyn Fn(&[u8], &Node) -> Result<Reduction, EvalErr>>;
-
-pub type OperatorLookup = Box<dyn OperatorLookupT>;
 
 pub trait PostEval {
     fn note_result(&self, result: Option<&Node>);

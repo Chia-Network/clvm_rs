@@ -10,19 +10,19 @@ fn encode_size(f: &mut dyn Write, size: usize) -> std::io::Result<()> {
     if size < 0x40 {
         f.write_all(&[(0x80 | size) as u8])?;
     } else if size < 0x2000 {
-        f.write_all(&[(0xc0 | (size >> 8)) as u8, ((size >> 0) & 0xff) as u8])?;
+        f.write_all(&[(0xc0 | (size >> 8)) as u8, ((size) & 0xff) as u8])?;
     } else if size < 0x10_0000 {
         f.write_all(&[
             (0xe0 | (size >> 16)) as u8,
             ((size >> 8) & 0xff) as u8,
-            ((size >> 0) & 0xff) as u8,
+            ((size) & 0xff) as u8,
         ])?;
     } else if size < 0x800_0000 {
         f.write_all(&[
             (0xf0 | (size >> 24)) as u8,
             ((size >> 16) & 0xff) as u8,
             ((size >> 8) & 0xff) as u8,
-            ((size >> 0) & 0xff) as u8,
+            ((size) & 0xff) as u8,
         ])?;
     } else if size < 0x4_0000_0000 {
         f.write_all(&[
@@ -30,7 +30,7 @@ fn encode_size(f: &mut dyn Write, size: usize) -> std::io::Result<()> {
             ((size >> 24) & 0xff) as u8,
             ((size >> 16) & 0xff) as u8,
             ((size >> 8) & 0xff) as u8,
-            ((size >> 0) & 0xff) as u8,
+            ((size) & 0xff) as u8,
         ])?;
     }
     Ok(())

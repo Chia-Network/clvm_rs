@@ -1,6 +1,4 @@
-use super::types::{FLookup, OperatorFT, OperatorLookupT};
-
-//use super::f_table::make_f_lookup;
+use super::types::OperatorFT;
 
 use super::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use super::more_ops::{op_add, op_gr, op_multiply, op_sha256, op_sha256_tree, op_subtract};
@@ -44,9 +42,10 @@ impl OperatorFT for OperatorFTCall {
     }
 }
 pub struct DefaultOperatorLookupT {
-    vec: Vec<(u8, Box<dyn OperatorFT>)>,
+    //   vec: Vec<(u8, Box<dyn OperatorFT>)>,
 }
 
+/*
 impl DefaultOperatorLookupT {
     fn new() -> Self {
         let mut v: Vec<(u8, Box<dyn OperatorFT>)> = Vec::new();
@@ -57,9 +56,11 @@ impl DefaultOperatorLookupT {
         DefaultOperatorLookupT { vec: v }
     }
 }
+*/
 
+/*
 impl OperatorLookupT for DefaultOperatorLookupT {
-    fn f_for_operator(&self, op: &[u8]) -> Option<&Box<dyn OperatorFT>> {
+    fn f_for_operator(&self, op: &[u8]) -> Option<&dyn OperatorFT> {
         if op.len() == 1 {
             let c: u8 = op[0];
             for (f_op, f) in self.vec.iter() {
@@ -71,7 +72,7 @@ impl OperatorLookupT for DefaultOperatorLookupT {
         None
     }
 }
-
-pub fn default_operator_lookup() -> DefaultOperatorLookupT {
-    DefaultOperatorLookupT::new()
+*/
+pub fn default_operator_lookup() -> () { //DefaultOperatorLookupT {
+                                         //    DefaultOperatorLookupT::new()
 }

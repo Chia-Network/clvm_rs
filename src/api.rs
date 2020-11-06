@@ -1,15 +1,12 @@
+use super::native_op_lookup::NativeOpLookup;
 use super::node::Node;
 use super::operators::{default_operator_lookup, DefaultOperatorLookupT};
 use super::pysexp::PySExp;
 use super::run_program::run_program;
 use super::serialize::{node_from_stream, node_to_stream};
-use super::types::{
-    EvalContext, EvalErr, FApply, OperatorFT, OperatorHandler, OperatorLookup, OperatorLookupT,
-    PostEval, PreEval, Reduction,
-};
+use super::types::{EvalContext, EvalErr, FApply, OperatorHandler, PostEval, PreEval, Reduction};
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
-use pyo3::types::{PyBytes, PyDict};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 use std::io::Cursor;
@@ -122,11 +119,11 @@ impl OperatorHandler for PyOperatorLookup {
 
 fn op_handler_for_py(obj: &PyAny) -> OperatorHandler {
     let local_obj: PyObject = obj.into();
-    let func = Box::new(move |op: &[u8], argument_list: &Node| {
+    Box::new(move |op: &[u8], argument_list: &Node| {
         let pysexp: PySExp = argument_list.clone().into();
         let r1 = Python::with_gil(|py| local_obj.call1(py, (op, pysexp)));
         match r1 {
-            Err(e) => argument_list.err("fooooooooo"),
+            Err(_) => argument_list.err("fooooooooo"),
             Ok(o) => Python::with_gil(|py| {
                 let pair: &PyTuple = o.extract(py).unwrap();
                 let i0: u32 = pair.get_item(0).extract()?;
@@ -136,10 +133,10 @@ fn op_handler_for_py(obj: &PyAny) -> OperatorHandler {
                 Ok(r)
             }),
         }
-    });
-    func
+    })
 }
 
+/*
 #[pyfunction]
 fn operator_lookup() -> PyOperatorLookup {
     let op_lookup: PyOperatorLookup = PyOperatorLookup {
@@ -147,6 +144,7 @@ fn operator_lookup() -> PyOperatorLookup {
     };
     op_lookup
 }
+*/
 
 impl IntoPy<PyOperatorLookup> for DefaultOperatorLookupT {
     fn into_py(self, _py: Python) -> PyOperatorLookup {
@@ -160,19 +158,16 @@ struct PyPostEval {
 
 impl PostEval for PyPostEval {
     fn note_result(&self, result: Option<&Node>) {
-        Python::with_gil(|py| -> () {
-            match result {
-                Some(node) => {
-                    let py_sexp: PySExp = node.clone().into();
-                    let r: PyResult<PyObject> = self.obj.call1(py, (py_sexp,));
-                }
-                _ => (),
+        Python::with_gil(|py| {
+            if let Some(node) = result {
+                let py_sexp: PySExp = node.clone().into();
+                let _r: PyResult<PyObject> = self.obj.call1(py, (py_sexp,));
             }
         });
     }
 }
 
-fn post_eval_for_pyobject<'a>(obj: PyObject) -> Option<Box<dyn PostEval>> {
+fn post_eval_for_pyobject(obj: PyObject) -> Option<Box<dyn PostEval>> {
     let mut py_post_eval: Option<Box<dyn PostEval>> =
         Some(Box::new(PyPostEval { obj: obj.clone() }));
 
@@ -206,6 +201,13 @@ impl PreEval for PyPreEval<'_> {
     }
 }
 
+fn returns_closure(
+    native_op_lookup: NativeOpLookup,
+) -> Box<dyn Fn(&[u8], &Node) -> Result<Reduction, EvalErr>> {
+    let f: OperatorHandler = Box::new(move |op, args| native_op_lookup.operator_handler(op, args));
+    f
+}
+
 #[pyfunction]
 fn py_run_program(
     py: Python,
@@ -213,7 +215,7 @@ fn py_run_program(
     args: &PySExp,
     quote_kw: u8,
     max_cost: u32,
-    op_lookup: &PyAny,
+    op_lookup: NativeOpLookup,
     pre_eval: PyObject,
 ) -> PyResult<(String, PySExp, u32)> {
     let py_pre_eval_inner: PyPreEval = PyPreEval {
@@ -227,14 +229,18 @@ fn py_run_program(
         py_pre_eval = None;
     }
 
-    let new_operator_for_opcode = op_handler_for_py(op_lookup);
+    //let new_operator_for_opcode = op_handler_for_py(op_lookup);
+
+    let native_op_lookup: NativeOpLookup = op_lookup;
+
+    let f = returns_closure(native_op_lookup);
 
     let r: Result<Reduction, EvalErr> = run_program(
         &program.node,
         &args.node,
         quote_kw,
         max_cost,
-        &new_operator_for_opcode,
+        &f,
         py_pre_eval,
     );
     match r {
@@ -249,8 +255,9 @@ fn py_run_program(
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_run_program, m)?)
         .unwrap();
-    m.add_function(wrap_pyfunction!(operator_lookup, m)?)
-        .unwrap();
+    //   m.add_function(wrap_pyfunction!(operator_lookup, m)?)
+    //    .unwrap();
     m.add_class::<PySExp>()?;
+    m.add_class::<NativeOpLookup>()?;
     Ok(())
 }

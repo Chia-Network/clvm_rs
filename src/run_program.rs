@@ -1,7 +1,7 @@
 use super::node::{Node, SExp};
 use super::number::Number;
 
-use super::types::{EvalErr, OperatorHandler, OperatorLookup, PostEval, PreEval, Reduction};
+use super::types::{EvalErr, OperatorHandler, PreEval, Reduction};
 
 /*
 #[derive(Debug, Clone)]

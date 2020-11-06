@@ -1,7 +1,9 @@
 use super::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use super::more_ops::{op_add, op_gr, op_multiply, op_sha256, op_sha256_tree, op_subtract};
 use super::node::Node;
-use super::types::{EvalErr, FLookup, OpFn, OperatorFT, Reduction};
+use super::types::{EvalErr, OpFn, OperatorFT, Reduction};
+
+pub type FLookup = [Option<OpFn>; 256];
 
 static OPCODE_LOOKUP: [(u8, OpFn); 13] = [
     (4, op_if),
@@ -29,14 +31,11 @@ impl OperatorFT for OperatorFTCall {
     }
 }
 
-/*
 pub fn make_f_lookup() -> FLookup {
     let mut f_lookup: FLookup = [None; 256];
     for (op, f) in &OPCODE_LOOKUP {
-        let val = OperatorFTCall { f };
-        f_lookup[*op as usize] = Some(Box::new(val));
+        f_lookup[*op as usize] = Some(*f);
     }
 
     f_lookup
 }
-*/
