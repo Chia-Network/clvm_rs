@@ -1,30 +1,9 @@
 use super::node::Node;
 use super::pysexp::PySExp;
-use super::types::{EvalErr, OperatorFT, Reduction};
-
-use std::collections::HashMap;
+use super::types::{EvalErr, Reduction};
 
 use super::f_table::{make_f_lookup, FLookup};
 
-pub struct Pair(Vec<u8>, Box<dyn OperatorFT>);
-
-struct OpLookupHash {
-    map: HashMap<Vec<u8>, Box<dyn OperatorFT>>,
-}
-
-impl OpLookupHash {
-    fn new(pairs: Vec<Pair>) -> OpLookupHash {
-        let mut map: HashMap<Vec<u8>, Box<dyn OperatorFT>> = HashMap::new();
-        for pair in pairs.into_iter() {
-            let name = pair.0;
-            let func = pair.1;
-            map.insert(name, func);
-        }
-        OpLookupHash { map }
-    }
-}
-
-//use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 
@@ -77,53 +56,3 @@ impl NativeOpLookup {
         })
     }
 }
-
-/*
-impl From<&PyAny> for NativeOpLookup {
-    fn from(item: &PyAny) -> NativeOpLookup {
-        let t: PyResult<&NativeOpLookup> = item.extract();
-        if let Ok(nop) = t {
-            return nop.clone();
-        }
-        let empty: [u8; 0] = [];
-        NativeOpLookup::new(&empty, item)
-    }
-}
-*/
-
-
-/*
-
-impl IntoPy<NativeOpLookup> for Node {
-    fn into_py(self, _py: Python<'_>) -> PySExp {
-        PySExp { node: self }
-    }
-}
-
-*/
-
-/*
-fn extract_atom(obj: &PyAny) -> PyResult<Node> {
-    let r: &[u8] = obj.extract()?;
-    Ok(Node::blob_u8(r))
-}
-
-fn extract_node(obj: &PyAny) -> PyResult<Node> {
-    let ps: PyRef<PySExp> = obj.extract()?;
-    let node: Node = ps.node.clone();
-    Ok(node)
-}
-
-fn extract_tuple(obj: &PyAny) -> PyResult<Node> {
-    let v: &PyTuple = obj.extract()?;
-    if v.len() != 2 {
-        return Err(PyValueError::new_err("SExp tuples must be size 2"));
-    }
-    let i0: &PyAny = v.get_item(0);
-    let i1: &PyAny = v.get_item(1);
-    let left: Node = extract_node(i0)?;
-    let right: Node = extract_node(i1)?;
-    let node: Node = Node::pair(&left, &right);
-    Ok(node)
-}
-*/

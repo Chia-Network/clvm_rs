@@ -3,21 +3,12 @@ use super::number::Number;
 
 use super::types::{EvalErr, OperatorHandler, PreEval, Reduction};
 
-/*
-#[derive(Debug, Clone)]
-pub struct EvalErr(pub Node, pub String);
-
-pub struct Reduction(pub Node, pub u32);
-
-pub type OperatorF = fn(&Node) -> Result<Reduction, EvalErr>;
-
-*/
-
-// `run_program` has two stacks: the operand stack (of `Node` objects) and the
-// operator stack (of RPOperators)
 const QUOTE_COST: u32 = 1;
 
 type RPCOperator = dyn FnOnce(&mut RunProgramContext) -> Result<u32, EvalErr>;
+
+// `run_program` has two stacks: the operand stack (of `Node` objects) and the
+// operator stack (of RPCOperators)
 
 pub struct RunProgramContext<'a> {
     quote_kw: u8,

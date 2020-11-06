@@ -103,12 +103,3 @@ impl IntoPy<PySExp> for Node {
         PySExp { node: self }
     }
 }
-
-/*
-impl From<&<'a> PySExp> for &<'a> Node {
-    fn from(self) -> &Node {
-        &self.node
-    }
-}
-
-*/

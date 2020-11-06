@@ -1,7 +1,6 @@
 use super::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use super::more_ops::{op_add, op_gr, op_multiply, op_sha256, op_sha256_tree, op_subtract};
-use super::node::Node;
-use super::types::{EvalErr, OpFn, OperatorFT, Reduction};
+use super::types::OpFn;
 
 pub type FLookup = [Option<OpFn>; 256];
 
@@ -20,16 +19,6 @@ static OPCODE_LOOKUP: [(u8, OpFn); 13] = [
     (21, op_sha256_tree),
     (22, op_gr),
 ];
-
-struct OperatorFTCall {
-    f: &'static OpFn,
-}
-
-impl OperatorFT for OperatorFTCall {
-    fn apply_op(&self, node: &Node) -> Result<Reduction, EvalErr> {
-        (self.f)(node)
-    }
-}
 
 pub fn make_f_lookup() -> FLookup {
     let mut f_lookup: FLookup = [None; 256];

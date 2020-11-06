@@ -1,3 +1,4 @@
+use std::io::Cursor;
 use std::io::Read;
 use std::io::Write;
 
@@ -100,4 +101,17 @@ pub fn node_from_stream(f: &mut dyn Read) -> std::io::Result<Node> {
     let mut blob: Vec<u8> = vec![0; blob_size];
     f.read_exact(&mut blob)?;
     Ok(Node::blob_u8(&blob))
+}
+
+pub fn node_from_bytes(b: &[u8]) -> std::io::Result<Node> {
+    let mut buffer = Cursor::new(b);
+    node_from_stream(&mut buffer)
+}
+
+pub fn node_to_bytes(node: &Node) -> std::io::Result<Vec<u8>> {
+    let mut buffer = Cursor::new(Vec::new());
+
+    node_to_stream(node, &mut buffer)?;
+    let vec = buffer.into_inner();
+    Ok(vec)
 }
