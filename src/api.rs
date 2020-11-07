@@ -123,7 +123,9 @@ fn py_run_program(
 
 #[pyfunction]
 fn raise_eval_error(py: Python, msg: &PyString, sexp: &PySExp) -> PyResult<PyObject> {
-    let local_sexp = PySExp { node: sexp.node.clone() };
+    let local_sexp = PySExp {
+        node: sexp.node.clone(),
+    };
     let sexp_any: PyObject = local_sexp.into_py(py);
     let msg_any: PyObject = msg.into_py(py);
 

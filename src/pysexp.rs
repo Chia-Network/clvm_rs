@@ -36,7 +36,7 @@ fn extract_tuple(obj: &PyAny) -> PyResult<Node> {
 #[pymethods]
 impl PySExp {
     #[new]
-    fn new(obj: &PyAny) -> PyResult<Self> {
+    pub fn new(obj: &PyAny) -> PyResult<Self> {
         let node: Node = {
             let other = extract_node(obj);
             match other {

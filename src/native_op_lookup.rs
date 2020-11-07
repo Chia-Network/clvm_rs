@@ -5,7 +5,7 @@ use super::types::{EvalErr, Reduction};
 use super::f_table::{make_f_lookup, FLookup};
 
 use pyo3::prelude::*;
-use pyo3::types::PyTuple;
+use pyo3::types::{PyString, PyTuple};
 
 #[pyclass]
 #[derive(Clone)]
@@ -31,6 +31,17 @@ impl NativeOpLookup {
     }
 }
 
+fn eval_err_for_pyerr(py: Python, pyerr: &PyErr) -> PyResult<EvalErr> {
+    let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
+    let arg0: &PyString = args.get_item(0).extract()?;
+    let sexp_any: &PyAny = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
+    let sexp: PySExp = PySExp::new(&sexp_any)?;
+
+    let node: Node = sexp.node;
+    let s: String = arg0.to_str()?.to_string();
+    Ok(EvalErr(node, s))
+}
+
 impl NativeOpLookup {
     pub fn operator_handler(&self, op: &[u8], argument_list: &Node) -> Result<Reduction, EvalErr> {
         if op.len() == 1 {
@@ -43,7 +54,16 @@ impl NativeOpLookup {
             let pysexp: PySExp = argument_list.clone().into();
             let r1 = self.py_callback.call1(py, (op, pysexp));
             match r1 {
-                Err(_) => argument_list.err("fooooooooo"),
+                Err(pyerr) => {
+                    let ee = eval_err_for_pyerr(py, &pyerr);
+                    match ee {
+                        Err(_x) => {
+                            println!("{:?}", _x);
+                            Err(EvalErr(argument_list.clone(), "internal error".to_string()))
+                        }
+                        Ok(ee) => Err(ee),
+                    }
+                }
                 Ok(o) => {
                     let pair: &PyTuple = o.extract(py).unwrap();
                     let i0: u32 = pair.get_item(0).extract()?;

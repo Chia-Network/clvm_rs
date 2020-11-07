@@ -209,11 +209,10 @@ pub fn run_program(
     let mut cost: u32 = 0;
 
     loop {
-        if cost > max_cost {
-            return Err(EvalErr(
-                rpc.val_stack.pop().unwrap(),
-                "cost exceeded".into(),
-            ));
+        if cost > max_cost && max_cost > 0 {
+            let max_cost: Number = max_cost.into();
+            let n: Node = Node::from(max_cost);
+            return Err(EvalErr(n, "cost exceeded".into()));
         }
         let top = rpc.op_stack.pop();
         match top {
