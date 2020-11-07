@@ -5,7 +5,7 @@ use super::run_program::run_program;
 use super::serialize::{node_from_bytes, node_to_bytes};
 use super::types::{EvalErr, OperatorHandler, PostEval, PreEval, Reduction};
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
+use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
@@ -125,6 +125,28 @@ fn serialize_to_bytes(py: Python, sexp: &PySExp) -> PyResult<PyObject> {
     Ok(pyany)
 }
 
+#[pyfunction]
+fn raise_eval_error(py: Python, msg: &PyString, sexp: &PyAny) -> PyResult<PyObject> {
+    let sexp_any: PyObject = sexp.into_py(py);
+    let msg_any: PyObject = msg.into_py(py);
+
+    let s0: &PyString = PyString::new(py, "msg");
+    let s1: &PyString = PyString::new(py, "sexp");
+    let ctx: &PyDict = PyDict::new(py);
+    ctx.set_item(s0, msg_any)?;
+    ctx.set_item(s1, sexp_any)?;
+
+    let r = py.run(
+        "from clvm.EvalError import EvalError; raise EvalError(msg, sexp)",
+        None,
+        Some(ctx),
+    );
+    match r {
+        Err(x) => Err(x),
+        Ok(_) => Ok(ctx.into()),
+    }
+}
+
 /// This module is a python module implemented in Rust.
 #[pymodule]
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -134,5 +156,8 @@ fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add_class::<PySExp>()?;
     m.add_class::<NativeOpLookup>()?;
+
+    m.add_function(wrap_pyfunction!(raise_eval_error, m)?)?;
+
     Ok(())
 }
