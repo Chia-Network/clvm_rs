@@ -80,7 +80,7 @@ fn py_run_program(
     max_cost: u32,
     op_lookup: NativeOpLookup,
     pre_eval: PyObject,
-) -> PyResult<(String, PySExp, u32)> {
+) -> PyResult<(PySExp, u32)> {
     let py_pre_eval_inner: PyPreEval = PyPreEval {
         py,
         obj: pre_eval.clone(),
@@ -105,29 +105,26 @@ fn py_run_program(
         py_pre_eval,
     );
     match r {
-        Ok(reduction) => Ok(("worked".into(), reduction.0.into(), reduction.1)),
-        Err(eval_err) => Ok((eval_err.1, eval_err.0.into(), 1)),
+        Ok(reduction) => Ok((reduction.0.into(), reduction.1)),
+        Err(eval_err) => {
+            let node: Node = eval_err.0;
+            let s: String = eval_err.1;
+            let s1: &str = &s;
+            let msg: &PyString = PyString::new(py, s1);
+            let sexp_any: PySExp = PySExp { node };
+            match raise_eval_error(py, &msg, &sexp_any) {
+                Err(x) => Err(x),
+                _ => panic!(),
+            }
+        }
     }
     // TODO: recast to same type as `program`
 }
 
 #[pyfunction]
-fn serialize_from_bytes(blob: &[u8]) -> PyResult<PySExp> {
-    let node = node_from_bytes(blob).unwrap();
-    Ok(node.into())
-}
-
-#[pyfunction]
-fn serialize_to_bytes(py: Python, sexp: &PySExp) -> PyResult<PyObject> {
-    let blob = node_to_bytes(&sexp.node).unwrap();
-    let pybytes = PyBytes::new(py, &blob);
-    let pyany: PyObject = pybytes.to_object(py);
-    Ok(pyany)
-}
-
-#[pyfunction]
-fn raise_eval_error(py: Python, msg: &PyString, sexp: &PyAny) -> PyResult<PyObject> {
-    let sexp_any: PyObject = sexp.into_py(py);
+fn raise_eval_error(py: Python, msg: &PyString, sexp: &PySExp) -> PyResult<PyObject> {
+    let local_sexp = PySExp { node: sexp.node.clone() };
+    let sexp_any: PyObject = local_sexp.into_py(py);
     let msg_any: PyObject = msg.into_py(py);
 
     let s0: &PyString = PyString::new(py, "msg");
@@ -145,6 +142,20 @@ fn raise_eval_error(py: Python, msg: &PyString, sexp: &PyAny) -> PyResult<PyObje
         Err(x) => Err(x),
         Ok(_) => Ok(ctx.into()),
     }
+}
+
+#[pyfunction]
+fn serialize_from_bytes(blob: &[u8]) -> PyResult<PySExp> {
+    let node = node_from_bytes(blob).unwrap();
+    Ok(node.into())
+}
+
+#[pyfunction]
+fn serialize_to_bytes(py: Python, sexp: &PySExp) -> PyResult<PyObject> {
+    let blob = node_to_bytes(&sexp.node).unwrap();
+    let pybytes = PyBytes::new(py, &blob);
+    let pyany: PyObject = pybytes.to_object(py);
+    Ok(pyany)
 }
 
 /// This module is a python module implemented in Rust.
