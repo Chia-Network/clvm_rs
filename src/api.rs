@@ -17,53 +17,24 @@ impl From<PyErr> for EvalErr {
     }
 }
 
-struct PyPostEval {
-    pub obj: PyObject,
-}
-
-impl PostEval for PyPostEval {
-    fn note_result(&self, result: Option<&Node>) {
-        Python::with_gil(|py| {
-            if let Some(node) = result {
-                let py_sexp: PySExp = node.clone().into();
-                let _r: PyResult<PyObject> = self.obj.call1(py, (py_sexp,));
-            }
-        });
-    }
-}
-
-fn post_eval_for_pyobject(obj: PyObject) -> Option<Box<dyn PostEval>> {
-    let mut py_post_eval: Option<Box<dyn PostEval>> =
-        Some(Box::new(PyPostEval { obj: obj.clone() }));
-
-    if Python::with_gil(|py| obj.is_none(py)) {
-        py_post_eval = None;
-    }
-    py_post_eval
-}
-
-struct PyPreEval<'a> {
-    pub py: Python<'a>,
-    pub obj: PyObject,
-}
-
-impl PreEval for PyPreEval<'_> {
-    fn note_eval_state(
-        &self,
-        program: &Node,
-        args: &Node,
-    ) -> Result<Option<Box<dyn PostEval>>, EvalErr> {
-        let prog_sexp: PySExp = program.clone().into_py(self.py);
-        let args_sexp: PySExp = args.clone().into_py(self.py);
-        let r: PyResult<PyObject> = self.obj.call1(self.py, (prog_sexp, args_sexp));
-        match r {
-            Ok(py_post_eval) => {
-                let f = post_eval_for_pyobject(py_post_eval);
-                Ok(f)
-            }
-            Err(ref err) => program.err(&err.to_string()),
+fn note_result(obj: &PyObject, result: Option<&Node>) {
+    Python::with_gil(|py| {
+        if let Some(node) = result {
+            let py_sexp: PySExp = node.clone().into();
+            let _r: PyResult<PyObject> = obj.call1(py, (py_sexp,));
         }
-    }
+    });
+}
+
+fn post_eval_for_pyobject(obj: PyObject) -> Option<Box<PostEval>> {
+    let py_post_eval: Option<Box<PostEval>> = if Python::with_gil(|py| obj.is_none(py)) {
+        None
+    } else {
+        Some(Box::new(move |result: Option<&Node>| {
+            note_result(&obj, result)
+        }))
+    };
+    py_post_eval
 }
 
 fn returns_closure(native_op_lookup: NativeOpLookup) -> Box<OpHandler> {
@@ -81,20 +52,27 @@ fn py_run_program(
     op_lookup: NativeOpLookup,
     pre_eval: PyObject,
 ) -> PyResult<(PySExp, u32)> {
-    let py_pre_eval_inner: PyPreEval = PyPreEval {
-        py,
-        obj: pre_eval.clone(),
+    let py_pre_eval_t: Option<PreEval> = if pre_eval.is_none(py) {
+        None
+    } else {
+        let new_pre_eval: PyObject = pre_eval.clone();
+        Some(Box::new(move |program: &Node, args: &Node| {
+            Python::with_gil(|py| {
+                let prog_sexp: PySExp = program.clone().into_py(py);
+                let args_sexp: PySExp = args.clone().into_py(py);
+                let r: PyResult<PyObject> = new_pre_eval.call1(py, (prog_sexp, args_sexp));
+                match r {
+                    Ok(py_post_eval) => {
+                        let f = post_eval_for_pyobject(py_post_eval);
+                        Ok(f)
+                    }
+                    Err(ref err) => program.err(&err.to_string()),
+                }
+            })
+        }))
     };
 
-    let mut py_pre_eval: Option<&dyn PreEval> = Some(&py_pre_eval_inner);
-
-    if pre_eval.is_none(py) {
-        py_pre_eval = None;
-    }
-
-    let native_op_lookup: NativeOpLookup = op_lookup;
-
-    let f = returns_closure(native_op_lookup);
+    let f = returns_closure(op_lookup);
 
     let r: Result<Reduction, EvalErr> = run_program(
         &program.node,
@@ -102,7 +80,7 @@ fn py_run_program(
         quote_kw,
         max_cost,
         &f,
-        py_pre_eval,
+        py_pre_eval_t,
     );
     match r {
         Ok(reduction) => Ok((reduction.0.into(), reduction.1)),

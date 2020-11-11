@@ -14,7 +14,7 @@ type RPCOperator = dyn FnOnce(&mut RunProgramContext) -> Result<u32, EvalErr>;
 pub struct RunProgramContext<'a> {
     quote_kw: u8,
     operator_lookup: &'a OperatorHandler,
-    pre_eval: Option<&'a dyn PreEval>,
+    pre_eval: Option<PreEval>,
     val_stack: Vec<Node>,
     op_stack: Vec<Box<RPCOperator>>,
 }
@@ -174,14 +174,14 @@ fn eval_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
         SExp::Pair(program, args) => {
             let post_eval = match rpc.pre_eval {
                 None => None,
-                Some(pre_eval) => pre_eval.note_eval_state(program, args)?,
+                Some(ref pre_eval) => pre_eval(program, args)?,
             };
             match post_eval {
                 None => (),
                 Some(post_eval) => {
                     let new_function = Box::new(move |rpc: &mut RunProgramContext| {
                         let peek: Option<&Node> = rpc.val_stack.last();
-                        post_eval.note_result(peek);
+                        post_eval(peek);
                         Ok(0)
                     });
                     rpc.op_stack.push(new_function);
@@ -211,7 +211,7 @@ pub fn run_program(
     quote_kw: u8,
     max_cost: u32,
     operator_lookup: &OperatorHandler,
-    pre_eval: Option<&dyn PreEval>,
+    pre_eval: Option<PreEval>,
 ) -> Result<Reduction, EvalErr> {
     let values: Vec<Node> = vec![Node::pair(program, args)];
     let op_stack: Vec<Box<RPCOperator>> = vec![Box::new(eval_op)];
