@@ -4,6 +4,7 @@ use super::number::Number;
 use super::types::{EvalErr, OperatorHandler, PreEval, Reduction};
 
 const QUOTE_COST: u32 = 1;
+const SHIFT_COST_PER_LIMB: u32 = 1;
 
 type RPCOperator = dyn FnOnce(&mut RunProgramContext) -> Result<u32, EvalErr>;
 
@@ -31,6 +32,20 @@ impl RunProgramContext<'_> {
     }
 }
 
+fn limbs_for_int(node_index: Number) -> u32 {
+    let mut v = 1;
+    let mut ni = node_index.clone();
+    let c: Number = 256.into();
+    loop {
+        if ni < c {
+            break;
+        };
+        v += 1;
+        ni >>= 8;
+    }
+    v
+}
+
 fn traverse_path(path_node: &Node, args: &Node) -> Result<Reduction, EvalErr> {
     /*
     Follow integer `NodePath` down a tree.
@@ -52,7 +67,7 @@ fn traverse_path(path_node: &Node, args: &Node) -> Result<Reduction, EvalErr> {
                 arg_list = if node_index & one == one { right } else { left };
             }
         };
-        cost += 1; // SHIFT_COST_PER_LIMB * limbs_for_int(node_index)
+        cost += SHIFT_COST_PER_LIMB * limbs_for_int(node_index);
         node_index >>= 1;
     }
     Ok(Reduction(arg_list.clone(), cost))
@@ -129,7 +144,7 @@ fn eval_pair(rpc: &mut RunProgramContext, program: &Node, args: &Node) -> Result
         SExp::Atom(_) => {
             let r: Reduction = traverse_path(&program, &args)?;
             rpc.push(r.0);
-            Ok(r.1)
+            Ok(1 + r.1)
         }
         // the program is an operator and a list of operands
         SExp::Pair(operator_node, operand_list) => match operator_node.sexp() {
@@ -209,11 +224,6 @@ pub fn run_program(
     let mut cost: u32 = 0;
 
     loop {
-        if cost > max_cost && max_cost > 0 {
-            let max_cost: Number = max_cost.into();
-            let n: Node = Node::from(max_cost);
-            return Err(EvalErr(n, "cost exceeded".into()));
-        }
         let top = rpc.op_stack.pop();
         match top {
             Some(f) => {
@@ -221,7 +231,12 @@ pub fn run_program(
             }
             None => break,
         }
-    }
+        if cost > max_cost && max_cost > 0 {
+            let max_cost: Number = max_cost.into();
+            let n: Node = Node::from(max_cost);
+            return Err(EvalErr(n, "cost exceeded".into()));
+        }
+   }
 
     Ok(Reduction(rpc.pop()?, cost))
 }
