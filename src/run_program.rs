@@ -176,15 +176,20 @@ fn eval_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
                 None => None,
                 Some(pre_eval) => pre_eval.note_eval_state(program, args)?,
             };
-            let r = eval_pair(rpc, program, args);
             match post_eval {
                 None => (),
                 Some(post_eval) => {
-                    let peek: Option<&Node> = rpc.val_stack.last();
-                    post_eval.note_result(peek)
+                    let new_function: Box<
+                        dyn FnOnce(&mut RunProgramContext) -> Result<u32, EvalErr>,
+                    > = Box::new(move |rpc: &mut RunProgramContext| {
+                        let peek: Option<&Node> = rpc.val_stack.last();
+                        post_eval.note_result(peek);
+                        Ok(0)
+                    });
+                    rpc.op_stack.push(new_function);
                 }
             };
-            r
+            eval_pair(rpc, program, args)
         }
     }
 }
@@ -236,7 +241,7 @@ pub fn run_program(
             let n: Node = Node::from(max_cost);
             return Err(EvalErr(n, "cost exceeded".into()));
         }
-   }
+    }
 
     Ok(Reduction(rpc.pop()?, cost))
 }
