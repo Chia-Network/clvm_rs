@@ -100,7 +100,7 @@ fn eval_op_as_atom(
     // special case check for quote
     if op_as_atom.len() == 1 && op_as_atom[0] == rpc.quote_kw {
         match operand_list.sexp() {
-            SExp::Atom(_) => operand_list.err("got atom, expected list"),
+            SExp::Atom(_) => operand_list.err("quote requires exactly 1 parameter"),
             SExp::Pair(quoted_val, nil) => {
                 if nil.nullp() {
                     rpc.push(quoted_val.clone());
@@ -144,7 +144,7 @@ fn eval_pair(rpc: &mut RunProgramContext, program: &Node, args: &Node) -> Result
         SExp::Atom(_) => {
             let r: Reduction = traverse_path(&program, &args)?;
             rpc.push(r.0);
-            Ok(1 + r.1)
+            Ok(r.1)
         }
         // the program is an operator and a list of operands
         SExp::Pair(operator_node, operand_list) => match operator_node.sexp() {
@@ -179,9 +179,7 @@ fn eval_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
             match post_eval {
                 None => (),
                 Some(post_eval) => {
-                    let new_function: Box<
-                        dyn FnOnce(&mut RunProgramContext) -> Result<u32, EvalErr>,
-                    > = Box::new(move |rpc: &mut RunProgramContext| {
+                    let new_function = Box::new(move |rpc: &mut RunProgramContext| {
                         let peek: Option<&Node> = rpc.val_stack.last();
                         post_eval.note_result(peek);
                         Ok(0)
