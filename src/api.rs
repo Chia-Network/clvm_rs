@@ -9,8 +9,6 @@ use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
-type OpHandler = dyn Fn(&[u8], &Node) -> Result<Reduction, EvalErr>;
-
 impl From<PyErr> for EvalErr {
     fn from(_err: PyErr) -> Self {
         EvalErr(Node::blob("PyErr"), "bad type from python call".to_string())
@@ -37,11 +35,6 @@ fn post_eval_for_pyobject(obj: PyObject) -> Option<Box<PostEval>> {
     py_post_eval
 }
 
-fn returns_closure(native_op_lookup: NativeOpLookup) -> Box<OpHandler> {
-    let f: OperatorHandler = Box::new(move |op, args| native_op_lookup.operator_handler(op, args));
-    f
-}
-
 #[pyfunction]
 fn py_run_program(
     py: Python,
@@ -55,12 +48,11 @@ fn py_run_program(
     let py_pre_eval_t: Option<PreEval> = if pre_eval.is_none(py) {
         None
     } else {
-        let new_pre_eval: PyObject = pre_eval.clone();
         Some(Box::new(move |program: &Node, args: &Node| {
             Python::with_gil(|py| {
                 let prog_sexp: PySExp = program.clone().into_py(py);
                 let args_sexp: PySExp = args.clone().into_py(py);
-                let r: PyResult<PyObject> = new_pre_eval.call1(py, (prog_sexp, args_sexp));
+                let r: PyResult<PyObject> = pre_eval.call1(py, (prog_sexp, args_sexp));
                 match r {
                     Ok(py_post_eval) => {
                         let f = post_eval_for_pyobject(py_post_eval);
@@ -72,7 +64,7 @@ fn py_run_program(
         }))
     };
 
-    let f = returns_closure(op_lookup);
+    let f: OperatorHandler = Box::new(move |op, args| op_lookup.operator_handler(op, args));
 
     let r: Result<Reduction, EvalErr> = run_program(
         &program.node,

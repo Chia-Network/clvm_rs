@@ -34,7 +34,7 @@ impl RunProgramContext<'_> {
 
 fn limbs_for_int(node_index: Number) -> u32 {
     let mut v = 1;
-    let mut ni = node_index.clone();
+    let mut ni = node_index;
     let c: Number = 256.into();
     loop {
         if ni < c {
