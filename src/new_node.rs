@@ -3,35 +3,38 @@ pub enum Cell<'a> {
     Pair(Node<'a>, Node<'a>),
 }
 
+
 pub trait NodeAllocator<'a> {
-    fn new_atom(&mut self, blob: &[u8]) -> Node<'a>;
-    fn new_pair(&mut self, left: Node<'a>, right: Node<'a>) -> Node<'a>;
+    fn new_atom(&'a mut self, blob: &[u8]) -> Node<'a>;
+    fn new_pair(&'a mut self, left: Node<'a>, right: Node<'a>) -> Node<'a>;
 }
 
+type NodeF<'a> = dyn Fn() -> &'a Cell<'a>;
 type Node<'a> = &'a dyn Fn() -> &'a Cell<'a>;
 
 struct SimpleNodeAllocator<'a> {
     atoms: Vec<Vec<u8>>,
-    nodes: Vec<Box<Node<'a>>>,
+    cells: Vec<Cell<'a>>,
+    nodes: Vec<Box<NodeF<'a>>>,
 }
 
 impl<'a> SimpleNodeAllocator<'a> {
-    fn new_node(&mut self, cell: Cell) -> Node<'a> {
-        self.nodes.push(Box::new(&|| &cell));
-        let n: Node<'a> = self.nodes.last().unwrap().into();
-        &n
+    fn new_node(&'a mut self, cell: Cell<'a>) -> Node<'a> {
+        let node: Box<NodeF<'a>> = Box::new(move || -> &'a Cell<'a> { &cell });
+        self.nodes.push(node);
+        let r: Node<'a> = &node;
+        r
     }
 }
 
 impl<'a> NodeAllocator<'a> for SimpleNodeAllocator<'a> {
-    fn new_atom(&mut self, blob: &[u8]) -> Node<'a> {
+    fn new_atom(&'a mut self, blob: &[u8]) -> Node<'a> {
         let v: Vec<u8> = blob.into();
         self.atoms.push(v);
         self.new_node(Cell::Atom(&v))
     }
-    fn new_pair(&mut self, left: Node<'a>, right: Node<'a>) -> Node<'a> {
-        let cell = Cell::Pair(left, right);
-        self.new_node(cell)
+    fn new_pair(&'a mut self, left: Node<'a>, right: Node<'a>) -> Node<'a> {
+        self.new_node(Cell::Pair(left, right))
     }
 }
 
@@ -42,7 +45,7 @@ const CONS_BOX_MARKER: u8 = 0xff;
 
 pub fn node_from_bytes<'a>(
     mut buffer: &'a [u8],
-    allocator: &mut dyn NodeAllocator<'a>,
+    allocator: &'a mut dyn NodeAllocator<'a>,
 ) -> std::io::Result<(Node<'a>, &'a [u8])> {
     let b: u8 = buffer[0];
 
