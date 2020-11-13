@@ -35,9 +35,9 @@ fn eval_err_for_pyerr(py: Python, pyerr: &PyErr) -> PyResult<EvalErr> {
     let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
     let arg0: &PyString = args.get_item(0).extract()?;
     let sexp_any: &PyAny = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
-    let sexp: PySExp = PySExp::new(&sexp_any)?;
+    let sexp: &PyCell<PySExp>  = sexp_any.extract()?;
 
-    let node: Node = sexp.node;
+    let node: Node = sexp.try_borrow()?.node.clone();
     let s: String = arg0.to_str()?.to_string();
     Ok(EvalErr(node, s))
 }

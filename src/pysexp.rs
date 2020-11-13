@@ -38,17 +38,11 @@ impl PySExp {
     #[new]
     pub fn new(obj: &PyAny) -> PyResult<Self> {
         let node: Node = {
-            let other = extract_node(obj);
-            match other {
-                Ok(n) => n,
-                _ => {
-                    let n = extract_atom(obj);
-                    if let Ok(r) = n {
-                        r
-                    } else {
-                        extract_tuple(obj)?
-                    }
-                }
+            let n = extract_atom(obj);
+            if let Ok(r) = n {
+                r
+            } else {
+                extract_tuple(obj)?
             }
         };
         Ok(node.into())
