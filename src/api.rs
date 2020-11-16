@@ -44,7 +44,7 @@ fn py_run_program(
     max_cost: u32,
     op_lookup: NativeOpLookup,
     pre_eval: PyObject,
-) -> PyResult<(PySExp, u32)> {
+) -> PyResult<(u32, PySExp)> {
     let py_pre_eval_t: Option<PreEval> = if pre_eval.is_none(py) {
         None
     } else {
@@ -75,7 +75,7 @@ fn py_run_program(
         py_pre_eval_t,
     );
     match r {
-        Ok(reduction) => Ok((reduction.0.into(), reduction.1)),
+        Ok(reduction) => Ok((reduction.1, reduction.0.into())),
         Err(eval_err) => {
             let node: Node = eval_err.0;
             let s: String = eval_err.1;

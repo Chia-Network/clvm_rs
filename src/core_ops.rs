@@ -1,6 +1,12 @@
 use super::node::Node;
 use super::types::{EvalErr, Reduction};
 
+const FIRST_COST: u32 = 10;
+const IF_COST: u32 = 10;
+const CONS_COST: u32 = 10;
+const REST_COST: u32 = 10;
+const LISTP_COST: u32 = 10;
+
 impl Node {
     pub fn first(&self) -> Result<Node, EvalErr> {
         match self.as_pair() {
@@ -23,27 +29,27 @@ pub fn op_if(args: &Node) -> Result<Reduction, EvalErr> {
     if cond.nullp() {
         chosen_node = chosen_node.rest()?;
     }
-    Ok(chosen_node.first()?.into())
+    Ok(Reduction(chosen_node.first()?, IF_COST))
 }
 
 pub fn op_cons(args: &Node) -> Result<Reduction, EvalErr> {
     let a1 = args.first()?;
     let a2 = args.rest()?.first()?;
-    Ok(Node::pair(&a1, &a2).into())
+    Ok(Reduction(Node::pair(&a1, &a2), CONS_COST))
 }
 
 pub fn op_first(args: &Node) -> Result<Reduction, EvalErr> {
-    Ok(args.first()?.first()?.into())
+    Ok(Reduction(args.first()?.first()?, FIRST_COST))
 }
 
 pub fn op_rest(args: &Node) -> Result<Reduction, EvalErr> {
-    Ok(args.first()?.rest()?.into())
+    Ok(Reduction(args.first()?.rest()?, REST_COST))
 }
 
 pub fn op_listp(args: &Node) -> Result<Reduction, EvalErr> {
     match args.first()?.as_pair() {
-        Some((_first, _rest)) => Ok(Node::from(1).into()),
-        _ => Ok(Node::null().into()),
+        Some((_first, _rest)) => Ok(Reduction(Node::from(1), LISTP_COST)),
+        _ => Ok(Reduction(Node::null(), LISTP_COST)),
     }
 }
 
@@ -56,10 +62,15 @@ pub fn op_eq(args: &Node) -> Result<Reduction, EvalErr> {
     let a1 = args.rest()?.first()?;
     if let Some(s0) = a0.as_atom() {
         if let Some(s1) = a1.as_atom() {
-            if s0 == s1 {
-                return Ok(Node::blob_u8(&[1]).into());
-            }
-            return Ok(Node::null().into());
+            let cost: u32 = s0.len() as u32 + s1.len() as u32;
+            return Ok(Reduction(
+                if s0 == s1 {
+                    Node::blob_u8(&[1])
+                } else {
+                    Node::null()
+                },
+                cost,
+            ));
         }
     }
     args.err("= on list")

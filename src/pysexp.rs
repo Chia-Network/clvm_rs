@@ -15,7 +15,7 @@ fn extract_atom(obj: &PyAny) -> PyResult<Node> {
 }
 
 fn extract_node(obj: &PyAny) -> PyResult<Node> {
-    let ps: &PyCell<PySExp>  = obj.extract()?;
+    let ps: &PyCell<PySExp> = obj.extract()?;
     let node: Node = ps.try_borrow()?.node.clone();
     Ok(node)
 }
