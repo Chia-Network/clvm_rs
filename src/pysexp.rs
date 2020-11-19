@@ -88,7 +88,9 @@ impl PySExp {
 
 impl From<Node> for PySExp {
     fn from(item: Node) -> PySExp {
-        PySExp { node: item }
+        Python::with_gil(|py| {
+            item.into_py(py)
+        })
     }
 }
 

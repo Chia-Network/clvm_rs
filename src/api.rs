@@ -81,7 +81,7 @@ fn py_run_program(
             let s: String = eval_err.1;
             let s1: &str = &s;
             let msg: &PyString = PyString::new(py, s1);
-            let sexp_any: PySExp = PySExp { node };
+            let sexp_any: PySExp = node.into_py(py);
             match raise_eval_error(py, &msg, &sexp_any) {
                 Err(x) => Err(x),
                 _ => panic!(),
