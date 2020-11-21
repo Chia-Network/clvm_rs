@@ -82,20 +82,12 @@ impl PySExp {
 
     pub fn cons(&self, other: &PySExp) -> PyResult<PySExp> {
         let node = Node::pair(&self.node, &other.node);
-        Ok(PySExp { node })
+        Ok(node.into())
     }
 }
 
 impl From<Node> for PySExp {
     fn from(item: Node) -> PySExp {
-        Python::with_gil(|py| {
-            item.into_py(py)
-        })
-    }
-}
-
-impl IntoPy<PySExp> for Node {
-    fn into_py(self, _py: Python<'_>) -> PySExp {
-        PySExp { node: self }
+        PySExp { node: item }
     }
 }

@@ -50,8 +50,8 @@ fn py_run_program(
     } else {
         Some(Box::new(move |program: &Node, args: &Node| {
             Python::with_gil(|py| {
-                let prog_sexp: PySExp = program.clone().into_py(py);
-                let args_sexp: PySExp = args.clone().into_py(py);
+                let prog_sexp: PySExp = program.clone().into();
+                let args_sexp: PySExp = args.clone().into();
                 let r: PyResult<PyObject> = pre_eval.call1(py, (prog_sexp, args_sexp));
                 match r {
                     Ok(py_post_eval) => {
@@ -81,7 +81,7 @@ fn py_run_program(
             let s: String = eval_err.1;
             let s1: &str = &s;
             let msg: &PyString = PyString::new(py, s1);
-            let sexp_any: PySExp = node.into_py(py);
+            let sexp_any: PySExp = node.into();
             match raise_eval_error(py, &msg, &sexp_any) {
                 Err(x) => Err(x),
                 _ => panic!(),
@@ -93,9 +93,7 @@ fn py_run_program(
 
 #[pyfunction]
 fn raise_eval_error(py: Python, msg: &PyString, sexp: &PySExp) -> PyResult<PyObject> {
-    let local_sexp = PySExp {
-        node: sexp.node.clone(),
-    };
+    let local_sexp: PySExp = sexp.node.clone().into();
     let sexp_any: PyObject = local_sexp.into_py(py);
     let msg_any: PyObject = msg.into_py(py);
 
