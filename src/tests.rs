@@ -77,7 +77,7 @@ fn test_dump() {
 
     let n = Node::blob("foo");
     dump(&n);
-    let n = Node::pair(&Node::blob("hello"), &Node::blob("foo"));
+    let n = Node::from_pair(&Node::blob("hello"), &Node::blob("foo"));
     dump(&n);
 
     for idx in 0..=255 {

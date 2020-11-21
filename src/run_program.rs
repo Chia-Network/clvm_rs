@@ -86,7 +86,7 @@ fn cons_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
     /* Join the top two operands. */
     let v1 = rpc.pop()?;
     let v2 = rpc.pop()?;
-    rpc.push(Node::pair(&v1, &v2));
+    rpc.push(Node::from_pair(&v1, &v2));
     Ok(0)
 }
 
@@ -126,7 +126,7 @@ fn eval_op_as_atom(
                     return Err(EvalErr(operand_list.clone(), "bad operand list".into()))
                 }
                 SExp::Pair(first, rest) => {
-                    let new_pair = Node::pair(first, args);
+                    let new_pair = Node::from_pair(first, args);
                     rpc.push(new_pair);
                     operands = rest.clone();
                 }
@@ -150,7 +150,7 @@ fn eval_pair(rpc: &mut RunProgramContext, program: &Node, args: &Node) -> Result
         SExp::Pair(operator_node, operand_list) => match operator_node.sexp() {
             SExp::Pair(_, _) => {
                 // the operator is also a list, so we need two evals here
-                rpc.push(Node::pair(&operator_node, &args));
+                rpc.push(Node::from_pair(&operator_node, &args));
                 rpc.op_stack.push(Box::new(eval_op));
                 rpc.op_stack.push(Box::new(eval_op));
                 Ok(1)
@@ -213,7 +213,7 @@ pub fn run_program(
     operator_lookup: &OperatorHandler,
     pre_eval: Option<PreEval>,
 ) -> Result<Reduction, EvalErr> {
-    let values: Vec<Node> = vec![Node::pair(program, args)];
+    let values: Vec<Node> = vec![Node::from_pair(program, args)];
     let op_stack: Vec<Box<RPCOperator>> = vec![Box::new(eval_op)];
 
     let mut rpc = RunProgramContext {

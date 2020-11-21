@@ -1,5 +1,5 @@
 use super::node::Node;
-use super::pysexp::PySExp;
+use super::node::PySExp;
 use super::types::{EvalErr, Reduction};
 
 use super::f_table::{make_f_lookup, FLookup};
@@ -37,7 +37,7 @@ fn eval_err_for_pyerr(py: Python, pyerr: &PyErr) -> PyResult<EvalErr> {
     let sexp_any: &PyAny = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
     let sexp: &PyCell<PySExp> = sexp_any.extract()?;
 
-    let node: Node = sexp.try_borrow()?.node.clone();
+    let node: Node = sexp.try_borrow()?.clone();
     let s: String = arg0.to_str()?.to_string();
     Ok(EvalErr(node, s))
 }
@@ -51,7 +51,7 @@ impl NativeOpLookup {
         }
 
         Python::with_gil(|py| {
-            let pysexp: PySExp = argument_list.clone().into();
+            let pysexp: PySExp = argument_list.clone();
             let r1 = self.py_callback.call1(py, (op, pysexp));
             match r1 {
                 Err(pyerr) => {
@@ -68,7 +68,7 @@ impl NativeOpLookup {
                     let pair: &PyTuple = o.extract(py).unwrap();
                     let i0: u32 = pair.get_item(0).extract()?;
                     let i1: PyRef<PySExp> = pair.get_item(1).extract()?;
-                    let n = i1.node.clone();
+                    let n = i1.clone();
                     let r: Reduction = Reduction(n, i0);
                     Ok(r)
                 }

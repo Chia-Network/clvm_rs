@@ -21,7 +21,6 @@ const LOGOP_COST_PER_BYTE: u32 = 2;
 const BOOL_OP_COST: u32 = 1;
 */
 
-
 pub fn limbs_for_int(args: &Node) -> u32 {
     match args.as_atom() {
         Some(b) => {
@@ -53,7 +52,6 @@ pub fn op_sha256(args: &Node) -> Result<Reduction, EvalErr> {
     }
     Ok(Reduction(Node::blob_u8(&hasher.result()), cost))
 }
-
 
 pub fn op_add(args: &Node) -> Result<Reduction, EvalErr> {
     let mut cost: u32 = MIN_COST;

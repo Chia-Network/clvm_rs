@@ -35,7 +35,7 @@ pub fn op_if(args: &Node) -> Result<Reduction, EvalErr> {
 pub fn op_cons(args: &Node) -> Result<Reduction, EvalErr> {
     let a1 = args.first()?;
     let a2 = args.rest()?.first()?;
-    Ok(Reduction(Node::pair(&a1, &a2), CONS_COST))
+    Ok(Reduction(Node::from_pair(&a1, &a2), CONS_COST))
 }
 
 pub fn op_first(args: &Node) -> Result<Reduction, EvalErr> {

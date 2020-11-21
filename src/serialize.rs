@@ -92,7 +92,7 @@ pub fn node_from_stream(f: &mut dyn Read) -> std::io::Result<Node> {
     if b[0] == CONS_BOX_MARKER {
         let v1 = node_from_stream(f)?;
         let v2 = node_from_stream(f)?;
-        return Ok(Node::pair(&v1, &v2));
+        return Ok(Node::from_pair(&v1, &v2));
     }
     if b[0] <= MAX_SINGLE_BYTE {
         return Ok(Node::blob_u8(&b));

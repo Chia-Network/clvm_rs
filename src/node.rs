@@ -1,5 +1,9 @@
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::sync::Arc;
+
+use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
+use pyo3::types::PyTuple;
 
 pub type Atom = Box<[u8]>;
 
@@ -9,8 +13,67 @@ pub enum SExp {
     Pair(Node, Node),
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Node(pub Arc<SExp>);
+#[pyclass(subclass, unsendable)]
+#[derive(Clone, PartialEq)]
+pub struct PySExp {
+    node: Arc<SExp>,
+}
+
+pub type Node = PySExp;
+
+fn extract_atom(obj: &PyAny) -> PyResult<Node> {
+    let r: &[u8] = obj.extract()?;
+    Ok(Node::blob_u8(r))
+}
+
+fn extract_node(obj: &PyAny) -> PyResult<Node> {
+    let ps: &PyCell<Node> = obj.extract()?;
+    let node: Node = ps.try_borrow()?.clone();
+    Ok(node)
+}
+
+fn extract_tuple(obj: &PyAny) -> PyResult<Node> {
+    let v: &PyTuple = obj.extract()?;
+    if v.len() != 2 {
+        return Err(PyValueError::new_err("SExp tuples must be size 2"));
+    }
+    let i0: &PyAny = v.get_item(0);
+    let i1: &PyAny = v.get_item(1);
+    let left: Node = extract_node(i0)?;
+    let right: Node = extract_node(i1)?;
+    let node: Node = Node::from_pair(&left, &right);
+    Ok(node)
+}
+
+#[pymethods]
+impl Node {
+    #[new]
+    pub fn new(obj: &PyAny) -> PyResult<Self> {
+        let node: Node = {
+            let n = extract_atom(obj);
+            if let Ok(r) = n {
+                r
+            } else {
+                extract_tuple(obj)?
+            }
+        };
+        Ok(node)
+    }
+
+    #[getter(pair)]
+    pub fn pair(&self) -> Option<(Node, Node)> {
+        self.as_pair()
+    }
+
+    #[getter(atom)]
+    pub fn atom(&self) -> Option<&[u8]> {
+        let sexp: &SExp = &self.node;
+        match sexp {
+            SExp::Atom(a) => Some(a),
+            _ => None,
+        }
+    }
+}
 
 impl Node {
     pub fn null() -> Self {
@@ -18,36 +81,38 @@ impl Node {
     }
 
     pub fn blob(v: &str) -> Self {
-        Node(Arc::new(SExp::Atom(Vec::from(v).into())))
+        Node {
+            node: Arc::new(SExp::Atom(Vec::from(v).into())),
+        }
     }
 
     pub fn blob_u8(v: &[u8]) -> Self {
-        Node(Arc::new(SExp::Atom(Vec::from(v).into())))
+        Node {
+            node: Arc::new(SExp::Atom(Vec::from(v).into())),
+        }
     }
 
-    pub fn pair(first: &Node, rest: &Node) -> Self {
-        Node(Arc::new(SExp::Pair(first.clone(), rest.clone())))
+    pub fn from_pair(first: &Node, rest: &Node) -> Self {
+        Node {
+            node: Arc::new(SExp::Pair(first.clone(), rest.clone())),
+        }
     }
 
     pub fn from_list(nodes: Vec<Node>) -> Self {
         let iter = nodes.iter().rev();
         let mut last = Node::null();
         for v in iter {
-            last = Node::pair(v, &last)
+            last = Node::from_pair(v, &last)
         }
         last
     }
 
-    pub fn as_atom(&self) -> Option<&Atom> {
-        let sexp: &SExp = &self.0;
-        match sexp {
-            SExp::Atom(a) => Some(a),
-            _ => None,
-        }
+    pub fn as_atom(&self) -> Option<&[u8]> {
+        self.atom()
     }
 
     pub fn as_blob(&self) -> Option<&[u8]> {
-        let sexp: &SExp = &self.0;
+        let sexp: &SExp = &self.node;
         match sexp {
             SExp::Atom(b) => Some(&b),
             _ => None,
@@ -55,7 +120,7 @@ impl Node {
     }
 
     pub fn as_pair(&self) -> Option<(Node, Node)> {
-        let sexp: &SExp = &self.0;
+        let sexp: &SExp = &self.node;
         match sexp {
             SExp::Pair(a, b) => Some((a.clone(), b.clone())),
             _ => None,
@@ -63,7 +128,7 @@ impl Node {
     }
 
     pub fn is_pair(&self) -> bool {
-        let sexp: &SExp = &self.0;
+        let sexp: &SExp = &self.node;
         matches!(sexp, SExp::Pair(_a, _b))
     }
 
@@ -75,7 +140,7 @@ impl Node {
     }
 
     pub fn sexp(&self) -> &SExp {
-        &self.0
+        &self.node
     }
 
     fn fmt_list(&self, f: &mut Formatter, is_first: bool) -> fmt::Result {
@@ -83,12 +148,12 @@ impl Node {
             if !is_first {
                 write!(f, " ")?;
             }
-            first.fmt(f)?;
+            Display::fmt(&first, f)?;
             rest.fmt_list(f, false)
         } else {
             if !self.nullp() {
                 write!(f, " . ")?;
-                self.fmt(f)?;
+                self.fmt_list(f, false)?;
             }
             Ok(())
         }
@@ -118,14 +183,37 @@ impl Display for Node {
     }
 }
 
+impl Debug for Node {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        if let Some(blob) = self.as_blob() {
+            let t: &[u8] = &*blob;
+            if t.is_empty() {
+                write!(f, "()")?;
+            } else {
+                write!(f, "0x")?;
+                for u in t {
+                    write!(f, "{:02x}", u)?;
+                }
+            }
+        }
+        if let Some((_first, _rest)) = self.as_pair() {
+            write!(f, "(")?;
+            self.fmt_list(f, true)?;
+            write!(f, ")")?;
+        }
+
+        Ok(())
+    }
+}
+
 impl Iterator for Node {
     type Item = Node;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match &*self.0 {
+        match &*self.node {
             SExp::Pair(first, rest) => {
                 let v = first.clone();
-                self.0 = rest.0.clone();
+                self.node = rest.node.clone();
                 Some(v)
             }
             _ => None,
@@ -136,7 +224,9 @@ impl Iterator for Node {
 impl From<u8> for Node {
     fn from(item: u8) -> Self {
         let v: Vec<u8> = vec![item];
-        Node(Arc::new(SExp::Atom(v.into())))
+        Node {
+            node: Arc::new(SExp::Atom(v.into())),
+        }
     }
 }
 
