@@ -15,11 +15,9 @@ pub enum SExp {
 
 #[pyclass(subclass, unsendable)]
 #[derive(Clone, PartialEq)]
-pub struct PySExp {
+pub struct Node {
     node: Arc<SExp>,
 }
-
-pub type Node = PySExp;
 
 fn extract_atom(obj: &PyAny) -> PyResult<Node> {
     let r: &[u8] = obj.extract()?;

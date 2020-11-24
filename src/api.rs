@@ -1,6 +1,5 @@
 use super::native_op_lookup::NativeOpLookup;
 use super::node::Node;
-use super::node::PySExp;
 use super::run_program::run_program;
 use super::serialize::{node_from_bytes, node_to_bytes};
 use super::types::{EvalErr, OperatorHandler, PostEval, PreEval, Reduction};
@@ -18,7 +17,7 @@ impl From<PyErr> for EvalErr {
 fn note_result(obj: &PyObject, result: Option<&Node>) {
     Python::with_gil(|py| {
         if let Some(node) = result {
-            let py_sexp: PySExp = node.clone();
+            let py_sexp: Node = node.clone();
             let _r: PyResult<PyObject> = obj.call1(py, (py_sexp,));
         }
     });
@@ -38,20 +37,20 @@ fn post_eval_for_pyobject(obj: PyObject) -> Option<Box<PostEval>> {
 #[pyfunction]
 fn py_run_program(
     py: Python,
-    program: &PySExp,
-    args: &PySExp,
+    program: &Node,
+    args: &Node,
     quote_kw: u8,
     max_cost: u32,
     op_lookup: NativeOpLookup,
     pre_eval: PyObject,
-) -> PyResult<(u32, PySExp)> {
+) -> PyResult<(u32, Node)> {
     let py_pre_eval_t: Option<PreEval> = if pre_eval.is_none(py) {
         None
     } else {
         Some(Box::new(move |program: &Node, args: &Node| {
             Python::with_gil(|py| {
-                let prog_sexp: PySExp = program.clone();
-                let args_sexp: PySExp = args.clone();
+                let prog_sexp: Node = program.clone();
+                let args_sexp: Node = args.clone();
                 let r: PyResult<PyObject> = pre_eval.call1(py, (prog_sexp, args_sexp));
                 match r {
                     Ok(py_post_eval) => {
@@ -81,7 +80,7 @@ fn py_run_program(
             let s: String = eval_err.1;
             let s1: &str = &s;
             let msg: &PyString = PyString::new(py, s1);
-            let sexp_any: PySExp = node;
+            let sexp_any: Node = node;
             match raise_eval_error(py, &msg, &sexp_any) {
                 Err(x) => Err(x),
                 _ => panic!(),
@@ -92,8 +91,8 @@ fn py_run_program(
 }
 
 #[pyfunction]
-fn raise_eval_error(py: Python, msg: &PyString, sexp: &PySExp) -> PyResult<PyObject> {
-    let local_sexp: PySExp = sexp.clone();
+fn raise_eval_error(py: Python, msg: &PyString, sexp: &Node) -> PyResult<PyObject> {
+    let local_sexp: Node = sexp.clone();
     let sexp_any: PyObject = local_sexp.into_py(py);
     let msg_any: PyObject = msg.into_py(py);
 
@@ -115,13 +114,13 @@ fn raise_eval_error(py: Python, msg: &PyString, sexp: &PySExp) -> PyResult<PyObj
 }
 
 #[pyfunction]
-fn serialize_from_bytes(blob: &[u8]) -> PyResult<PySExp> {
+fn serialize_from_bytes(blob: &[u8]) -> PyResult<Node> {
     let node = node_from_bytes(blob).unwrap();
     Ok(node)
 }
 
 #[pyfunction]
-fn serialize_to_bytes(py: Python, sexp: &PySExp) -> PyResult<PyObject> {
+fn serialize_to_bytes(py: Python, sexp: &Node) -> PyResult<PyObject> {
     let blob = node_to_bytes(&sexp).unwrap();
     let pybytes = PyBytes::new(py, &blob);
     let pyany: PyObject = pybytes.to_object(py);
@@ -135,7 +134,7 @@ fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(serialize_from_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_to_bytes, m)?)?;
 
-    m.add_class::<PySExp>()?;
+    m.add_class::<Node>()?;
     m.add_class::<NativeOpLookup>()?;
 
     m.add_function(wrap_pyfunction!(raise_eval_error, m)?)?;
