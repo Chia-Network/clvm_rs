@@ -50,7 +50,7 @@ pub fn op_sha256(args: &Node) -> Result<Reduction, EvalErr> {
             None => return args.err("atom expected"),
         }
     }
-    Ok(Reduction(Node::blob_u8(&hasher.result()), cost))
+    Ok(Reduction(cost, Node::blob_u8(&hasher.result())))
 }
 
 pub fn op_add(args: &Node) -> Result<Reduction, EvalErr> {
@@ -65,7 +65,7 @@ pub fn op_add(args: &Node) -> Result<Reduction, EvalErr> {
         }
     }
     let total: Node = total.into();
-    Ok(Reduction(total, cost))
+    Ok(Reduction(cost, total))
 }
 
 pub fn op_subtract(args: &Node) -> Result<Reduction, EvalErr> {
@@ -88,7 +88,7 @@ pub fn op_subtract(args: &Node) -> Result<Reduction, EvalErr> {
         }
     }
     let total: Node = total.into();
-    Ok(Reduction(total, cost))
+    Ok(Reduction(cost, total))
 }
 
 pub fn op_multiply(args: &Node) -> Result<Reduction, EvalErr> {
@@ -104,7 +104,7 @@ pub fn op_multiply(args: &Node) -> Result<Reduction, EvalErr> {
         }
     }
     let total: Node = total.into();
-    Ok(Reduction(total, cost))
+    Ok(Reduction(cost, total))
 }
 
 pub fn op_gr(args: &Node) -> Result<Reduction, EvalErr> {
@@ -116,12 +116,12 @@ pub fn op_gr(args: &Node) -> Result<Reduction, EvalErr> {
     if let Some(n0) = v0 {
         if let Some(n1) = v1 {
             return Ok(Reduction(
+                cost,
                 if n0 > n1 {
                     Node::blob_u8(&[1])
                 } else {
                     Node::null()
                 },
-                cost,
             ));
         }
     }

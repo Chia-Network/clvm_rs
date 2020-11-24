@@ -70,7 +70,7 @@ fn traverse_path(path_node: &Node, args: &Node) -> Result<Reduction, EvalErr> {
         cost += SHIFT_COST_PER_LIMB * limbs_for_int(node_index);
         node_index >>= 1;
     }
-    Ok(Reduction(arg_list.clone(), cost))
+    Ok(Reduction(cost, arg_list.clone()))
 }
 
 fn swap_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
@@ -143,8 +143,8 @@ fn eval_pair(rpc: &mut RunProgramContext, program: &Node, args: &Node) -> Result
         // the program is just a bitfield path through the args tree
         SExp::Atom(_) => {
             let r: Reduction = traverse_path(&program, &args)?;
-            rpc.push(r.0);
-            Ok(r.1)
+            rpc.push(r.1);
+            Ok(r.0)
         }
         // the program is an operator and a list of operands
         SExp::Pair(operator_node, operand_list) => match operator_node.sexp() {
@@ -199,8 +199,8 @@ fn apply_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
         SExp::Pair(_, _) => Err(EvalErr(operator, "internal error".into())),
         SExp::Atom(op_as_atom) => {
             let r = (rpc.operator_lookup)(&op_as_atom, &operand_list)?;
-            rpc.push(r.0);
-            Ok(r.1)
+            rpc.push(r.1);
+            Ok(r.0)
         }
     }
 }
@@ -241,5 +241,5 @@ pub fn run_program(
         }
     }
 
-    Ok(Reduction(rpc.pop()?, cost))
+    Ok(Reduction(cost, rpc.pop()?))
 }

@@ -68,7 +68,7 @@ impl NativeOpLookup {
                     let i0: u32 = pair.get_item(0).extract()?;
                     let i1: PyRef<Node> = pair.get_item(1).extract()?;
                     let n = i1.clone();
-                    let r: Reduction = Reduction(n, i0);
+                    let r: Reduction = Reduction(i0, n);
                     Ok(r)
                 }
             }

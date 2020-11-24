@@ -17,8 +17,7 @@ impl From<PyErr> for EvalErr {
 fn note_result(obj: &PyObject, result: Option<&Node>) {
     Python::with_gil(|py| {
         if let Some(node) = result {
-            let py_sexp: Node = node.clone();
-            let _r: PyResult<PyObject> = obj.call1(py, (py_sexp,));
+            let _r: PyResult<PyObject> = obj.call1(py, (node.clone(),));
         }
     });
 }
@@ -49,9 +48,9 @@ fn py_run_program(
     } else {
         Some(Box::new(move |program: &Node, args: &Node| {
             Python::with_gil(|py| {
-                let prog_sexp: Node = program.clone();
-                let args_sexp: Node = args.clone();
-                let r: PyResult<PyObject> = pre_eval.call1(py, (prog_sexp, args_sexp));
+                let program_clone: Node = program.clone();
+                let args: Node = args.clone();
+                let r: PyResult<PyObject> = pre_eval.call1(py, (program_clone, args));
                 match r {
                     Ok(py_post_eval) => {
                         let f = post_eval_for_pyobject(py_post_eval);
@@ -65,16 +64,10 @@ fn py_run_program(
 
     let f: OperatorHandler = Box::new(move |op, args| op_lookup.operator_handler(op, args));
 
-    let r: Result<Reduction, EvalErr> = run_program(
-        &program,
-        &args,
-        quote_kw,
-        max_cost,
-        &f,
-        py_pre_eval_t,
-    );
+    let r: Result<Reduction, EvalErr> =
+        run_program(&program, &args, quote_kw, max_cost, &f, py_pre_eval_t);
     match r {
-        Ok(reduction) => Ok((reduction.1, reduction.0)),
+        Ok(reduction) => Ok((reduction.0, reduction.1)),
         Err(eval_err) => {
             let node: Node = eval_err.0;
             let s: String = eval_err.1;
@@ -87,7 +80,6 @@ fn py_run_program(
             }
         }
     }
-    // TODO: recast to same type as `program`
 }
 
 #[pyfunction]

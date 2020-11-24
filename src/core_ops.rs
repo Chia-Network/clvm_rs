@@ -29,27 +29,27 @@ pub fn op_if(args: &Node) -> Result<Reduction, EvalErr> {
     if cond.nullp() {
         chosen_node = chosen_node.rest()?;
     }
-    Ok(Reduction(chosen_node.first()?, IF_COST))
+    Ok(Reduction(IF_COST, chosen_node.first()?))
 }
 
 pub fn op_cons(args: &Node) -> Result<Reduction, EvalErr> {
     let a1 = args.first()?;
     let a2 = args.rest()?.first()?;
-    Ok(Reduction(Node::from_pair(&a1, &a2), CONS_COST))
+    Ok(Reduction(CONS_COST, Node::from_pair(&a1, &a2)))
 }
 
 pub fn op_first(args: &Node) -> Result<Reduction, EvalErr> {
-    Ok(Reduction(args.first()?.first()?, FIRST_COST))
+    Ok(Reduction(FIRST_COST, args.first()?.first()?))
 }
 
 pub fn op_rest(args: &Node) -> Result<Reduction, EvalErr> {
-    Ok(Reduction(args.first()?.rest()?, REST_COST))
+    Ok(Reduction(REST_COST, args.first()?.rest()?))
 }
 
 pub fn op_listp(args: &Node) -> Result<Reduction, EvalErr> {
     match args.first()?.as_pair() {
-        Some((_first, _rest)) => Ok(Reduction(Node::from(1), LISTP_COST)),
-        _ => Ok(Reduction(Node::null(), LISTP_COST)),
+        Some((_first, _rest)) => Ok(Reduction(LISTP_COST, Node::from(1))),
+        _ => Ok(Reduction(LISTP_COST, Node::null())),
     }
 }
 
@@ -64,12 +64,12 @@ pub fn op_eq(args: &Node) -> Result<Reduction, EvalErr> {
         if let Some(s1) = a1.as_atom() {
             let cost: u32 = s0.len() as u32 + s1.len() as u32;
             return Ok(Reduction(
+                cost,
                 if s0 == s1 {
                     Node::blob_u8(&[1])
                 } else {
                     Node::null()
                 },
-                cost,
             ));
         }
     }

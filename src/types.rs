@@ -4,7 +4,7 @@ use super::node::Node;
 pub struct EvalErr(pub Node, pub String);
 
 #[derive(Debug)]
-pub struct Reduction(pub Node, pub u32);
+pub struct Reduction(pub u32, pub Node);
 
 pub type OpFn = fn(&Node) -> Result<Reduction, EvalErr>;
 
@@ -23,11 +23,5 @@ impl From<std::io::Error> for EvalErr {
 impl Node {
     pub fn err<T>(&self, msg: &str) -> Result<T, EvalErr> {
         Err(EvalErr(self.clone(), msg.into()))
-    }
-}
-
-impl From<Node> for Reduction {
-    fn from(node: Node) -> Self {
-        Reduction(node, 1)
     }
 }
