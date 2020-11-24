@@ -90,15 +90,15 @@ fn cons_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
     Ok(0)
 }
 
-fn eval_op_as_atom(
+fn eval_op_atom(
     rpc: &mut RunProgramContext,
-    op_as_atom: &[u8],
+    op_atom: &[u8],
     operator_node: &Node,
     operand_list: &Node,
     args: &Node,
 ) -> Result<u32, EvalErr> {
     // special case check for quote
-    if op_as_atom.len() == 1 && op_as_atom[0] == rpc.quote_kw {
+    if op_atom.len() == 1 && op_atom[0] == rpc.quote_kw {
         match operand_list.sexp() {
             SExp::Atom(_) => operand_list.err("quote requires exactly 1 parameter"),
             SExp::Pair(quoted_val, nil) => {
@@ -155,9 +155,7 @@ fn eval_pair(rpc: &mut RunProgramContext, program: &Node, args: &Node) -> Result
                 rpc.op_stack.push(Box::new(eval_op));
                 Ok(1)
             }
-            SExp::Atom(op_as_atom) => {
-                eval_op_as_atom(rpc, op_as_atom, operator_node, operand_list, args)
-            }
+            SExp::Atom(op_atom) => eval_op_atom(rpc, op_atom, operator_node, operand_list, args),
         },
     }
 }
@@ -197,8 +195,8 @@ fn apply_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
     let operator = rpc.pop()?;
     match operator.sexp() {
         SExp::Pair(_, _) => Err(EvalErr(operator, "internal error".into())),
-        SExp::Atom(op_as_atom) => {
-            let r = (rpc.operator_lookup)(&op_as_atom, &operand_list)?;
+        SExp::Atom(op_atom) => {
+            let r = (rpc.operator_lookup)(&op_atom, &operand_list)?;
             rpc.push(r.1);
             Ok(r.0)
         }

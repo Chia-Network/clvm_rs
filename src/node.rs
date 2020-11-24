@@ -60,7 +60,11 @@ impl Node {
 
     #[getter(pair)]
     pub fn pair(&self) -> Option<(Node, Node)> {
-        self.as_pair()
+        let sexp: &SExp = &self.node;
+        match sexp {
+            SExp::Pair(a, b) => Some((a.clone(), b.clone())),
+            _ => None,
+        }
     }
 
     #[getter(atom)]
@@ -96,42 +100,13 @@ impl Node {
         }
     }
 
-    pub fn from_list(nodes: Vec<Node>) -> Self {
-        let iter = nodes.iter().rev();
-        let mut last = Node::null();
-        for v in iter {
-            last = Node::from_pair(v, &last)
-        }
-        last
-    }
-
-    pub fn as_atom(&self) -> Option<&[u8]> {
-        self.atom()
-    }
-
-    pub fn as_blob(&self) -> Option<&[u8]> {
-        let sexp: &SExp = &self.node;
-        match sexp {
-            SExp::Atom(b) => Some(&b),
-            _ => None,
-        }
-    }
-
-    pub fn as_pair(&self) -> Option<(Node, Node)> {
-        let sexp: &SExp = &self.node;
-        match sexp {
-            SExp::Pair(a, b) => Some((a.clone(), b.clone())),
-            _ => None,
-        }
-    }
-
     pub fn is_pair(&self) -> bool {
         let sexp: &SExp = &self.node;
         matches!(sexp, SExp::Pair(_a, _b))
     }
 
     pub fn nullp(&self) -> bool {
-        match self.as_blob() {
+        match self.atom() {
             Some(blob) => blob.is_empty(),
             None => false,
         }
@@ -142,7 +117,7 @@ impl Node {
     }
 
     fn fmt_list(&self, f: &mut Formatter, is_first: bool) -> fmt::Result {
-        if let Some((first, rest)) = self.as_pair() {
+        if let Some((first, rest)) = self.pair() {
             if !is_first {
                 write!(f, " ")?;
             }
@@ -160,7 +135,7 @@ impl Node {
 
 impl Display for Node {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        if let Some(blob) = self.as_blob() {
+        if let Some(blob) = self.atom() {
             let t: &[u8] = &*blob;
             if t.is_empty() {
                 write!(f, "()")?;
@@ -171,7 +146,7 @@ impl Display for Node {
                 }
             }
         }
-        if let Some((_first, _rest)) = self.as_pair() {
+        if let Some((_first, _rest)) = self.pair() {
             write!(f, "(")?;
             self.fmt_list(f, true)?;
             write!(f, ")")?;
@@ -183,7 +158,7 @@ impl Display for Node {
 
 impl Debug for Node {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        if let Some(blob) = self.as_blob() {
+        if let Some(blob) = self.atom() {
             let t: &[u8] = &*blob;
             if t.is_empty() {
                 write!(f, "()")?;
@@ -194,7 +169,7 @@ impl Debug for Node {
                 }
             }
         }
-        if let Some((_first, _rest)) = self.as_pair() {
+        if let Some((_first, _rest)) = self.pair() {
             write!(f, "(")?;
             self.fmt_list(f, true)?;
             write!(f, ")")?;
@@ -222,15 +197,13 @@ impl Iterator for Node {
 impl From<u8> for Node {
     fn from(item: u8) -> Self {
         let v: Vec<u8> = vec![item];
-        Node {
-            node: Arc::new(SExp::Atom(v.into())),
-        }
+        Node::blob_u8(&v)
     }
 }
 
 impl From<Node> for Option<u8> {
     fn from(item: Node) -> Option<u8> {
-        let blob = item.as_blob()?;
+        let blob = item.atom()?;
         let len = blob.len();
         if len == 0 {
             Some(0)

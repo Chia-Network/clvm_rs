@@ -22,7 +22,7 @@ const BOOL_OP_COST: u32 = 1;
 */
 
 pub fn limbs_for_int(args: &Node) -> u32 {
-    match args.as_atom() {
+    match args.atom() {
         Some(b) => {
             let size = b.len() as u32;
             {
@@ -42,7 +42,7 @@ pub fn op_sha256(args: &Node) -> Result<Reduction, EvalErr> {
     let mut cost: u32 = SHA256_COST;
     let mut hasher = Sha256::new();
     for arg in args.clone() {
-        match arg.as_blob() {
+        match arg.atom() {
             Some(blob) => {
                 hasher.input(blob);
                 cost += blob.len() as u32;

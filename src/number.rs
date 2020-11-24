@@ -21,7 +21,7 @@ impl From<Number> for Node {
 
 impl From<&Node> for Option<Number> {
     fn from(item: &Node) -> Self {
-        let v = item.as_blob()?;
+        let v = item.atom()?;
         let len = v.len();
         if len == 0 {
             return Some(0.into());

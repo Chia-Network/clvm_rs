@@ -9,14 +9,14 @@ const LISTP_COST: u32 = 10;
 
 impl Node {
     pub fn first(&self) -> Result<Node, EvalErr> {
-        match self.as_pair() {
+        match self.pair() {
             Some((a, _b)) => Ok(a),
             _ => self.err("first of non-cons"),
         }
     }
 
     pub fn rest(&self) -> Result<Node, EvalErr> {
-        match self.as_pair() {
+        match self.pair() {
             Some((_a, b)) => Ok(b),
             _ => self.err("rest of non-cons"),
         }
@@ -47,7 +47,7 @@ pub fn op_rest(args: &Node) -> Result<Reduction, EvalErr> {
 }
 
 pub fn op_listp(args: &Node) -> Result<Reduction, EvalErr> {
-    match args.first()?.as_pair() {
+    match args.first()?.pair() {
         Some((_first, _rest)) => Ok(Reduction(LISTP_COST, Node::from(1))),
         _ => Ok(Reduction(LISTP_COST, Node::null())),
     }
@@ -60,8 +60,8 @@ pub fn op_raise(args: &Node) -> Result<Reduction, EvalErr> {
 pub fn op_eq(args: &Node) -> Result<Reduction, EvalErr> {
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
-    if let Some(s0) = a0.as_atom() {
-        if let Some(s1) = a1.as_atom() {
+    if let Some(s0) = a0.atom() {
+        if let Some(s1) = a1.atom() {
             let cost: u32 = s0.len() as u32 + s1.len() as u32;
             return Ok(Reduction(
                 cost,

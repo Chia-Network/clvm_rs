@@ -19,7 +19,7 @@ impl FApply for CustomApply {
         operator: &Node,
         args: &Node,
     ) -> Option<Result<Reduction, EvalErr>> {
-        if let Some(blob) = operator.as_blob() {
+        if let Some(blob) = operator.atom() {
             if let Ok(s) = String::from_utf8(blob.into()) {
                 if s.eq_ignore_ascii_case("com") {
                     return Some(Ok(Node::blob("bwa ha ha").into()));
@@ -35,7 +35,7 @@ pub fn fallback_apply(
     op: &Node,
     _args: &Node,
 ) -> Result<Reduction, EvalErr> {
-    if let Some(blob) = op.as_blob() {
+    if let Some(blob) = op.atom() {
         if let Ok(s) = String::from_utf8(blob.into()) {
             if s.eq_ignore_ascii_case("com") {
                 return Ok(Node::blob("bwa ha ha").into());

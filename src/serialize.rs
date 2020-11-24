@@ -38,7 +38,7 @@ fn encode_size(f: &mut dyn Write, size: usize) -> std::io::Result<()> {
 }
 
 pub fn node_to_stream(node: &Node, f: &mut dyn Write) -> std::io::Result<()> {
-    if let Some(atom) = node.as_blob() {
+    if let Some(atom) = node.atom() {
         let size = atom.len();
         if size == 0 {
             f.write_all(&[0x80 as u8])?;
@@ -52,7 +52,7 @@ pub fn node_to_stream(node: &Node, f: &mut dyn Write) -> std::io::Result<()> {
             }
         }
     }
-    if let Some((left, right)) = node.as_pair() {
+    if let Some((left, right)) = node.pair() {
         f.write_all(&[CONS_BOX_MARKER as u8])?;
         node_to_stream(&left, f)?;
         node_to_stream(&right, f)?;
