@@ -50,7 +50,11 @@ fn limbs_for_int(node_index: Number) -> u32 {
     v
 }
 
-fn traverse_path(path_node: &Node, args: &Node) -> Result<Reduction, EvalErr> {
+fn traverse_path(
+    allocator: &Allocator,
+    path_node: &Node,
+    args: &Node,
+) -> Result<Reduction, EvalErr> {
     /*
     Follow integer `NodePath` down a tree.
     */
@@ -63,7 +67,7 @@ fn traverse_path(path_node: &Node, args: &Node) -> Result<Reduction, EvalErr> {
         if node_index <= one {
             break;
         }
-        match arg_list.sexp() {
+        match arg_list.sexp(allocator) {
             SExp::Atom(_) => {
                 return Err(EvalErr(arg_list.clone(), "path into atom".into()));
             }
@@ -103,7 +107,7 @@ fn eval_op_atom(
 ) -> Result<u32, EvalErr> {
     // special case check for quote
     if op_atom.len() == 1 && op_atom[0] == rpc.quote_kw {
-        match operand_list.sexp() {
+        match operand_list.sexp(rpc.allocator) {
             SExp::Atom(_) => operand_list.err("quote requires exactly 1 parameter"),
             SExp::Pair(quoted_val, nil) => {
                 if nil.nullp() {
@@ -125,7 +129,7 @@ fn eval_op_atom(
             rpc.op_stack.push(Box::new(cons_op));
             rpc.op_stack.push(Box::new(eval_op));
             rpc.op_stack.push(Box::new(swap_op));
-            match operands.sexp() {
+            match operands.sexp(rpc.allocator) {
                 SExp::Atom(_) => {
                     return Err(EvalErr(operand_list.clone(), "bad operand list".into()))
                 }
@@ -143,15 +147,15 @@ fn eval_op_atom(
 
 fn eval_pair(rpc: &mut RunProgramContext, program: &Node, args: &Node) -> Result<u32, EvalErr> {
     // put a bunch of ops on op_stack
-    match program.sexp() {
+    match program.sexp(rpc.allocator) {
         // the program is just a bitfield path through the args tree
         SExp::Atom(_) => {
-            let r: Reduction = traverse_path(&program, &args)?;
+            let r: Reduction = traverse_path(rpc.allocator, &program, &args)?;
             rpc.push(r.1);
             Ok(r.0)
         }
         // the program is an operator and a list of operands
-        SExp::Pair(operator_node, operand_list) => match operator_node.sexp() {
+        SExp::Pair(operator_node, operand_list) => match operator_node.sexp(rpc.allocator) {
             SExp::Pair(_, _) => {
                 // the operator is also a list, so we need two evals here
                 rpc.push(rpc.allocator.from_pair(&operator_node, &args));
@@ -171,7 +175,7 @@ fn eval_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
     */
 
     let pair: Node = rpc.pop()?;
-    match pair.sexp() {
+    match pair.sexp(rpc.allocator) {
         SExp::Atom(_) => pair.err("pair expected"),
         SExp::Pair(program, args) => {
             let post_eval = match rpc.pre_eval {
@@ -197,7 +201,7 @@ fn eval_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
 fn apply_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
     let operand_list = rpc.pop()?;
     let operator = rpc.pop()?;
-    match operator.sexp() {
+    match operator.sexp(rpc.allocator) {
         SExp::Pair(_, _) => Err(EvalErr(operator, "internal error".into())),
         SExp::Atom(op_atom) => {
             let r = (rpc.operator_lookup)(rpc.allocator, &op_atom, &operand_list)?;

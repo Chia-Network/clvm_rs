@@ -135,7 +135,7 @@ impl Node {
         }
     }
 
-    pub fn sexp(&self) -> &SExp {
+    pub fn sexp(&self, allocator: &Allocator) -> &SExp {
         &self.node
     }
 
