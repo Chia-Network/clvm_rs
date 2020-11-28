@@ -1,4 +1,4 @@
-use super::node::Node;
+use super::node::{Allocator, Node};
 
 #[derive(Debug, Clone)]
 pub struct EvalErr(pub Node, pub String);
@@ -6,9 +6,9 @@ pub struct EvalErr(pub Node, pub String);
 #[derive(Debug)]
 pub struct Reduction(pub u32, pub Node);
 
-pub type OpFn = fn(&Node) -> Result<Reduction, EvalErr>;
+pub type OpFn = fn(&Allocator, &Node) -> Result<Reduction, EvalErr>;
 
-pub type OperatorHandler = Box<dyn Fn(&[u8], &Node) -> Result<Reduction, EvalErr>>;
+pub type OperatorHandler = Box<dyn Fn(&Allocator, &[u8], &Node) -> Result<Reduction, EvalErr>>;
 
 pub type PostEval = dyn Fn(Option<&Node>);
 

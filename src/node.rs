@@ -7,6 +7,7 @@ use pyo3::types::PyTuple;
 
 pub type Atom = Box<[u8]>;
 
+#[pyclass(subclass, unsendable)]
 pub struct Allocator {}
 
 #[derive(Debug, PartialEq)]

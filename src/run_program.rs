@@ -197,7 +197,7 @@ fn apply_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
     match operator.sexp() {
         SExp::Pair(_, _) => Err(EvalErr(operator, "internal error".into())),
         SExp::Atom(op_atom) => {
-            let r = (rpc.operator_lookup)(&op_atom, &operand_list)?;
+            let r = (rpc.operator_lookup)(rpc.allocator, &op_atom, &operand_list)?;
             rpc.push(r.1);
             Ok(r.0)
         }

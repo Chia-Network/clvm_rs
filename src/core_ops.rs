@@ -1,4 +1,4 @@
-use super::node::Node;
+use super::node::{Allocator, Node};
 use super::types::{EvalErr, Reduction};
 
 const FIRST_COST: u32 = 10;
@@ -23,7 +23,7 @@ impl Node {
     }
 }
 
-pub fn op_if(args: &Node) -> Result<Reduction, EvalErr> {
+pub fn op_if(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
     let cond = args.first()?;
     let mut chosen_node = args.rest()?;
     if cond.nullp() {
@@ -32,32 +32,32 @@ pub fn op_if(args: &Node) -> Result<Reduction, EvalErr> {
     Ok(Reduction(IF_COST, chosen_node.first()?))
 }
 
-pub fn op_cons(args: &Node) -> Result<Reduction, EvalErr> {
+pub fn op_cons(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
     let a1 = args.first()?;
     let a2 = args.rest()?.first()?;
     Ok(Reduction(CONS_COST, Node::from_pair(&a1, &a2)))
 }
 
-pub fn op_first(args: &Node) -> Result<Reduction, EvalErr> {
+pub fn op_first(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
     Ok(Reduction(FIRST_COST, args.first()?.first()?))
 }
 
-pub fn op_rest(args: &Node) -> Result<Reduction, EvalErr> {
+pub fn op_rest(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
     Ok(Reduction(REST_COST, args.first()?.rest()?))
 }
 
-pub fn op_listp(args: &Node) -> Result<Reduction, EvalErr> {
+pub fn op_listp(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
     match args.first()?.pair() {
         Some((_first, _rest)) => Ok(Reduction(LISTP_COST, Node::from(1))),
         _ => Ok(Reduction(LISTP_COST, Node::null())),
     }
 }
 
-pub fn op_raise(args: &Node) -> Result<Reduction, EvalErr> {
+pub fn op_raise(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
     args.err("clvm raise")
 }
 
-pub fn op_eq(args: &Node) -> Result<Reduction, EvalErr> {
+pub fn op_eq(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
     if let Some(s0) = a0.atom() {

@@ -36,6 +36,7 @@ fn post_eval_for_pyobject(obj: PyObject) -> Option<Box<PostEval>> {
 #[pyfunction]
 fn py_run_program(
     py: Python,
+    allocator: &Allocator,
     program: &Node,
     args: &Node,
     quote_kw: u8,
@@ -62,11 +63,19 @@ fn py_run_program(
         }))
     };
 
-    let f: OperatorHandler = Box::new(move |op, args| op_lookup.operator_handler(op, args));
+    let allocator: Allocator = Allocator {};
+    let f: OperatorHandler =
+        Box::new(move |allocator, op, args| op_lookup.operator_handler(allocator, op, args));
 
-    let allocator: Allocator = Allocator{};
-    let r: Result<Reduction, EvalErr> =
-        run_program(&allocator, &program, &args, quote_kw, max_cost, &f, py_pre_eval_t);
+    let r: Result<Reduction, EvalErr> = run_program(
+        &allocator,
+        &program,
+        &args,
+        quote_kw,
+        max_cost,
+        &f,
+        py_pre_eval_t,
+    );
     match r {
         Ok(reduction) => Ok((reduction.0, reduction.1)),
         Err(eval_err) => {

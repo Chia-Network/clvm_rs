@@ -1,4 +1,4 @@
-use super::node::Node;
+use super::node::{Allocator, Node};
 use super::types::{EvalErr, Reduction};
 
 use super::f_table::{make_f_lookup, FLookup};
@@ -41,10 +41,15 @@ fn eval_err_for_pyerr(py: Python, pyerr: &PyErr) -> PyResult<EvalErr> {
 }
 
 impl NativeOpLookup {
-    pub fn operator_handler(&self, op: &[u8], argument_list: &Node) -> Result<Reduction, EvalErr> {
+    pub fn operator_handler(
+        &self,
+        allocator: &Allocator,
+        op: &[u8],
+        argument_list: &Node,
+    ) -> Result<Reduction, EvalErr> {
         if op.len() == 1 {
             if let Some(f) = self.f_lookup[op[0] as usize] {
-                return f(argument_list);
+                return f(allocator, argument_list);
             }
         }
 
