@@ -14,10 +14,8 @@ pub type PostEval = dyn Fn(Option<&Node>);
 
 pub type PreEval = Box<dyn Fn(&Node, &Node) -> Result<Option<Box<PostEval>>, EvalErr>>;
 
-impl From<std::io::Error> for EvalErr {
-    fn from(err: std::io::Error) -> Self {
-        EvalErr(Node::blob("std::io::Error"), err.to_string())
-    }
+fn eval_err_for_allocator(allocator: &Allocator, err: std::io::Error) -> EvalErr {
+    EvalErr(allocator.blob("std::io::Error"), err.to_string())
 }
 
 impl Node {

@@ -35,7 +35,7 @@ pub fn op_if(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
 pub fn op_cons(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
     let a1 = args.first()?;
     let a2 = args.rest()?.first()?;
-    Ok(Reduction(CONS_COST, Node::from_pair(&a1, &a2)))
+    Ok(Reduction(CONS_COST, allocator.from_pair(&a1, &a2)))
 }
 
 pub fn op_first(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
@@ -49,7 +49,7 @@ pub fn op_rest(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr>
 pub fn op_listp(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
     match args.first()?.pair() {
         Some((_first, _rest)) => Ok(Reduction(LISTP_COST, Node::from(1))),
-        _ => Ok(Reduction(LISTP_COST, Node::null())),
+        _ => Ok(Reduction(LISTP_COST, allocator.null())),
     }
 }
 
@@ -66,9 +66,9 @@ pub fn op_eq(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
             return Ok(Reduction(
                 cost,
                 if s0 == s1 {
-                    Node::blob_u8(&[1])
+                    allocator.blob_u8(&[1])
                 } else {
-                    Node::null()
+                    allocator.null()
                 },
             ));
         }

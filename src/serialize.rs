@@ -2,7 +2,7 @@ use std::io::Cursor;
 use std::io::Read;
 use std::io::Write;
 
-use super::node::Node;
+use super::node::{Allocator, Node};
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const CONS_BOX_MARKER: u8 = 0xff;
@@ -86,26 +86,26 @@ fn decode_size(f: &mut dyn Read, initial_b: u8) -> std::io::Result<usize> {
     Ok(bytes_to_read)
 }
 
-pub fn node_from_stream(f: &mut dyn Read) -> std::io::Result<Node> {
+pub fn node_from_stream(allocator: &Allocator, f: &mut dyn Read) -> std::io::Result<Node> {
     let mut b = [0; 1];
     f.read_exact(&mut b)?;
     if b[0] == CONS_BOX_MARKER {
-        let v1 = node_from_stream(f)?;
-        let v2 = node_from_stream(f)?;
-        return Ok(Node::from_pair(&v1, &v2));
+        let v1 = node_from_stream(allocator, f)?;
+        let v2 = node_from_stream(allocator, f)?;
+        return Ok(allocator.from_pair(&v1, &v2));
     }
     if b[0] <= MAX_SINGLE_BYTE {
-        return Ok(Node::blob_u8(&b));
+        return Ok(allocator.blob_u8(&b));
     }
     let blob_size = decode_size(f, b[0])?;
     let mut blob: Vec<u8> = vec![0; blob_size];
     f.read_exact(&mut blob)?;
-    Ok(Node::blob_u8(&blob))
+    Ok(allocator.blob_u8(&blob))
 }
 
-pub fn node_from_bytes(b: &[u8]) -> std::io::Result<Node> {
+pub fn node_from_bytes(allocator: &Allocator, b: &[u8]) -> std::io::Result<Node> {
     let mut buffer = Cursor::new(b);
-    node_from_stream(&mut buffer)
+    node_from_stream(allocator, &mut buffer)
 }
 
 pub fn node_to_bytes(node: &Node) -> std::io::Result<Vec<u8>> {

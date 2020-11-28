@@ -10,6 +10,30 @@ pub type Atom = Box<[u8]>;
 #[pyclass(subclass, unsendable)]
 pub struct Allocator {}
 
+impl Allocator {
+    pub fn null(&self) -> Node {
+        self.blob("")
+    }
+
+    pub fn blob(&self, v: &str) -> Node {
+        Node {
+            node: Arc::new(SExp::Atom(Vec::from(v).into())),
+        }
+    }
+
+    pub fn blob_u8(&self, v: &[u8]) -> Node {
+        Node {
+            node: Arc::new(SExp::Atom(Vec::from(v).into())),
+        }
+    }
+
+    pub fn from_pair(&self, first: &Node, rest: &Node) -> Node {
+        Node {
+            node: Arc::new(SExp::Pair(first.clone(), rest.clone())),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum SExp {
     Atom(Atom),
@@ -81,10 +105,6 @@ impl Node {
 }
 
 impl Node {
-    pub fn null() -> Self {
-        Node::blob("")
-    }
-
     pub fn blob(v: &str) -> Self {
         Node {
             node: Arc::new(SExp::Atom(Vec::from(v).into())),

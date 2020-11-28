@@ -117,7 +117,8 @@ fn raise_eval_error(py: Python, msg: &PyString, sexp: &Node) -> PyResult<PyObjec
 
 #[pyfunction]
 fn serialize_from_bytes(blob: &[u8]) -> PyResult<Node> {
-    let node = node_from_bytes(blob).unwrap();
+    let allocator: Allocator = Allocator {};
+    let node = node_from_bytes(&allocator, blob).unwrap();
     Ok(node)
 }
 

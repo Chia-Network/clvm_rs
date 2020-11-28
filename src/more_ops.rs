@@ -51,7 +51,7 @@ pub fn op_sha256(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalEr
             None => return args.err("atom expected"),
         }
     }
-    Ok(Reduction(cost, Node::blob_u8(&hasher.result())))
+    Ok(Reduction(cost, allocator.blob_u8(&hasher.result())))
 }
 
 pub fn op_add(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
@@ -119,9 +119,9 @@ pub fn op_gr(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
             return Ok(Reduction(
                 cost,
                 if n0 > n1 {
-                    Node::blob_u8(&[1])
+                    allocator.blob_u8(&[1])
                 } else {
-                    Node::null()
+                    allocator.null()
                 },
             ));
         }
