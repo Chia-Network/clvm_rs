@@ -1,4 +1,4 @@
-use super::node::{Node, SExp};
+use super::node::{Allocator, Node, SExp};
 use super::number::Number;
 
 use super::types::{EvalErr, OperatorHandler, PreEval, Reduction};
@@ -12,6 +12,7 @@ type RPCOperator = dyn FnOnce(&mut RunProgramContext) -> Result<u32, EvalErr>;
 // operator stack (of RPCOperators)
 
 pub struct RunProgramContext<'a> {
+    allocator: &'a Allocator,
     quote_kw: u8,
     operator_lookup: &'a OperatorHandler,
     pre_eval: Option<PreEval>,
@@ -204,6 +205,7 @@ fn apply_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
 }
 
 pub fn run_program(
+    allocator: &Allocator,
     program: &Node,
     args: &Node,
     quote_kw: u8,
@@ -215,6 +217,7 @@ pub fn run_program(
     let op_stack: Vec<Box<RPCOperator>> = vec![Box::new(eval_op)];
 
     let mut rpc = RunProgramContext {
+        allocator,
         quote_kw,
         operator_lookup,
         pre_eval,

@@ -7,6 +7,8 @@ use pyo3::types::PyTuple;
 
 pub type Atom = Box<[u8]>;
 
+pub struct Allocator {}
+
 #[derive(Debug, PartialEq)]
 pub enum SExp {
     Atom(Atom),

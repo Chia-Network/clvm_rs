@@ -1,5 +1,5 @@
 use super::native_op_lookup::NativeOpLookup;
-use super::node::Node;
+use super::node::{Allocator, Node};
 use super::run_program::run_program;
 use super::serialize::{node_from_bytes, node_to_bytes};
 use super::types::{EvalErr, OperatorHandler, PostEval, PreEval, Reduction};
@@ -64,8 +64,9 @@ fn py_run_program(
 
     let f: OperatorHandler = Box::new(move |op, args| op_lookup.operator_handler(op, args));
 
+    let allocator: Allocator = Allocator{};
     let r: Result<Reduction, EvalErr> =
-        run_program(&program, &args, quote_kw, max_cost, &f, py_pre_eval_t);
+        run_program(&allocator, &program, &args, quote_kw, max_cost, &f, py_pre_eval_t);
     match r {
         Ok(reduction) => Ok((reduction.0, reduction.1)),
         Err(eval_err) => {
