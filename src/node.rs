@@ -20,7 +20,12 @@ pub trait AllocatorTrait<T> {
 
 pub enum SExpT<'a, NodeT> {
     Atom(&'a [u8]),
-    Pair(NodeT, NodeT),
+    Pair(&'a NodeT, &'a NodeT),
+}
+
+pub enum SExp0<'a> {
+    Atom(&'a [u8]),
+    Pair(&'a Node, &'a Node),
 }
 
 impl Allocator {
@@ -47,6 +52,13 @@ impl Allocator {
     pub fn from_pair(&self, first: &Node, rest: &Node) -> Node {
         Node {
             node: Arc::new(SExp::Pair(first.clone(), rest.clone())),
+        }
+    }
+
+    pub fn sexp<'a>(&self, node: &'a Node) -> SExp0<'a> {
+        match &*node.node {
+            SExp::Atom(a) => SExp0::Atom(&a),
+            SExp::Pair(left, right) => SExp0::Pair(&left, &right),
         }
     }
 }
@@ -133,10 +145,6 @@ impl Node {
             Some(blob) => blob.is_empty(),
             None => false,
         }
-    }
-
-    pub fn sexp(&self, allocator: &Allocator) -> &SExp {
-        &self.node
     }
 
     fn fmt_list(&self, f: &mut Formatter, is_first: bool) -> fmt::Result {
