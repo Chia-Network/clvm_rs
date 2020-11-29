@@ -5,8 +5,6 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 
-pub type Atom = Box<[u8]>;
-
 #[pyclass(subclass, unsendable)]
 pub struct Allocator {}
 
@@ -15,17 +13,12 @@ static ONE: [u8; 1] = [1];
 pub trait AllocatorTrait<T> {
     fn blob_u8(&self, v: &[u8]) -> T;
     fn from_pair(&self, first: &T, rest: &T) -> T;
-    fn sexp(&self, node: &T) -> &SExpT<T>;
+    fn sexp(&self, node: &T) -> &SExp<T>;
 }
 
-pub enum SExpT<'a, NodeT> {
+pub enum SExp<'a, NodeT> {
     Atom(&'a [u8]),
     Pair(&'a NodeT, &'a NodeT),
-}
-
-pub enum SExp0<'a> {
-    Atom(&'a [u8]),
-    Pair(&'a Node, &'a Node),
 }
 
 impl Allocator {
@@ -39,40 +32,40 @@ impl Allocator {
 
     pub fn blob(&self, v: &str) -> Node {
         Node {
-            node: Arc::new(SExp::Atom(Vec::from(v).into())),
+            node: Arc::new(SExpN::Atom(Vec::from(v).into())),
         }
     }
 
     pub fn blob_u8(&self, v: &[u8]) -> Node {
         Node {
-            node: Arc::new(SExp::Atom(Vec::from(v).into())),
+            node: Arc::new(SExpN::Atom(Vec::from(v).into())),
         }
     }
 
     pub fn from_pair(&self, first: &Node, rest: &Node) -> Node {
         Node {
-            node: Arc::new(SExp::Pair(first.clone(), rest.clone())),
+            node: Arc::new(SExpN::Pair(first.clone(), rest.clone())),
         }
     }
 
-    pub fn sexp<'a>(&self, node: &'a Node) -> SExp0<'a> {
+    pub fn sexp<'a>(&self, node: &'a Node) -> SExp<'a, Node> {
         match &*node.node {
-            SExp::Atom(a) => SExp0::Atom(&a),
-            SExp::Pair(left, right) => SExp0::Pair(&left, &right),
+            SExpN::Atom(a) => SExp::Atom(&a),
+            SExpN::Pair(left, right) => SExp::Pair(&left, &right),
         }
     }
 }
 
 #[derive(Debug, PartialEq)]
-pub enum SExp {
-    Atom(Atom),
+enum SExpN {
+    Atom(Arc<Vec<u8>>),
     Pair(Node, Node),
 }
 
 #[pyclass(subclass, unsendable)]
 #[derive(Clone, PartialEq)]
 pub struct Node {
-    node: Arc<SExp>,
+    node: Arc<SExpN>,
 }
 
 fn extract_atom(allocator: &Allocator, obj: &PyAny) -> PyResult<Node> {
@@ -117,18 +110,18 @@ impl Node {
 
     #[getter(pair)]
     pub fn pair(&self) -> Option<(Node, Node)> {
-        let sexp: &SExp = &self.node;
+        let sexp: &SExpN = &self.node;
         match sexp {
-            SExp::Pair(a, b) => Some((a.clone(), b.clone())),
+            SExpN::Pair(a, b) => Some((a.clone(), b.clone())),
             _ => None,
         }
     }
 
     #[getter(atom)]
     pub fn atom(&self) -> Option<&[u8]> {
-        let sexp: &SExp = &self.node;
+        let sexp: &SExpN = &self.node;
         match sexp {
-            SExp::Atom(a) => Some(a),
+            SExpN::Atom(a) => Some(a),
             _ => None,
         }
     }
@@ -136,8 +129,8 @@ impl Node {
 
 impl Node {
     pub fn is_pair(&self) -> bool {
-        let sexp: &SExp = &self.node;
-        matches!(sexp, SExp::Pair(_a, _b))
+        let sexp: &SExpN = &self.node;
+        matches!(sexp, SExpN::Pair(_a, _b))
     }
 
     pub fn nullp(&self) -> bool {
@@ -215,7 +208,7 @@ impl Iterator for Node {
 
     fn next(&mut self) -> Option<Self::Item> {
         match &*self.node {
-            SExp::Pair(first, rest) => {
+            SExpN::Pair(first, rest) => {
                 let v = first.clone();
                 self.node = rest.node.clone();
                 Some(v)
