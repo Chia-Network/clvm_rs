@@ -1,5 +1,5 @@
 use super::node::{Allocator, Node, SExp};
-use super::number::Number;
+use super::number::{node_from_number, Number};
 
 use super::types::{EvalErr, OperatorHandler, PreEval, Reduction};
 
@@ -244,7 +244,7 @@ pub fn run_program(
         }
         if cost > max_cost && max_cost > 0 {
             let max_cost: Number = max_cost.into();
-            let n: Node = Node::from(max_cost);
+            let n: Node = node_from_number(allocator, max_cost);
             return Err(EvalErr(n, "cost exceeded".into()));
         }
     }

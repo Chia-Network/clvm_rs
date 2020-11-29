@@ -10,9 +10,15 @@ pub type Atom = Box<[u8]>;
 #[pyclass(subclass, unsendable)]
 pub struct Allocator {}
 
+static ONE: [u8; 1] = [1];
+
 impl Allocator {
     pub fn null(&self) -> Node {
         self.blob("")
+    }
+
+    pub fn one(&self) -> Node {
+        self.blob_u8(&ONE)
     }
 
     pub fn blob(&self, v: &str) -> Node {
@@ -46,27 +52,27 @@ pub struct Node {
     node: Arc<SExp>,
 }
 
-fn extract_atom(obj: &PyAny) -> PyResult<Node> {
+fn extract_atom(allocator: &Allocator, obj: &PyAny) -> PyResult<Node> {
     let r: &[u8] = obj.extract()?;
-    Ok(Node::blob_u8(r))
+    Ok(allocator.blob_u8(r))
 }
 
-fn extract_node(obj: &PyAny) -> PyResult<Node> {
+fn extract_node(allocator: &Allocator, obj: &PyAny) -> PyResult<Node> {
     let ps: &PyCell<Node> = obj.extract()?;
     let node: Node = ps.try_borrow()?.clone();
     Ok(node)
 }
 
-fn extract_tuple(obj: &PyAny) -> PyResult<Node> {
+fn extract_tuple(allocator: &Allocator, obj: &PyAny) -> PyResult<Node> {
     let v: &PyTuple = obj.extract()?;
     if v.len() != 2 {
         return Err(PyValueError::new_err("SExp tuples must be size 2"));
     }
     let i0: &PyAny = v.get_item(0);
     let i1: &PyAny = v.get_item(1);
-    let left: Node = extract_node(i0)?;
-    let right: Node = extract_node(i1)?;
-    let node: Node = Node::from_pair(&left, &right);
+    let left: Node = extract_node(&allocator, i0)?;
+    let right: Node = extract_node(&allocator, i1)?;
+    let node: Node = allocator.from_pair(&left, &right);
     Ok(node)
 }
 
@@ -74,12 +80,13 @@ fn extract_tuple(obj: &PyAny) -> PyResult<Node> {
 impl Node {
     #[new]
     pub fn new(obj: &PyAny) -> PyResult<Self> {
+        let allocator = Allocator {};
         let node: Node = {
-            let n = extract_atom(obj);
+            let n = extract_atom(&allocator, obj);
             if let Ok(r) = n {
                 r
             } else {
-                extract_tuple(obj)?
+                extract_tuple(&allocator, obj)?
             }
         };
         Ok(node)
@@ -105,24 +112,6 @@ impl Node {
 }
 
 impl Node {
-    pub fn blob(v: &str) -> Self {
-        Node {
-            node: Arc::new(SExp::Atom(Vec::from(v).into())),
-        }
-    }
-
-    pub fn blob_u8(v: &[u8]) -> Self {
-        Node {
-            node: Arc::new(SExp::Atom(Vec::from(v).into())),
-        }
-    }
-
-    pub fn from_pair(first: &Node, rest: &Node) -> Self {
-        Node {
-            node: Arc::new(SExp::Pair(first.clone(), rest.clone())),
-        }
-    }
-
     pub fn is_pair(&self) -> bool {
         let sexp: &SExp = &self.node;
         matches!(sexp, SExp::Pair(_a, _b))
@@ -214,13 +203,6 @@ impl Iterator for Node {
             }
             _ => None,
         }
-    }
-}
-
-impl From<u8> for Node {
-    fn from(item: u8) -> Self {
-        let v: Vec<u8> = vec![item];
-        Node::blob_u8(&v)
     }
 }
 

@@ -1,6 +1,6 @@
 use super::node::Allocator;
 use super::node::Node;
-use super::number::Number;
+use super::number::{node_from_number, Number};
 use super::types::{EvalErr, Reduction};
 use sha2::{Digest, Sha256};
 use std::cmp::max;
@@ -65,7 +65,7 @@ pub fn op_add(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> 
             None => return args.err("+ takes integer arguments"),
         }
     }
-    let total: Node = total.into();
+    let total: Node = node_from_number(allocator, total);
     Ok(Reduction(cost, total))
 }
 
@@ -88,7 +88,7 @@ pub fn op_subtract(allocator: &Allocator, args: &Node) -> Result<Reduction, Eval
             None => return args.err("- takes integer arguments"),
         }
     }
-    let total: Node = total.into();
+    let total: Node = node_from_number(allocator, total);
     Ok(Reduction(cost, total))
 }
 
@@ -96,7 +96,7 @@ pub fn op_multiply(allocator: &Allocator, args: &Node) -> Result<Reduction, Eval
     let mut cost: u32 = MIN_COST;
     let mut total: Number = 1.into();
     for arg in args.clone() {
-        let total_node: Node = total.clone().into();
+        let total_node: Node = node_from_number(allocator, total);
         cost += MUL_COST_PER_LIMB * limbs_for_int(&arg) * limbs_for_int(&total_node);
         let v: Option<Number> = Option::from(&arg);
         match v {
@@ -104,7 +104,7 @@ pub fn op_multiply(allocator: &Allocator, args: &Node) -> Result<Reduction, Eval
             None => return args.err("* takes integer arguments"),
         }
     }
-    let total: Node = total.into();
+    let total: Node = node_from_number(allocator, total);
     Ok(Reduction(cost, total))
 }
 

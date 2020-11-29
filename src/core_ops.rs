@@ -48,7 +48,7 @@ pub fn op_rest(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr>
 
 pub fn op_listp(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
     match args.first()?.pair() {
-        Some((_first, _rest)) => Ok(Reduction(LISTP_COST, Node::from(1))),
+        Some((_first, _rest)) => Ok(Reduction(LISTP_COST, allocator.one())),
         _ => Ok(Reduction(LISTP_COST, allocator.null())),
     }
 }

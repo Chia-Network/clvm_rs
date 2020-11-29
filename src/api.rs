@@ -8,9 +8,11 @@ use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
+
 impl From<PyErr> for EvalErr {
     fn from(_err: PyErr) -> Self {
-        EvalErr(Node::blob("PyErr"), "bad type from python call".to_string())
+        let pyerr_node: Node = Allocator {}.blob("PyErr");
+        EvalErr(pyerr_node, "bad type from python call".to_string())
     }
 }
 

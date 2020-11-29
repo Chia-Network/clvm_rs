@@ -1,22 +1,20 @@
-use super::node::Node;
+use super::node::{Allocator, Node};
 
 use uint::U256;
 pub type Number = U256;
 
-impl From<Number> for Node {
-    fn from(item: Number) -> Self {
-        // BRAIN DAMAGE: make it minimal by removing leading zeros
-        let mut bytes: Vec<u8> = vec![0; 32];
-        item.to_big_endian(&mut bytes);
-        let mut slice = bytes.as_slice();
-        while (!slice.is_empty()) && (slice[0] == 0) {
-            if slice.len() > 1 && (slice[1] & 0x80 == 0x80) {
-                break;
-            }
-            slice = &slice[1..];
+pub fn node_from_number(allocator: &Allocator, item: Number) -> Node {
+    // BRAIN DAMAGE: make it minimal by removing leading zeros
+    let mut bytes: Vec<u8> = vec![0; 32];
+    item.to_big_endian(&mut bytes);
+    let mut slice = bytes.as_slice();
+    while (!slice.is_empty()) && (slice[0] == 0) {
+        if slice.len() > 1 && (slice[1] & 0x80 == 0x80) {
+            break;
         }
-        Node::blob_u8(&slice)
+        slice = &slice[1..];
     }
+    allocator.blob_u8(&slice)
 }
 
 impl From<&Node> for Option<Number> {
