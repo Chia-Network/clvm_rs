@@ -12,6 +12,17 @@ pub struct Allocator {}
 
 static ONE: [u8; 1] = [1];
 
+pub trait AllocatorTrait<T> {
+    fn blob_u8(&self, v: &[u8]) -> T;
+    fn from_pair(&self, first: &T, rest: &T) -> T;
+    fn sexp(&self, node: &T) -> &SExpT<T>;
+}
+
+pub enum SExpT<'a, NodeT> {
+    Atom(&'a [u8]),
+    Pair(NodeT, NodeT),
+}
+
 impl Allocator {
     pub fn null(&self) -> Node {
         self.blob("")

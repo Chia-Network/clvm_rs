@@ -8,7 +8,6 @@ use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
-
 impl From<PyErr> for EvalErr {
     fn from(_err: PyErr) -> Self {
         let pyerr_node: Node = Allocator {}.blob("PyErr");
