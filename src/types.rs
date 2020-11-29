@@ -1,25 +1,28 @@
 use super::node::{Allocator, Node};
 
 #[derive(Debug, Clone)]
-pub struct EvalErr(pub Node, pub String);
+pub struct EvalErr<T>(pub T, pub String);
 
 #[derive(Debug)]
-pub struct Reduction(pub u32, pub Node);
+pub struct Reduction<T>(pub u32, pub T);
 
-pub type OpFn = fn(&Allocator, &Node) -> Result<Reduction, EvalErr>;
+pub type OpFn<T> = fn(&Allocator, &T) -> Result<Reduction<T>, EvalErr<T>>;
 
-pub type OperatorHandler = Box<dyn Fn(&Allocator, &[u8], &Node) -> Result<Reduction, EvalErr>>;
+pub type OperatorHandler<T> =
+    Box<dyn Fn(&Allocator, &[u8], &T) -> Result<Reduction<T>, EvalErr<T>>>;
 
-pub type PostEval = dyn Fn(Option<&Node>);
+pub type PostEval<T> = dyn Fn(Option<&T>);
 
-pub type PreEval = Box<dyn Fn(&Node, &Node) -> Result<Option<Box<PostEval>>, EvalErr>>;
+pub type PreEval<T> = Box<dyn Fn(&T, &T) -> Result<Option<Box<PostEval<T>>>, EvalErr<T>>>;
 
-fn eval_err_for_allocator(allocator: &Allocator, err: std::io::Error) -> EvalErr {
-    EvalErr(allocator.blob("std::io::Error"), err.to_string())
+impl Allocator {
+    pub fn err<T>(&self, node: &Node, msg: &str) -> Result<T, EvalErr<Node>> {
+        Err(EvalErr(node.clone(), msg.into()))
+    }
 }
 
 impl Node {
-    pub fn err<T>(&self, msg: &str) -> Result<T, EvalErr> {
+    pub fn err<T>(&self, msg: &str) -> Result<T, EvalErr<Node>> {
         Err(EvalErr(self.clone(), msg.into()))
     }
 }

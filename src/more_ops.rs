@@ -39,7 +39,7 @@ pub fn limbs_for_int(args: &Node) -> u32 {
     }
 }
 
-pub fn op_sha256(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
+pub fn op_sha256(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
     let mut cost: u32 = SHA256_COST;
     let mut hasher = Sha256::new();
     for arg in args.clone() {
@@ -48,13 +48,13 @@ pub fn op_sha256(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalEr
                 hasher.input(blob);
                 cost += blob.len() as u32;
             }
-            None => return args.err("atom expected"),
+            None => return allocator.err(args, "atom expected"),
         }
     }
     Ok(Reduction(cost, allocator.blob_u8(&hasher.result())))
 }
 
-pub fn op_add(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
+pub fn op_add(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
     let mut cost: u32 = MIN_COST;
     let mut total: Number = 0.into();
     for arg in args.clone() {
@@ -62,14 +62,14 @@ pub fn op_add(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> 
         let v: Option<Number> = Option::from(&arg);
         match v {
             Some(value) => total += value,
-            None => return args.err("+ takes integer arguments"),
+            None => return allocator.err(args, "+ takes integer arguments"),
         }
     }
     let total: Node = node_from_number(allocator, total);
     Ok(Reduction(cost, total))
 }
 
-pub fn op_subtract(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
+pub fn op_subtract(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
     let mut cost: u32 = MIN_COST;
     let mut total: Number = 0.into();
     let mut is_first = true;
@@ -85,14 +85,14 @@ pub fn op_subtract(allocator: &Allocator, args: &Node) -> Result<Reduction, Eval
                 };
                 is_first = false;
             }
-            None => return args.err("- takes integer arguments"),
+            None => return allocator.err(args, "- takes integer arguments"),
         }
     }
     let total: Node = node_from_number(allocator, total);
     Ok(Reduction(cost, total))
 }
 
-pub fn op_multiply(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
+pub fn op_multiply(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
     let mut cost: u32 = MIN_COST;
     let mut total: Number = 1.into();
     for arg in args.clone() {
@@ -101,14 +101,14 @@ pub fn op_multiply(allocator: &Allocator, args: &Node) -> Result<Reduction, Eval
         let v: Option<Number> = Option::from(&arg);
         match v {
             Some(value) => total *= value,
-            None => return args.err("* takes integer arguments"),
+            None => return allocator.err(args, "* takes integer arguments"),
         }
     }
     let total: Node = node_from_number(allocator, total);
     Ok(Reduction(cost, total))
 }
 
-pub fn op_gr(allocator: &Allocator, args: &Node) -> Result<Reduction, EvalErr> {
+pub fn op_gr(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
     let a0 = args.first()?;
     let v0: Option<Number> = Option::from(&a0);
     let a1 = args.rest()?.first()?;

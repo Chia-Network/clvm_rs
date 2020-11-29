@@ -8,7 +8,7 @@ use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
-impl From<PyErr> for EvalErr {
+impl From<PyErr> for EvalErr<Node> {
     fn from(_err: PyErr) -> Self {
         let pyerr_node: Node = Allocator {}.blob("PyErr");
         EvalErr(pyerr_node, "bad type from python call".to_string())
@@ -23,8 +23,8 @@ fn note_result(obj: &PyObject, result: Option<&Node>) {
     });
 }
 
-fn post_eval_for_pyobject(obj: PyObject) -> Option<Box<PostEval>> {
-    let py_post_eval: Option<Box<PostEval>> = if Python::with_gil(|py| obj.is_none(py)) {
+fn post_eval_for_pyobject(obj: PyObject) -> Option<Box<PostEval<Node>>> {
+    let py_post_eval: Option<Box<PostEval<Node>>> = if Python::with_gil(|py| obj.is_none(py)) {
         None
     } else {
         Some(Box::new(move |result: Option<&Node>| {
@@ -37,7 +37,6 @@ fn post_eval_for_pyobject(obj: PyObject) -> Option<Box<PostEval>> {
 #[pyfunction]
 fn py_run_program(
     py: Python,
-    allocator: &Allocator,
     program: &Node,
     args: &Node,
     quote_kw: u8,
@@ -45,7 +44,8 @@ fn py_run_program(
     op_lookup: NativeOpLookup,
     pre_eval: PyObject,
 ) -> PyResult<(u32, Node)> {
-    let py_pre_eval_t: Option<PreEval> = if pre_eval.is_none(py) {
+    let allocator = Allocator {};
+    let py_pre_eval_t: Option<PreEval<Node>> = if pre_eval.is_none(py) {
         None
     } else {
         Some(Box::new(move |program: &Node, args: &Node| {
@@ -58,17 +58,17 @@ fn py_run_program(
                         let f = post_eval_for_pyobject(py_post_eval);
                         Ok(f)
                     }
-                    Err(ref err) => program.err(&err.to_string()),
+                    Err(ref err) => allocator.err(program, &err.to_string()),
                 }
             })
         }))
     };
 
     let allocator: Allocator = Allocator {};
-    let f: OperatorHandler =
+    let f: OperatorHandler<Node> =
         Box::new(move |allocator, op, args| op_lookup.operator_handler(allocator, op, args));
 
-    let r: Result<Reduction, EvalErr> = run_program(
+    let r: Result<Reduction<Node>, EvalErr<Node>> = run_program(
         &allocator,
         &program,
         &args,

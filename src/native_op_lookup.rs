@@ -30,7 +30,7 @@ impl NativeOpLookup {
     }
 }
 
-fn eval_err_for_pyerr(py: Python, pyerr: &PyErr) -> PyResult<EvalErr> {
+fn eval_err_for_pyerr(py: Python, pyerr: &PyErr) -> PyResult<EvalErr<Node>> {
     let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
     let arg0: &PyString = args.get_item(0).extract()?;
     let sexp: &PyCell<Node> = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
@@ -46,7 +46,7 @@ impl NativeOpLookup {
         allocator: &Allocator,
         op: &[u8],
         argument_list: &Node,
-    ) -> Result<Reduction, EvalErr> {
+    ) -> Result<Reduction<Node>, EvalErr<Node>> {
         if op.len() == 1 {
             if let Some(f) = self.f_lookup[op[0] as usize] {
                 return f(allocator, argument_list);
@@ -72,7 +72,7 @@ impl NativeOpLookup {
                     let i0: u32 = pair.get_item(0).extract()?;
                     let i1: PyRef<Node> = pair.get_item(1).extract()?;
                     let n = i1.clone();
-                    let r: Reduction = Reduction(i0, n);
+                    let r: Reduction<Node> = Reduction(i0, n);
                     Ok(r)
                 }
             }

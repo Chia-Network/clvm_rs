@@ -6,7 +6,7 @@ use super::types::{EvalErr, OperatorHandler, PreEval, Reduction};
 const QUOTE_COST: u32 = 1;
 const SHIFT_COST_PER_LIMB: u32 = 1;
 
-type RPCOperator = dyn FnOnce(&mut RunProgramContext) -> Result<u32, EvalErr>;
+type RPCOperator = dyn FnOnce(&mut RunProgramContext) -> Result<u32, EvalErr<Node>>;
 
 // `run_program` has two stacks: the operand stack (of `Node` objects) and the
 // operator stack (of RPCOperators)
@@ -14,20 +14,19 @@ type RPCOperator = dyn FnOnce(&mut RunProgramContext) -> Result<u32, EvalErr>;
 pub struct RunProgramContext<'a> {
     allocator: &'a Allocator,
     quote_kw: u8,
-    operator_lookup: &'a OperatorHandler,
-    pre_eval: Option<PreEval>,
+    operator_lookup: &'a OperatorHandler<Node>,
+    pre_eval: Option<PreEval<Node>>,
     val_stack: Vec<Node>,
     op_stack: Vec<Box<RPCOperator>>,
 }
 
 impl RunProgramContext<'_> {
-    pub fn pop(&mut self) -> Result<Node, EvalErr> {
+    pub fn pop(&mut self) -> Result<Node, EvalErr<Node>> {
         let v = self.val_stack.pop();
         match v {
             None => self
                 .allocator
-                .null()
-                .err("runtime error: value stack empty"),
+                .err(&self.allocator.null(), "runtime error: value stack empty"),
             Some(k) => Ok(k),
         }
     }
@@ -54,7 +53,7 @@ fn traverse_path(
     allocator: &Allocator,
     path_node: &Node,
     args: &Node,
-) -> Result<Reduction, EvalErr> {
+) -> Result<Reduction<Node>, EvalErr<Node>> {
     /*
     Follow integer `NodePath` down a tree.
     */
@@ -81,7 +80,7 @@ fn traverse_path(
     Ok(Reduction(cost, arg_list.clone()))
 }
 
-fn swap_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
+fn swap_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr<Node>> {
     /* Swap the top two operands. */
     let v2 = rpc.pop()?;
     let v1 = rpc.pop()?;
@@ -90,7 +89,7 @@ fn swap_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
     Ok(0)
 }
 
-fn cons_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
+fn cons_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr<Node>> {
     /* Join the top two operands. */
     let v1 = rpc.pop()?;
     let v2 = rpc.pop()?;
@@ -104,17 +103,20 @@ fn eval_op_atom(
     operator_node: &Node,
     operand_list: &Node,
     args: &Node,
-) -> Result<u32, EvalErr> {
+) -> Result<u32, EvalErr<Node>> {
     // special case check for quote
     if op_atom.len() == 1 && op_atom[0] == rpc.quote_kw {
         match rpc.allocator.sexp(operand_list) {
-            SExp::Atom(_) => operand_list.err("quote requires exactly 1 parameter"),
+            SExp::Atom(_) => rpc
+                .allocator
+                .err(operand_list, "quote requires exactly 1 parameter"),
             SExp::Pair(quoted_val, nil) => {
                 if nil.nullp() {
                     rpc.push(quoted_val.clone());
                     Ok(QUOTE_COST)
                 } else {
-                    operand_list.err("quote requires exactly 1 parameter")
+                    rpc.allocator
+                        .err(operand_list, "quote requires exactly 1 parameter")
                 }
             }
         }
@@ -145,12 +147,16 @@ fn eval_op_atom(
     }
 }
 
-fn eval_pair(rpc: &mut RunProgramContext, program: &Node, args: &Node) -> Result<u32, EvalErr> {
+fn eval_pair(
+    rpc: &mut RunProgramContext,
+    program: &Node,
+    args: &Node,
+) -> Result<u32, EvalErr<Node>> {
     // put a bunch of ops on op_stack
     match rpc.allocator.sexp(program) {
         // the program is just a bitfield path through the args tree
         SExp::Atom(_) => {
-            let r: Reduction = traverse_path(rpc.allocator, &program, &args)?;
+            let r: Reduction<Node> = traverse_path(rpc.allocator, &program, &args)?;
             rpc.push(r.1);
             Ok(r.0)
         }
@@ -168,7 +174,7 @@ fn eval_pair(rpc: &mut RunProgramContext, program: &Node, args: &Node) -> Result
     }
 }
 
-fn eval_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
+fn eval_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr<Node>> {
     /*
     Pop the top value and treat it as a (program, args) pair, and manipulate
     the op & value stack to evaluate all the arguments and apply the operator.
@@ -198,7 +204,7 @@ fn eval_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
     }
 }
 
-fn apply_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr> {
+fn apply_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr<Node>> {
     let operand_list = rpc.pop()?;
     let operator = rpc.pop()?;
     match rpc.allocator.sexp(&operator) {
@@ -217,9 +223,9 @@ pub fn run_program(
     args: &Node,
     quote_kw: u8,
     max_cost: u32,
-    operator_lookup: &OperatorHandler,
-    pre_eval: Option<PreEval>,
-) -> Result<Reduction, EvalErr> {
+    operator_lookup: &OperatorHandler<Node>,
+    pre_eval: Option<PreEval<Node>>,
+) -> Result<Reduction<Node>, EvalErr<Node>> {
     let values: Vec<Node> = vec![allocator.from_pair(program, args)];
     let op_stack: Vec<Box<RPCOperator>> = vec![Box::new(eval_op)];
 
