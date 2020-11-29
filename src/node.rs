@@ -128,11 +128,6 @@ impl Node {
 }
 
 impl Node {
-    pub fn is_pair(&self) -> bool {
-        let sexp: &SExpN = &self.node;
-        matches!(sexp, SExpN::Pair(_a, _b))
-    }
-
     pub fn nullp(&self) -> bool {
         match self.atom() {
             Some(blob) => blob.is_empty(),
@@ -214,20 +209,6 @@ impl Iterator for Node {
                 Some(v)
             }
             _ => None,
-        }
-    }
-}
-
-impl From<Node> for Option<u8> {
-    fn from(item: Node) -> Option<u8> {
-        let blob = item.atom()?;
-        let len = blob.len();
-        if len == 0 {
-            Some(0)
-        } else if len == 1 {
-            Some(blob[0])
-        } else {
-            None
         }
     }
 }
