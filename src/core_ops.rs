@@ -23,7 +23,7 @@ impl Node {
     }
 }
 
-pub fn op_if(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
+pub fn op_if(_allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
     let cond = args.first()?;
     let mut chosen_node = args.rest()?;
     if cond.nullp() {
@@ -38,11 +38,11 @@ pub fn op_cons(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, Ev
     Ok(Reduction(CONS_COST, allocator.from_pair(&a1, &a2)))
 }
 
-pub fn op_first(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
+pub fn op_first(_allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
     Ok(Reduction(FIRST_COST, args.first()?.first()?))
 }
 
-pub fn op_rest(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
+pub fn op_rest(_allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
     Ok(Reduction(REST_COST, args.first()?.rest()?))
 }
 
@@ -53,7 +53,7 @@ pub fn op_listp(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, E
     }
 }
 
-pub fn op_raise(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
+pub fn op_raise(_allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
     args.err("clvm raise")
 }
 

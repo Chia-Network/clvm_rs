@@ -73,7 +73,7 @@ fn extract_atom(allocator: &Allocator, obj: &PyAny) -> PyResult<Node> {
     Ok(allocator.blob_u8(r))
 }
 
-fn extract_node(allocator: &Allocator, obj: &PyAny) -> PyResult<Node> {
+fn extract_node(_allocator: &Allocator, obj: &PyAny) -> PyResult<Node> {
     let ps: &PyCell<Node> = obj.extract()?;
     let node: Node = ps.try_borrow()?.clone();
     Ok(node)
