@@ -1,95 +1,13 @@
+use crate::allocator::{Allocator, SExp};
+use crate::arc_allocator::ArcAllocator;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::sync::Arc;
-
-use lazy_static::*;
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 
-#[pyclass(subclass, unsendable)]
-pub struct ArcAllocator {}
-
 pub type U8 = Arc<[u8]>;
-
-lazy_static! {
-    static ref NULL: Node = {
-        let allocator = ArcAllocator::new();
-        allocator.blob_u8(&[])
-    };
-    static ref ONE: Node = {
-        let allocator = ArcAllocator::new();
-        allocator.blob_u8(&[1])
-    };
-}
-
-pub trait Allocator<T, U> {
-    fn blob_u8(&self, v: &[u8]) -> T;
-    fn from_pair(&self, first: &T, rest: &T) -> T;
-    fn sexp(&self, node: &T) -> SExp<T, U>;
-}
-
-impl Default for ArcAllocator {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl ArcAllocator {
-    pub fn new() -> Self {
-        ArcAllocator {}
-    }
-
-    pub fn null(&self) -> Node {
-        NULL.clone()
-    }
-
-    pub fn one(&self) -> Node {
-        ONE.clone()
-    }
-
-    pub fn blob(&self, v: &str) -> Node {
-        Node {
-            node: Arc::new(SExp::Atom(Vec::from(v).into())),
-        }
-    }
-}
-
-impl<'a> dyn Allocator<Node, U8> + 'a {
-    pub fn null(&self) -> Node {
-        NULL.clone()
-    }
-
-    pub fn one(&self) -> Node {
-        ONE.clone()
-    }
-}
-
-impl Allocator<Node, U8> for ArcAllocator {
-    fn blob_u8(&self, v: &[u8]) -> Node {
-        Node {
-            node: Arc::new(SExp::Atom(Vec::from(v).into())),
-        }
-    }
-
-    fn from_pair(&self, first: &Node, rest: &Node) -> Node {
-        Node {
-            node: Arc::new(SExp::Pair(first.clone(), rest.clone())),
-        }
-    }
-
-    fn sexp(&self, node: &Node) -> SExp<Node, U8> {
-        match &*node.node {
-            SExp::Atom(a) => SExp::Atom(Arc::clone(a)),
-            SExp::Pair(left, right) => SExp::Pair(left.clone(), right.clone()),
-        }
-    }
-}
-
-pub enum SExp<T, U> {
-    Atom(U),
-    Pair(T, T),
-}
 
 #[pyclass(subclass, unsendable)]
 #[derive(Clone)]
@@ -164,6 +82,10 @@ impl Node {
         }
     }
 
+    pub fn sexp(&self) -> &SExp<Node, U8> {
+        &self.node
+    }
+
     fn fmt_list(&self, f: &mut Formatter, is_first: bool) -> fmt::Result {
         if let Some((first, rest)) = self.pair() {
             if !is_first {
@@ -224,6 +146,12 @@ impl Debug for Node {
         }
 
         Ok(())
+    }
+}
+
+impl From<Arc<SExp<Node, U8>>> for Node {
+    fn from(item: Arc<SExp<Node, U8>>) -> Self {
+        Node { node: item }
     }
 }
 

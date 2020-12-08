@@ -1,5 +1,6 @@
-use super::types::{EvalErr, Reduction};
-use crate::node::{Allocator, Node, U8};
+use crate::allocator::Allocator;
+use crate::node::{Node, U8};
+use crate::types::{EvalErr, Reduction};
 
 const FIRST_COST: u32 = 10;
 const IF_COST: u32 = 10;

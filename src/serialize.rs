@@ -2,7 +2,8 @@ use std::io::Cursor;
 use std::io::Read;
 use std::io::Write;
 
-use crate::node::{Allocator, Node, U8};
+use crate::allocator::Allocator;
+use crate::node::{Node, U8};
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const CONS_BOX_MARKER: u8 = 0xff;

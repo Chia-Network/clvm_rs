@@ -1,5 +1,6 @@
+use super::arc_allocator::ArcAllocator;
 use super::native_op_lookup::NativeOpLookup;
-use super::node::{ArcAllocator, Node};
+use super::node::Node;
 use super::run_program::run_program;
 use super::serialize::{node_from_bytes, node_to_bytes};
 use super::types::{EvalErr, OperatorHandler, PostEval, PreEval, Reduction};

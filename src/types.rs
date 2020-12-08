@@ -1,4 +1,6 @@
-use super::node::{Allocator, ArcAllocator, Node, U8};
+use crate::allocator::Allocator;
+use crate::arc_allocator::ArcAllocator;
+use crate::node::{Node, U8};
 
 #[derive(Debug, Clone)]
 pub struct EvalErr<T>(pub T, pub String);

@@ -1,7 +1,8 @@
-use super::node::{Allocator, Node, U8};
-use super::types::{EvalErr, Reduction};
+use crate::allocator::Allocator;
+use crate::node::{Node, U8};
+use crate::types::{EvalErr, Reduction};
 
-use super::f_table::{make_f_lookup, FLookup};
+use crate::f_table::{make_f_lookup, FLookup};
 
 use pyo3::prelude::*;
 use pyo3::types::{PyString, PyTuple};

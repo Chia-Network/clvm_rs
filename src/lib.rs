@@ -1,4 +1,6 @@
+mod allocator;
 mod api;
+mod arc_allocator;
 mod core_ops;
 mod f_table;
 mod more_ops;

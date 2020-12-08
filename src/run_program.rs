@@ -1,4 +1,5 @@
-use crate::node::{Allocator, Node, SExp, U8};
+use crate::allocator::{Allocator, SExp};
+use crate::node::{Node, U8};
 
 use super::number::{node_from_number, Number};
 

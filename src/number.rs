@@ -1,4 +1,5 @@
-use crate::node::{Allocator, Node};
+use crate::allocator::Allocator;
+use crate::node::Node;
 
 use uint::U256;
 pub type Number = U256;
