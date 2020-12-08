@@ -47,20 +47,22 @@ impl Allocator {
             node: Arc::new(SExp::Atom(Vec::from(v).into())),
         }
     }
+}
 
-    pub fn blob_u8(&self, v: &[u8]) -> Node {
+impl AllocatorTrait<Node, U8> for Allocator {
+    fn blob_u8(&self, v: &[u8]) -> Node {
         Node {
             node: Arc::new(SExp::Atom(Vec::from(v).into())),
         }
     }
 
-    pub fn from_pair(&self, first: &Node, rest: &Node) -> Node {
+    fn from_pair(&self, first: &Node, rest: &Node) -> Node {
         Node {
             node: Arc::new(SExp::Pair(first.clone(), rest.clone())),
         }
     }
 
-    pub fn sexp(&self, node: &Node) -> SExp<Node, U8> {
+    fn sexp(&self, node: &Node) -> SExp<Node, U8> {
         match &*node.node {
             SExp::Atom(a) => SExp::Atom(Arc::clone(a)),
             SExp::Pair(left, right) => SExp::Pair(left.clone(), right.clone()),

@@ -1,4 +1,5 @@
-use super::node::{Allocator, Node, SExp};
+use crate::node::{Allocator, AllocatorTrait, Node, SExp};
+
 use super::number::{node_from_number, Number};
 
 use super::types::{EvalErr, OperatorHandler, PreEval, Reduction};

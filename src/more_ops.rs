@@ -1,7 +1,6 @@
-use super::node::Allocator;
-use super::node::Node;
 use super::number::{node_from_number, Number};
 use super::types::{EvalErr, Reduction};
+use crate::node::{Allocator, AllocatorTrait, Node};
 use sha2::{Digest, Sha256};
 use std::cmp::max;
 
