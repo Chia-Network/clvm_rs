@@ -17,9 +17,13 @@ pub type PostEval<T> = dyn Fn(Option<&T>);
 
 pub type PreEval<T> = Box<dyn Fn(&T, &T) -> Result<Option<Box<PostEval<T>>>, EvalErr<T>>>;
 
-impl<'a, T, U> dyn Allocator<T, U> + 'a {
-    pub fn err<V>(&self, node: &Node, msg: &str) -> Result<V, EvalErr<Node>> {
-        Err(EvalErr(node.clone(), msg.into()))
+impl<'a, T, U> dyn Allocator<T, U> + 'a
+where
+    T: Clone,
+{
+    pub fn err<V>(&self, node: &T, msg: &str) -> Result<V, EvalErr<T>> {
+        let s: String = msg.into();
+        Err(EvalErr(node.clone(), s))
     }
 }
 

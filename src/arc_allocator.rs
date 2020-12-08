@@ -36,13 +36,13 @@ impl ArcAllocator {
     }
 }
 
-impl<'a> dyn Allocator<Node, U8> + 'a {
-    pub fn null(&self) -> Node {
-        NULL.clone()
+impl<'a, T> dyn Allocator<T, U8> + 'a {
+    pub fn null(&self) -> T {
+        self.blob_u8(&[])
     }
 
-    pub fn one(&self) -> Node {
-        ONE.clone()
+    pub fn one(&self) -> T {
+        self.blob_u8(&[1])
     }
 }
 

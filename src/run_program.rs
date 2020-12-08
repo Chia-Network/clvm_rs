@@ -8,7 +8,7 @@ use super::types::{EvalErr, OperatorHandler, PreEval, Reduction};
 const QUOTE_COST: u32 = 1;
 const SHIFT_COST_PER_LIMB: u32 = 1;
 
-type RPCOperator = dyn FnOnce(&mut RunProgramContext<Node>) -> Result<u32, EvalErr<Node>>;
+type RPCOperator<T> = dyn FnOnce(&mut RunProgramContext<T>) -> Result<u32, EvalErr<T>>;
 
 // `run_program` has two stacks: the operand stack (of `Node` objects) and the
 // operator stack (of RPCOperators)
@@ -19,20 +19,25 @@ pub struct RunProgramContext<'a, T> {
     operator_lookup: &'a OperatorHandler<T>,
     pre_eval: Option<PreEval<T>>,
     val_stack: Vec<T>,
-    op_stack: Vec<Box<RPCOperator>>,
+    op_stack: Vec<Box<RPCOperator<T>>>,
 }
 
-impl RunProgramContext<'_, Node> {
-    pub fn pop(&mut self) -> Result<Node, EvalErr<Node>> {
+impl<T> RunProgramContext<'_, T>
+where
+    T: Clone,
+{
+    pub fn pop(&mut self) -> Result<T, EvalErr<T>> {
         let v = self.val_stack.pop();
         match v {
-            None => self
-                .allocator.null()
-                .err("runtime error: value stack empty"),
+            None => {
+                let node: T = self.allocator.null();
+                self.allocator
+                    .err(&node, "runtime error: value stack empty")
+            }
             Some(k) => Ok(k),
         }
     }
-    pub fn push(&mut self, node: Node) {
+    pub fn push(&mut self, node: T) {
         self.val_stack.push(node);
     }
 }
@@ -233,7 +238,7 @@ pub fn run_program(
     pre_eval: Option<PreEval<Node>>,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     let values: Vec<Node> = vec![allocator.from_pair(program, args)];
-    let op_stack: Vec<Box<RPCOperator>> = vec![Box::new(eval_op)];
+    let op_stack: Vec<Box<RPCOperator<Node>>> = vec![Box::new(eval_op)];
 
     let mut rpc = RunProgramContext {
         allocator,
