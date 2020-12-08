@@ -71,7 +71,11 @@ fn traverse_path(
                 return Err(EvalErr(arg_list.clone(), "path into atom".into()));
             }
             SExp::Pair(left, right) => {
-                arg_list = if node_index & one == one { right.clone() } else { left.clone() };
+                arg_list = if node_index & one == one {
+                    right.clone()
+                } else {
+                    left.clone()
+                };
             }
         };
         cost += SHIFT_COST_PER_LIMB * limbs_for_int(node_index);

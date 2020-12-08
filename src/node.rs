@@ -29,11 +29,6 @@ pub trait AllocatorTrait<T, U> {
     fn sexp(&self, node: &T) -> SExp<T, U>;
 }
 
-pub enum SExp<T, U> {
-    Atom(U),
-    Pair(T, T),
-}
-
 impl Allocator {
     pub fn new() -> Self {
         Allocator {}
@@ -49,40 +44,39 @@ impl Allocator {
 
     pub fn blob(&self, v: &str) -> Node {
         Node {
-            node: Arc::new(SExpN::Atom(Vec::from(v).into())),
+            node: Arc::new(SExp::Atom(Vec::from(v).into())),
         }
     }
 
     pub fn blob_u8(&self, v: &[u8]) -> Node {
         Node {
-            node: Arc::new(SExpN::Atom(Vec::from(v).into())),
+            node: Arc::new(SExp::Atom(Vec::from(v).into())),
         }
     }
 
     pub fn from_pair(&self, first: &Node, rest: &Node) -> Node {
         Node {
-            node: Arc::new(SExpN::Pair(first.clone(), rest.clone())),
+            node: Arc::new(SExp::Pair(first.clone(), rest.clone())),
         }
     }
 
     pub fn sexp(&self, node: &Node) -> SExp<Node, U8> {
         match &*node.node {
-            SExpN::Atom(a) => SExp::Atom(Arc::clone(a)),
-            SExpN::Pair(left, right) => SExp::Pair(left.clone(), right.clone()),
+            SExp::Atom(a) => SExp::Atom(Arc::clone(a)),
+            SExp::Pair(left, right) => SExp::Pair(left.clone(), right.clone()),
         }
     }
 }
 
-#[derive(Debug, PartialEq)]
-enum SExpN {
-    Atom(Arc<[u8]>),
-    Pair(Node, Node),
+pub enum SExp<T, U> {
+    Atom(U),
+    Pair(T, T),
 }
 
 #[pyclass(subclass, unsendable)]
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub struct Node {
-    node: Arc<SExpN>,
+    node: Arc<SExp<Node, U8>>,
 }
 
 fn extract_atom(allocator: &Allocator, obj: &PyAny) -> PyResult<Node> {
@@ -127,18 +121,18 @@ impl Node {
 
     #[getter(pair)]
     pub fn pair(&self) -> Option<(Node, Node)> {
-        let sexp: &SExpN = &self.node;
+        let sexp: &SExp<Node, U8> = &self.node;
         match sexp {
-            SExpN::Pair(a, b) => Some((a.clone(), b.clone())),
+            SExp::Pair(a, b) => Some((a.clone(), b.clone())),
             _ => None,
         }
     }
 
     #[getter(atom)]
     pub fn atom(&self) -> Option<&[u8]> {
-        let sexp: &SExpN = &self.node;
+        let sexp: &SExp<Node, U8> = &self.node;
         match sexp {
-            SExpN::Atom(a) => Some(a),
+            SExp::Atom(a) => Some(a),
             _ => None,
         }
     }
@@ -220,7 +214,7 @@ impl Iterator for Node {
 
     fn next(&mut self) -> Option<Self::Item> {
         match &*self.node {
-            SExpN::Pair(first, rest) => {
+            SExp::Pair(first, rest) => {
                 let v = first.clone();
                 self.node = rest.node.clone();
                 Some(v)
