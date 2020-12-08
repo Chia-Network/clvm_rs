@@ -1,6 +1,6 @@
 use super::number::{node_from_number, Number};
 use super::types::{EvalErr, Reduction};
-use crate::node::{AllocatorTrait, Node, U8};
+use crate::node::{Allocator, Node, U8};
 use sha2::{Digest, Sha256};
 use std::cmp::max;
 
@@ -39,7 +39,7 @@ pub fn limbs_for_int(args: &Node) -> u32 {
 }
 
 pub fn op_sha256<U>(
-    allocator: &dyn AllocatorTrait<Node, U>,
+    allocator: &dyn Allocator<Node, U>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     let mut cost: u32 = SHA256_COST;
@@ -57,7 +57,7 @@ pub fn op_sha256<U>(
 }
 
 pub fn op_add<U>(
-    allocator: &dyn AllocatorTrait<Node, U>,
+    allocator: &dyn Allocator<Node, U>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     let mut cost: u32 = MIN_COST;
@@ -75,7 +75,7 @@ pub fn op_add<U>(
 }
 
 pub fn op_subtract<U>(
-    allocator: &dyn AllocatorTrait<Node, U>,
+    allocator: &dyn Allocator<Node, U>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     let mut cost: u32 = MIN_COST;
@@ -101,7 +101,7 @@ pub fn op_subtract<U>(
 }
 
 pub fn op_multiply(
-    allocator: &dyn AllocatorTrait<Node, U8>,
+    allocator: &dyn Allocator<Node, U8>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     let mut cost: u32 = MIN_COST;
@@ -120,7 +120,7 @@ pub fn op_multiply(
 }
 
 pub fn op_gr(
-    allocator: &dyn AllocatorTrait<Node, U8>,
+    allocator: &dyn Allocator<Node, U8>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     let a0 = args.first()?;

@@ -1,4 +1,4 @@
-use crate::node::{AllocatorTrait, Node, SExp, U8};
+use crate::node::{Allocator, Node, SExp, U8};
 
 use super::number::{node_from_number, Number};
 
@@ -13,7 +13,7 @@ type RPCOperator = dyn FnOnce(&mut RunProgramContext) -> Result<u32, EvalErr<Nod
 // operator stack (of RPCOperators)
 
 pub struct RunProgramContext<'a> {
-    allocator: &'a dyn AllocatorTrait<Node, U8>,
+    allocator: &'a dyn Allocator<Node, U8>,
     quote_kw: u8,
     operator_lookup: &'a OperatorHandler<Node>,
     pre_eval: Option<PreEval<Node>>,
@@ -51,7 +51,7 @@ fn limbs_for_int(node_index: Number) -> u32 {
 }
 
 fn traverse_path(
-    allocator: &dyn AllocatorTrait<Node, U8>,
+    allocator: &dyn Allocator<Node, U8>,
     path_node: &Node,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
@@ -223,7 +223,7 @@ fn apply_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr<Node>> {
 }
 
 pub fn run_program(
-    allocator: &dyn AllocatorTrait<Node, U8>,
+    allocator: &dyn Allocator<Node, U8>,
     program: &Node,
     args: &Node,
     quote_kw: u8,

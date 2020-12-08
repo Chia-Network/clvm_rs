@@ -1,5 +1,5 @@
 use super::native_op_lookup::NativeOpLookup;
-use super::node::{Allocator, Node};
+use super::node::{ArcAllocator, Node};
 use super::run_program::run_program;
 use super::serialize::{node_from_bytes, node_to_bytes};
 use super::types::{EvalErr, OperatorHandler, PostEval, PreEval, Reduction};
@@ -10,7 +10,7 @@ use pyo3::PyObject;
 
 impl From<PyErr> for EvalErr<Node> {
     fn from(_err: PyErr) -> Self {
-        let pyerr_node: Node = Allocator {}.blob("PyErr");
+        let pyerr_node: Node = ArcAllocator::new().blob("PyErr");
         EvalErr(pyerr_node, "bad type from python call".to_string())
     }
 }
@@ -44,7 +44,7 @@ fn py_run_program(
     op_lookup: NativeOpLookup,
     pre_eval: PyObject,
 ) -> PyResult<(u32, Node)> {
-    let allocator = Allocator {};
+    let allocator = ArcAllocator::new();
     let py_pre_eval_t: Option<PreEval<Node>> = if pre_eval.is_none(py) {
         None
     } else {
@@ -64,7 +64,7 @@ fn py_run_program(
         }))
     };
 
-    let allocator: Allocator = Allocator {};
+    let allocator: ArcAllocator = ArcAllocator::new();
     let f: OperatorHandler<Node> =
         Box::new(move |allocator, op, args| op_lookup.operator_handler(allocator, op, args));
 
@@ -118,7 +118,7 @@ fn raise_eval_error(py: Python, msg: &PyString, sexp: &Node) -> PyResult<PyObjec
 
 #[pyfunction]
 fn serialize_from_bytes(blob: &[u8]) -> PyResult<Node> {
-    let allocator: Allocator = Allocator {};
+    let allocator: ArcAllocator = ArcAllocator::new();
     let node = node_from_bytes(&allocator, blob).unwrap();
     Ok(node)
 }

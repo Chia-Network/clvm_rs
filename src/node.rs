@@ -8,36 +8,36 @@ use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 
 #[pyclass(subclass, unsendable)]
-pub struct Allocator {}
+pub struct ArcAllocator {}
 
 pub type U8 = Arc<[u8]>;
 
 lazy_static! {
     static ref NULL: Node = {
-        let allocator = Allocator::new();
+        let allocator = ArcAllocator::new();
         allocator.blob_u8(&[])
     };
     static ref ONE: Node = {
-        let allocator = Allocator::new();
+        let allocator = ArcAllocator::new();
         allocator.blob_u8(&[1])
     };
 }
 
-pub trait AllocatorTrait<T, U> {
+pub trait Allocator<T, U> {
     fn blob_u8(&self, v: &[u8]) -> T;
     fn from_pair(&self, first: &T, rest: &T) -> T;
     fn sexp(&self, node: &T) -> SExp<T, U>;
 }
 
-impl Default for Allocator {
+impl Default for ArcAllocator {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Allocator {
+impl ArcAllocator {
     pub fn new() -> Self {
-        Allocator {}
+        ArcAllocator {}
     }
 
     pub fn null(&self) -> Node {
@@ -55,7 +55,7 @@ impl Allocator {
     }
 }
 
-impl<'a> dyn AllocatorTrait<Node, U8> + 'a {
+impl<'a> dyn Allocator<Node, U8> + 'a {
     pub fn null(&self) -> Node {
         NULL.clone()
     }
@@ -65,7 +65,7 @@ impl<'a> dyn AllocatorTrait<Node, U8> + 'a {
     }
 }
 
-impl AllocatorTrait<Node, U8> for Allocator {
+impl Allocator<Node, U8> for ArcAllocator {
     fn blob_u8(&self, v: &[u8]) -> Node {
         Node {
             node: Arc::new(SExp::Atom(Vec::from(v).into())),
@@ -97,18 +97,18 @@ pub struct Node {
     node: Arc<SExp<Node, U8>>,
 }
 
-fn extract_atom(allocator: &Allocator, obj: &PyAny) -> PyResult<Node> {
+fn extract_atom(allocator: &ArcAllocator, obj: &PyAny) -> PyResult<Node> {
     let r: &[u8] = obj.extract()?;
     Ok(allocator.blob_u8(r))
 }
 
-fn extract_node(_allocator: &Allocator, obj: &PyAny) -> PyResult<Node> {
+fn extract_node(_allocator: &ArcAllocator, obj: &PyAny) -> PyResult<Node> {
     let ps: &PyCell<Node> = obj.extract()?;
     let node: Node = ps.try_borrow()?.clone();
     Ok(node)
 }
 
-fn extract_tuple(allocator: &Allocator, obj: &PyAny) -> PyResult<Node> {
+fn extract_tuple(allocator: &ArcAllocator, obj: &PyAny) -> PyResult<Node> {
     let v: &PyTuple = obj.extract()?;
     if v.len() != 2 {
         return Err(PyValueError::new_err("SExp tuples must be size 2"));
@@ -125,7 +125,7 @@ fn extract_tuple(allocator: &Allocator, obj: &PyAny) -> PyResult<Node> {
 impl Node {
     #[new]
     pub fn new(obj: &PyAny) -> PyResult<Self> {
-        let allocator = Allocator {};
+        let allocator = ArcAllocator::new();
         let node: Node = {
             let n = extract_atom(&allocator, obj);
             if let Ok(r) = n {

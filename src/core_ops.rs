@@ -1,5 +1,5 @@
 use super::types::{EvalErr, Reduction};
-use crate::node::{AllocatorTrait, Node, U8};
+use crate::node::{Allocator, Node, U8};
 
 const FIRST_COST: u32 = 10;
 const IF_COST: u32 = 10;
@@ -24,7 +24,7 @@ impl Node {
 }
 
 pub fn op_if<T>(
-    _allocator: &dyn AllocatorTrait<Node, T>,
+    _allocator: &dyn Allocator<Node, T>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     let cond = args.first()?;
@@ -36,7 +36,7 @@ pub fn op_if<T>(
 }
 
 pub fn op_cons<T>(
-    allocator: &dyn AllocatorTrait<Node, T>,
+    allocator: &dyn Allocator<Node, T>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     let a1 = args.first()?;
@@ -45,21 +45,21 @@ pub fn op_cons<T>(
 }
 
 pub fn op_first<T>(
-    _allocator: &dyn AllocatorTrait<Node, T>,
+    _allocator: &dyn Allocator<Node, T>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     Ok(Reduction(FIRST_COST, args.first()?.first()?))
 }
 
 pub fn op_rest<T>(
-    _allocator: &dyn AllocatorTrait<Node, T>,
+    _allocator: &dyn Allocator<Node, T>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     Ok(Reduction(REST_COST, args.first()?.rest()?))
 }
 
 pub fn op_listp(
-    allocator: &dyn AllocatorTrait<Node, U8>,
+    allocator: &dyn Allocator<Node, U8>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     match args.first()?.pair() {
@@ -69,14 +69,14 @@ pub fn op_listp(
 }
 
 pub fn op_raise<T>(
-    _allocator: &dyn AllocatorTrait<Node, T>,
+    _allocator: &dyn Allocator<Node, T>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     args.err("clvm raise")
 }
 
 pub fn op_eq(
-    allocator: &dyn AllocatorTrait<Node, U8>,
+    allocator: &dyn Allocator<Node, U8>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     let a0 = args.first()?;
