@@ -2,7 +2,7 @@ use std::io::Cursor;
 use std::io::Read;
 use std::io::Write;
 
-use crate::node::{Allocator, AllocatorTrait, Node};
+use crate::node::{AllocatorTrait, Node, U8};
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const CONS_BOX_MARKER: u8 = 0xff;
@@ -86,7 +86,10 @@ fn decode_size(f: &mut dyn Read, initial_b: u8) -> std::io::Result<usize> {
     Ok(bytes_to_read)
 }
 
-pub fn node_from_stream(allocator: &Allocator, f: &mut dyn Read) -> std::io::Result<Node> {
+pub fn node_from_stream(
+    allocator: &dyn AllocatorTrait<Node, U8>,
+    f: &mut dyn Read,
+) -> std::io::Result<Node> {
     let mut b = [0; 1];
     f.read_exact(&mut b)?;
     if b[0] == CONS_BOX_MARKER {
@@ -103,7 +106,10 @@ pub fn node_from_stream(allocator: &Allocator, f: &mut dyn Read) -> std::io::Res
     Ok(allocator.blob_u8(&blob))
 }
 
-pub fn node_from_bytes(allocator: &Allocator, b: &[u8]) -> std::io::Result<Node> {
+pub fn node_from_bytes(
+    allocator: &dyn AllocatorTrait<Node, U8>,
+    b: &[u8],
+) -> std::io::Result<Node> {
     let mut buffer = Cursor::new(b);
     node_from_stream(allocator, &mut buffer)
 }

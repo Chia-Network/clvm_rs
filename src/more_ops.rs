@@ -1,6 +1,6 @@
 use super::number::{node_from_number, Number};
 use super::types::{EvalErr, Reduction};
-use crate::node::{Allocator, AllocatorTrait, Node};
+use crate::node::{AllocatorTrait, Node, U8};
 use sha2::{Digest, Sha256};
 use std::cmp::max;
 
@@ -38,7 +38,10 @@ pub fn limbs_for_int(args: &Node) -> u32 {
     }
 }
 
-pub fn op_sha256(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
+pub fn op_sha256(
+    allocator: &dyn AllocatorTrait<Node, U8>,
+    args: &Node,
+) -> Result<Reduction<Node>, EvalErr<Node>> {
     let mut cost: u32 = SHA256_COST;
     let mut hasher = Sha256::new();
     for arg in args.clone() {
@@ -53,7 +56,10 @@ pub fn op_sha256(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, 
     Ok(Reduction(cost, allocator.blob_u8(&hasher.result())))
 }
 
-pub fn op_add(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
+pub fn op_add(
+    allocator: &dyn AllocatorTrait<Node, U8>,
+    args: &Node,
+) -> Result<Reduction<Node>, EvalErr<Node>> {
     let mut cost: u32 = MIN_COST;
     let mut total: Number = 0.into();
     for arg in args.clone() {
@@ -68,7 +74,10 @@ pub fn op_add(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, Eva
     Ok(Reduction(cost, total))
 }
 
-pub fn op_subtract(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
+pub fn op_subtract(
+    allocator: &dyn AllocatorTrait<Node, U8>,
+    args: &Node,
+) -> Result<Reduction<Node>, EvalErr<Node>> {
     let mut cost: u32 = MIN_COST;
     let mut total: Number = 0.into();
     let mut is_first = true;
@@ -91,7 +100,10 @@ pub fn op_subtract(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>
     Ok(Reduction(cost, total))
 }
 
-pub fn op_multiply(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
+pub fn op_multiply(
+    allocator: &dyn AllocatorTrait<Node, U8>,
+    args: &Node,
+) -> Result<Reduction<Node>, EvalErr<Node>> {
     let mut cost: u32 = MIN_COST;
     let mut total: Number = 1.into();
     for arg in args.clone() {
@@ -107,7 +119,10 @@ pub fn op_multiply(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>
     Ok(Reduction(cost, total))
 }
 
-pub fn op_gr(allocator: &Allocator, args: &Node) -> Result<Reduction<Node>, EvalErr<Node>> {
+pub fn op_gr(
+    allocator: &dyn AllocatorTrait<Node, U8>,
+    args: &Node,
+) -> Result<Reduction<Node>, EvalErr<Node>> {
     let a0 = args.first()?;
     let v0: Option<Number> = Option::from(&a0);
     let a1 = args.rest()?.first()?;

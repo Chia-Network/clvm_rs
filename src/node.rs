@@ -29,6 +29,12 @@ pub trait AllocatorTrait<T, U> {
     fn sexp(&self, node: &T) -> SExp<T, U>;
 }
 
+impl Default for Allocator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Allocator {
     pub fn new() -> Self {
         Allocator {}
@@ -46,6 +52,16 @@ impl Allocator {
         Node {
             node: Arc::new(SExp::Atom(Vec::from(v).into())),
         }
+    }
+}
+
+impl<'a> dyn AllocatorTrait<Node, U8> + 'a {
+    pub fn null(&self) -> Node {
+        NULL.clone()
+    }
+
+    pub fn one(&self) -> Node {
+        ONE.clone()
     }
 }
 

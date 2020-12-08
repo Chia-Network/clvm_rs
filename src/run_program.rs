@@ -1,4 +1,4 @@
-use crate::node::{Allocator, AllocatorTrait, Node, SExp};
+use crate::node::{AllocatorTrait, Node, SExp, U8};
 
 use super::number::{node_from_number, Number};
 
@@ -13,7 +13,7 @@ type RPCOperator = dyn FnOnce(&mut RunProgramContext) -> Result<u32, EvalErr<Nod
 // operator stack (of RPCOperators)
 
 pub struct RunProgramContext<'a> {
-    allocator: &'a Allocator,
+    allocator: &'a dyn AllocatorTrait<Node, U8>,
     quote_kw: u8,
     operator_lookup: &'a OperatorHandler<Node>,
     pre_eval: Option<PreEval<Node>>,
@@ -51,7 +51,7 @@ fn limbs_for_int(node_index: Number) -> u32 {
 }
 
 fn traverse_path(
-    allocator: &Allocator,
+    allocator: &dyn AllocatorTrait<Node, U8>,
     path_node: &Node,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
@@ -82,7 +82,7 @@ fn traverse_path(
         cost += SHIFT_COST_PER_LIMB * limbs_for_int(node_index);
         node_index >>= 1;
     }
-    Ok(Reduction(cost, arg_list.clone()))
+    Ok(Reduction(cost, arg_list))
 }
 
 fn swap_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr<Node>> {
@@ -117,7 +117,7 @@ fn eval_op_atom(
                 .err(operand_list, "quote requires exactly 1 parameter"),
             SExp::Pair(quoted_val, nil) => {
                 if nil.nullp() {
-                    rpc.push(quoted_val.clone());
+                    rpc.push(quoted_val);
                     Ok(QUOTE_COST)
                 } else {
                     rpc.allocator
@@ -223,7 +223,7 @@ fn apply_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr<Node>> {
 }
 
 pub fn run_program(
-    allocator: &Allocator,
+    allocator: &dyn AllocatorTrait<Node, U8>,
     program: &Node,
     args: &Node,
     quote_kw: u8,
