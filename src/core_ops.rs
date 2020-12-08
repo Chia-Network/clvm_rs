@@ -23,8 +23,8 @@ impl Node {
     }
 }
 
-pub fn op_if(
-    _allocator: &dyn AllocatorTrait<Node, U8>,
+pub fn op_if<T>(
+    _allocator: &dyn AllocatorTrait<Node, T>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     let cond = args.first()?;
@@ -35,8 +35,8 @@ pub fn op_if(
     Ok(Reduction(IF_COST, chosen_node.first()?))
 }
 
-pub fn op_cons(
-    allocator: &dyn AllocatorTrait<Node, U8>,
+pub fn op_cons<T>(
+    allocator: &dyn AllocatorTrait<Node, T>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     let a1 = args.first()?;
@@ -44,15 +44,15 @@ pub fn op_cons(
     Ok(Reduction(CONS_COST, allocator.from_pair(&a1, &a2)))
 }
 
-pub fn op_first(
-    _allocator: &dyn AllocatorTrait<Node, U8>,
+pub fn op_first<T>(
+    _allocator: &dyn AllocatorTrait<Node, T>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     Ok(Reduction(FIRST_COST, args.first()?.first()?))
 }
 
-pub fn op_rest(
-    _allocator: &dyn AllocatorTrait<Node, U8>,
+pub fn op_rest<T>(
+    _allocator: &dyn AllocatorTrait<Node, T>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     Ok(Reduction(REST_COST, args.first()?.rest()?))
@@ -68,8 +68,8 @@ pub fn op_listp(
     }
 }
 
-pub fn op_raise(
-    _allocator: &dyn AllocatorTrait<Node, U8>,
+pub fn op_raise<T>(
+    _allocator: &dyn AllocatorTrait<Node, T>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     args.err("clvm raise")
@@ -87,7 +87,7 @@ pub fn op_eq(
             return Ok(Reduction(
                 cost,
                 if s0 == s1 {
-                    allocator.blob_u8(&[1])
+                    allocator.one()
                 } else {
                     allocator.null()
                 },

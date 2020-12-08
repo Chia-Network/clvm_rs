@@ -38,8 +38,8 @@ pub fn limbs_for_int(args: &Node) -> u32 {
     }
 }
 
-pub fn op_sha256(
-    allocator: &dyn AllocatorTrait<Node, U8>,
+pub fn op_sha256<U>(
+    allocator: &dyn AllocatorTrait<Node, U>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     let mut cost: u32 = SHA256_COST;
@@ -56,8 +56,8 @@ pub fn op_sha256(
     Ok(Reduction(cost, allocator.blob_u8(&hasher.result())))
 }
 
-pub fn op_add(
-    allocator: &dyn AllocatorTrait<Node, U8>,
+pub fn op_add<U>(
+    allocator: &dyn AllocatorTrait<Node, U>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     let mut cost: u32 = MIN_COST;
@@ -74,8 +74,8 @@ pub fn op_add(
     Ok(Reduction(cost, total))
 }
 
-pub fn op_subtract(
-    allocator: &dyn AllocatorTrait<Node, U8>,
+pub fn op_subtract<U>(
+    allocator: &dyn AllocatorTrait<Node, U>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     let mut cost: u32 = MIN_COST;
