@@ -1,6 +1,8 @@
 use std::fmt::{self, Debug, Display, Formatter};
 use std::sync::Arc;
 
+use lazy_static::*;
+
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
@@ -8,26 +10,41 @@ use pyo3::types::PyTuple;
 #[pyclass(subclass, unsendable)]
 pub struct Allocator {}
 
-static ONE: [u8; 1] = [1];
+pub type U8 = Arc<[u8]>;
 
-pub trait AllocatorTrait<T> {
-    fn blob_u8(&self, v: &[u8]) -> T;
-    fn from_pair(&self, first: &T, rest: &T) -> T;
-    fn sexp(&self, node: &T) -> &SExp<T>;
+lazy_static! {
+    static ref NULL: Node = {
+        let allocator = Allocator::new();
+        allocator.blob_u8(&[])
+    };
+    static ref ONE: Node = {
+        let allocator = Allocator::new();
+        allocator.blob_u8(&[1])
+    };
 }
 
-pub enum SExp<'a, NodeT> {
-    Atom(&'a [u8]),
-    Pair(&'a NodeT, &'a NodeT),
+pub trait AllocatorTrait<T, U> {
+    fn blob_u8(&self, v: &[u8]) -> T;
+    fn from_pair(&self, first: &T, rest: &T) -> T;
+    fn sexp(&self, node: &T) -> &SExp<T, U>;
+}
+
+pub enum SExp<'a, 'b, T, U> {
+    Atom(&'a U),
+    Pair(&'b T, &'b T),
 }
 
 impl Allocator {
+    pub fn new() -> Self {
+        Allocator {}
+    }
+
     pub fn null(&self) -> Node {
-        self.blob("")
+        NULL.clone()
     }
 
     pub fn one(&self) -> Node {
-        self.blob_u8(&ONE)
+        ONE.clone()
     }
 
     pub fn blob(&self, v: &str) -> Node {
@@ -48,7 +65,7 @@ impl Allocator {
         }
     }
 
-    pub fn sexp<'a>(&self, node: &'a Node) -> SExp<'a, Node> {
+    pub fn sexp<'a>(&'a self, node: &'a Node) -> SExp<'a, 'a, Node, U8> {
         match &*node.node {
             SExpN::Atom(a) => SExp::Atom(&a),
             SExpN::Pair(left, right) => SExp::Pair(&left, &right),
@@ -58,7 +75,7 @@ impl Allocator {
 
 #[derive(Debug, PartialEq)]
 enum SExpN {
-    Atom(Arc<Vec<u8>>),
+    Atom(Arc<[u8]>),
     Pair(Node, Node),
 }
 
