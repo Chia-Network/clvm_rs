@@ -8,27 +8,27 @@ use super::types::{EvalErr, OperatorHandler, PreEval, Reduction};
 const QUOTE_COST: u32 = 1;
 const SHIFT_COST_PER_LIMB: u32 = 1;
 
-type RPCOperator = dyn FnOnce(&mut RunProgramContext) -> Result<u32, EvalErr<Node>>;
+type RPCOperator = dyn FnOnce(&mut RunProgramContext<Node>) -> Result<u32, EvalErr<Node>>;
 
 // `run_program` has two stacks: the operand stack (of `Node` objects) and the
 // operator stack (of RPCOperators)
 
-pub struct RunProgramContext<'a> {
-    allocator: &'a dyn Allocator<Node, U8>,
+pub struct RunProgramContext<'a, T> {
+    allocator: &'a dyn Allocator<T, U8>,
     quote_kw: u8,
-    operator_lookup: &'a OperatorHandler<Node>,
-    pre_eval: Option<PreEval<Node>>,
-    val_stack: Vec<Node>,
+    operator_lookup: &'a OperatorHandler<T>,
+    pre_eval: Option<PreEval<T>>,
+    val_stack: Vec<T>,
     op_stack: Vec<Box<RPCOperator>>,
 }
 
-impl RunProgramContext<'_> {
+impl RunProgramContext<'_, Node> {
     pub fn pop(&mut self) -> Result<Node, EvalErr<Node>> {
         let v = self.val_stack.pop();
         match v {
             None => self
-                .allocator
-                .err(&self.allocator.null(), "runtime error: value stack empty"),
+                .allocator.null()
+                .err("runtime error: value stack empty"),
             Some(k) => Ok(k),
         }
     }
@@ -86,7 +86,7 @@ fn traverse_path(
     Ok(Reduction(cost, arg_list))
 }
 
-fn swap_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr<Node>> {
+fn swap_op(rpc: &mut RunProgramContext<Node>) -> Result<u32, EvalErr<Node>> {
     /* Swap the top two operands. */
     let v2 = rpc.pop()?;
     let v1 = rpc.pop()?;
@@ -95,7 +95,7 @@ fn swap_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr<Node>> {
     Ok(0)
 }
 
-fn cons_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr<Node>> {
+fn cons_op(rpc: &mut RunProgramContext<Node>) -> Result<u32, EvalErr<Node>> {
     /* Join the top two operands. */
     let v1 = rpc.pop()?;
     let v2 = rpc.pop()?;
@@ -104,7 +104,7 @@ fn cons_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr<Node>> {
 }
 
 fn eval_op_atom(
-    rpc: &mut RunProgramContext,
+    rpc: &mut RunProgramContext<Node>,
     op_atom: &[u8],
     operator_node: &Node,
     operand_list: &Node,
@@ -154,7 +154,7 @@ fn eval_op_atom(
 }
 
 fn eval_pair(
-    rpc: &mut RunProgramContext,
+    rpc: &mut RunProgramContext<Node>,
     program: &Node,
     args: &Node,
 ) -> Result<u32, EvalErr<Node>> {
@@ -180,7 +180,7 @@ fn eval_pair(
     }
 }
 
-fn eval_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr<Node>> {
+fn eval_op(rpc: &mut RunProgramContext<Node>) -> Result<u32, EvalErr<Node>> {
     /*
     Pop the top value and treat it as a (program, args) pair, and manipulate
     the op & value stack to evaluate all the arguments and apply the operator.
@@ -197,7 +197,7 @@ fn eval_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr<Node>> {
             match post_eval {
                 None => (),
                 Some(post_eval) => {
-                    let new_function = Box::new(move |rpc: &mut RunProgramContext| {
+                    let new_function = Box::new(move |rpc: &mut RunProgramContext<Node>| {
                         let peek: Option<&Node> = rpc.val_stack.last();
                         post_eval(peek);
                         Ok(0)
@@ -210,7 +210,7 @@ fn eval_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr<Node>> {
     }
 }
 
-fn apply_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr<Node>> {
+fn apply_op(rpc: &mut RunProgramContext<Node>) -> Result<u32, EvalErr<Node>> {
     let operand_list = rpc.pop()?;
     let operator = rpc.pop()?;
     match rpc.allocator.sexp(&operator) {
