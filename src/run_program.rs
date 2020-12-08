@@ -61,17 +61,17 @@ fn traverse_path(
     let mut node_index: Number = node_index.unwrap();
     let one: Number = (1).into();
     let mut cost = 1;
-    let mut arg_list: &Node = args;
+    let mut arg_list: Node = args.clone();
     loop {
         if node_index <= one {
             break;
         }
-        match allocator.sexp(arg_list) {
+        match allocator.sexp(&arg_list) {
             SExp::Atom(_) => {
                 return Err(EvalErr(arg_list.clone(), "path into atom".into()));
             }
             SExp::Pair(left, right) => {
-                arg_list = if node_index & one == one { right } else { left };
+                arg_list = if node_index & one == one { right.clone() } else { left.clone() };
             }
         };
         cost += SHIFT_COST_PER_LIMB * limbs_for_int(node_index);
@@ -136,7 +136,7 @@ fn eval_op_atom(
                     return Err(EvalErr(operand_list.clone(), "bad operand list".into()))
                 }
                 SExp::Pair(first, rest) => {
-                    let new_pair = rpc.allocator.from_pair(first, args);
+                    let new_pair = rpc.allocator.from_pair(&first, args);
                     rpc.push(new_pair);
                     operands = rest.clone();
                 }
@@ -161,7 +161,7 @@ fn eval_pair(
             Ok(r.0)
         }
         // the program is an operator and a list of operands
-        SExp::Pair(operator_node, operand_list) => match rpc.allocator.sexp(operator_node) {
+        SExp::Pair(operator_node, operand_list) => match rpc.allocator.sexp(&operator_node) {
             SExp::Pair(_, _) => {
                 // the operator is also a list, so we need two evals here
                 rpc.push(rpc.allocator.from_pair(&operator_node, &args));
@@ -169,7 +169,7 @@ fn eval_pair(
                 rpc.op_stack.push(Box::new(eval_op));
                 Ok(1)
             }
-            SExp::Atom(op_atom) => eval_op_atom(rpc, op_atom, operator_node, operand_list, args),
+            SExp::Atom(op_atom) => eval_op_atom(rpc, &op_atom, &operator_node, &operand_list, args),
         },
     }
 }
@@ -186,7 +186,7 @@ fn eval_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr<Node>> {
         SExp::Pair(program, args) => {
             let post_eval = match rpc.pre_eval {
                 None => None,
-                Some(ref pre_eval) => pre_eval(program, args)?,
+                Some(ref pre_eval) => pre_eval(&program, &args)?,
             };
             match post_eval {
                 None => (),
@@ -199,7 +199,7 @@ fn eval_op(rpc: &mut RunProgramContext) -> Result<u32, EvalErr<Node>> {
                     rpc.op_stack.push(new_function);
                 }
             };
-            eval_pair(rpc, program, args)
+            eval_pair(rpc, &program, &args)
         }
     }
 }

@@ -26,12 +26,12 @@ lazy_static! {
 pub trait AllocatorTrait<T, U> {
     fn blob_u8(&self, v: &[u8]) -> T;
     fn from_pair(&self, first: &T, rest: &T) -> T;
-    fn sexp(&self, node: &T) -> &SExp<T, U>;
+    fn sexp(&self, node: &T) -> SExp<T, U>;
 }
 
-pub enum SExp<'a, 'b, T, U> {
-    Atom(&'a U),
-    Pair(&'b T, &'b T),
+pub enum SExp<T, U> {
+    Atom(U),
+    Pair(T, T),
 }
 
 impl Allocator {
@@ -65,10 +65,10 @@ impl Allocator {
         }
     }
 
-    pub fn sexp<'a>(&'a self, node: &'a Node) -> SExp<'a, 'a, Node, U8> {
+    pub fn sexp(&self, node: &Node) -> SExp<Node, U8> {
         match &*node.node {
-            SExpN::Atom(a) => SExp::Atom(&a),
-            SExpN::Pair(left, right) => SExp::Pair(&left, &right),
+            SExpN::Atom(a) => SExp::Atom(Arc::clone(a)),
+            SExpN::Pair(left, right) => SExp::Pair(left.clone(), right.clone()),
         }
     }
 }
