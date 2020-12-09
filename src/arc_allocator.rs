@@ -36,23 +36,6 @@ impl ArcAllocator {
     }
 }
 
-impl<'a, T> dyn Allocator<T> + 'a {
-    pub fn null(&self) -> T {
-        self.blob_u8(&[])
-    }
-
-    pub fn one(&self) -> T {
-        self.blob_u8(&[1])
-    }
-
-    pub fn nullp(&self, v: &T) -> bool {
-        match self.sexp(v) {
-            SExp::Atom(a) => a.len() == 0,
-            _ => false,
-        }
-    }
-}
-
 impl Allocator<Node> for ArcAllocator {
     fn blob_u8(&self, v: &[u8]) -> Node {
         Arc::new(SExp::Atom(Vec::from(v).into())).into()
@@ -67,5 +50,9 @@ impl Allocator<Node> for ArcAllocator {
             SExp::Atom(a) => SExp::Atom(Arc::clone(a)),
             SExp::Pair(left, right) => SExp::Pair(left.clone(), right.clone()),
         }
+    }
+
+    fn make_clone(&self, node: &Node) -> Node {
+        node.clone()
     }
 }

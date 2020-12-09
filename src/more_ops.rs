@@ -51,7 +51,7 @@ pub fn op_sha256(
                 hasher.input(blob);
                 cost += blob.len() as u32;
             }
-            None => return allocator.err(args, "atom expected"),
+            None => return allocator.err(&args, "atom expected"),
         }
     }
     Ok(Reduction(cost, allocator.blob_u8(&hasher.result())))
@@ -68,7 +68,7 @@ pub fn op_add(
         let v: Option<Number> = Option::from(&arg);
         match v {
             Some(value) => total += value,
-            None => return allocator.err(args, "+ takes integer arguments"),
+            None => return allocator.err(&args, "+ takes integer arguments"),
         }
     }
     let total: Node = node_from_number(allocator, total);
@@ -94,7 +94,7 @@ pub fn op_subtract(
                 };
                 is_first = false;
             }
-            None => return allocator.err(args, "- takes integer arguments"),
+            None => return allocator.err(&args, "- takes integer arguments"),
         }
     }
     let total: Node = node_from_number(allocator, total);
@@ -113,7 +113,7 @@ pub fn op_multiply(
         let v: Option<Number> = Option::from(&arg);
         match v {
             Some(value) => total *= value,
-            None => return allocator.err(args, "* takes integer arguments"),
+            None => return allocator.err(&args, "* takes integer arguments"),
         }
     }
     let total: Node = node_from_number(allocator, total);
@@ -124,9 +124,9 @@ pub fn op_gr(
     allocator: &dyn Allocator<Node>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
-    let a0 = args.first()?;
+    let a0 = allocator.first(args)?;
     let v0: Option<Number> = Option::from(&a0);
-    let a1 = args.rest()?.first()?;
+    let a1 = allocator.first(&allocator.rest(args)?)?;
     let v1: Option<Number> = Option::from(&a1);
     let cost = ADD_COST_PER_LIMB * max(limbs_for_int(&a0), limbs_for_int(&a1));
     if let Some(n0) = v0 {

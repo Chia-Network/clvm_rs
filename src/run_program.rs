@@ -59,10 +59,7 @@ fn traverse_path<T>(
     allocator: &dyn Allocator<T>,
     path_node: &T,
     args: &T,
-) -> Result<Reduction<T>, EvalErr<T>>
-where
-    T: Clone,
-{
+) -> Result<Reduction<T>, EvalErr<T>> {
     /*
     Follow integer `NodePath` down a tree.
     */
@@ -74,21 +71,21 @@ where
     let mut node_index: Number = node_index.unwrap();
     let one: Number = (1).into();
     let mut cost = 1;
-    let mut arg_list: T = args.clone();
+    let mut arg_list: T = allocator.make_clone(args);
     loop {
         if node_index <= one {
             break;
         }
         match allocator.sexp(&arg_list) {
             SExp::Atom(_) => {
-                return Err(EvalErr(arg_list.clone(), "path into atom".into()));
+                return Err(EvalErr(arg_list, "path into atom".into()));
             }
             SExp::Pair(left, right) => {
-                arg_list = if node_index & one == one {
-                    right.clone()
+                arg_list = allocator.make_clone(if node_index & one == one {
+                    &right
                 } else {
-                    left.clone()
-                };
+                    &left
+                });
             }
         };
         cost += SHIFT_COST_PER_LIMB * limbs_for_int(node_index);
@@ -135,14 +132,14 @@ where
         match rpc.allocator.sexp(operand_list) {
             SExp::Atom(_) => rpc
                 .allocator
-                .err(operand_list, "quote requires exactly 1 parameter"),
+                .err(&operand_list, "quote requires exactly 1 parameter"),
             SExp::Pair(quoted_val, nil) => {
                 if rpc.allocator.nullp(&nil) {
                     rpc.push(quoted_val);
                     Ok(QUOTE_COST)
                 } else {
                     rpc.allocator
-                        .err(operand_list, "quote requires exactly 1 parameter")
+                        .err(&operand_list, "quote requires exactly 1 parameter")
                 }
             }
         }

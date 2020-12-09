@@ -1,4 +1,4 @@
-use crate::allocator::Allocator;
+use crate::allocator::{Allocator, SExp};
 use crate::arc_allocator::ArcAllocator;
 use crate::node::Node;
 
@@ -17,24 +17,53 @@ pub type PostEval<T> = dyn Fn(Option<&T>);
 
 pub type PreEval<T> = Box<dyn Fn(&T, &T) -> Result<Option<Box<PostEval<T>>>, EvalErr<T>>>;
 
-impl<'a, T> dyn Allocator<T> + 'a
-where
-    T: Clone,
-{
+impl<'a, T> dyn Allocator<T> + 'a {
     pub fn err<V>(&self, node: &T, msg: &str) -> Result<V, EvalErr<T>> {
         let s: String = msg.into();
-        Err(EvalErr(node.clone(), s))
+        Err(EvalErr(self.make_clone(node), s))
     }
 }
 
 impl ArcAllocator {
     pub fn err<T>(&self, node: &Node, msg: &str) -> Result<T, EvalErr<Node>> {
-        Err(EvalErr(node.clone(), msg.into()))
+        Err(EvalErr(self.make_clone(node), msg.into()))
     }
 }
 
 impl Node {
     pub fn err<T>(&self, msg: &str) -> Result<T, EvalErr<Node>> {
         Err(EvalErr(self.clone(), msg.into()))
+    }
+}
+
+impl<'a, T> dyn Allocator<T> + 'a {
+    pub fn first(&self, v: &T) -> Result<T, EvalErr<T>> {
+        match self.sexp(v) {
+            SExp::Pair(a, _b) => Ok(a),
+            _ => self.err(v, "first of non-cons"),
+        }
+    }
+    pub fn rest(&self, v: &T) -> Result<T, EvalErr<T>> {
+        match self.sexp(v) {
+            SExp::Pair(_a, b) => Ok(b),
+            _ => self.err(v, "rest of non-cons"),
+        }
+    }
+}
+
+impl<'a, T> dyn Allocator<T> + 'a {
+    pub fn null(&self) -> T {
+        self.blob_u8(&[])
+    }
+
+    pub fn one(&self) -> T {
+        self.blob_u8(&[1])
+    }
+
+    pub fn nullp(&self, v: &T) -> bool {
+        match self.sexp(v) {
+            SExp::Atom(a) => a.len() == 0,
+            _ => false,
+        }
     }
 }

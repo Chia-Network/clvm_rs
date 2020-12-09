@@ -8,62 +8,52 @@ const CONS_COST: u32 = 10;
 const REST_COST: u32 = 10;
 const LISTP_COST: u32 = 10;
 
-impl Node {
-    pub fn first(&self) -> Result<Node, EvalErr<Node>> {
-        match self.pair() {
-            Some((a, _b)) => Ok(a),
-            _ => self.err("first of non-cons"),
-        }
+pub fn op_if<T>(allocator: &dyn Allocator<T>, args: &T) -> Result<Reduction<T>, EvalErr<T>>
+where
+    T: Clone,
+{
+    let cond = allocator.first(args)?;
+    let mut chosen_node = allocator.rest(args)?;
+    if allocator.nullp(&cond) {
+        chosen_node = allocator.rest(&chosen_node)?;
     }
-
-    pub fn rest(&self) -> Result<Node, EvalErr<Node>> {
-        match self.pair() {
-            Some((_a, b)) => Ok(b),
-            _ => self.err("rest of non-cons"),
-        }
-    }
+    Ok(Reduction(IF_COST, allocator.first(&chosen_node)?))
 }
 
-pub fn op_if(
-    _allocator: &dyn Allocator<Node>,
-    args: &Node,
-) -> Result<Reduction<Node>, EvalErr<Node>> {
-    let cond = args.first()?;
-    let mut chosen_node = args.rest()?;
-    if cond.nullp() {
-        chosen_node = chosen_node.rest()?;
-    }
-    Ok(Reduction(IF_COST, chosen_node.first()?))
-}
-
-pub fn op_cons(
-    allocator: &dyn Allocator<Node>,
-    args: &Node,
-) -> Result<Reduction<Node>, EvalErr<Node>> {
-    let a1 = args.first()?;
-    let a2 = args.rest()?.first()?;
+pub fn op_cons<T>(allocator: &dyn Allocator<T>, args: &T) -> Result<Reduction<T>, EvalErr<T>>
+where
+    T: Clone,
+{
+    let a1 = allocator.first(args)?;
+    let a2 = allocator.first(&allocator.rest(args)?)?;
     Ok(Reduction(CONS_COST, allocator.from_pair(&a1, &a2)))
 }
 
-pub fn op_first(
-    _allocator: &dyn Allocator<Node>,
-    args: &Node,
-) -> Result<Reduction<Node>, EvalErr<Node>> {
-    Ok(Reduction(FIRST_COST, args.first()?.first()?))
+pub fn op_first<T>(allocator: &dyn Allocator<T>, args: &T) -> Result<Reduction<T>, EvalErr<T>>
+where
+    T: Clone,
+{
+    Ok(Reduction(
+        FIRST_COST,
+        allocator.first(&allocator.first(args)?)?,
+    ))
 }
 
 pub fn op_rest(
-    _allocator: &dyn Allocator<Node>,
+    allocator: &dyn Allocator<Node>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
-    Ok(Reduction(REST_COST, args.first()?.rest()?))
+    Ok(Reduction(
+        REST_COST,
+        allocator.rest(&allocator.first(args)?)?,
+    ))
 }
 
 pub fn op_listp(
     allocator: &dyn Allocator<Node>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
-    match args.first()?.pair() {
+    match allocator.first(args)?.pair() {
         Some((_first, _rest)) => Ok(Reduction(LISTP_COST, allocator.one())),
         _ => Ok(Reduction(LISTP_COST, allocator.null())),
     }
@@ -80,8 +70,8 @@ pub fn op_eq(
     allocator: &dyn Allocator<Node>,
     args: &Node,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
-    let a0 = args.first()?;
-    let a1 = args.rest()?.first()?;
+    let a0 = allocator.first(args)?;
+    let a1 = allocator.first(&allocator.rest(args)?)?;
     if let Some(s0) = a0.atom() {
         if let Some(s1) = a1.atom() {
             let cost: u32 = s0.len() as u32 + s1.len() as u32;
