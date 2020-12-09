@@ -1,6 +1,5 @@
 use crate::allocator::{NodeT, SExp};
-use crate::reduction::Reduction;
-use crate::types::EvalErr;
+use crate::reduction::{EvalErr, Reduction, Response};
 
 const FIRST_COST: u32 = 10;
 const IF_COST: u32 = 10;
@@ -48,7 +47,7 @@ impl<'a, T> NodeT<'a, T> {
     }
 }
 
-pub fn op_if<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
+pub fn op_if<T>(args: &NodeT<T>) -> Response<T> {
     let cond = args.first()?;
     let mut chosen_node = args.rest()?;
     if cond.nullp() {
@@ -57,32 +56,32 @@ pub fn op_if<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
     Ok(Reduction(IF_COST, chosen_node.first()?.node))
 }
 
-pub fn op_cons<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
+pub fn op_cons<T>(args: &NodeT<T>) -> Response<T> {
     let a1 = args.first()?;
     let a2 = args.rest()?.first()?;
     Ok(Reduction(CONS_COST, args.from_pair(&a1, &a2)))
 }
 
-pub fn op_first<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
+pub fn op_first<T>(args: &NodeT<T>) -> Response<T> {
     Ok(Reduction(FIRST_COST, args.first()?.first()?.node))
 }
 
-pub fn op_rest<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
+pub fn op_rest<T>(args: &NodeT<T>) -> Response<T> {
     Ok(Reduction(REST_COST, args.first()?.rest()?.node))
 }
 
-pub fn op_listp<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
+pub fn op_listp<T>(args: &NodeT<T>) -> Response<T> {
     match args.first()?.pair() {
         Some((_first, _rest)) => Ok(Reduction(LISTP_COST, args.one())),
         _ => Ok(Reduction(LISTP_COST, args.null())),
     }
 }
 
-pub fn op_raise<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
+pub fn op_raise<T>(args: &NodeT<T>) -> Response<T> {
     args.err("clvm raise")
 }
 
-pub fn op_eq<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
+pub fn op_eq<T>(args: &NodeT<T>) -> Response<T> {
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
     if let Some(s0) = a0.atom() {

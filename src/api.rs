@@ -1,11 +1,12 @@
+use crate::allocator::NodeT;
 use crate::arc_allocator::ArcAllocator;
 use crate::native_op_lookup::NativeOpLookup;
 use crate::node::Node;
-use crate::reduction::Reduction;
+use crate::reduction::{EvalErr, Reduction};
 use crate::run_program::run_program;
 use crate::serialize::{node_from_bytes, node_to_bytes};
 use crate::tracing::{PostEval, PreEval};
-use crate::types::{EvalErr, OperatorHandler};
+use crate::types::OperatorHandler;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;
@@ -128,7 +129,9 @@ fn serialize_from_bytes(blob: &[u8]) -> PyResult<Node> {
 
 #[pyfunction]
 fn serialize_to_bytes(py: Python, sexp: &Node) -> PyResult<PyObject> {
-    let blob = node_to_bytes(&sexp).unwrap();
+    let allocator: ArcAllocator = ArcAllocator::new();
+    let node_t: NodeT<Node> = NodeT::new(&allocator, sexp.clone());
+    let blob = node_to_bytes(&node_t).unwrap();
     let pybytes = PyBytes::new(py, &blob);
     let pyany: PyObject = pybytes.to_object(py);
     Ok(pyany)

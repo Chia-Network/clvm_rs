@@ -1,7 +1,6 @@
 use crate::allocator::NodeT;
 use crate::number::{node_from_number, Number};
-use crate::reduction::Reduction;
-use crate::types::EvalErr;
+use crate::reduction::{Reduction, Response};
 
 use sha2::{Digest, Sha256};
 use std::cmp::max;
@@ -40,7 +39,7 @@ pub fn limbs_for_int<T>(args: &NodeT<T>) -> u32 {
     }
 }
 
-pub fn op_sha256<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
+pub fn op_sha256<T>(args: &NodeT<T>) -> Response<T> {
     let mut cost: u32 = SHA256_COST;
     let mut hasher = Sha256::new();
     for arg in args {
@@ -55,7 +54,7 @@ pub fn op_sha256<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
     Ok(Reduction(cost, args.blob_u8(&hasher.result()).node))
 }
 
-pub fn op_add<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
+pub fn op_add<T>(args: &NodeT<T>) -> Response<T> {
     let mut cost: u32 = MIN_COST;
     let mut total: Number = 0.into();
     for arg in args {
@@ -70,7 +69,7 @@ pub fn op_add<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
     Ok(Reduction(cost, total.node))
 }
 
-pub fn op_subtract<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
+pub fn op_subtract<T>(args: &NodeT<T>) -> Response<T> {
     let mut cost: u32 = MIN_COST;
     let mut total: Number = 0.into();
     let mut is_first = true;
@@ -93,7 +92,7 @@ pub fn op_subtract<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
     Ok(Reduction(cost, total.node))
 }
 
-pub fn op_multiply<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
+pub fn op_multiply<T>(args: &NodeT<T>) -> Response<T> {
     let mut cost: u32 = MIN_COST;
     let mut total: Number = 1.into();
     for arg in args {
@@ -109,7 +108,7 @@ pub fn op_multiply<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
     Ok(Reduction(cost, total.node))
 }
 
-pub fn op_gr<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
+pub fn op_gr<T>(args: &NodeT<T>) -> Response<T> {
     let a0 = args.first()?;
     let v0: Option<Number> = Option::from(&a0);
     let a1 = args.rest()?.first()?;

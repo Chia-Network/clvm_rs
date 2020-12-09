@@ -1,7 +1,6 @@
 use crate::allocator::{Allocator, NodeT};
 use crate::node::Node;
-use crate::reduction::Reduction;
-use crate::types::EvalErr;
+use crate::reduction::{EvalErr, Reduction};
 
 use crate::f_table::{make_f_lookup, FLookup};
 

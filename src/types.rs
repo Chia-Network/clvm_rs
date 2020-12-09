@@ -1,10 +1,7 @@
 use crate::allocator::{Allocator, NodeT, SExp};
 use crate::arc_allocator::ArcAllocator;
 use crate::node::Node;
-use crate::reduction::Reduction;
-
-#[derive(Debug, Clone)]
-pub struct EvalErr<T>(pub T, pub String);
+use crate::reduction::{EvalErr, Reduction};
 
 pub type OpFn<T> = fn(&NodeT<T>) -> Result<Reduction<T>, EvalErr<T>>;
 

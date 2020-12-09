@@ -1,4 +1,4 @@
-use crate::types::EvalErr;
+use crate::reduction::EvalErr;
 
 pub type PostEval<T> = dyn Fn(Option<&T>);
 

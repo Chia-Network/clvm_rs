@@ -2,8 +2,7 @@ use std::io::Cursor;
 use std::io::Read;
 use std::io::Write;
 
-use crate::allocator::Allocator;
-use crate::node::Node;
+use crate::allocator::{Allocator, NodeT};
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const CONS_BOX_MARKER: u8 = 0xff;
@@ -38,7 +37,7 @@ fn encode_size(f: &mut dyn Write, size: usize) -> std::io::Result<()> {
     Ok(())
 }
 
-pub fn node_to_stream(node: &Node, f: &mut dyn Write) -> std::io::Result<()> {
+pub fn node_to_stream<T>(node: &NodeT<T>, f: &mut dyn Write) -> std::io::Result<()> {
     if let Some(atom) = node.atom() {
         let size = atom.len();
         if size == 0 {
@@ -49,7 +48,7 @@ pub fn node_to_stream(node: &Node, f: &mut dyn Write) -> std::io::Result<()> {
                 f.write_all(&[atom0])?;
             } else {
                 encode_size(f, size)?;
-                f.write_all(atom)?;
+                f.write_all(&atom)?;
             }
         }
     }
@@ -87,10 +86,10 @@ fn decode_size(f: &mut dyn Read, initial_b: u8) -> std::io::Result<usize> {
     Ok(bytes_to_read)
 }
 
-pub fn node_from_stream(
-    allocator: &dyn Allocator<Node>,
+pub fn node_from_stream<T>(
+    allocator: &dyn Allocator<T>,
     f: &mut dyn Read,
-) -> std::io::Result<Node> {
+) -> std::io::Result<T> {
     let mut b = [0; 1];
     f.read_exact(&mut b)?;
     if b[0] == CONS_BOX_MARKER {
@@ -107,12 +106,12 @@ pub fn node_from_stream(
     Ok(allocator.blob_u8(&blob))
 }
 
-pub fn node_from_bytes(allocator: &dyn Allocator<Node>, b: &[u8]) -> std::io::Result<Node> {
+pub fn node_from_bytes<T>(allocator: &dyn Allocator<T>, b: &[u8]) -> std::io::Result<T> {
     let mut buffer = Cursor::new(b);
     node_from_stream(allocator, &mut buffer)
 }
 
-pub fn node_to_bytes(node: &Node) -> std::io::Result<Vec<u8>> {
+pub fn node_to_bytes<T>(node: &NodeT<T>) -> std::io::Result<Vec<u8>> {
     let mut buffer = Cursor::new(Vec::new());
 
     node_to_stream(node, &mut buffer)?;

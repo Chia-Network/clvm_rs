@@ -1,10 +1,10 @@
 use crate::allocator::{Allocator, NodeT, SExp};
-use crate::reduction::Reduction;
+use crate::reduction::{EvalErr, Reduction, Response};
 
 use crate::number::{node_from_number, number_from_u8, Number};
 
 use crate::tracing::PreEval;
-use crate::types::{EvalErr, OperatorHandler};
+use crate::types::OperatorHandler;
 
 const QUOTE_COST: u32 = 1;
 const SHIFT_COST_PER_LIMB: u32 = 1;
@@ -57,11 +57,7 @@ fn limbs_for_int(node_index: Number) -> u32 {
     v
 }
 
-fn traverse_path<T>(
-    allocator: &dyn Allocator<T>,
-    path_node: &T,
-    args: &T,
-) -> Result<Reduction<T>, EvalErr<T>> {
+fn traverse_path<T>(allocator: &dyn Allocator<T>, path_node: &T, args: &T) -> Response<T> {
     /*
     Follow integer `NodePath` down a tree.
     */
@@ -259,7 +255,7 @@ pub fn run_program<T: 'static>(
     max_cost: u32,
     operator_lookup: &OperatorHandler<T>,
     pre_eval: Option<PreEval<T>>,
-) -> Result<Reduction<T>, EvalErr<T>>
+) -> Response<T>
 where
     T: Clone,
 {
