@@ -1,4 +1,4 @@
-use crate::allocator::{Allocator, SExp};
+use crate::allocator::{Allocator, NodeT, SExp};
 use crate::arc_allocator::ArcAllocator;
 use crate::node::Node;
 
@@ -8,7 +8,7 @@ pub struct EvalErr<T>(pub T, pub String);
 #[derive(Debug)]
 pub struct Reduction<T>(pub u32, pub T);
 
-pub type OpFn<T> = fn(&dyn Allocator<T>, &T) -> Result<Reduction<T>, EvalErr<T>>;
+pub type OpFn<T> = fn(&NodeT<T>) -> Result<Reduction<T>, EvalErr<T>>;
 
 pub type OperatorHandler<T> =
     Box<dyn Fn(&dyn Allocator<T>, &[u8], &T) -> Result<Reduction<T>, EvalErr<T>>>;
@@ -46,14 +46,6 @@ impl<'a, T> dyn Allocator<T> + 'a {
 }
 
 impl<'a, T> dyn Allocator<T> + 'a {
-    pub fn null(&self) -> T {
-        self.blob_u8(&[])
-    }
-
-    pub fn one(&self) -> T {
-        self.blob_u8(&[1])
-    }
-
     pub fn nullp(&self, v: &T) -> bool {
         match self.sexp(v) {
             SExp::Atom(a) => a.len() == 0,

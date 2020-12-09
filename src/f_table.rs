@@ -5,8 +5,9 @@ use super::types::OpFn;
 
 pub type FLookup = [Option<OpFn<Node>>; 256];
 
-static OPCODE_LOOKUP: [(u8, OpFn<Node>); 12] = [
+static OPCODE_LOOKUP: [(u8, OpFn<Node>); 1] = [
     (4, op_if),
+    /*
     (5, op_cons),
     (6, op_first),
     (7, op_rest),
@@ -18,6 +19,7 @@ static OPCODE_LOOKUP: [(u8, OpFn<Node>); 12] = [
     (13, op_subtract),
     (14, op_multiply),
     (22, op_gr),
+    */
 ];
 
 pub fn make_f_lookup() -> FLookup {

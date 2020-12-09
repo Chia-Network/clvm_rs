@@ -55,4 +55,10 @@ impl Allocator<Node> for ArcAllocator {
     fn make_clone(&self, node: &Node) -> Node {
         node.clone()
     }
+    fn null(&self) -> Node {
+        NULL.clone()
+    }
+    fn one(&self) -> Node {
+        ONE.clone()
+    }
 }

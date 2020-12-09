@@ -1,4 +1,4 @@
-use crate::allocator::Allocator;
+use crate::allocator::{Allocator, NodeT};
 use crate::node::Node;
 use crate::types::{EvalErr, Reduction};
 
@@ -50,7 +50,8 @@ impl NativeOpLookup {
     ) -> Result<Reduction<Node>, EvalErr<Node>> {
         if op.len() == 1 {
             if let Some(f) = self.f_lookup[op[0] as usize] {
-                return f(allocator, argument_list);
+                let node_t: NodeT<Node> = NodeT::new(allocator, argument_list.clone());
+                return f(&node_t);
             }
         }
 

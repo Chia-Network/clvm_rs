@@ -1,4 +1,4 @@
-use crate::allocator::{Allocator, SExp};
+use crate::allocator::{Allocator, NodeT, SExp};
 use crate::types::{EvalErr, Reduction};
 
 const FIRST_COST: u32 = 10;
@@ -7,13 +7,41 @@ const CONS_COST: u32 = 10;
 const REST_COST: u32 = 10;
 const LISTP_COST: u32 = 10;
 
-pub fn op_if<T>(allocator: &dyn Allocator<T>, args: &T) -> Result<Reduction<T>, EvalErr<T>> {
-    let cond = allocator.first(args)?;
-    let mut chosen_node = allocator.rest(args)?;
-    if allocator.nullp(&cond) {
-        chosen_node = allocator.rest(&chosen_node)?;
+impl<'a, T> NodeT<'a, T> {
+    pub fn first(&self) -> Result<NodeT<'a, T>, EvalErr<T>> {
+        match self.sexp() {
+            SExp::Pair(p1, _) => Ok(self.with_node(p1)),
+            _ => self.err("first of non-cons"),
+        }
     }
-    Ok(Reduction(IF_COST, allocator.first(&chosen_node)?))
+
+    pub fn rest(&self) -> Result<NodeT<'a, T>, EvalErr<T>> {
+        match self.sexp() {
+            SExp::Pair(_, p2) => Ok(self.with_node(p2)),
+            _ => self.err("rest of non-cons"),
+        }
+    }
+
+    pub fn err<U>(&self, msg: &str) -> Result<U, EvalErr<T>> {
+        Err(EvalErr(self.allocator.make_clone(&self.node), msg.into()))
+    }
+
+    pub fn nullp(&self) -> bool {
+        if let Some(a) = self.atom() {
+            a.len() == 0
+        } else {
+            false
+        }
+    }
+}
+
+pub fn op_if<T>(args: &NodeT<T>) -> Result<Reduction<T>, EvalErr<T>> {
+    let cond = args.first()?;
+    let mut chosen_node = args.rest()?;
+    if cond.nullp() {
+        chosen_node = chosen_node.rest()?;
+    }
+    Ok(Reduction(IF_COST, chosen_node.first()?.node))
 }
 
 pub fn op_cons<T>(allocator: &dyn Allocator<T>, args: &T) -> Result<Reduction<T>, EvalErr<T>> {
