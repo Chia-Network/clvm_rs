@@ -1,7 +1,8 @@
-use crate::allocator::{Allocator, NodeT, SExp};
+use crate::allocator::{Allocator, SExp};
+use crate::node::Node;
 use crate::reduction::{EvalErr, Response};
 
-pub type OpFn<T> = fn(&NodeT<T>) -> Response<T>;
+pub type OpFn<T> = fn(&Node<T>) -> Response<T>;
 
 pub type OperatorHandler<T> = Box<dyn Fn(&dyn Allocator<T>, &[u8], &T) -> Response<T>>;
 

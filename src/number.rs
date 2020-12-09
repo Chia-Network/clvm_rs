@@ -1,9 +1,10 @@
-use crate::allocator::{Allocator, NodeT};
+use crate::allocator::Allocator;
+use crate::node::Node;
 
 use uint::U256;
 pub type Number = U256;
 
-pub fn node_from_number<T>(allocator: &dyn Allocator<T>, item: Number) -> NodeT<T> {
+pub fn node_from_number<T>(allocator: &dyn Allocator<T>, item: Number) -> Node<T> {
     // BRAIN DAMAGE: make it minimal by removing leading zeros
     let mut bytes: Vec<u8> = vec![0; 32];
     item.to_big_endian(&mut bytes);
@@ -14,11 +15,11 @@ pub fn node_from_number<T>(allocator: &dyn Allocator<T>, item: Number) -> NodeT<
         }
         slice = &slice[1..];
     }
-    NodeT::new(allocator, allocator.blob_u8(&slice))
+    Node::new(allocator, allocator.blob_u8(&slice))
 }
 
-impl<T> From<&NodeT<'_, T>> for Option<Number> {
-    fn from(item: &NodeT<T>) -> Self {
+impl<T> From<&Node<'_, T>> for Option<Number> {
+    fn from(item: &Node<T>) -> Self {
         let v: &[u8] = &item.atom()?;
         number_from_u8(v)
     }

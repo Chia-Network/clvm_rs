@@ -2,7 +2,8 @@ use std::io::Cursor;
 use std::io::Read;
 use std::io::Write;
 
-use crate::allocator::{Allocator, NodeT};
+use crate::allocator::Allocator;
+use crate::node::Node;
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const CONS_BOX_MARKER: u8 = 0xff;
@@ -37,7 +38,7 @@ fn encode_size(f: &mut dyn Write, size: usize) -> std::io::Result<()> {
     Ok(())
 }
 
-pub fn node_to_stream<T>(node: &NodeT<T>, f: &mut dyn Write) -> std::io::Result<()> {
+pub fn node_to_stream<T>(node: &Node<T>, f: &mut dyn Write) -> std::io::Result<()> {
     if let Some(atom) = node.atom() {
         let size = atom.len();
         if size == 0 {
@@ -108,7 +109,7 @@ pub fn node_from_bytes<T>(allocator: &dyn Allocator<T>, b: &[u8]) -> std::io::Re
     node_from_stream(allocator, &mut buffer)
 }
 
-pub fn node_to_bytes<T>(node: &NodeT<T>) -> std::io::Result<Vec<u8>> {
+pub fn node_to_bytes<T>(node: &Node<T>) -> std::io::Result<Vec<u8>> {
     let mut buffer = Cursor::new(Vec::new());
 
     node_to_stream(node, &mut buffer)?;

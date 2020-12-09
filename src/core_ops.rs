@@ -1,4 +1,5 @@
-use crate::allocator::{NodeT, SExp};
+use crate::allocator::SExp;
+use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction, Response};
 
 const FIRST_COST: u32 = 10;
@@ -7,15 +8,15 @@ const CONS_COST: u32 = 10;
 const REST_COST: u32 = 10;
 const LISTP_COST: u32 = 10;
 
-impl<'a, T> NodeT<'a, T> {
-    pub fn first(&self) -> Result<NodeT<'a, T>, EvalErr<T>> {
+impl<'a, T> Node<'a, T> {
+    pub fn first(&self) -> Result<Node<'a, T>, EvalErr<T>> {
         match self.sexp() {
             SExp::Pair(p1, _) => Ok(self.with_node(p1)),
             _ => self.err("first of non-cons"),
         }
     }
 
-    pub fn rest(&self) -> Result<NodeT<'a, T>, EvalErr<T>> {
+    pub fn rest(&self) -> Result<Node<'a, T>, EvalErr<T>> {
         match self.sexp() {
             SExp::Pair(_, p2) => Ok(self.with_node(p2)),
             _ => self.err("rest of non-cons"),
@@ -47,7 +48,7 @@ impl<'a, T> NodeT<'a, T> {
     }
 }
 
-pub fn op_if<T>(args: &NodeT<T>) -> Response<T> {
+pub fn op_if<T>(args: &Node<T>) -> Response<T> {
     let cond = args.first()?;
     let mut chosen_node = args.rest()?;
     if cond.nullp() {
@@ -56,32 +57,32 @@ pub fn op_if<T>(args: &NodeT<T>) -> Response<T> {
     Ok(Reduction(IF_COST, chosen_node.first()?.node))
 }
 
-pub fn op_cons<T>(args: &NodeT<T>) -> Response<T> {
+pub fn op_cons<T>(args: &Node<T>) -> Response<T> {
     let a1 = args.first()?;
     let a2 = args.rest()?.first()?;
     Ok(Reduction(CONS_COST, args.from_pair(&a1, &a2)))
 }
 
-pub fn op_first<T>(args: &NodeT<T>) -> Response<T> {
+pub fn op_first<T>(args: &Node<T>) -> Response<T> {
     Ok(Reduction(FIRST_COST, args.first()?.first()?.node))
 }
 
-pub fn op_rest<T>(args: &NodeT<T>) -> Response<T> {
+pub fn op_rest<T>(args: &Node<T>) -> Response<T> {
     Ok(Reduction(REST_COST, args.first()?.rest()?.node))
 }
 
-pub fn op_listp<T>(args: &NodeT<T>) -> Response<T> {
+pub fn op_listp<T>(args: &Node<T>) -> Response<T> {
     match args.first()?.pair() {
         Some((_first, _rest)) => Ok(Reduction(LISTP_COST, args.one())),
         _ => Ok(Reduction(LISTP_COST, args.null())),
     }
 }
 
-pub fn op_raise<T>(args: &NodeT<T>) -> Response<T> {
+pub fn op_raise<T>(args: &Node<T>) -> Response<T> {
     args.err("clvm raise")
 }
 
-pub fn op_eq<T>(args: &NodeT<T>) -> Response<T> {
+pub fn op_eq<T>(args: &Node<T>) -> Response<T> {
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
     if let Some(s0) = a0.atom() {

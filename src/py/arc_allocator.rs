@@ -1,5 +1,5 @@
+use super::py_node::PyNode;
 use crate::allocator::{Allocator, SExp};
-use crate::py::node::Node;
 use crate::reduction::EvalErr;
 use std::sync::Arc;
 
@@ -11,11 +11,11 @@ use pyo3::prelude::*;
 pub struct ArcAllocator {}
 
 lazy_static! {
-    static ref NULL: Node = {
+    static ref NULL: PyNode = {
         let allocator = ArcAllocator::new();
         allocator.blob_u8(&[])
     };
-    static ref ONE: Node = {
+    static ref ONE: PyNode = {
         let allocator = ArcAllocator::new();
         allocator.blob_u8(&[1])
     };
@@ -32,42 +32,42 @@ impl ArcAllocator {
         ArcAllocator {}
     }
 
-    pub fn blob(&self, v: &str) -> Node {
+    pub fn blob(&self, v: &str) -> PyNode {
         Arc::new(SExp::Atom(Vec::from(v).into())).into()
     }
 }
 
-impl Allocator<Node> for ArcAllocator {
-    fn blob_u8(&self, v: &[u8]) -> Node {
+impl Allocator<PyNode> for ArcAllocator {
+    fn blob_u8(&self, v: &[u8]) -> PyNode {
         Arc::new(SExp::Atom(Vec::from(v).into())).into()
     }
 
-    fn from_pair(&self, first: &Node, rest: &Node) -> Node {
+    fn from_pair(&self, first: &PyNode, rest: &PyNode) -> PyNode {
         Arc::new(SExp::Pair(first.clone(), rest.clone())).into()
     }
 
-    fn sexp(&self, node: &Node) -> SExp<Node> {
+    fn sexp(&self, node: &PyNode) -> SExp<PyNode> {
         match node.sexp() {
             SExp::Atom(a) => SExp::Atom(Arc::clone(a)),
             SExp::Pair(left, right) => SExp::Pair(left.clone(), right.clone()),
         }
     }
 
-    fn make_clone(&self, node: &Node) -> Node {
+    fn make_clone(&self, node: &PyNode) -> PyNode {
         node.clone()
     }
 
-    fn null(&self) -> Node {
+    fn null(&self) -> PyNode {
         NULL.clone()
     }
 
-    fn one(&self) -> Node {
+    fn one(&self) -> PyNode {
         ONE.clone()
     }
 }
 
 impl ArcAllocator {
-    pub fn err<T>(&self, node: &Node, msg: &str) -> Result<T, EvalErr<Node>> {
+    pub fn err<T>(&self, node: &PyNode, msg: &str) -> Result<T, EvalErr<PyNode>> {
         Err(EvalErr(self.make_clone(node), msg.into()))
     }
 }

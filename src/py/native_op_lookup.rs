@@ -1,8 +1,9 @@
-use crate::allocator::{Allocator, NodeT};
-use crate::py::node::Node;
+use crate::allocator::Allocator;
+use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction};
 
 use super::f_table::{make_f_lookup, FLookup};
+use super::py_node::PyNode;
 
 use pyo3::prelude::*;
 use pyo3::types::{PyString, PyTuple};
@@ -31,12 +32,12 @@ impl NativeOpLookup {
     }
 }
 
-fn eval_err_for_pyerr(py: Python, pyerr: &PyErr) -> PyResult<EvalErr<Node>> {
+fn eval_err_for_pyerr(py: Python, pyerr: &PyErr) -> PyResult<EvalErr<PyNode>> {
     let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
     let arg0: &PyString = args.get_item(0).extract()?;
-    let sexp: &PyCell<Node> = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
+    let sexp: &PyCell<PyNode> = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
 
-    let node: Node = sexp.try_borrow()?.clone();
+    let node: PyNode = sexp.try_borrow()?.clone();
     let s: String = arg0.to_str()?.to_string();
     Ok(EvalErr(node, s))
 }
@@ -44,19 +45,19 @@ fn eval_err_for_pyerr(py: Python, pyerr: &PyErr) -> PyResult<EvalErr<Node>> {
 impl NativeOpLookup {
     pub fn operator_handler(
         &self,
-        allocator: &dyn Allocator<Node>,
+        allocator: &dyn Allocator<PyNode>,
         op: &[u8],
-        argument_list: &Node,
-    ) -> Result<Reduction<Node>, EvalErr<Node>> {
+        argument_list: &PyNode,
+    ) -> Result<Reduction<PyNode>, EvalErr<PyNode>> {
         if op.len() == 1 {
             if let Some(f) = self.f_lookup[op[0] as usize] {
-                let node_t: NodeT<Node> = NodeT::new(allocator, argument_list.clone());
+                let node_t: Node<PyNode> = Node::new(allocator, argument_list.clone());
                 return f(&node_t);
             }
         }
 
         Python::with_gil(|py| {
-            let pysexp: Node = argument_list.clone();
+            let pysexp: PyNode = argument_list.clone();
             let r1 = self.py_callback.call1(py, (op, pysexp));
             match r1 {
                 Err(pyerr) => {
@@ -72,9 +73,9 @@ impl NativeOpLookup {
                 Ok(o) => {
                     let pair: &PyTuple = o.extract(py).unwrap();
                     let i0: u32 = pair.get_item(0).extract()?;
-                    let i1: PyRef<Node> = pair.get_item(1).extract()?;
+                    let i1: PyRef<PyNode> = pair.get_item(1).extract()?;
                     let n = i1.clone();
-                    let r: Reduction<Node> = Reduction(i0, n);
+                    let r: Reduction<PyNode> = Reduction(i0, n);
                     Ok(r)
                 }
             }

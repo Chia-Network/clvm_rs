@@ -9,40 +9,40 @@ use pyo3::types::PyTuple;
 
 #[pyclass(subclass, unsendable)]
 #[derive(Clone)]
-pub struct Node {
-    node: Arc<SExp<Node>>,
+pub struct PyNode {
+    node: Arc<SExp<PyNode>>,
 }
 
-fn extract_atom(allocator: &ArcAllocator, obj: &PyAny) -> PyResult<Node> {
+fn extract_atom(allocator: &ArcAllocator, obj: &PyAny) -> PyResult<PyNode> {
     let r: &[u8] = obj.extract()?;
     Ok(allocator.blob_u8(r))
 }
 
-fn extract_node(_allocator: &ArcAllocator, obj: &PyAny) -> PyResult<Node> {
-    let ps: &PyCell<Node> = obj.extract()?;
-    let node: Node = ps.try_borrow()?.clone();
+fn extract_node(_allocator: &ArcAllocator, obj: &PyAny) -> PyResult<PyNode> {
+    let ps: &PyCell<PyNode> = obj.extract()?;
+    let node: PyNode = ps.try_borrow()?.clone();
     Ok(node)
 }
 
-fn extract_tuple(allocator: &ArcAllocator, obj: &PyAny) -> PyResult<Node> {
+fn extract_tuple(allocator: &ArcAllocator, obj: &PyAny) -> PyResult<PyNode> {
     let v: &PyTuple = obj.extract()?;
     if v.len() != 2 {
         return Err(PyValueError::new_err("SExp tuples must be size 2"));
     }
     let i0: &PyAny = v.get_item(0);
     let i1: &PyAny = v.get_item(1);
-    let left: Node = extract_node(&allocator, i0)?;
-    let right: Node = extract_node(&allocator, i1)?;
-    let node: Node = allocator.from_pair(&left, &right);
+    let left: PyNode = extract_node(&allocator, i0)?;
+    let right: PyNode = extract_node(&allocator, i1)?;
+    let node: PyNode = allocator.from_pair(&left, &right);
     Ok(node)
 }
 
 #[pymethods]
-impl Node {
+impl PyNode {
     #[new]
     pub fn new(obj: &PyAny) -> PyResult<Self> {
         let allocator = ArcAllocator::new();
-        let node: Node = {
+        let node: PyNode = {
             let n = extract_atom(&allocator, obj);
             if let Ok(r) = n {
                 r
@@ -54,8 +54,8 @@ impl Node {
     }
 
     #[getter(pair)]
-    pub fn pair(&self) -> Option<(Node, Node)> {
-        let sexp: &SExp<Node> = &self.node;
+    pub fn pair(&self) -> Option<(PyNode, PyNode)> {
+        let sexp: &SExp<PyNode> = &self.node;
         match sexp {
             SExp::Pair(a, b) => Some((a.clone(), b.clone())),
             _ => None,
@@ -64,7 +64,7 @@ impl Node {
 
     #[getter(atom)]
     pub fn atom(&self) -> Option<&[u8]> {
-        let sexp: &SExp<Node> = &self.node;
+        let sexp: &SExp<PyNode> = &self.node;
         match sexp {
             SExp::Atom(a) => Some(a),
             _ => None,
@@ -72,7 +72,7 @@ impl Node {
     }
 }
 
-impl Node {
+impl PyNode {
     pub fn nullp(&self) -> bool {
         match self.atom() {
             Some(blob) => blob.is_empty(),
@@ -80,7 +80,7 @@ impl Node {
         }
     }
 
-    pub fn sexp(&self) -> &SExp<Node> {
+    pub fn sexp(&self) -> &SExp<PyNode> {
         &self.node
     }
 
@@ -101,7 +101,7 @@ impl Node {
     }
 }
 
-impl Display for Node {
+impl Display for PyNode {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         if let Some(blob) = self.atom() {
             let t: &[u8] = &*blob;
@@ -124,7 +124,7 @@ impl Display for Node {
     }
 }
 
-impl Debug for Node {
+impl Debug for PyNode {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         if let Some(blob) = self.atom() {
             let t: &[u8] = &*blob;
@@ -147,8 +147,8 @@ impl Debug for Node {
     }
 }
 
-impl From<Arc<SExp<Node>>> for Node {
-    fn from(item: Arc<SExp<Node>>) -> Self {
-        Node { node: item }
+impl From<Arc<SExp<PyNode>>> for PyNode {
+    fn from(item: Arc<SExp<PyNode>>) -> Self {
+        PyNode { node: item }
     }
 }

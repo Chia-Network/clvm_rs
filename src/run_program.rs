@@ -1,13 +1,17 @@
-use crate::allocator::{Allocator, NodeT, SExp};
+use crate::allocator::{Allocator, SExp};
+use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction, Response};
 
 use crate::number::{node_from_number, number_from_u8, Number};
 
-use crate::tracing::PreEval;
 use crate::types::OperatorHandler;
 
 const QUOTE_COST: u32 = 1;
 const SHIFT_COST_PER_LIMB: u32 = 1;
+
+pub type PreEval<T> = Box<dyn Fn(&T, &T) -> Result<Option<Box<PostEval<T>>>, EvalErr<T>>>;
+
+pub type PostEval<T> = dyn Fn(Option<&T>);
 
 type RPCOperator<T> = dyn FnOnce(&mut RunProgramContext<T>) -> Result<u32, EvalErr<T>>;
 
@@ -283,7 +287,7 @@ where
         }
         if cost > max_cost && max_cost > 0 {
             let max_cost: Number = max_cost.into();
-            let n: NodeT<T> = node_from_number(allocator, max_cost);
+            let n: Node<T> = node_from_number(allocator, max_cost);
             return n.err("cost exceeded");
         }
     }

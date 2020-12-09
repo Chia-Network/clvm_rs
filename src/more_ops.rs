@@ -1,4 +1,4 @@
-use crate::allocator::NodeT;
+use crate::node::Node;
 use crate::number::{node_from_number, Number};
 use crate::reduction::{Reduction, Response};
 
@@ -22,7 +22,7 @@ const LOGOP_COST_PER_BYTE: u32 = 2;
 const BOOL_OP_COST: u32 = 1;
 */
 
-pub fn limbs_for_int<T>(args: &NodeT<T>) -> u32 {
+pub fn limbs_for_int<T>(args: &Node<T>) -> u32 {
     match args.atom() {
         Some(b) => {
             let size = b.len() as u32;
@@ -39,7 +39,7 @@ pub fn limbs_for_int<T>(args: &NodeT<T>) -> u32 {
     }
 }
 
-pub fn op_sha256<T>(args: &NodeT<T>) -> Response<T> {
+pub fn op_sha256<T>(args: &Node<T>) -> Response<T> {
     let mut cost: u32 = SHA256_COST;
     let mut hasher = Sha256::new();
     for arg in args {
@@ -54,7 +54,7 @@ pub fn op_sha256<T>(args: &NodeT<T>) -> Response<T> {
     Ok(Reduction(cost, args.blob_u8(&hasher.result()).node))
 }
 
-pub fn op_add<T>(args: &NodeT<T>) -> Response<T> {
+pub fn op_add<T>(args: &Node<T>) -> Response<T> {
     let mut cost: u32 = MIN_COST;
     let mut total: Number = 0.into();
     for arg in args {
@@ -65,11 +65,11 @@ pub fn op_add<T>(args: &NodeT<T>) -> Response<T> {
             None => return args.err("+ takes integer arguments"),
         }
     }
-    let total: NodeT<T> = node_from_number(args.allocator, total);
+    let total: Node<T> = node_from_number(args.allocator, total);
     Ok(Reduction(cost, total.node))
 }
 
-pub fn op_subtract<T>(args: &NodeT<T>) -> Response<T> {
+pub fn op_subtract<T>(args: &Node<T>) -> Response<T> {
     let mut cost: u32 = MIN_COST;
     let mut total: Number = 0.into();
     let mut is_first = true;
@@ -88,15 +88,15 @@ pub fn op_subtract<T>(args: &NodeT<T>) -> Response<T> {
             None => return args.err("- takes integer arguments"),
         }
     }
-    let total: NodeT<T> = node_from_number(args.allocator, total);
+    let total: Node<T> = node_from_number(args.allocator, total);
     Ok(Reduction(cost, total.node))
 }
 
-pub fn op_multiply<T>(args: &NodeT<T>) -> Response<T> {
+pub fn op_multiply<T>(args: &Node<T>) -> Response<T> {
     let mut cost: u32 = MIN_COST;
     let mut total: Number = 1.into();
     for arg in args {
-        let total_node: NodeT<T> = node_from_number(args.allocator, total);
+        let total_node: Node<T> = node_from_number(args.allocator, total);
         cost += MUL_COST_PER_LIMB * limbs_for_int(&arg) * limbs_for_int(&total_node);
         let v: Option<Number> = Option::from(&arg);
         match v {
@@ -104,11 +104,11 @@ pub fn op_multiply<T>(args: &NodeT<T>) -> Response<T> {
             None => return args.err("* takes integer arguments"),
         }
     }
-    let total: NodeT<T> = node_from_number(args.allocator, total);
+    let total: Node<T> = node_from_number(args.allocator, total);
     Ok(Reduction(cost, total.node))
 }
 
-pub fn op_gr<T>(args: &NodeT<T>) -> Response<T> {
+pub fn op_gr<T>(args: &Node<T>) -> Response<T> {
     let a0 = args.first()?;
     let v0: Option<Number> = Option::from(&a0);
     let a1 = args.rest()?.first()?;
