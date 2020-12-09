@@ -1,9 +1,11 @@
-use super::arc_allocator::ArcAllocator;
-use super::native_op_lookup::NativeOpLookup;
-use super::node::Node;
-use super::run_program::run_program;
-use super::serialize::{node_from_bytes, node_to_bytes};
-use super::types::{EvalErr, OperatorHandler, PostEval, PreEval, Reduction};
+use crate::arc_allocator::ArcAllocator;
+use crate::native_op_lookup::NativeOpLookup;
+use crate::node::Node;
+use crate::reduction::Reduction;
+use crate::run_program::run_program;
+use crate::serialize::{node_from_bytes, node_to_bytes};
+use crate::tracing::{PostEval, PreEval};
+use crate::types::{EvalErr, OperatorHandler};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;

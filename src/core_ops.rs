@@ -1,5 +1,6 @@
 use crate::allocator::{NodeT, SExp};
-use crate::types::{EvalErr, Reduction};
+use crate::reduction::Reduction;
+use crate::types::EvalErr;
 
 const FIRST_COST: u32 = 10;
 const IF_COST: u32 = 10;

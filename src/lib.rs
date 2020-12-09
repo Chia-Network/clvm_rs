@@ -7,8 +7,10 @@ mod more_ops;
 mod native_op_lookup;
 mod node;
 mod number;
+mod reduction;
 mod run_program;
 mod serialize;
+mod tracing;
 mod types;
 
 #[cfg(test)]

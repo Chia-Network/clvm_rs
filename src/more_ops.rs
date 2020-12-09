@@ -1,6 +1,8 @@
 use crate::allocator::NodeT;
 use crate::number::{node_from_number, Number};
-use crate::types::{EvalErr, Reduction};
+use crate::reduction::Reduction;
+use crate::types::EvalErr;
+
 use sha2::{Digest, Sha256};
 use std::cmp::max;
 

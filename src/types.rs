@@ -1,21 +1,15 @@
 use crate::allocator::{Allocator, NodeT, SExp};
 use crate::arc_allocator::ArcAllocator;
 use crate::node::Node;
+use crate::reduction::Reduction;
 
 #[derive(Debug, Clone)]
 pub struct EvalErr<T>(pub T, pub String);
-
-#[derive(Debug)]
-pub struct Reduction<T>(pub u32, pub T);
 
 pub type OpFn<T> = fn(&NodeT<T>) -> Result<Reduction<T>, EvalErr<T>>;
 
 pub type OperatorHandler<T> =
     Box<dyn Fn(&dyn Allocator<T>, &[u8], &T) -> Result<Reduction<T>, EvalErr<T>>>;
-
-pub type PostEval<T> = dyn Fn(Option<&T>);
-
-pub type PreEval<T> = Box<dyn Fn(&T, &T) -> Result<Option<Box<PostEval<T>>>, EvalErr<T>>>;
 
 impl<'a, T> dyn Allocator<T> + 'a {
     pub fn err<V>(&self, node: &T, msg: &str) -> Result<V, EvalErr<T>> {

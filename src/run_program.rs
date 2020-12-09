@@ -1,8 +1,10 @@
 use crate::allocator::{Allocator, NodeT, SExp};
+use crate::reduction::Reduction;
 
-use super::number::{node_from_number, number_from_u8, Number};
+use crate::number::{node_from_number, number_from_u8, Number};
 
-use super::types::{EvalErr, OperatorHandler, PreEval, Reduction};
+use crate::tracing::PreEval;
+use crate::types::{EvalErr, OperatorHandler};
 
 const QUOTE_COST: u32 = 1;
 const SHIFT_COST_PER_LIMB: u32 = 1;
