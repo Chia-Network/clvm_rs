@@ -1,5 +1,6 @@
 use crate::allocator::{Allocator, SExp};
-use crate::node::Node;
+use crate::py::node::Node;
+use crate::reduction::EvalErr;
 use std::sync::Arc;
 
 use lazy_static::*;
@@ -62,5 +63,11 @@ impl Allocator<Node> for ArcAllocator {
 
     fn one(&self) -> Node {
         ONE.clone()
+    }
+}
+
+impl ArcAllocator {
+    pub fn err<T>(&self, node: &Node, msg: &str) -> Result<T, EvalErr<Node>> {
+        Err(EvalErr(self.make_clone(node), msg.into()))
     }
 }

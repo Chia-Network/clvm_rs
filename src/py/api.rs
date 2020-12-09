@@ -1,7 +1,7 @@
+use super::arc_allocator::ArcAllocator;
+use super::native_op_lookup::NativeOpLookup;
+use super::node::Node;
 use crate::allocator::NodeT;
-use crate::arc_allocator::ArcAllocator;
-use crate::native_op_lookup::NativeOpLookup;
-use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction};
 use crate::run_program::run_program;
 use crate::serialize::{node_from_bytes, node_to_bytes};

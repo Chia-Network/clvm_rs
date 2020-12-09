@@ -1,7 +1,7 @@
-use super::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
-use super::more_ops::{op_add, op_gr, op_multiply, op_sha256, op_subtract};
 use super::node::Node;
-use super::types::OpFn;
+use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
+use crate::more_ops::{op_add, op_gr, op_multiply, op_sha256, op_subtract};
+use crate::types::OpFn;
 
 pub type FLookup = [Option<OpFn<Node>>; 256];
 

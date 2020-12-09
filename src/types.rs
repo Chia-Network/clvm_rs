@@ -1,23 +1,14 @@
 use crate::allocator::{Allocator, NodeT, SExp};
-use crate::arc_allocator::ArcAllocator;
-use crate::node::Node;
-use crate::reduction::{EvalErr, Reduction};
+use crate::reduction::{EvalErr, Response};
 
-pub type OpFn<T> = fn(&NodeT<T>) -> Result<Reduction<T>, EvalErr<T>>;
+pub type OpFn<T> = fn(&NodeT<T>) -> Response<T>;
 
-pub type OperatorHandler<T> =
-    Box<dyn Fn(&dyn Allocator<T>, &[u8], &T) -> Result<Reduction<T>, EvalErr<T>>>;
+pub type OperatorHandler<T> = Box<dyn Fn(&dyn Allocator<T>, &[u8], &T) -> Response<T>>;
 
 impl<'a, T> dyn Allocator<T> + 'a {
     pub fn err<V>(&self, node: &T, msg: &str) -> Result<V, EvalErr<T>> {
         let s: String = msg.into();
         Err(EvalErr(self.make_clone(node), s))
-    }
-}
-
-impl ArcAllocator {
-    pub fn err<T>(&self, node: &Node, msg: &str) -> Result<T, EvalErr<Node>> {
-        Err(EvalErr(self.make_clone(node), msg.into()))
     }
 }
 

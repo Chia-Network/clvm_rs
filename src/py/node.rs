@@ -1,5 +1,5 @@
+use super::arc_allocator::ArcAllocator;
 use crate::allocator::{Allocator, SExp};
-use crate::arc_allocator::ArcAllocator;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::sync::Arc;
 
