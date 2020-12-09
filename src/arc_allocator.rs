@@ -44,6 +44,13 @@ impl<'a, T> dyn Allocator<T, U8> + 'a {
     pub fn one(&self) -> T {
         self.blob_u8(&[1])
     }
+
+    pub fn nullp(&self, v: &T) -> bool {
+        match self.sexp(v) {
+            SExp::Atom(a) => a.len() == 0,
+            _ => false,
+        }
+    }
 }
 
 impl Allocator<Node, U8> for ArcAllocator {

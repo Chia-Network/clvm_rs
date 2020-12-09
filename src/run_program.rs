@@ -1,7 +1,7 @@
 use crate::allocator::{Allocator, SExp};
 use crate::node::{Node, U8};
 
-use super::number::{node_from_number, Number};
+use super::number::{node_from_number, number_from_u8, Number};
 
 use super::types::{EvalErr, OperatorHandler, PreEval, Reduction};
 
@@ -16,7 +16,7 @@ type RPCOperator<T> = dyn FnOnce(&mut RunProgramContext<T>) -> Result<u32, EvalE
 pub struct RunProgramContext<'a, T> {
     allocator: &'a dyn Allocator<T, U8>,
     quote_kw: u8,
-    operator_lookup: &'a OperatorHandler<T>,
+    operator_lookup: &'a OperatorHandler<T, U8>,
     pre_eval: Option<PreEval<T>>,
     val_stack: Vec<T>,
     op_stack: Vec<Box<RPCOperator<T>>>,
@@ -56,19 +56,26 @@ fn limbs_for_int(node_index: Number) -> u32 {
     v
 }
 
-fn traverse_path(
-    allocator: &dyn Allocator<Node, U8>,
-    path_node: &Node,
-    args: &Node,
-) -> Result<Reduction<Node>, EvalErr<Node>> {
+fn traverse_path<T>(
+    allocator: &dyn Allocator<T, U8>,
+    path_node: &T,
+    args: &T,
+) -> Result<Reduction<T>, EvalErr<T>>
+where
+    T: Clone,
+{
     /*
     Follow integer `NodePath` down a tree.
     */
-    let node_index: Option<Number> = path_node.into();
+    let node_index: Option<Number> = match allocator.sexp(path_node) {
+        SExp::Atom(atom) => number_from_u8(&atom),
+        _ => None,
+    };
+
     let mut node_index: Number = node_index.unwrap();
     let one: Number = (1).into();
     let mut cost = 1;
-    let mut arg_list: Node = args.clone();
+    let mut arg_list: T = args.clone();
     loop {
         if node_index <= one {
             break;
@@ -91,7 +98,10 @@ fn traverse_path(
     Ok(Reduction(cost, arg_list))
 }
 
-fn swap_op(rpc: &mut RunProgramContext<Node>) -> Result<u32, EvalErr<Node>> {
+fn swap_op<T>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>>
+where
+    T: Clone,
+{
     /* Swap the top two operands. */
     let v2 = rpc.pop()?;
     let v1 = rpc.pop()?;
@@ -100,7 +110,10 @@ fn swap_op(rpc: &mut RunProgramContext<Node>) -> Result<u32, EvalErr<Node>> {
     Ok(0)
 }
 
-fn cons_op(rpc: &mut RunProgramContext<Node>) -> Result<u32, EvalErr<Node>> {
+fn cons_op<T>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>>
+where
+    T: Clone,
+{
     /* Join the top two operands. */
     let v1 = rpc.pop()?;
     let v2 = rpc.pop()?;
@@ -122,7 +135,7 @@ fn eval_op_atom(
                 .allocator
                 .err(operand_list, "quote requires exactly 1 parameter"),
             SExp::Pair(quoted_val, nil) => {
-                if nil.nullp() {
+                if rpc.allocator.nullp(&nil) {
                     rpc.push(quoted_val);
                     Ok(QUOTE_COST)
                 } else {
@@ -136,7 +149,7 @@ fn eval_op_atom(
         rpc.push(operator_node.clone());
         let mut operands = operand_list.clone();
         loop {
-            if operands.nullp() {
+            if rpc.allocator.nullp(&operands) {
                 break;
             }
             rpc.op_stack.push(Box::new(cons_op));
@@ -193,7 +206,7 @@ fn eval_op(rpc: &mut RunProgramContext<Node>) -> Result<u32, EvalErr<Node>> {
 
     let pair: Node = rpc.pop()?;
     match rpc.allocator.sexp(&pair) {
-        SExp::Atom(_) => pair.err("pair expected"),
+        SExp::Atom(_) => rpc.allocator.err(&pair, "pair expected"),
         SExp::Pair(program, args) => {
             let post_eval = match rpc.pre_eval {
                 None => None,
@@ -234,7 +247,7 @@ pub fn run_program(
     args: &Node,
     quote_kw: u8,
     max_cost: u32,
-    operator_lookup: &OperatorHandler<Node>,
+    operator_lookup: &OperatorHandler<Node, U8>,
     pre_eval: Option<PreEval<Node>>,
 ) -> Result<Reduction<Node>, EvalErr<Node>> {
     let values: Vec<Node> = vec![allocator.from_pair(program, args)];

@@ -10,8 +10,8 @@ pub struct Reduction<T>(pub u32, pub T);
 
 pub type OpFn<T> = fn(&dyn Allocator<Node, U8>, &T) -> Result<Reduction<T>, EvalErr<T>>;
 
-pub type OperatorHandler<T> =
-    Box<dyn Fn(&dyn Allocator<Node, U8>, &[u8], &T) -> Result<Reduction<T>, EvalErr<T>>>;
+pub type OperatorHandler<T, U> =
+    Box<dyn Fn(&dyn Allocator<Node, U>, &[u8], &T) -> Result<Reduction<T>, EvalErr<T>>>;
 
 pub type PostEval<T> = dyn Fn(Option<&T>);
 

@@ -1,6 +1,6 @@
 use super::arc_allocator::ArcAllocator;
 use super::native_op_lookup::NativeOpLookup;
-use super::node::Node;
+use super::node::{Node, U8};
 use super::run_program::run_program;
 use super::serialize::{node_from_bytes, node_to_bytes};
 use super::types::{EvalErr, OperatorHandler, PostEval, PreEval, Reduction};
@@ -66,7 +66,7 @@ fn py_run_program(
     };
 
     let allocator: ArcAllocator = ArcAllocator::new();
-    let f: OperatorHandler<Node> =
+    let f: OperatorHandler<Node, U8> =
         Box::new(move |allocator, op, args| op_lookup.operator_handler(allocator, op, args));
 
     let r: Result<Reduction<Node>, EvalErr<Node>> = run_program(

@@ -20,15 +20,19 @@ pub fn node_from_number<T, U>(allocator: &dyn Allocator<T, U>, item: Number) -> 
 
 impl From<&Node> for Option<Number> {
     fn from(item: &Node) -> Self {
-        let v = item.atom()?;
-        let len = v.len();
-        if len == 0 {
-            return Some(0.into());
-        }
-        if len <= 32 {
-            // TODO: check that it's a minimal number
-            return Some(U256::from_big_endian(&v));
-        }
-        None
+        let v: &[u8] = item.atom()?;
+        number_from_u8(v)
     }
+}
+
+pub fn number_from_u8(v: &[u8]) -> Option<Number> {
+    let len = v.len();
+    if len == 0 {
+        return Some(0.into());
+    }
+    if len <= 32 {
+        // TODO: check that it's a minimal number
+        return Some(U256::from_big_endian(&v));
+    }
+    None
 }
