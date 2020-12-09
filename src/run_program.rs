@@ -27,10 +27,7 @@ pub struct RunProgramContext<'a, T> {
     op_stack: Vec<Box<RPCOperator<T>>>,
 }
 
-impl<T> RunProgramContext<'_, T>
-where
-    T: Clone,
-{
+impl<T> RunProgramContext<'_, T> {
     pub fn pop(&mut self) -> Result<T, EvalErr<T>> {
         let v = self.val_stack.pop();
         match v {
@@ -96,10 +93,7 @@ fn traverse_path<T>(allocator: &dyn Allocator<T>, path_node: &T, args: &T) -> Re
     Ok(Reduction(cost, arg_list))
 }
 
-fn swap_op<T>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>>
-where
-    T: Clone,
-{
+fn swap_op<T>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>> {
     /* Swap the top two operands. */
     let v2 = rpc.pop()?;
     let v1 = rpc.pop()?;
@@ -108,10 +102,7 @@ where
     Ok(0)
 }
 
-fn cons_op<T>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>>
-where
-    T: Clone,
-{
+fn cons_op<T>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>> {
     /* Join the top two operands. */
     let v1 = rpc.pop()?;
     let v2 = rpc.pop()?;
@@ -125,10 +116,7 @@ fn eval_op_atom<T: 'static>(
     operator_node: &T,
     operand_list: &T,
     args: &T,
-) -> Result<u32, EvalErr<T>>
-where
-    T: Clone,
-{
+) -> Result<u32, EvalErr<T>> {
     // special case check for quote
     if op_atom.len() == 1 && op_atom[0] == rpc.quote_kw {
         match rpc.allocator.sexp(operand_list) {
@@ -147,8 +135,8 @@ where
         }
     } else {
         rpc.op_stack.push(Box::new(apply_op));
-        rpc.push(operator_node.clone());
-        let mut operands = operand_list.clone();
+        rpc.push(rpc.allocator.make_clone(operator_node));
+        let mut operands = rpc.allocator.make_clone(operand_list);
         loop {
             if rpc.allocator.nullp(&operands) {
                 break;
@@ -157,13 +145,11 @@ where
             rpc.op_stack.push(Box::new(eval_op));
             rpc.op_stack.push(Box::new(swap_op));
             match rpc.allocator.sexp(&operands) {
-                SExp::Atom(_) => {
-                    return Err(EvalErr(operand_list.clone(), "bad operand list".into()))
-                }
+                SExp::Atom(_) => return rpc.allocator.err(operand_list, "bad operand list"),
                 SExp::Pair(first, rest) => {
                     let new_pair = rpc.allocator.from_pair(&first, args);
                     rpc.push(new_pair);
-                    operands = rest.clone();
+                    operands = rpc.allocator.make_clone(&rest);
                 }
             }
         }
@@ -176,10 +162,7 @@ fn eval_pair<T: 'static>(
     rpc: &mut RunProgramContext<T>,
     program: &T,
     args: &T,
-) -> Result<u32, EvalErr<T>>
-where
-    T: Clone,
-{
+) -> Result<u32, EvalErr<T>> {
     // put a bunch of ops on op_stack
     match rpc.allocator.sexp(program) {
         // the program is just a bitfield path through the args tree
@@ -202,10 +185,7 @@ where
     }
 }
 
-fn eval_op<T: 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>>
-where
-    T: Clone,
-{
+fn eval_op<T: 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>> {
     /*
     Pop the top value and treat it as a (program, args) pair, and manipulate
     the op & value stack to evaluate all the arguments and apply the operator.
@@ -235,10 +215,7 @@ where
     }
 }
 
-fn apply_op<T: 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>>
-where
-    T: Clone,
-{
+fn apply_op<T: 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>> {
     let operand_list = rpc.pop()?;
     let operator = rpc.pop()?;
     match rpc.allocator.sexp(&operator) {
@@ -259,10 +236,7 @@ pub fn run_program<T: 'static>(
     max_cost: u32,
     operator_lookup: &OperatorHandler<T>,
     pre_eval: Option<PreEval<T>>,
-) -> Response<T>
-where
-    T: Clone,
-{
+) -> Response<T> {
     let values: Vec<T> = vec![allocator.from_pair(program, args)];
     let op_stack: Vec<Box<RPCOperator<T>>> = vec![Box::new(eval_op)];
 
