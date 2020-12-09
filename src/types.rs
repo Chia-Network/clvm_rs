@@ -30,12 +30,6 @@ impl ArcAllocator {
     }
 }
 
-impl Node {
-    pub fn err<T>(&self, msg: &str) -> Result<T, EvalErr<Node>> {
-        Err(EvalErr(self.clone(), msg.into()))
-    }
-}
-
 impl<'a, T> dyn Allocator<T> + 'a {
     pub fn first(&self, v: &T) -> Result<T, EvalErr<T>> {
         match self.sexp(v) {

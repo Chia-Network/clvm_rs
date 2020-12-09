@@ -141,5 +141,5 @@ pub fn op_gr(
             ));
         }
     }
-    args.err("> on list")
+    allocator.err(args, "> on list")
 }

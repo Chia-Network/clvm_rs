@@ -1,5 +1,4 @@
-use crate::allocator::Allocator;
-use crate::node::Node;
+use crate::allocator::{Allocator, SExp};
 use crate::types::{EvalErr, Reduction};
 
 const FIRST_COST: u32 = 10;
@@ -8,10 +7,7 @@ const CONS_COST: u32 = 10;
 const REST_COST: u32 = 10;
 const LISTP_COST: u32 = 10;
 
-pub fn op_if<T>(allocator: &dyn Allocator<T>, args: &T) -> Result<Reduction<T>, EvalErr<T>>
-where
-    T: Clone,
-{
+pub fn op_if<T>(allocator: &dyn Allocator<T>, args: &T) -> Result<Reduction<T>, EvalErr<T>> {
     let cond = allocator.first(args)?;
     let mut chosen_node = allocator.rest(args)?;
     if allocator.nullp(&cond) {
@@ -20,60 +16,42 @@ where
     Ok(Reduction(IF_COST, allocator.first(&chosen_node)?))
 }
 
-pub fn op_cons<T>(allocator: &dyn Allocator<T>, args: &T) -> Result<Reduction<T>, EvalErr<T>>
-where
-    T: Clone,
-{
+pub fn op_cons<T>(allocator: &dyn Allocator<T>, args: &T) -> Result<Reduction<T>, EvalErr<T>> {
     let a1 = allocator.first(args)?;
     let a2 = allocator.first(&allocator.rest(args)?)?;
     Ok(Reduction(CONS_COST, allocator.from_pair(&a1, &a2)))
 }
 
-pub fn op_first<T>(allocator: &dyn Allocator<T>, args: &T) -> Result<Reduction<T>, EvalErr<T>>
-where
-    T: Clone,
-{
+pub fn op_first<T>(allocator: &dyn Allocator<T>, args: &T) -> Result<Reduction<T>, EvalErr<T>> {
     Ok(Reduction(
         FIRST_COST,
         allocator.first(&allocator.first(args)?)?,
     ))
 }
 
-pub fn op_rest(
-    allocator: &dyn Allocator<Node>,
-    args: &Node,
-) -> Result<Reduction<Node>, EvalErr<Node>> {
+pub fn op_rest<T>(allocator: &dyn Allocator<T>, args: &T) -> Result<Reduction<T>, EvalErr<T>> {
     Ok(Reduction(
         REST_COST,
         allocator.rest(&allocator.first(args)?)?,
     ))
 }
 
-pub fn op_listp(
-    allocator: &dyn Allocator<Node>,
-    args: &Node,
-) -> Result<Reduction<Node>, EvalErr<Node>> {
-    match allocator.first(args)?.pair() {
-        Some((_first, _rest)) => Ok(Reduction(LISTP_COST, allocator.one())),
+pub fn op_listp<T>(allocator: &dyn Allocator<T>, args: &T) -> Result<Reduction<T>, EvalErr<T>> {
+    match allocator.sexp(&allocator.first(args)?) {
+        SExp::Pair(_first, _rest) => Ok(Reduction(LISTP_COST, allocator.one())),
         _ => Ok(Reduction(LISTP_COST, allocator.null())),
     }
 }
 
-pub fn op_raise(
-    _allocator: &dyn Allocator<Node>,
-    args: &Node,
-) -> Result<Reduction<Node>, EvalErr<Node>> {
-    args.err("clvm raise")
+pub fn op_raise<T>(allocator: &dyn Allocator<T>, args: &T) -> Result<Reduction<T>, EvalErr<T>> {
+    allocator.err(args, "clvm raise")
 }
 
-pub fn op_eq(
-    allocator: &dyn Allocator<Node>,
-    args: &Node,
-) -> Result<Reduction<Node>, EvalErr<Node>> {
+pub fn op_eq<T>(allocator: &dyn Allocator<T>, args: &T) -> Result<Reduction<T>, EvalErr<T>> {
     let a0 = allocator.first(args)?;
     let a1 = allocator.first(&allocator.rest(args)?)?;
-    if let Some(s0) = a0.atom() {
-        if let Some(s1) = a1.atom() {
+    if let SExp::Atom(s0) = allocator.sexp(&a0) {
+        if let SExp::Atom(s1) = allocator.sexp(&a1) {
             let cost: u32 = s0.len() as u32 + s1.len() as u32;
             return Ok(Reduction(
                 cost,
@@ -85,5 +63,5 @@ pub fn op_eq(
             ));
         }
     }
-    args.err("= on list")
+    allocator.err(args, "= on list")
 }
