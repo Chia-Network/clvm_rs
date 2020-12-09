@@ -1,5 +1,5 @@
 use crate::allocator::{Allocator, SExp};
-use crate::node::{Node, U8};
+use crate::node::U8;
 
 use super::number::{node_from_number, number_from_u8, Number};
 
@@ -121,13 +121,16 @@ where
     Ok(0)
 }
 
-fn eval_op_atom(
-    rpc: &mut RunProgramContext<Node>,
+fn eval_op_atom<T: 'static>(
+    rpc: &mut RunProgramContext<T>,
     op_atom: &[u8],
-    operator_node: &Node,
-    operand_list: &Node,
-    args: &Node,
-) -> Result<u32, EvalErr<Node>> {
+    operator_node: &T,
+    operand_list: &T,
+    args: &T,
+) -> Result<u32, EvalErr<T>>
+where
+    T: Clone,
+{
     // special case check for quote
     if op_atom.len() == 1 && op_atom[0] == rpc.quote_kw {
         match rpc.allocator.sexp(operand_list) {
@@ -171,16 +174,19 @@ fn eval_op_atom(
     }
 }
 
-fn eval_pair(
-    rpc: &mut RunProgramContext<Node>,
-    program: &Node,
-    args: &Node,
-) -> Result<u32, EvalErr<Node>> {
+fn eval_pair<T: 'static>(
+    rpc: &mut RunProgramContext<T>,
+    program: &T,
+    args: &T,
+) -> Result<u32, EvalErr<T>>
+where
+    T: Clone,
+{
     // put a bunch of ops on op_stack
     match rpc.allocator.sexp(program) {
         // the program is just a bitfield path through the args tree
         SExp::Atom(_) => {
-            let r: Reduction<Node> = traverse_path(rpc.allocator, &program, &args)?;
+            let r: Reduction<T> = traverse_path(rpc.allocator, &program, &args)?;
             rpc.push(r.1);
             Ok(r.0)
         }
@@ -198,13 +204,16 @@ fn eval_pair(
     }
 }
 
-fn eval_op(rpc: &mut RunProgramContext<Node>) -> Result<u32, EvalErr<Node>> {
+fn eval_op<T: 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>>
+where
+    T: Clone,
+{
     /*
     Pop the top value and treat it as a (program, args) pair, and manipulate
     the op & value stack to evaluate all the arguments and apply the operator.
     */
 
-    let pair: Node = rpc.pop()?;
+    let pair: T = rpc.pop()?;
     match rpc.allocator.sexp(&pair) {
         SExp::Atom(_) => rpc.allocator.err(&pair, "pair expected"),
         SExp::Pair(program, args) => {
@@ -215,8 +224,8 @@ fn eval_op(rpc: &mut RunProgramContext<Node>) -> Result<u32, EvalErr<Node>> {
             match post_eval {
                 None => (),
                 Some(post_eval) => {
-                    let new_function = Box::new(move |rpc: &mut RunProgramContext<Node>| {
-                        let peek: Option<&Node> = rpc.val_stack.last();
+                    let new_function = Box::new(move |rpc: &mut RunProgramContext<T>| {
+                        let peek: Option<&T> = rpc.val_stack.last();
                         post_eval(peek);
                         Ok(0)
                     });
@@ -228,7 +237,10 @@ fn eval_op(rpc: &mut RunProgramContext<Node>) -> Result<u32, EvalErr<Node>> {
     }
 }
 
-fn apply_op(rpc: &mut RunProgramContext<Node>) -> Result<u32, EvalErr<Node>> {
+fn apply_op<T: 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>>
+where
+    T: Clone,
+{
     let operand_list = rpc.pop()?;
     let operator = rpc.pop()?;
     match rpc.allocator.sexp(&operator) {
@@ -241,17 +253,20 @@ fn apply_op(rpc: &mut RunProgramContext<Node>) -> Result<u32, EvalErr<Node>> {
     }
 }
 
-pub fn run_program(
-    allocator: &dyn Allocator<Node, U8>,
-    program: &Node,
-    args: &Node,
+pub fn run_program<T: 'static>(
+    allocator: &dyn Allocator<T, U8>,
+    program: &T,
+    args: &T,
     quote_kw: u8,
     max_cost: u32,
-    operator_lookup: &OperatorHandler<Node, U8>,
-    pre_eval: Option<PreEval<Node>>,
-) -> Result<Reduction<Node>, EvalErr<Node>> {
-    let values: Vec<Node> = vec![allocator.from_pair(program, args)];
-    let op_stack: Vec<Box<RPCOperator<Node>>> = vec![Box::new(eval_op)];
+    operator_lookup: &OperatorHandler<T, U8>,
+    pre_eval: Option<PreEval<T>>,
+) -> Result<Reduction<T>, EvalErr<T>>
+where
+    T: Clone,
+{
+    let values: Vec<T> = vec![allocator.from_pair(program, args)];
+    let op_stack: Vec<Box<RPCOperator<T>>> = vec![Box::new(eval_op)];
 
     let mut rpc = RunProgramContext {
         allocator,
@@ -274,7 +289,7 @@ pub fn run_program(
         }
         if cost > max_cost && max_cost > 0 {
             let max_cost: Number = max_cost.into();
-            let n: Node = node_from_number(allocator, max_cost);
+            let n: T = node_from_number(allocator, max_cost);
             return Err(EvalErr(n, "cost exceeded".into()));
         }
     }
