@@ -7,12 +7,10 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 
-pub type U8 = Arc<[u8]>;
-
 #[pyclass(subclass, unsendable)]
 #[derive(Clone)]
 pub struct Node {
-    node: Arc<SExp<Node, U8>>,
+    node: Arc<SExp<Node>>,
 }
 
 fn extract_atom(allocator: &ArcAllocator, obj: &PyAny) -> PyResult<Node> {
@@ -57,7 +55,7 @@ impl Node {
 
     #[getter(pair)]
     pub fn pair(&self) -> Option<(Node, Node)> {
-        let sexp: &SExp<Node, U8> = &self.node;
+        let sexp: &SExp<Node> = &self.node;
         match sexp {
             SExp::Pair(a, b) => Some((a.clone(), b.clone())),
             _ => None,
@@ -66,7 +64,7 @@ impl Node {
 
     #[getter(atom)]
     pub fn atom(&self) -> Option<&[u8]> {
-        let sexp: &SExp<Node, U8> = &self.node;
+        let sexp: &SExp<Node> = &self.node;
         match sexp {
             SExp::Atom(a) => Some(a),
             _ => None,
@@ -82,7 +80,7 @@ impl Node {
         }
     }
 
-    pub fn sexp(&self) -> &SExp<Node, U8> {
+    pub fn sexp(&self) -> &SExp<Node> {
         &self.node
     }
 
@@ -149,8 +147,8 @@ impl Debug for Node {
     }
 }
 
-impl From<Arc<SExp<Node, U8>>> for Node {
-    fn from(item: Arc<SExp<Node, U8>>) -> Self {
+impl From<Arc<SExp<Node>>> for Node {
+    fn from(item: Arc<SExp<Node>>) -> Self {
         Node { node: item }
     }
 }

@@ -1,5 +1,5 @@
 use crate::allocator::{Allocator, SExp};
-use crate::node::{Node, U8};
+use crate::node::Node;
 use std::sync::Arc;
 
 use lazy_static::*;
@@ -36,7 +36,7 @@ impl ArcAllocator {
     }
 }
 
-impl<'a, T> dyn Allocator<T, U8> + 'a {
+impl<'a, T> dyn Allocator<T> + 'a {
     pub fn null(&self) -> T {
         self.blob_u8(&[])
     }
@@ -53,7 +53,7 @@ impl<'a, T> dyn Allocator<T, U8> + 'a {
     }
 }
 
-impl Allocator<Node, U8> for ArcAllocator {
+impl Allocator<Node> for ArcAllocator {
     fn blob_u8(&self, v: &[u8]) -> Node {
         Arc::new(SExp::Atom(Vec::from(v).into())).into()
     }
@@ -62,7 +62,7 @@ impl Allocator<Node, U8> for ArcAllocator {
         Arc::new(SExp::Pair(first.clone(), rest.clone())).into()
     }
 
-    fn sexp(&self, node: &Node) -> SExp<Node, U8> {
+    fn sexp(&self, node: &Node) -> SExp<Node> {
         match node.sexp() {
             SExp::Atom(a) => SExp::Atom(Arc::clone(a)),
             SExp::Pair(left, right) => SExp::Pair(left.clone(), right.clone()),

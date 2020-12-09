@@ -1,5 +1,5 @@
 use crate::allocator::Allocator;
-use crate::node::{Node, U8};
+use crate::node::Node;
 use crate::types::{EvalErr, Reduction};
 
 use crate::f_table::{make_f_lookup, FLookup};
@@ -44,7 +44,7 @@ fn eval_err_for_pyerr(py: Python, pyerr: &PyErr) -> PyResult<EvalErr<Node>> {
 impl NativeOpLookup {
     pub fn operator_handler(
         &self,
-        allocator: &dyn Allocator<Node, U8>,
+        allocator: &dyn Allocator<Node>,
         op: &[u8],
         argument_list: &Node,
     ) -> Result<Reduction<Node>, EvalErr<Node>> {

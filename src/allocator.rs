@@ -1,10 +1,12 @@
-pub enum SExp<T, U> {
-    Atom(U),
+use std::sync::Arc;
+
+pub enum SExp<T> {
+    Atom(Arc<[u8]>),
     Pair(T, T),
 }
 
-pub trait Allocator<T, U> {
+pub trait Allocator<T> {
     fn blob_u8(&self, v: &[u8]) -> T;
     fn from_pair(&self, first: &T, rest: &T) -> T;
-    fn sexp(&self, node: &T) -> SExp<T, U>;
+    fn sexp(&self, node: &T) -> SExp<T>;
 }
