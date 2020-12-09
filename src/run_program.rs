@@ -1,4 +1,4 @@
-use crate::allocator::{Allocator, SExp};
+use crate::allocator::{Allocator, NodeT, SExp};
 
 use super::number::{node_from_number, number_from_u8, Number};
 
@@ -285,8 +285,8 @@ where
         }
         if cost > max_cost && max_cost > 0 {
             let max_cost: Number = max_cost.into();
-            let n: T = node_from_number(allocator, max_cost);
-            return Err(EvalErr(n, "cost exceeded".into()));
+            let n: NodeT<T> = node_from_number(allocator, max_cost);
+            return n.err("cost exceeded");
         }
     }
 

@@ -24,6 +24,10 @@ impl<'a, T> NodeT<'a, T> {
         NodeT { allocator, node }
     }
 
+    pub fn blob_u8(&self, v: &[u8]) -> Self {
+        self.with_node(self.allocator.blob_u8(v))
+    }
+
     pub fn with_node(&self, node: T) -> Self {
         NodeT::new(self.allocator, node)
     }
@@ -34,7 +38,7 @@ impl<'a, T> NodeT<'a, T> {
 
     pub fn atom(&self) -> Option<Arc<[u8]>> {
         match self.sexp() {
-            SExp::Atom(a) => Some(a.clone()),
+            SExp::Atom(a) => Some(a),
             _ => None,
         }
     }
@@ -44,6 +48,20 @@ impl<'a, T> NodeT<'a, T> {
             SExp::Pair(left, right) => Some((self.with_node(left), self.with_node(right))),
             _ => None,
         }
+    }
+
+    pub fn make_clone(&self) -> Self {
+        self.with_node(self.allocator.make_clone(&self.node))
+    }
+}
+
+impl<'a, T> IntoIterator for &NodeT<'a, T> {
+    type Item = NodeT<'a, T>;
+
+    type IntoIter = NodeT<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.make_clone()
     }
 }
 

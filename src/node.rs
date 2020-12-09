@@ -152,18 +152,3 @@ impl From<Arc<SExp<Node>>> for Node {
         Node { node: item }
     }
 }
-
-impl Iterator for Node {
-    type Item = Node;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match &*self.node {
-            SExp::Pair(first, rest) => {
-                let v = first.clone();
-                self.node = rest.node.clone();
-                Some(v)
-            }
-            _ => None,
-        }
-    }
-}
