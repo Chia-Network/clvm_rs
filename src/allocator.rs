@@ -1,7 +1,5 @@
-use std::sync::Arc;
-
-pub enum SExp<T> {
-    Atom(Arc<[u8]>),
+pub enum SExp<'a, T> {
+    Atom(&'a [u8]),
     Pair(T, T),
 }
 

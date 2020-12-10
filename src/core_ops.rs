@@ -29,7 +29,7 @@ impl<'a, T> Node<'a, T> {
 
     pub fn nullp(&self) -> bool {
         if let Some(a) = self.atom() {
-            a.len() == 0
+            a.is_empty()
         } else {
             false
         }

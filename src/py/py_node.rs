@@ -94,11 +94,7 @@ impl PyNode {
                         *borrowed_bytes = Some(obj);
                     };
                 }
-                let r1: Option<PyObject> = self.bytes.borrow().clone();
-                match r1 {
-                    Some(r2) => Some(r2.clone()),
-                    None => None,
-                }
+                self.bytes.borrow().clone()
             }
             _ => None,
         }

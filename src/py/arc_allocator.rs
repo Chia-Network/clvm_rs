@@ -1,14 +1,19 @@
 use super::py_node::{PyNode, PySExp};
 use crate::allocator::{Allocator, SExp};
 use crate::reduction::EvalErr;
+
 use std::sync::Arc;
+
+use aovec::Aovec;
 
 use lazy_static::*;
 
 use pyo3::prelude::*;
 
 #[pyclass(subclass, unsendable)]
-pub struct ArcAllocator {}
+pub struct ArcAllocator {
+    vec: Aovec<Arc<[u8]>>,
+}
 
 static NULL_BYTES: [u8; 0] = [];
 static ONE_BYTES: [u8; 1] = [1];
@@ -26,7 +31,9 @@ impl Default for ArcAllocator {
 
 impl ArcAllocator {
     pub fn new() -> Self {
-        ArcAllocator {}
+        ArcAllocator {
+            vec: Aovec::new(16),
+        }
     }
 
     pub fn blob(&self, v: &str) -> PyNode {
@@ -49,7 +56,12 @@ impl Allocator<PyNode> for ArcAllocator {
 
     fn sexp(&self, node: &PyNode) -> SExp<PyNode> {
         match node.sexp() {
-            PySExp::Atom(a) => SExp::Atom(Arc::clone(a)),
+            PySExp::Atom(a) => {
+                let b: Arc<[u8]> = a.clone();
+                let index = self.vec.push(b);
+                let atom = self.vec.get(index).unwrap();
+                SExp::Atom(&atom)
+            }
             PySExp::Pair(left, right) => SExp::Pair(left.into(), right.into()),
         }
     }

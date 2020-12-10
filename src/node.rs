@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use super::allocator::{Allocator, SExp};
 
 pub struct Node<'a, T> {
@@ -24,7 +22,7 @@ impl<'a, T> Node<'a, T> {
         self.allocator.sexp(&self.node)
     }
 
-    pub fn atom(&self) -> Option<Arc<[u8]>> {
+    pub fn atom(&self) -> Option<&[u8]> {
         match self.sexp() {
             SExp::Atom(a) => Some(a),
             _ => None,

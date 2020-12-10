@@ -31,7 +31,7 @@ impl<'a, T> dyn Allocator<T> + 'a {
 impl<'a, T> dyn Allocator<T> + 'a {
     pub fn nullp(&self, v: &T) -> bool {
         match self.sexp(v) {
-            SExp::Atom(a) => a.len() == 0,
+            SExp::Atom(a) => a.is_empty(),
             _ => false,
         }
     }
