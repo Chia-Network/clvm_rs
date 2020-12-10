@@ -1,5 +1,5 @@
 use super::arc_allocator::ArcAllocator;
-use crate::allocator::{Allocator, SExp};
+use crate::allocator::Allocator;
 use std::cell::RefCell;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::sync::Arc;
@@ -8,10 +8,15 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
 
+pub enum PySExp {
+    Atom(Arc<[u8]>),
+    Pair(Arc<PyNode>, Arc<PyNode>),
+}
+
 #[pyclass(subclass, unsendable)]
 #[derive(Clone)]
 pub struct PyNode {
-    node: Arc<SExp<PyNode>>,
+    node: Arc<PySExp>,
     bytes: RefCell<Option<PyObject>>,
 }
 
@@ -19,7 +24,7 @@ fn extract_atom(_allocator: &ArcAllocator, obj: &PyAny) -> PyResult<PyNode> {
     let py_bytes: &PyBytes = obj.extract()?;
     let r: &[u8] = obj.extract()?;
     let r1: Arc<[u8]> = r.into();
-    let inner_node: Arc<SExp<PyNode>> = Arc::new(SExp::Atom(r1));
+    let inner_node: Arc<PySExp> = Arc::new(PySExp::Atom(r1));
     let py_node = PyNode {
         node: inner_node,
         bytes: RefCell::new(Some(py_bytes.into())),
@@ -69,18 +74,18 @@ impl PyNode {
     }
 
     pub fn _pair(&self) -> Option<(PyNode, PyNode)> {
-        let sexp: &SExp<PyNode> = &self.node;
+        let sexp: &PySExp = &self.node;
         match sexp {
-            SExp::Pair(a, b) => Some((a.clone(), b.clone())),
+            PySExp::Pair(a, b) => Some((a.into(), b.into())),
             _ => None,
         }
     }
 
     #[getter(atom)]
     pub fn atom<'p>(&self, py: Python<'p>) -> Option<PyObject> {
-        let sexp: &SExp<PyNode> = &self.node;
+        let sexp: &PySExp = &self.node;
         match sexp {
-            SExp::Atom(_a) => {
+            PySExp::Atom(_a) => {
                 {
                     let mut borrowed_bytes = self.bytes.borrow_mut();
                     if borrowed_bytes.is_none() {
@@ -100,9 +105,9 @@ impl PyNode {
     }
 
     pub fn _atom(&self) -> Option<&[u8]> {
-        let sexp: &SExp<PyNode> = &self.node;
+        let sexp: &PySExp = &self.node;
         match sexp {
-            SExp::Atom(a) => Some(a),
+            PySExp::Atom(a) => Some(a),
             _ => None,
         }
     }
@@ -116,7 +121,7 @@ impl PyNode {
         }
     }
 
-    pub fn sexp(&self) -> &SExp<PyNode> {
+    pub fn sexp(&self) -> &PySExp {
         &self.node
     }
 
@@ -183,11 +188,26 @@ impl Debug for PyNode {
     }
 }
 
-impl From<Arc<SExp<PyNode>>> for PyNode {
-    fn from(item: Arc<SExp<PyNode>>) -> Self {
+impl From<&Arc<PySExp>> for PyNode {
+    fn from(item: &Arc<PySExp>) -> Self {
+        item.clone().into()
+    }
+}
+
+impl From<Arc<PySExp>> for PyNode {
+    fn from(item: Arc<PySExp>) -> Self {
         PyNode {
             node: item,
-            bytes: None.into(),
+            bytes: RefCell::new(None),
+        }
+    }
+}
+
+impl From<&Arc<PyNode>> for PyNode {
+    fn from(item: &Arc<PyNode>) -> Self {
+        PyNode {
+            node: item.node.clone(),
+            bytes: RefCell::new(None),
         }
     }
 }

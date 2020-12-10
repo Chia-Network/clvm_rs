@@ -1,4 +1,4 @@
-use super::py_node::PyNode;
+use super::py_node::{PyNode, PySExp};
 use crate::allocator::{Allocator, SExp};
 use crate::reduction::EvalErr;
 use std::sync::Arc;
@@ -30,23 +30,27 @@ impl ArcAllocator {
     }
 
     pub fn blob(&self, v: &str) -> PyNode {
-        Arc::new(SExp::Atom(Vec::from(v).into())).into()
+        Arc::new(PySExp::Atom(Vec::from(v).into())).into()
     }
 }
 
 impl Allocator<PyNode> for ArcAllocator {
     fn blob_u8(&self, v: &[u8]) -> PyNode {
-        Arc::new(SExp::Atom(Vec::from(v).into())).into()
+        Arc::new(PySExp::Atom(Vec::from(v).into())).into()
     }
 
     fn from_pair(&self, first: &PyNode, rest: &PyNode) -> PyNode {
-        Arc::new(SExp::Pair(first.clone(), rest.clone())).into()
+        let inner_node: Arc<PySExp> = Arc::new(PySExp::Pair(
+            Arc::new(first.clone()),
+            Arc::new(rest.clone()),
+        ));
+        inner_node.into()
     }
 
     fn sexp(&self, node: &PyNode) -> SExp<PyNode> {
         match node.sexp() {
-            SExp::Atom(a) => SExp::Atom(Arc::clone(a)),
-            SExp::Pair(left, right) => SExp::Pair(left.clone(), right.clone()),
+            PySExp::Atom(a) => SExp::Atom(Arc::clone(a)),
+            PySExp::Pair(left, right) => SExp::Pair(left.into(), right.into()),
         }
     }
 
@@ -56,12 +60,12 @@ impl Allocator<PyNode> for ArcAllocator {
 
     fn null(&self) -> PyNode {
         let a = NULL.clone();
-        Arc::new(SExp::Atom(a)).into()
+        Arc::new(PySExp::Atom(a)).into()
     }
 
     fn one(&self) -> PyNode {
         let a = ONE.clone();
-        Arc::new(SExp::Atom(a)).into()
+        Arc::new(PySExp::Atom(a)).into()
     }
 }
 
