@@ -10,15 +10,12 @@ use pyo3::prelude::*;
 #[pyclass(subclass, unsendable)]
 pub struct ArcAllocator {}
 
+static NULL_BYTES: [u8; 0] = [];
+static ONE_BYTES: [u8; 1] = [1];
+
 lazy_static! {
-    static ref NULL: PyNode = {
-        let allocator = ArcAllocator::new();
-        allocator.blob_u8(&[])
-    };
-    static ref ONE: PyNode = {
-        let allocator = ArcAllocator::new();
-        allocator.blob_u8(&[1])
-    };
+    static ref NULL: Arc<[u8]> = Arc::new(NULL_BYTES);
+    static ref ONE: Arc<[u8]> = Arc::new(ONE_BYTES);
 }
 
 impl Default for ArcAllocator {
@@ -58,11 +55,13 @@ impl Allocator<PyNode> for ArcAllocator {
     }
 
     fn null(&self) -> PyNode {
-        NULL.clone()
+        let a = NULL.clone();
+        Arc::new(SExp::Atom(a)).into()
     }
 
     fn one(&self) -> PyNode {
-        ONE.clone()
+        let a = ONE.clone();
+        Arc::new(SExp::Atom(a)).into()
     }
 }
 

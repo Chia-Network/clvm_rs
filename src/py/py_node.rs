@@ -1,21 +1,31 @@
 use super::arc_allocator::ArcAllocator;
 use crate::allocator::{Allocator, SExp};
+use std::cell::RefCell;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::sync::Arc;
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::PyTuple;
+use pyo3::types::{PyBytes, PyTuple};
 
 #[pyclass(subclass, unsendable)]
 #[derive(Clone)]
 pub struct PyNode {
     node: Arc<SExp<PyNode>>,
+    bytes: RefCell<Option<PyObject>>,
 }
 
-fn extract_atom(allocator: &ArcAllocator, obj: &PyAny) -> PyResult<PyNode> {
+fn extract_atom(_allocator: &ArcAllocator, obj: &PyAny) -> PyResult<PyNode> {
+    let py_bytes: &PyBytes = obj.extract()?;
     let r: &[u8] = obj.extract()?;
-    Ok(allocator.blob_u8(r))
+    let r1: Arc<[u8]> = r.into();
+    let inner_node: Arc<SExp<PyNode>> = Arc::new(SExp::Atom(r1));
+    let py_node = PyNode {
+        node: inner_node,
+        bytes: RefCell::new(Some(py_bytes.into())),
+    };
+    //println!("py_bytes is {:?}", py_node.bytes);
+    Ok(py_node)
 }
 
 fn extract_node(_allocator: &ArcAllocator, obj: &PyAny) -> PyResult<PyNode> {
@@ -55,6 +65,10 @@ impl PyNode {
 
     #[getter(pair)]
     pub fn pair(&self) -> Option<(PyNode, PyNode)> {
+        self._pair()
+    }
+
+    pub fn _pair(&self) -> Option<(PyNode, PyNode)> {
         let sexp: &SExp<PyNode> = &self.node;
         match sexp {
             SExp::Pair(a, b) => Some((a.clone(), b.clone())),
@@ -63,7 +77,29 @@ impl PyNode {
     }
 
     #[getter(atom)]
-    pub fn atom(&self) -> Option<&[u8]> {
+    pub fn atom<'p>(&self, py: Python<'p>) -> Option<PyObject> {
+        let sexp: &SExp<PyNode> = &self.node;
+        match sexp {
+            SExp::Atom(_a) => {
+                {
+                    let mut borrowed_bytes = self.bytes.borrow_mut();
+                    if borrowed_bytes.is_none() {
+                        let b: &PyBytes = PyBytes::new(py, _a);
+                        let obj: PyObject = b.into();
+                        *borrowed_bytes = Some(obj);
+                    };
+                }
+                let r1: Option<PyObject> = self.bytes.borrow().clone();
+                match r1 {
+                    Some(r2) => Some(r2.clone()),
+                    None => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    pub fn _atom(&self) -> Option<&[u8]> {
         let sexp: &SExp<PyNode> = &self.node;
         match sexp {
             SExp::Atom(a) => Some(a),
@@ -74,7 +110,7 @@ impl PyNode {
 
 impl PyNode {
     pub fn nullp(&self) -> bool {
-        match self.atom() {
+        match self._atom() {
             Some(blob) => blob.is_empty(),
             None => false,
         }
@@ -103,7 +139,7 @@ impl PyNode {
 
 impl Display for PyNode {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        if let Some(blob) = self.atom() {
+        if let Some(blob) = self._atom() {
             let t: &[u8] = &*blob;
             if t.is_empty() {
                 write!(f, "()")?;
@@ -126,7 +162,7 @@ impl Display for PyNode {
 
 impl Debug for PyNode {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        if let Some(blob) = self.atom() {
+        if let Some(blob) = self._atom() {
             let t: &[u8] = &*blob;
             if t.is_empty() {
                 write!(f, "()")?;
@@ -149,6 +185,9 @@ impl Debug for PyNode {
 
 impl From<Arc<SExp<PyNode>>> for PyNode {
     fn from(item: Arc<SExp<PyNode>>) -> Self {
-        PyNode { node: item }
+        PyNode {
+            node: item,
+            bytes: None.into(),
+        }
     }
 }
