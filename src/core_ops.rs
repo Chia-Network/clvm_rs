@@ -1,4 +1,3 @@
-use crate::allocator::SExp;
 use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction, Response};
 
@@ -10,41 +9,21 @@ const LISTP_COST: u32 = 10;
 
 impl<'a, T> Node<'a, T> {
     pub fn first(&self) -> Result<Node<'a, T>, EvalErr<T>> {
-        match self.sexp() {
-            SExp::Pair(p1, _) => Ok(self.with_node(p1)),
+        match self.pair() {
+            Some((p1, _)) => Ok(self.with_node(p1.node)),
             _ => self.err("first of non-cons"),
         }
     }
 
     pub fn rest(&self) -> Result<Node<'a, T>, EvalErr<T>> {
-        match self.sexp() {
-            SExp::Pair(_, p2) => Ok(self.with_node(p2)),
+        match self.pair() {
+            Some((_, p2)) => Ok(self.with_node(p2.node)),
             _ => self.err("rest of non-cons"),
         }
     }
 
     pub fn err<U>(&self, msg: &str) -> Result<U, EvalErr<T>> {
-        Err(EvalErr(self.allocator.make_clone(&self.node), msg.into()))
-    }
-
-    pub fn nullp(&self) -> bool {
-        if let Some(a) = self.atom() {
-            a.is_empty()
-        } else {
-            false
-        }
-    }
-
-    pub fn from_pair(&self, p1: &Self, p2: &Self) -> T {
-        self.allocator.from_pair(&p1.node, &p2.node)
-    }
-
-    pub fn null(&self) -> T {
-        self.allocator.null()
-    }
-
-    pub fn one(&self) -> T {
-        self.allocator.one()
+        Err(EvalErr(self.make_clone().node, msg.into()))
     }
 }
 
@@ -60,7 +39,7 @@ pub fn op_if<T>(args: &Node<T>) -> Response<T> {
 pub fn op_cons<T>(args: &Node<T>) -> Response<T> {
     let a1 = args.first()?;
     let a2 = args.rest()?.first()?;
-    Ok(Reduction(CONS_COST, args.from_pair(&a1, &a2)))
+    Ok(Reduction(CONS_COST, args.from_pair(&a1, &a2).node))
 }
 
 pub fn op_first<T>(args: &Node<T>) -> Response<T> {
@@ -73,8 +52,8 @@ pub fn op_rest<T>(args: &Node<T>) -> Response<T> {
 
 pub fn op_listp<T>(args: &Node<T>) -> Response<T> {
     match args.first()?.pair() {
-        Some((_first, _rest)) => Ok(Reduction(LISTP_COST, args.one())),
-        _ => Ok(Reduction(LISTP_COST, args.null())),
+        Some((_first, _rest)) => Ok(Reduction(LISTP_COST, args.one().node)),
+        _ => Ok(Reduction(LISTP_COST, args.null().node)),
     }
 }
 
@@ -90,7 +69,11 @@ pub fn op_eq<T>(args: &Node<T>) -> Response<T> {
             let cost: u32 = s0.len() as u32 + s1.len() as u32;
             return Ok(Reduction(
                 cost,
-                if s0 == s1 { args.one() } else { args.null() },
+                if s0 == s1 {
+                    args.one().node
+                } else {
+                    args.null().node
+                },
             ));
         }
     }

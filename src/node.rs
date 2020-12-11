@@ -1,7 +1,7 @@
 use super::allocator::{Allocator, SExp};
 
 pub struct Node<'a, T> {
-    pub allocator: &'a dyn Allocator<T>,
+    allocator: &'a dyn Allocator<T>,
     pub node: T,
 }
 
@@ -12,6 +12,10 @@ impl<'a, T> Node<'a, T> {
 
     pub fn blob_u8(&self, v: &[u8]) -> Self {
         self.with_node(self.allocator.blob_u8(v))
+    }
+
+    pub fn from_pair(&self, p1: &Self, p2: &Self) -> Self {
+        self.with_node(self.allocator.from_pair(&p1.node, &p2.node))
     }
 
     pub fn with_node(&self, node: T) -> Self {
@@ -38,6 +42,28 @@ impl<'a, T> Node<'a, T> {
 
     pub fn make_clone(&self) -> Self {
         self.with_node(self.allocator.make_clone(&self.node))
+    }
+
+    pub fn nullp(&self) -> bool {
+        if let Some(a) = self.atom() {
+            a.is_empty()
+        } else {
+            false
+        }
+    }
+
+    pub fn null(&self) -> Self {
+        self.with_node(self.allocator.null())
+    }
+
+    pub fn one(&self) -> Self {
+        self.with_node(self.allocator.one())
+    }
+}
+
+impl<'a, T> From<&Node<'a, T>> for &'a dyn Allocator<T> {
+    fn from(v: &Node<'a, T>) -> Self {
+        v.allocator
     }
 }
 

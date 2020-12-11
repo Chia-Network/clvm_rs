@@ -65,7 +65,7 @@ pub fn op_add<T>(args: &Node<T>) -> Response<T> {
             None => return args.err("+ takes integer arguments"),
         }
     }
-    let total: Node<T> = node_from_number(args.allocator, total);
+    let total: Node<T> = node_from_number(args.into(), total);
     Ok(Reduction(cost, total.node))
 }
 
@@ -88,7 +88,7 @@ pub fn op_subtract<T>(args: &Node<T>) -> Response<T> {
             None => return args.err("- takes integer arguments"),
         }
     }
-    let total: Node<T> = node_from_number(args.allocator, total);
+    let total: Node<T> = node_from_number(args.into(), total);
     Ok(Reduction(cost, total.node))
 }
 
@@ -96,7 +96,7 @@ pub fn op_multiply<T>(args: &Node<T>) -> Response<T> {
     let mut cost: u32 = MIN_COST;
     let mut total: Number = 1.into();
     for arg in args {
-        let total_node: Node<T> = node_from_number(args.allocator, total);
+        let total_node: Node<T> = node_from_number(args.into(), total);
         cost += MUL_COST_PER_LIMB * limbs_for_int(&arg) * limbs_for_int(&total_node);
         let v: Option<Number> = Option::from(&arg);
         match v {
@@ -104,7 +104,7 @@ pub fn op_multiply<T>(args: &Node<T>) -> Response<T> {
             None => return args.err("* takes integer arguments"),
         }
     }
-    let total: Node<T> = node_from_number(args.allocator, total);
+    let total: Node<T> = node_from_number(args.into(), total);
     Ok(Reduction(cost, total.node))
 }
 
@@ -119,9 +119,9 @@ pub fn op_gr<T>(args: &Node<T>) -> Response<T> {
             return Ok(Reduction(
                 cost,
                 if n0 > n1 {
-                    args.blob_u8(&[1]).node
+                    args.one().node
                 } else {
-                    args.null()
+                    args.null().node
                 },
             ));
         }
