@@ -5,7 +5,7 @@ const FIRST_COST: u32 = 10;
 const IF_COST: u32 = 10;
 const CONS_COST: u32 = 10;
 const REST_COST: u32 = 10;
-const LISTP_COST: u32 = 10;
+const LISTP_COST: u32 = 20;
 
 impl<'a, T> Node<'a, T> {
     pub fn first(&self) -> Result<Node<'a, T>, EvalErr<T>> {

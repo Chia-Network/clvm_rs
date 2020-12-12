@@ -2,12 +2,13 @@ use crate::allocator::{Allocator, SExp};
 use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction, Response};
 
-use crate::number::{node_from_number, number_from_u8, Number};
+use crate::number::{node_from_number, Number};
 
 use crate::types::OperatorHandler;
 
 const QUOTE_COST: u32 = 1;
-const SHIFT_COST_PER_LIMB: u32 = 1;
+const TRAVERSE_COST_PER_ZERO_BYTE: u32 = 1;
+const TRAVERSE_COST_PER_BIT: u32 = 1;
 
 pub type PreEval<T> = Box<dyn Fn(&T, &T) -> Result<Option<Box<PostEval<T>>>, EvalErr<T>>>;
 
@@ -44,51 +45,63 @@ impl<T> RunProgramContext<'_, T> {
     }
 }
 
-fn limbs_for_int(node_index: Number) -> u32 {
-    let mut v = 1;
-    let mut ni = node_index;
-    let c: Number = 256.into();
-    loop {
-        if ni < c {
-            break;
-        };
-        v += 1;
-        ni >>= 8;
-    }
-    v
-}
-
 fn traverse_path<T>(allocator: &dyn Allocator<T>, path_node: &T, args: &T) -> Response<T> {
     /*
     Follow integer `NodePath` down a tree.
     */
-    let node_index: Option<Number> = match allocator.sexp(path_node) {
-        SExp::Atom(atom) => number_from_u8(&atom),
-        _ => None,
+    let node_index: &[u8] = match allocator.sexp(path_node) {
+        SExp::Atom(a) => a,
+        _ => panic!("problem in traverse_path"),
     };
 
-    let mut node_index: Number = node_index.unwrap();
-    let one: Number = (1).into();
-    let mut cost = 1;
     let mut arg_list: T = allocator.make_clone(args);
+
+    // find first non-zero byte
+    let mut first_bit_byte_index = 0;
     loop {
-        if node_index <= one {
+        if first_bit_byte_index >= node_index.len() || node_index[first_bit_byte_index] != 0 {
             break;
         }
-        match allocator.sexp(&arg_list) {
-            SExp::Atom(_) => {
-                return Err(EvalErr(arg_list, "path into atom".into()));
+        first_bit_byte_index += 1;
+    }
+
+    let mut cost: u32 = (1 + first_bit_byte_index as u32) * TRAVERSE_COST_PER_ZERO_BYTE;
+
+    if first_bit_byte_index >= node_index.len() {
+        arg_list = allocator.null();
+    } else {
+        // find first non-zero bit (the most significant bit is a sentinal)
+        let mut last_bit_mask = 0x80;
+        loop {
+            if node_index[first_bit_byte_index] & last_bit_mask > 0 {
+                break;
             }
-            SExp::Pair(left, right) => {
-                arg_list = allocator.make_clone(if node_index & one == one {
-                    &right
-                } else {
-                    &left
-                });
+            last_bit_mask >>= 1;
+        }
+
+        // follow through the bits, moving left and right
+        let mut byte_idx = node_index.len() - 1;
+        let mut bit_idx = 1;
+        loop {
+            if bit_idx > 128 {
+                bit_idx = 1;
+                byte_idx -= 1;
             }
-        };
-        cost += SHIFT_COST_PER_LIMB * limbs_for_int(node_index);
-        node_index >>= 1;
+            if byte_idx == first_bit_byte_index && bit_idx == last_bit_mask {
+                break;
+            }
+            let is_bit_set: bool = node_index[byte_idx] & bit_idx == bit_idx;
+            match allocator.sexp(&arg_list) {
+                SExp::Atom(_) => {
+                    return Err(EvalErr(arg_list, "path into atom".into()));
+                }
+                SExp::Pair(left, right) => {
+                    arg_list = allocator.make_clone(if is_bit_set { &right } else { &left });
+                }
+            }
+            bit_idx <<= 1;
+            cost += TRAVERSE_COST_PER_BIT;
+        }
     }
     Ok(Reduction(cost, arg_list))
 }
