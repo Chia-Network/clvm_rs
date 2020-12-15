@@ -274,7 +274,7 @@ pub fn run_program<T: 'static>(
         }
         if cost > max_cost && max_cost > 0 {
             let max_cost: Number = max_cost.into();
-            let n: Node<T> = node_from_number(allocator, max_cost);
+            let n: Node<T> = node_from_number(allocator, &max_cost);
             return n.err("cost exceeded");
         }
     }

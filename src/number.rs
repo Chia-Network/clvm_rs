@@ -4,7 +4,7 @@ use crate::node::Node;
 use uint::U256;
 pub type Number = U256;
 
-pub fn node_from_number<T>(allocator: &dyn Allocator<T>, item: Number) -> Node<T> {
+pub fn node_from_number<'a, T>(allocator: &'a dyn Allocator<T>, item: &Number) -> Node<'a, T> {
     // BRAIN DAMAGE: make it minimal by removing leading zeros
     let mut bytes: Vec<u8> = vec![0; 32];
     item.to_big_endian(&mut bytes);
