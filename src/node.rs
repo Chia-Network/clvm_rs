@@ -45,11 +45,7 @@ impl<'a, T> Node<'a, T> {
     }
 
     pub fn nullp(&self) -> bool {
-        if let Some(a) = self.atom() {
-            a.is_empty()
-        } else {
-            false
-        }
+        self.allocator.nullp(&self.node)
     }
 
     pub fn null(&self) -> Self {
