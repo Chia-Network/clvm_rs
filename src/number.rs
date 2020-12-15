@@ -1,13 +1,12 @@
 use crate::allocator::Allocator;
 use crate::node::Node;
 
-use uint::U256;
-pub type Number = U256;
+use num_bigint::BigInt;
+pub type Number = BigInt;
 
 pub fn node_from_number<'a, T>(allocator: &'a dyn Allocator<T>, item: &Number) -> Node<'a, T> {
     // BRAIN DAMAGE: make it minimal by removing leading zeros
-    let mut bytes: Vec<u8> = vec![0; 32];
-    item.to_big_endian(&mut bytes);
+    let bytes: Vec<u8> = item.to_signed_bytes_be();
     let mut slice = bytes.as_slice();
     while (!slice.is_empty()) && (slice[0] == 0) {
         if slice.len() > 1 && (slice[1] & 0x80 == 0x80) {
@@ -28,11 +27,8 @@ impl<T> From<&Node<'_, T>> for Option<Number> {
 pub fn number_from_u8(v: &[u8]) -> Option<Number> {
     let len = v.len();
     if len == 0 {
-        return Some(0.into());
+        Some(0.into())
+    } else {
+        Some(Number::from_signed_bytes_be(&v))
     }
-    if len <= 32 {
-        // TODO: check that it's a minimal number
-        return Some(U256::from_big_endian(&v));
-    }
-    None
 }
