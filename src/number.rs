@@ -20,15 +20,15 @@ pub fn node_from_number<'a, T>(allocator: &'a dyn Allocator<T>, item: &Number) -
 impl<T> From<&Node<'_, T>> for Option<Number> {
     fn from(item: &Node<T>) -> Self {
         let v: &[u8] = &item.atom()?;
-        number_from_u8(v)
+        Some(number_from_u8(v))
     }
 }
 
-pub fn number_from_u8(v: &[u8]) -> Option<Number> {
+pub fn number_from_u8(v: &[u8]) -> Number {
     let len = v.len();
     if len == 0 {
-        Some(0.into())
+        0.into()
     } else {
-        Some(Number::from_signed_bytes_be(&v))
+        Number::from_signed_bytes_be(&v)
     }
 }

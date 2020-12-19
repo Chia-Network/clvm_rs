@@ -9,6 +9,7 @@ use crate::types::OperatorHandler;
 const QUOTE_COST: u32 = 1;
 const TRAVERSE_COST_PER_ZERO_BYTE: u32 = 1;
 const TRAVERSE_COST_PER_BIT: u32 = 1;
+const APPLY_COST: u32 = 1;
 
 pub type PreEval<T> = Box<dyn Fn(&T, &T) -> Result<Option<Box<PostEval<T>>>, EvalErr<T>>>;
 
@@ -22,6 +23,7 @@ type RPCOperator<T> = dyn FnOnce(&mut RunProgramContext<T>) -> Result<u32, EvalE
 pub struct RunProgramContext<'a, T> {
     allocator: &'a dyn Allocator<T>,
     quote_kw: u8,
+    apply_kw: u8,
     operator_lookup: &'a OperatorHandler<T>,
     pre_eval: Option<PreEval<T>>,
     val_stack: Vec<T>,
@@ -234,9 +236,34 @@ fn apply_op<T: 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T
     match rpc.allocator.sexp(&operator) {
         SExp::Pair(_, _) => Err(EvalErr(operator, "internal error".into())),
         SExp::Atom(op_atom) => {
-            let r = (rpc.operator_lookup)(rpc.allocator, &op_atom, &operand_list)?;
-            rpc.push(r.1);
-            Ok(r.0)
+            if op_atom.len() == 1 && op_atom[0] == rpc.apply_kw {
+                let operand_list = Node::new(rpc.allocator, operand_list);
+                if operand_list.arg_count_is(2) {
+                    let new_operator = operand_list.first()?;
+                    let new_operand_list = operand_list.rest()?.first()?;
+                    match new_operator.sexp() {
+                        SExp::Pair(_, _) => {
+                            let new_pair = rpc
+                                .allocator
+                                .from_pair(&new_operator.node, &new_operand_list.node);
+                            rpc.push(new_pair);
+                            rpc.op_stack.push(Box::new(eval_op));
+                        }
+                        SExp::Atom(_) => {
+                            rpc.push(new_operator.node);
+                            rpc.push(new_operand_list.node);
+                            rpc.op_stack.push(Box::new(apply_op));
+                        }
+                    };
+                    Ok(APPLY_COST)
+                } else {
+                    operand_list.err("apply requires exactly 2 parameters")
+                }
+            } else {
+                let r = (rpc.operator_lookup)(rpc.allocator, &op_atom, &operand_list)?;
+                rpc.push(r.1);
+                Ok(r.0)
+            }
         }
     }
 }
@@ -246,6 +273,7 @@ pub fn run_program<T: 'static>(
     program: &T,
     args: &T,
     quote_kw: u8,
+    apply_kw: u8,
     max_cost: u32,
     operator_lookup: &OperatorHandler<T>,
     pre_eval: Option<PreEval<T>>,
@@ -256,6 +284,7 @@ pub fn run_program<T: 'static>(
     let mut rpc = RunProgramContext {
         allocator,
         quote_kw,
+        apply_kw,
         operator_lookup,
         pre_eval,
         val_stack: values,

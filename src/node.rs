@@ -48,6 +48,22 @@ impl<'a, T> Node<'a, T> {
         self.allocator.nullp(&self.node)
     }
 
+    pub fn arg_count_is(&self, mut count: usize) -> bool {
+        let mut ptr = self.make_clone();
+        loop {
+            if count == 0 {
+                return ptr.nullp();
+            }
+            match ptr.sexp() {
+                SExp::Pair(_, new_ptr) => {
+                    ptr = ptr.with_node(new_ptr);
+                }
+                _ => return false,
+            }
+            count -= 1;
+        }
+    }
+
     pub fn null(&self) -> Self {
         self.with_node(self.allocator.null())
     }

@@ -1,11 +1,13 @@
 use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction, Response};
 
-const FIRST_COST: u32 = 10;
-const IF_COST: u32 = 10;
-const CONS_COST: u32 = 10;
-const REST_COST: u32 = 10;
-const LISTP_COST: u32 = 20;
+const FIRST_COST: u32 = 8;
+const IF_COST: u32 = 31;
+const CONS_COST: u32 = 18;
+const REST_COST: u32 = 20;
+const LISTP_COST: u32 = 5;
+const CMP_BASE_COST: u32 = 16;
+const CMP_COST_PER_LIMB_DIVIDER: u32 = 64;
 
 impl<'a, T> Node<'a, T> {
     pub fn first(&self) -> Result<Node<'a, T>, EvalErr<T>> {
@@ -37,23 +39,39 @@ pub fn op_if<T>(args: &Node<T>) -> Response<T> {
 }
 
 pub fn op_cons<T>(args: &Node<T>) -> Response<T> {
-    let a1 = args.first()?;
-    let a2 = args.rest()?.first()?;
-    Ok(Reduction(CONS_COST, args.from_pair(&a1, &a2).node))
+    if args.arg_count_is(2) {
+        let a1 = args.first()?;
+        let a2 = args.rest()?.first()?;
+        Ok(Reduction(CONS_COST, args.from_pair(&a1, &a2).node))
+    } else {
+        args.err("c takes exactly 2 arguments")
+    }
 }
 
 pub fn op_first<T>(args: &Node<T>) -> Response<T> {
-    Ok(Reduction(FIRST_COST, args.first()?.first()?.node))
+    if args.arg_count_is(1) {
+        Ok(Reduction(FIRST_COST, args.first()?.first()?.node))
+    } else {
+        args.err("f takes exactly 1 argument")
+    }
 }
 
 pub fn op_rest<T>(args: &Node<T>) -> Response<T> {
-    Ok(Reduction(REST_COST, args.first()?.rest()?.node))
+    if args.arg_count_is(1) {
+        Ok(Reduction(REST_COST, args.first()?.rest()?.node))
+    } else {
+        args.err("r takes exactly 1 argument")
+    }
 }
 
 pub fn op_listp<T>(args: &Node<T>) -> Response<T> {
-    match args.first()?.pair() {
-        Some((_first, _rest)) => Ok(Reduction(LISTP_COST, args.one().node)),
-        _ => Ok(Reduction(LISTP_COST, args.null().node)),
+    if args.arg_count_is(1) {
+        match args.first()?.pair() {
+            Some((_first, _rest)) => Ok(Reduction(LISTP_COST, args.one().node)),
+            _ => Ok(Reduction(LISTP_COST, args.null().node)),
+        }
+    } else {
+        args.err("l takes exactly 1 argument")
     }
 }
 
@@ -62,20 +80,25 @@ pub fn op_raise<T>(args: &Node<T>) -> Response<T> {
 }
 
 pub fn op_eq<T>(args: &Node<T>) -> Response<T> {
-    let a0 = args.first()?;
-    let a1 = args.rest()?.first()?;
-    if let Some(s0) = a0.atom() {
-        if let Some(s1) = a1.atom() {
-            let cost: u32 = s0.len() as u32 + s1.len() as u32;
-            return Ok(Reduction(
-                cost,
-                if s0 == s1 {
-                    args.one().node
-                } else {
-                    args.null().node
-                },
-            ));
+    if args.arg_count_is(2) {
+        let a0 = args.first()?;
+        let a1 = args.rest()?.first()?;
+        if let Some(s0) = a0.atom() {
+            if let Some(s1) = a1.atom() {
+                let cost: u32 =
+                    CMP_BASE_COST + (s0.len() as u32 + s1.len() as u32) / CMP_COST_PER_LIMB_DIVIDER;
+                return Ok(Reduction(
+                    cost,
+                    if s0 == s1 {
+                        args.one().node
+                    } else {
+                        args.null().node
+                    },
+                ));
+            }
         }
+        args.err("= on list")
+    } else {
+        args.err("= takes exactly 2 arguments")
     }
-    args.err("= on list")
 }
