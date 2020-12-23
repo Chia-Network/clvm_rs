@@ -309,7 +309,7 @@ pub fn op_strlen<T>(args: &Node<T>) -> Response<T> {
             let size_num: Number = size.into();
             let size_node = node_from_number(args.into(), &size_num).node;
             let cost: u32 = STRLEN_BASE_COST + size / STRLEN_COST_PER_BYTE_DIVIDER;
-            return Ok(Reduction(cost, size_node));
+            Ok(Reduction(cost, size_node))
         } else {
             a0.err("strlen on list")
         }
@@ -371,11 +371,9 @@ pub fn op_concat<T>(args: &Node<T>) -> Response<T> {
 pub fn op_ash<T>(args: &Node<T>) -> Response<T> {
     let (i0, i1) = two_ints(&args, "ash")?;
     let s1 = i64::try_from(&i1);
-    if {
-        match s1 {
-            Err(_) => true,
-            Ok(v) => v.abs() > 65535,
-        }
+    if match s1 {
+        Err(_) => true,
+        Ok(v) => v.abs() > 65535,
     } {
         return args.rest()?.first()?.err("shift too large");
     }
@@ -392,11 +390,9 @@ pub fn op_ash<T>(args: &Node<T>) -> Response<T> {
 pub fn op_lsh<T>(args: &Node<T>) -> Response<T> {
     let (i0, i1) = uint_int(&args, "lsh")?;
     let s1 = i64::try_from(&i1);
-    if {
-        match s1 {
-            Err(_) => true,
-            Ok(v) => v.abs() > 65535,
-        }
+    if match s1 {
+        Err(_) => true,
+        Ok(v) => v.abs() > 65535,
     } {
         return args.rest()?.first()?.err("shift too large");
     }
@@ -438,7 +434,7 @@ fn binop_reduction<T>(
     Ok(Reduction(cost, total.node))
 }
 
-fn logand_op<T>(a: &mut Number, b: &Number) -> () {
+fn logand_op<T>(a: &mut Number, b: &Number) {
     a.bitand_assign(b);
 }
 
@@ -447,7 +443,7 @@ pub fn op_logand<T>(args: &Node<T>) -> Response<T> {
     binop_reduction("logand", v, args, logand_op::<T>)
 }
 
-fn logior_op<T>(a: &mut Number, b: &Number) -> () {
+fn logior_op<T>(a: &mut Number, b: &Number) {
     a.bitor_assign(b);
 }
 
@@ -456,7 +452,7 @@ pub fn op_logior<T>(args: &Node<T>) -> Response<T> {
     binop_reduction("logior", v, args, logior_op::<T>)
 }
 
-fn logxor_op<T>(a: &mut Number, b: &Number) -> () {
+fn logxor_op<T>(a: &mut Number, b: &Number) {
     a.bitxor_assign(b);
 }
 
@@ -473,7 +469,7 @@ pub fn op_lognot<T>(args: &Node<T>) -> Response<T> {
             n = !n;
             let cost: u32 = LOGNOT_BASE_COST + limbs_for_int(&n) / LOGNOT_COST_PER_BYTE_DIVIDER;
             let r: Node<T> = node_from_number(args.into(), &n);
-            return Ok(Reduction(cost, r.node));
+            Ok(Reduction(cost, r.node))
         } else {
             args.err("lognot requires int args")
         }
