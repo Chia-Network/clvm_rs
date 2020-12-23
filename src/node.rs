@@ -71,6 +71,21 @@ impl<'a, T> Node<'a, T> {
     pub fn one(&self) -> Self {
         self.with_node(self.allocator.one())
     }
+
+    pub fn as_bool(&self) -> bool {
+        match self.atom() {
+            Some(v0) => !v0.is_empty(),
+            _ => true,
+        }
+    }
+
+    pub fn from_bool(&self, b: bool) -> Self {
+        if b {
+            self.one()
+        } else {
+            self.null()
+        }
+    }
 }
 
 impl<'a, T> From<&Node<'a, T>> for &'a dyn Allocator<T> {

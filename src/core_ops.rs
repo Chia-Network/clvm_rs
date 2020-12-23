@@ -30,12 +30,16 @@ impl<'a, T> Node<'a, T> {
 }
 
 pub fn op_if<T>(args: &Node<T>) -> Response<T> {
-    let cond = args.first()?;
-    let mut chosen_node = args.rest()?;
-    if cond.nullp() {
-        chosen_node = chosen_node.rest()?;
+    if args.arg_count_is(3) {
+        let cond = args.first()?;
+        let mut chosen_node = args.rest()?;
+        if cond.nullp() {
+            chosen_node = chosen_node.rest()?;
+        }
+        Ok(Reduction(IF_COST, chosen_node.first()?.node))
+    } else {
+        args.err("i takes exactly 3 arguments")
     }
-    Ok(Reduction(IF_COST, chosen_node.first()?.node))
 }
 
 pub fn op_cons<T>(args: &Node<T>) -> Response<T> {
