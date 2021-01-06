@@ -1,0 +1,52 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-16.04, ubuntu-20.04, macos-11.0, macos-10.15 ]
+    name: Tests
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Setup python
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+          architecture: x64
+      - name: Python environment
+        run: python3 -m venv env
+      - name: Install dependencies
+        run: |
+          . ./env/bin/activate
+          python3 -m pip install --upgrade pip
+          python3 -m pip install maturin
+          python3 -m pip install pytest
+          python3 -m pip install blspy
+      - name: clone clvm
+        run: |
+          . ./env/bin/activate
+          git clone https://github.com/Chia-Network/clvm.git --depth=1 --branch=use_clvm_rs --single-branch
+          cd clvm
+          python3 -m pip install .
+      - name: clone clvm_tools
+        run: |
+          . ./env/bin/activate
+          git clone https://github.com/Chia-Network/clvm_tools.git --depth=1 --branch=develop --single-branch
+          cd clvm_tools
+          python3 -m pip install .
+      - name: Build
+        run: |
+          . ./env/bin/activate
+          maturin develop
+      - name: Test
+        run: |
+          . ./env/bin/activate
+          py.test clvm
