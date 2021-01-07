@@ -244,7 +244,15 @@ pub fn op_divmod<T>(args: &Node<T>) -> Response<T> {
         args.first()?.err("divmod with 0")
     } else {
         let q = &a0 / &a1;
-        let r = a0 - a1 * &q;
+        let r = &a0 - &a1 * &q;
+
+        // rust rounds division towards zero, but we want division to round
+        // toward negative infinity.
+        let (q, r) = if q.sign() == Sign::Minus && r.sign() != Sign::NoSign {
+            (q - 1, r + &a1)
+        } else {
+            (q, r)
+        };
         let q1: Node<T> = node_from_number(args.into(), &q);
         let r1: Node<T> = node_from_number(args.into(), &r);
         Ok(Reduction(cost, q1.cons(&r1).node))
