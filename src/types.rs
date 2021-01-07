@@ -14,21 +14,6 @@ impl<'a, T> dyn Allocator<T> + 'a {
 }
 
 impl<'a, T> dyn Allocator<T> + 'a {
-    pub fn first(&self, v: &T) -> Result<T, EvalErr<T>> {
-        match self.sexp(v) {
-            SExp::Pair(a, _b) => Ok(a),
-            _ => self.err(v, "first of non-cons"),
-        }
-    }
-    pub fn rest(&self, v: &T) -> Result<T, EvalErr<T>> {
-        match self.sexp(v) {
-            SExp::Pair(_a, b) => Ok(b),
-            _ => self.err(v, "rest of non-cons"),
-        }
-    }
-}
-
-impl<'a, T> dyn Allocator<T> + 'a {
     pub fn nullp(&self, v: &T) -> bool {
         match self.sexp(v) {
             SExp::Atom(a) => a.is_empty(),
