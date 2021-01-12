@@ -20,6 +20,7 @@ sha2 = "0.8.0"
 lazy_static = "1.4.0"
 aovec = "1.1.0"
 num-bigint = "0.3.1"
+bls12_381 = "0.3.1"
 
 [dev-dependencies]
 hex = "0.3.2"

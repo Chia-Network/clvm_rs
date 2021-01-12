@@ -1,50 +1,9 @@
+use bls12_381::{G1Affine, G1Projective};
 use num_bigint::{BigUint, Sign};
 use std::convert::TryFrom;
 use std::ops::BitAndAssign;
 use std::ops::BitOrAssign;
 use std::ops::BitXorAssign;
-
-/*
-
-pub fn op_substr<T>(args: &Node<T>) -> Response<T> {
-    if args.arg_count_is(3) {
-        let a0 = args.first()?;
-        if let Some(v0) = a0.atom() {
-            let size: u32 = v0.len() as u32;
-            let size_num: Number = size.into();
-            let size_node = node_from_number(args.into(), &size_num).node;
-            let cost: u32 = STRLEN_BASE_COST + size / STRLEN_COST_PER_BYTE_DIVIDER;
-            return Ok(Reduction(cost, size_node));
-        } else {
-            a0.err("strlen on list")
-        }
-    } else {
-        args.err("substr takes exactly 3 argument")
-    }
-}
-
-
-
-
-def op_substr(args):
-    if args.list_len() != 3:
-        raise EvalError("substr takes exactly 3 argument", args)
-    a0 = args.first()
-    if a0.pair:
-        raise EvalError("substr on list", a0)
-
-    i1, i2 = args_as_int_list("substr", args.rest(), 2)
-
-    s0 = a0.as_atom()
-    if i2 > len(s0) or i2 < i1 or i2 < 0 or i1 < 0:
-        raise EvalError("invalid indices for substr", args)
-    s = s0[i1:i2]
-    cost = 1
-    return cost, args.to(s)
-
-
-
-*/
 
 use crate::allocator::Allocator;
 use crate::node::Node;
@@ -536,3 +495,83 @@ pub fn op_softfork<T>(args: &Node<T>) -> Response<T> {
         _ => args.err("softfork takes at least 1 argument"),
     }
 }
+
+/*
+pub fn op_pubkey_for_exp<T>(args: &Node<T>) -> Response<T> {
+    if args.arg_count_is(1) {
+        let a0 = args.first()?;
+        if let Some(v0) = a0.atom() {
+            let exp: Number = number_from_u8(args.allocator, &v0);
+            let size_node = node_from_number(args.into(), &size_num).node;
+            let cost: u32 = STRLEN_BASE_COST + size / STRLEN_COST_PER_BYTE_DIVIDER;
+            Ok(Reduction(cost, size_node))
+        } else {
+            a0.err("pubkey_for_exp on list")
+        }
+    } else {
+        args.err("pubkey_for_exp takes exactly 1 argument")
+    }
+}
+*/
+
+const POINT_ADD_BASE_COST: u32 = 213;
+const POINT_ADD_COST_PER_ARG: u32 = 358;
+
+pub fn op_point_add<T>(args: &Node<T>) -> Response<T> {
+    let mut cost: u32 = POINT_ADD_BASE_COST;
+    let mut total: G1Projective = G1Projective::identity();
+    for arg in args {
+        match arg.atom() {
+            Some(ref blob) => {
+                let mut is_ok: bool = blob.len() == 48;
+                if is_ok {
+                    let mut as_array: [u8; 48] = [0; 48];
+                    as_array.clone_from_slice(&blob[0..48]);
+                    let v = G1Affine::from_compressed(&as_array);
+                    is_ok = v.is_some().into();
+                    if is_ok {
+                        let point = v.unwrap();
+                        cost += POINT_ADD_COST_PER_ARG;
+                        total += &point;
+                    }
+                }
+                if !is_ok {
+                    return arg.err("bad pubkey");
+                }
+            }
+            None => return args.err("point_add expects blob, got list"),
+        }
+    }
+    let total: G1Affine = total.into();
+    let total: Node<T> = args.new_atom(&total.to_compressed());
+    Ok(Reduction(cost, total.node))
+}
+
+/*
+def op_pubkey_for_exp(args):
+    (i0,) = args_as_int_list("pubkey_for_exp", args, 1)
+    i0 %= 0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000001
+    try:
+        r = args.to(bytes(G1Element.generator() * i0))
+        cost = PUBKEY_BASE_COST
+        cost += limbs_for_int(i0) // PUBKEY_COST_PER_BYTE_DIVIDER
+        return cost, r
+    except Exception as ex:
+        raise EvalError("problem in op_pubkey_for_exp: %s" % ex, args)
+
+
+def op_point_add(items):
+    cost = POINT_ADD_BASE_COST
+    p = G1Element.generator() * 0
+
+    for _ in items.as_iter():
+        if _.pair:
+            raise EvalError("point_add expects blob, got list", items)
+        try:
+            p += G1Element.from_bytes(_.as_atom())
+            cost += POINT_ADD_COST_PER_ARG
+        except Exception as ex:
+            raise EvalError("point_add expects blob, got %s: %s" % (_, ex), items)
+    return cost, items.to(p)
+
+*/
