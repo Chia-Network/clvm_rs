@@ -48,7 +48,7 @@ fn extract_tuple(allocator: &ArcAllocator, obj: &PyAny) -> PyResult<PyNode> {
     let i1: &PyAny = v.get_item(1);
     let left: PyNode = extract_node(&allocator, i0)?;
     let right: PyNode = extract_node(&allocator, i1)?;
-    let node: PyNode = allocator.from_pair(&left, &right);
+    let node: PyNode = allocator.new_pair(&left, &right);
     Ok(node)
 }
 

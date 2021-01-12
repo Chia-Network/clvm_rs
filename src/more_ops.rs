@@ -158,7 +158,7 @@ pub fn op_sha256<T>(args: &Node<T>) -> Response<T> {
         }
     }
     cost += byte_count / SHA256_COST_PER_BYTE_DIVIDER;
-    Ok(Reduction(cost, args.blob_u8(&hasher.result()).node))
+    Ok(Reduction(cost, args.new_atom(&hasher.result()).node))
 }
 
 pub fn op_add<T>(args: &Node<T>) -> Response<T> {
@@ -331,7 +331,7 @@ pub fn op_substr<T>(args: &Node<T>) -> Response<T> {
             } else {
                 let u1: usize = i1 as usize;
                 let u2: usize = i2 as usize;
-                let r = args.blob_u8(&s0[u1..u2]).node;
+                let r = args.new_atom(&s0[u1..u2]).node;
                 let cost = 1;
                 Ok(Reduction(cost, r))
             }
@@ -363,7 +363,7 @@ pub fn op_concat<T>(args: &Node<T>) -> Response<T> {
     }
     cost += (total_size as u32) / CONCAT_COST_PER_BYTE_DIVIDER;
     let allocator: &dyn Allocator<T> = args.into();
-    let r: T = allocator.blob_u8(&v);
+    let r: T = allocator.new_atom(&v);
 
     Ok(Reduction(cost, r))
 }

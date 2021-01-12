@@ -10,14 +10,14 @@ impl<'a, T> Node<'a, T> {
         Node { allocator, node }
     }
 
-    pub fn blob_u8(&self, v: &[u8]) -> Self {
-        self.with_node(self.allocator.blob_u8(v))
+    pub fn new_atom(&self, v: &[u8]) -> Self {
+        self.with_node(self.allocator.new_atom(v))
     }
 
     pub fn cons(&self, right: &Self) -> Self {
         // BRAIN DAMAGE: we need to ensure that the allocators for `self` and `right`
         // are the same, or at least, interoperable
-        self.with_node(self.allocator.from_pair(&self.node, &right.node))
+        self.with_node(self.allocator.new_pair(&self.node, &right.node))
     }
 
     pub fn with_node(&self, node: T) -> Self {

@@ -42,11 +42,11 @@ impl ArcAllocator {
 }
 
 impl Allocator<PyNode> for ArcAllocator {
-    fn blob_u8(&self, v: &[u8]) -> PyNode {
+    fn new_atom(&self, v: &[u8]) -> PyNode {
         Arc::new(PySExp::Atom(Vec::from(v).into())).into()
     }
 
-    fn from_pair(&self, first: &PyNode, rest: &PyNode) -> PyNode {
+    fn new_pair(&self, first: &PyNode, rest: &PyNode) -> PyNode {
         let inner_node: Arc<PySExp> = Arc::new(PySExp::Pair(
             Arc::new(first.clone()),
             Arc::new(rest.clone()),

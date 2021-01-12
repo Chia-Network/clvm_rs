@@ -121,7 +121,7 @@ fn cons_op<T>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>> {
     /* Join the top two operands. */
     let v1 = rpc.pop()?;
     let v2 = rpc.pop()?;
-    rpc.push(rpc.allocator.from_pair(&v1, &v2));
+    rpc.push(rpc.allocator.new_pair(&v1, &v2));
     Ok(0)
 }
 
@@ -162,7 +162,7 @@ fn eval_op_atom<T: 'static>(
             match rpc.allocator.sexp(&operands) {
                 SExp::Atom(_) => return rpc.allocator.err(operand_list, "bad operand list"),
                 SExp::Pair(first, rest) => {
-                    let new_pair = rpc.allocator.from_pair(&first, args);
+                    let new_pair = rpc.allocator.new_pair(&first, args);
                     rpc.push(new_pair);
                     operands = rpc.allocator.make_clone(&rest);
                 }
@@ -190,7 +190,7 @@ fn eval_pair<T: 'static>(
         SExp::Pair(operator_node, operand_list) => match rpc.allocator.sexp(&operator_node) {
             SExp::Pair(_, _) => {
                 // the operator is also a list, so we need two evals here
-                rpc.push(rpc.allocator.from_pair(&operator_node, &args));
+                rpc.push(rpc.allocator.new_pair(&operator_node, &args));
                 rpc.op_stack.push(Box::new(eval_op));
                 rpc.op_stack.push(Box::new(eval_op));
                 Ok(1)
@@ -245,7 +245,7 @@ fn apply_op<T: 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T
                         SExp::Pair(_, _) => {
                             let new_pair = rpc
                                 .allocator
-                                .from_pair(&new_operator.node, &new_operand_list.node);
+                                .new_pair(&new_operator.node, &new_operand_list.node);
                             rpc.push(new_pair);
                             rpc.op_stack.push(Box::new(eval_op));
                         }
@@ -278,7 +278,7 @@ pub fn run_program<T: 'static>(
     operator_lookup: &OperatorHandler<T>,
     pre_eval: Option<PreEval<T>>,
 ) -> Response<T> {
-    let values: Vec<T> = vec![allocator.from_pair(program, args)];
+    let values: Vec<T> = vec![allocator.new_pair(program, args)];
     let op_stack: Vec<Box<RPCOperator<T>>> = vec![Box::new(eval_op)];
 
     let mut rpc = RunProgramContext {

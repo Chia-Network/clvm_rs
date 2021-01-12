@@ -81,7 +81,7 @@ fn test_dump() {
     dump(&n);
 
     for idx in 0..=255 {
-        let n = Node::blob_u8(&[idx]);
+        let n = Node::new_atom(&[idx]);
 
         dump(&n);
     }
@@ -105,7 +105,7 @@ fn test_dump() {
     let n: Node = Node::from_list(v);
     dump(&n);
 
-    let v1: Vec<Node> = vec![7.into(), Node::blob_u8(b"foo bar baz")];
+    let v1: Vec<Node> = vec![7.into(), Node::new_atom(b"foo bar baz")];
     let v: Vec<Node> = vec![Node::from_list(v1), 11.into(), 100.into()];
     let n: Node = Node::from_list(v);
     dump(&n);

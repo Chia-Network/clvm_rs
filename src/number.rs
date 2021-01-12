@@ -14,7 +14,7 @@ pub fn node_from_number<'a, T>(allocator: &'a dyn Allocator<T>, item: &Number) -
         }
         slice = &slice[1..];
     }
-    Node::new(allocator, allocator.blob_u8(&slice))
+    Node::new(allocator, allocator.new_atom(&slice))
 }
 
 impl<T> From<&Node<'_, T>> for Option<Number> {

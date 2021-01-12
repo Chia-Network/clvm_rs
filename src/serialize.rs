@@ -93,15 +93,15 @@ pub fn node_from_stream<T>(allocator: &dyn Allocator<T>, f: &mut dyn Read) -> st
     if b[0] == CONS_BOX_MARKER {
         let v1 = node_from_stream(allocator, f)?;
         let v2 = node_from_stream(allocator, f)?;
-        return Ok(allocator.from_pair(&v1, &v2));
+        return Ok(allocator.new_pair(&v1, &v2));
     }
     if b[0] <= MAX_SINGLE_BYTE {
-        return Ok(allocator.blob_u8(&b));
+        return Ok(allocator.new_atom(&b));
     }
     let blob_size = decode_size(f, b[0])?;
     let mut blob: Vec<u8> = vec![0; blob_size];
     f.read_exact(&mut blob)?;
-    Ok(allocator.blob_u8(&blob))
+    Ok(allocator.new_atom(&blob))
 }
 
 pub fn node_from_bytes<T>(allocator: &dyn Allocator<T>, b: &[u8]) -> std::io::Result<T> {
