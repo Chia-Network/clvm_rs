@@ -247,7 +247,7 @@ pub fn op_divmod<T>(args: &Node<T>) -> Response<T> {
         let r = a0 - a1 * &q;
         let q1: Node<T> = node_from_number(args.into(), &q);
         let r1: Node<T> = node_from_number(args.into(), &r);
-        Ok(Reduction(cost, args.from_pair(&q1, &r1).node))
+        Ok(Reduction(cost, q1.cons(&r1).node))
     }
 }
 

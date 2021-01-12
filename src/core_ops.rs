@@ -46,7 +46,7 @@ pub fn op_cons<T>(args: &Node<T>) -> Response<T> {
     if args.arg_count_is(2) {
         let a1 = args.first()?;
         let a2 = args.rest()?.first()?;
-        Ok(Reduction(CONS_COST, args.from_pair(&a1, &a2).node))
+        Ok(Reduction(CONS_COST, a1.cons(&a2).node))
     } else {
         args.err("c takes exactly 2 arguments")
     }

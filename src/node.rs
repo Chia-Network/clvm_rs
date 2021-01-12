@@ -14,8 +14,10 @@ impl<'a, T> Node<'a, T> {
         self.with_node(self.allocator.blob_u8(v))
     }
 
-    pub fn from_pair(&self, p1: &Self, p2: &Self) -> Self {
-        self.with_node(self.allocator.from_pair(&p1.node, &p2.node))
+    pub fn cons(&self, right: &Self) -> Self {
+        // BRAIN DAMAGE: we need to ensure that the allocators for `self` and `right`
+        // are the same, or at least, interoperable
+        self.with_node(self.allocator.from_pair(&self.node, &right.node))
     }
 
     pub fn with_node(&self, node: T) -> Self {

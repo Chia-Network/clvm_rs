@@ -68,6 +68,10 @@ fn py_run_program(
         }))
     };
 
+    // BRAIN DAMAGE: we create a second `ArcAllocator` here
+    // This only works because this allocator type has the property that
+    // you can create a pair from nodes from different allocators.
+
     let allocator: ArcAllocator = ArcAllocator::new();
     let f: OperatorHandler<PyNode> =
         Box::new(move |allocator, op, args| op_lookup.operator_handler(allocator, op, args));
