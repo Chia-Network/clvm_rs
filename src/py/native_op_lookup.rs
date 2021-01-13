@@ -12,7 +12,7 @@ use pyo3::types::{PyString, PyTuple};
 #[derive(Clone)]
 pub struct NativeOpLookup {
     py_callback: PyObject,
-    f_lookup: FLookup,
+    f_lookup: FLookup<PyNode>,
 }
 
 #[pymethods]
@@ -20,7 +20,7 @@ impl NativeOpLookup {
     #[new]
     fn new(native_opcode_list: &[u8], unknown_op_callback: &PyAny) -> Self {
         let native_lookup = make_f_lookup();
-        let mut f_lookup: FLookup = [None; 256];
+        let mut f_lookup: FLookup<PyNode> = [None; 256];
         for i in native_opcode_list.iter() {
             let idx = *i as usize;
             f_lookup[idx] = native_lookup[idx];
