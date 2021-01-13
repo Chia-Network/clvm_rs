@@ -211,7 +211,7 @@ impl From<&Arc<PyNode>> for PyNode {
 fn move_out(n: &mut Arc<PySExp>) -> Arc<PySExp> {
     // for some reason rust doesn't let us move members out of self when being
     // destructed, so we need to replace it with a dummy allocation
-    return std::mem::replace(n, Arc::new(PySExp::Atom(Arc::new([0]))));
+    std::mem::replace(n, Arc::new(PySExp::Atom(Arc::new([0]))))
 }
 
 // to avoid stack overflow by destructing the tree of nodes recursively, first
@@ -220,7 +220,7 @@ fn move_out(n: &mut Arc<PySExp>) -> Arc<PySExp> {
 // happen sequentially, rather than recursively
 impl Drop for PyNode {
     fn drop(&mut self) {
-        if Arc::strong_count(&mut self.node) > 1 {
+        if Arc::strong_count(&self.node) > 1 {
             return;
         };
         let mut vec = Vec::<Arc<PySExp>>::new();

@@ -42,7 +42,7 @@ pub fn node_to_stream<T>(node: &Node<T>, f: &mut dyn Write) -> std::io::Result<(
     if let Some(atom) = node.atom() {
         let size = atom.len();
         if size == 0 {
-            f.write_all(&[0x80 as u8])?;
+            f.write_all(&[0x80_u8])?;
         } else {
             let atom0 = atom[0];
             if size == 1 && (atom0 <= MAX_SINGLE_BYTE) {
