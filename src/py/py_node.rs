@@ -82,7 +82,7 @@ impl PyNode {
     }
 
     #[getter(atom)]
-    pub fn atom<'p>(&self, py: Python<'p>) -> Option<PyObject> {
+    pub fn atom(&self, py: Python) -> Option<PyObject> {
         let sexp: &PySExp = &self.node;
         match sexp {
             PySExp::Atom(_a) => {
