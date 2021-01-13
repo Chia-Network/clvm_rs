@@ -31,30 +31,35 @@ pub fn check_arg_count<T>(args: &Node<T>, expected: i32, name: &str) -> Result<(
     }
 }
 
+pub fn int_atom<'a, T>(args: &'a Node<T>, op_name: &str) -> Result<&'a [u8], EvalErr<T>> {
+    match args.atom() {
+        Some(a) => Ok(a),
+        _ => args.err(&format!("{} requires int args", op_name)),
+    }
+}
+
+// rename to atom()
+pub fn atom<'a, T>(args: &'a Node<T>, op_name: &str) -> Result<&'a [u8], EvalErr<T>> {
+    match args.atom() {
+        Some(a) => Ok(a),
+        _ => args.err(&format!("{} on list", op_name)),
+    }
+}
+
 pub fn two_ints<T>(args: &Node<T>, op_name: &str) -> Result<(Number, Number), EvalErr<T>> {
     check_arg_count(&args, 2, op_name)?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
-    if let Some(v0) = a0.atom() {
-        if let Some(v1) = a1.atom() {
-            let n0 = number_from_u8(&v0);
-            let n1 = number_from_u8(&v1);
-            return Ok((n0, n1));
-        }
-    }
-    args.err(&format!("{} requires int args", op_name))
+    let n0 = number_from_u8(int_atom(&a0, op_name)?);
+    let n1 = number_from_u8(int_atom(&a1, op_name)?);
+    Ok((n0, n1))
 }
 
 pub fn uint_int<T>(args: &Node<T>, op_name: &str) -> Result<(BigUint, Number), EvalErr<T>> {
     check_arg_count(&args, 2, op_name)?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
-    if let Some(v0) = a0.atom() {
-        if let Some(v1) = a1.atom() {
-            let n0 = BigUint::from_bytes_be(&v0);
-            let n1 = number_from_u8(&v1);
-            return Ok((n0, n1));
-        }
-    }
-    args.err(&format!("{} requires int args", op_name))
+    let n0 = BigUint::from_bytes_be(int_atom(&a0, op_name)?);
+    let n1 = number_from_u8(int_atom(&a1, op_name)?);
+    Ok((n0, n1))
 }

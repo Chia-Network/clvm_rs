@@ -1,5 +1,5 @@
 use crate::node::Node;
-use crate::op_utils::check_arg_count;
+use crate::op_utils::{atom, check_arg_count};
 use crate::reduction::{EvalErr, Reduction, Response};
 
 const FIRST_COST: u32 = 8;
@@ -73,19 +73,15 @@ pub fn op_eq<T>(args: &Node<T>) -> Response<T> {
     check_arg_count(args, 2, "=")?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
-    if let Some(s0) = a0.atom() {
-        if let Some(s1) = a1.atom() {
-            let cost: u32 =
-                CMP_BASE_COST + (s0.len() as u32 + s1.len() as u32) / CMP_COST_PER_LIMB_DIVIDER;
-            return Ok(Reduction(
-                cost,
-                if s0 == s1 {
-                    args.one().node
-                } else {
-                    args.null().node
-                },
-            ));
-        }
-    }
-    args.err("= on list")
+    let s0 = atom(&a0, "=")?;
+    let s1 = atom(&a1, "=")?;
+    let cost: u32 = CMP_BASE_COST + (s0.len() as u32 + s1.len() as u32) / CMP_COST_PER_LIMB_DIVIDER;
+    Ok(Reduction(
+        cost,
+        if s0 == s1 {
+            args.one().node
+        } else {
+            args.null().node
+        },
+    ))
 }

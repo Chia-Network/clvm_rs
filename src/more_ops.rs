@@ -10,7 +10,7 @@ use lazy_static::lazy_static;
 use crate::allocator::Allocator;
 use crate::node::Node;
 use crate::number::{node_from_number, number_from_u8, Number};
-use crate::op_utils::{check_arg_count, two_ints, uint_int};
+use crate::op_utils::{atom, check_arg_count, int_atom, two_ints, uint_int};
 use crate::reduction::{Reduction, Response};
 use crate::serialize::node_to_bytes;
 
@@ -77,13 +77,9 @@ pub fn op_sha256<T>(args: &Node<T>) -> Response<T> {
     let mut hasher = Sha256::new();
     for arg in args {
         cost += SHA256_COST_PER_ARG;
-        match arg.atom() {
-            Some(ref blob) => {
-                byte_count += blob.len() as u32;
-                hasher.input(blob);
-            }
-            None => return arg.err("sha256 got list"),
-        }
+        let blob = atom(&arg, "sha256")?;
+        byte_count += blob.len() as u32;
+        hasher.input(blob);
     }
     cost += byte_count / SHA256_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, args.new_atom(&hasher.result()).node))
@@ -95,14 +91,10 @@ pub fn op_add<T>(args: &Node<T>) -> Response<T> {
     let mut total: Number = 0.into();
     for arg in args {
         cost += ARITH_COST_PER_ARG;
-        match arg.atom() {
-            Some(ref blob) => {
-                let v: Number = number_from_u8(&blob);
-                byte_count += limbs_for_int(&v);
-                total += v;
-            }
-            None => return args.err("+ requires int args"),
-        }
+        let blob = int_atom(&arg, "+")?;
+        let v: Number = number_from_u8(&blob);
+        byte_count += limbs_for_int(&v);
+        total += v;
     }
     let total: Node<T> = node_from_number(args.into(), &total);
     cost += byte_count / ARITH_COST_PER_LIMB_DIVIDER;
@@ -116,19 +108,15 @@ pub fn op_subtract<T>(args: &Node<T>) -> Response<T> {
     let mut is_first = true;
     for arg in args {
         cost += ARITH_COST_PER_ARG;
-        match arg.atom() {
-            Some(ref blob) => {
-                let v: Number = number_from_u8(&blob);
-                byte_count += blob.len() as u32;
-                if is_first {
-                    total += v;
-                } else {
-                    total -= v;
-                };
-                is_first = false;
-            }
-            None => return args.err("- requires int args"),
-        }
+        let blob = int_atom(&arg, "-")?;
+        let v: Number = number_from_u8(&blob);
+        byte_count += limbs_for_int(&v);
+        if is_first {
+            total += v;
+        } else {
+            total -= v;
+        };
+        is_first = false;
     }
     let total: Node<T> = node_from_number(args.into(), &total);
     cost += byte_count / ARITH_COST_PER_LIMB_DIVIDER;
@@ -140,25 +128,21 @@ pub fn op_multiply<T>(args: &Node<T>) -> Response<T> {
     let mut first_iter: bool = true;
     let mut total: Number = 1.into();
     for arg in args {
-        match arg.atom() {
-            Some(ref blob) => {
-                if first_iter {
-                    total = number_from_u8(&blob);
-                    first_iter = false;
-                    continue;
-                }
-                let v: Number = number_from_u8(&blob);
-                let rs = limbs_for_int(&total);
-                let vs = limbs_for_int(&v);
+        let blob = int_atom(&arg, "*")?;
+        if first_iter {
+            total = number_from_u8(&blob);
+            first_iter = false;
+            continue;
+        }
+        let v: Number = number_from_u8(&blob);
+        let rs = limbs_for_int(&total);
+        let vs = limbs_for_int(&v);
 
-                total *= v;
-                cost += MUL_COST_PER_OP;
+        total *= v;
+        cost += MUL_COST_PER_OP;
 
-                cost += (rs + vs) / MUL_LINEAR_COST_PER_BYTE_DIVIDER;
-                cost += (rs * vs) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
-            }
-            None => return args.err("* requires int args"),
-        };
+        cost += (rs + vs) / MUL_LINEAR_COST_PER_BYTE_DIVIDER;
+        cost += (rs * vs) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
     }
     let total: Node<T> = node_from_number(args.into(), &total);
     Ok(Reduction(cost, total.node))
@@ -213,79 +197,64 @@ pub fn op_gr<T>(args: &Node<T>) -> Response<T> {
     check_arg_count(&args, 2, ">")?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
-    let mut cost: u32 = GR_BASE_COST;
-    if let Some(v0) = a0.atom() {
-        if let Some(v1) = a1.atom() {
-            let n0 = number_from_u8(&v0);
-            let n1 = number_from_u8(&v1);
-            cost += (limbs_for_int(&n0) + limbs_for_int(&n1)) as u32 / GR_COST_PER_LIMB_DIVIDER;
-            return Ok(Reduction(
-                cost,
-                if n0 > n1 {
-                    args.one().node
-                } else {
-                    args.null().node
-                },
-            ));
-        }
-    }
-    args.err("> requires int args")
+    let n0 = number_from_u8(int_atom(&a0, ">")?);
+    let n1 = number_from_u8(int_atom(&a1, ">")?);
+    let cost =
+        GR_BASE_COST + (limbs_for_int(&n0) + limbs_for_int(&n1)) as u32 / GR_COST_PER_LIMB_DIVIDER;
+    Ok(Reduction(
+        cost,
+        if n0 > n1 {
+            args.one().node
+        } else {
+            args.null().node
+        },
+    ))
 }
 
 pub fn op_gr_bytes<T>(args: &Node<T>) -> Response<T> {
     check_arg_count(&args, 2, ">s")?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
-    let mut cost: u32 = CMP_BASE_COST;
-    if let Some(v0) = a0.atom() {
-        if let Some(v1) = a1.atom() {
-            cost += (v0.len() + v1.len()) as u32 / CMP_COST_PER_LIMB_DIVIDER;
-            return Ok(Reduction(
-                cost,
-                if v0 > v1 {
-                    args.one().node
-                } else {
-                    args.null().node
-                },
-            ));
-        }
-    }
-    args.err(">s on list")
+    let v0 = atom(&a0, ">s")?;
+    let v1 = atom(&a1, ">s")?;
+    let cost = CMP_BASE_COST + (v0.len() + v1.len()) as u32 / CMP_COST_PER_LIMB_DIVIDER;
+    Ok(Reduction(
+        cost,
+        if v0 > v1 {
+            args.one().node
+        } else {
+            args.null().node
+        },
+    ))
 }
 
 pub fn op_strlen<T>(args: &Node<T>) -> Response<T> {
     check_arg_count(&args, 1, "strlen")?;
     let a0 = args.first()?;
-    if let Some(v0) = a0.atom() {
-        let size: u32 = v0.len() as u32;
-        let size_num: Number = size.into();
-        let size_node = node_from_number(args.into(), &size_num).node;
-        let cost: u32 = STRLEN_BASE_COST + size / STRLEN_COST_PER_BYTE_DIVIDER;
-        Ok(Reduction(cost, size_node))
-    } else {
-        a0.err("strlen on list")
-    }
+    let v0 = atom(&a0, "strlen")?;
+    let size: u32 = v0.len() as u32;
+    let size_num: Number = size.into();
+    let size_node = node_from_number(args.into(), &size_num).node;
+    let cost: u32 = STRLEN_BASE_COST + size / STRLEN_COST_PER_BYTE_DIVIDER;
+    Ok(Reduction(cost, size_node))
 }
 
 pub fn op_substr<T>(args: &Node<T>) -> Response<T> {
     check_arg_count(&args, 3, "substr")?;
     let a0 = args.first()?;
-    if let Some(s0) = a0.atom() {
-        let (n1, n2) = two_ints(&args.rest()?, "substr")?;
-        let i1: isize = isize::try_from(n1).unwrap_or(isize::max_value());
-        let i2: isize = isize::try_from(n2).unwrap_or(0);
-        let size = s0.len() as isize;
-        if i2 > size || i2 < i1 || i2 < 0 || i1 < 0 {
-            args.err("invalid indices for substr")
-        } else {
-            let u1: usize = i1 as usize;
-            let u2: usize = i2 as usize;
-            let r = args.new_atom(&s0[u1..u2]).node;
-            let cost = 1;
-            Ok(Reduction(cost, r))
-        }
+    let s0 = atom(&a0, "substr")?;
+    let (n1, n2) = two_ints(&args.rest()?, "substr")?;
+    let i1: isize = isize::try_from(n1).unwrap_or(isize::max_value());
+    let i2: isize = isize::try_from(n2).unwrap_or(0);
+    let size = s0.len() as isize;
+    if i2 > size || i2 < i1 || i2 < 0 || i1 < 0 {
+        args.err("invalid indices for substr")
     } else {
-        a0.err("substr on list")
+        let u1: usize = i1 as usize;
+        let u2: usize = i2 as usize;
+        let r = args.new_atom(&s0[u1..u2]).node;
+        let cost = 1;
+        Ok(Reduction(cost, r))
     }
 }
 
@@ -294,12 +263,8 @@ pub fn op_concat<T>(args: &Node<T>) -> Response<T> {
     let mut total_size: usize = 0;
     for arg in args {
         cost += CONCAT_COST_PER_ARG;
-        match arg.atom() {
-            Some(ref blob) => {
-                total_size += blob.len();
-            }
-            None => return arg.err("concat on list"),
-        }
+        let blob = atom(&arg, "concat")?;
+        total_size += blob.len();
     }
     let mut v: Vec<u8> = Vec::with_capacity(total_size);
 
@@ -363,17 +328,10 @@ fn binop_reduction<T>(
     let mut arg_size = 0;
     let mut cost = LOG_BASE_COST;
     for arg in args {
-        match arg.atom() {
-            Some(v0) => {
-                let n0 = number_from_u8(&v0);
-                op_f(&mut total, &n0);
-                arg_size += limbs_for_int(&total);
-                cost += LOG_COST_PER_ARG;
-            }
-            None => {
-                return args.err(&format!("{} requires int args", op_name));
-            }
-        }
+        let n0 = number_from_u8(int_atom(&arg, op_name)?);
+        op_f(&mut total, &n0);
+        arg_size += limbs_for_int(&total);
+        cost += LOG_COST_PER_ARG;
     }
     cost += arg_size / LOG_COST_PER_LIMB_DIVIDER;
     let total: Node<T> = node_from_number(args.into(), &total);
@@ -410,15 +368,12 @@ pub fn op_logxor<T>(args: &Node<T>) -> Response<T> {
 pub fn op_lognot<T>(args: &Node<T>) -> Response<T> {
     check_arg_count(&args, 1, "lognot")?;
     let a0 = args.first()?;
-    if let Some(v0) = a0.atom() {
-        let mut n: Number = number_from_u8(&v0);
-        n = !n;
-        let cost: u32 = LOGNOT_BASE_COST + limbs_for_int(&n) / LOGNOT_COST_PER_BYTE_DIVIDER;
-        let r: Node<T> = node_from_number(args.into(), &n);
-        Ok(Reduction(cost, r.node))
-    } else {
-        args.err("lognot requires int args")
-    }
+    let v0 = int_atom(&a0, "lognot")?;
+    let mut n: Number = number_from_u8(&v0);
+    n = !n;
+    let cost: u32 = LOGNOT_BASE_COST + limbs_for_int(&n) / LOGNOT_COST_PER_BYTE_DIVIDER;
+    let r: Node<T> = node_from_number(args.into(), &n);
+    Ok(Reduction(cost, r.node))
 }
 
 pub fn op_not<T>(args: &Node<T>) -> Response<T> {
@@ -453,16 +408,12 @@ pub fn op_all<T>(args: &Node<T>) -> Response<T> {
 pub fn op_softfork<T>(args: &Node<T>) -> Response<T> {
     match args.pair() {
         Some((p1, _)) => {
-            if let Some(a0) = p1.atom() {
-                let n: Number = number_from_u8(&a0);
-                if n.sign() == Sign::Plus {
-                    let cost: u32 = TryFrom::try_from(&n).unwrap_or(u32::max_value());
-                    Ok(Reduction(cost, args.null().node))
-                } else {
-                    args.err("cost must be > 0")
-                }
+            let n: Number = number_from_u8(int_atom(&p1, "softfork")?);
+            if n.sign() == Sign::Plus {
+                let cost: u32 = TryFrom::try_from(&n).unwrap_or(u32::max_value());
+                Ok(Reduction(cost, args.null().node))
             } else {
-                p1.err("softfork requires an int argument")
+                args.err("cost must be > 0")
             }
         }
         _ => args.err("softfork takes at least 1 argument"),
@@ -504,45 +455,38 @@ pub fn op_pubkey_for_exp<T>(args: &Node<T>) -> Response<T> {
     check_arg_count(&args, 1, "pubkey_for_exp")?;
     let a0 = args.first()?;
 
-    if let Some(v0) = a0.atom() {
-        let exp: Number = mod_group_order(number_from_u8(&v0));
-        let cost: u32 = PUBKEY_BASE_COST + limbs_for_int(&exp) / PUBKEY_COST_PER_BYTE_DIVIDER;
-        let exp: Scalar = number_to_scalar(exp);
-        let point: G1Projective = G1Affine::generator() * exp;
-        let point: G1Affine = point.into();
-        let point_node: Node<T> = args.new_atom(&point.to_compressed());
+    let v0 = int_atom(&a0, "pubkey_for_exp")?;
+    let exp: Number = mod_group_order(number_from_u8(&v0));
+    let cost: u32 = PUBKEY_BASE_COST + limbs_for_int(&exp) / PUBKEY_COST_PER_BYTE_DIVIDER;
+    let exp: Scalar = number_to_scalar(exp);
+    let point: G1Projective = G1Affine::generator() * exp;
+    let point: G1Affine = point.into();
+    let point_node: Node<T> = args.new_atom(&point.to_compressed());
 
-        Ok(Reduction(cost, point_node.node))
-    } else {
-        args.err("pubkey_for_exp requires int args")
-    }
+    Ok(Reduction(cost, point_node.node))
 }
 
 pub fn op_point_add<T>(args: &Node<T>) -> Response<T> {
     let mut cost: u32 = POINT_ADD_BASE_COST;
     let mut total: G1Projective = G1Projective::identity();
     for arg in args {
-        match arg.atom() {
-            Some(ref blob) => {
-                let mut is_ok: bool = blob.len() == 48;
-                if is_ok {
-                    let mut as_array: [u8; 48] = [0; 48];
-                    as_array.clone_from_slice(&blob[0..48]);
-                    let v = G1Affine::from_compressed(&as_array);
-                    is_ok = v.is_some().into();
-                    if is_ok {
-                        let point = v.unwrap();
-                        cost += POINT_ADD_COST_PER_ARG;
-                        total += &point;
-                    }
-                }
-                if !is_ok {
-                    let blob: String = hex::encode(node_to_bytes(&arg).unwrap());
-                    let msg = format!("point_add expects blob, got {}: Length of bytes object not equal to G1Element::SIZE", blob);
-                    return args.err(&msg);
-                }
+        let blob = atom(&arg, "point_add")?;
+        let mut is_ok: bool = blob.len() == 48;
+        if is_ok {
+            let mut as_array: [u8; 48] = [0; 48];
+            as_array.clone_from_slice(&blob[0..48]);
+            let v = G1Affine::from_compressed(&as_array);
+            is_ok = v.is_some().into();
+            if is_ok {
+                let point = v.unwrap();
+                cost += POINT_ADD_COST_PER_ARG;
+                total += &point;
             }
-            None => return args.err("point_add expects blob, got list"),
+        }
+        if !is_ok {
+            let blob: String = hex::encode(node_to_bytes(&arg).unwrap());
+            let msg = format!("point_add expects blob, got {}: Length of bytes object not equal to G1Element::SIZE", blob);
+            return args.err(&msg);
         }
     }
     let total: G1Affine = total.into();
