@@ -1,14 +1,17 @@
-use bls12_381::{G1Affine, G1Projective};
+use bls12_381::{G1Affine, G1Projective, Scalar};
 use num_bigint::{BigUint, Sign};
 use std::convert::TryFrom;
 use std::ops::BitAndAssign;
 use std::ops::BitOrAssign;
 use std::ops::BitXorAssign;
 
+use lazy_static::lazy_static;
+
 use crate::allocator::Allocator;
 use crate::node::Node;
 use crate::number::{node_from_number, number_from_u8, Number};
 use crate::reduction::{EvalErr, Reduction, Response};
+use crate::serialize::node_to_bytes;
 
 use sha2::{Digest, Sha256};
 
@@ -54,15 +57,11 @@ const SHIFT_COST_PER_BYTE_DIVIDER: u32 = 256;
 const BOOL_BASE_COST: u32 = 1;
 const BOOL_COST_PER_ARG: u32 = 8;
 
-/*
-const POINT_ADD_COST: u32 = 32;
-const PUBKEY_FOR_EXP_COST: u32 = 900;
+const POINT_ADD_BASE_COST: u32 = 213;
+const POINT_ADD_COST_PER_ARG: u32 = 358;
 
-const CONCAT_COST_PER_BYTE: u32 = 2;
-const LOGOP_COST_PER_BYTE: u32 = 2;
-
-const BOOL_OP_COST: u32 = 1;
-*/
+const PUBKEY_BASE_COST: u32 = 394;
+const PUBKEY_COST_PER_BYTE_DIVIDER: u32 = 4;
 
 fn limbs_for_int(v: &Number) -> u32 {
     ((v.bits() + 7) >> 3) as u32
@@ -496,26 +495,57 @@ pub fn op_softfork<T>(args: &Node<T>) -> Response<T> {
     }
 }
 
-/*
+lazy_static! {
+    static ref GROUP_ORDER: Number = {
+        let order_as_hex = b"73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000001";
+        let n = BigUint::parse_bytes(order_as_hex, 16).unwrap();
+        n.into()
+    };
+}
+
+fn mod_group_order(n: Number) -> Number {
+    let order = GROUP_ORDER.clone();
+    let divisor: Number = &n / &order;
+    let remainder: Number = &n - &divisor * &order;
+    if remainder.sign() == Sign::Minus {
+        order + remainder
+    } else {
+        remainder
+    }
+}
+
+fn number_to_scalar(n: Number) -> Scalar {
+    let (sign, as_u8): (Sign, Vec<u8>) = n.to_bytes_le();
+    let mut scalar_array: [u8; 32] = [0; 32];
+    scalar_array[..as_u8.len()].clone_from_slice(&as_u8[..]);
+    let exp: Scalar = Scalar::from_bytes(&scalar_array).unwrap();
+    if sign == Sign::Minus {
+        exp.neg()
+    } else {
+        exp
+    }
+}
+
 pub fn op_pubkey_for_exp<T>(args: &Node<T>) -> Response<T> {
     if args.arg_count_is(1) {
         let a0 = args.first()?;
+
         if let Some(v0) = a0.atom() {
-            let exp: Number = number_from_u8(args.allocator, &v0);
-            let size_node = node_from_number(args.into(), &size_num).node;
-            let cost: u32 = STRLEN_BASE_COST + size / STRLEN_COST_PER_BYTE_DIVIDER;
-            Ok(Reduction(cost, size_node))
+            let exp: Number = mod_group_order(number_from_u8(&v0));
+            let cost: u32 = PUBKEY_BASE_COST + limbs_for_int(&exp) / PUBKEY_COST_PER_BYTE_DIVIDER;
+            let exp: Scalar = number_to_scalar(exp);
+            let point: G1Projective = G1Affine::generator() * exp;
+            let point: G1Affine = point.into();
+            let point_node: Node<T> = args.new_atom(&point.to_compressed());
+
+            Ok(Reduction(cost, point_node.node))
         } else {
-            a0.err("pubkey_for_exp on list")
+            args.err("pubkey_for_exp requires int args")
         }
     } else {
-        args.err("pubkey_for_exp takes exactly 1 argument")
+        args.err("pubkey_for_exp requires 1 arg")
     }
 }
-*/
-
-const POINT_ADD_BASE_COST: u32 = 213;
-const POINT_ADD_COST_PER_ARG: u32 = 358;
 
 pub fn op_point_add<T>(args: &Node<T>) -> Response<T> {
     let mut cost: u32 = POINT_ADD_BASE_COST;
@@ -536,7 +566,9 @@ pub fn op_point_add<T>(args: &Node<T>) -> Response<T> {
                     }
                 }
                 if !is_ok {
-                    return arg.err("bad pubkey");
+                    let blob: String = hex::encode(node_to_bytes(&arg).unwrap());
+                    let msg = format!("point_add expects blob, got {}: Length of bytes object not equal to G1Element::SIZE", blob);
+                    return args.err(&msg);
                 }
             }
             None => return args.err("point_add expects blob, got list"),
@@ -546,32 +578,3 @@ pub fn op_point_add<T>(args: &Node<T>) -> Response<T> {
     let total: Node<T> = args.new_atom(&total.to_compressed());
     Ok(Reduction(cost, total.node))
 }
-
-/*
-def op_pubkey_for_exp(args):
-    (i0,) = args_as_int_list("pubkey_for_exp", args, 1)
-    i0 %= 0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000001
-    try:
-        r = args.to(bytes(G1Element.generator() * i0))
-        cost = PUBKEY_BASE_COST
-        cost += limbs_for_int(i0) // PUBKEY_COST_PER_BYTE_DIVIDER
-        return cost, r
-    except Exception as ex:
-        raise EvalError("problem in op_pubkey_for_exp: %s" % ex, args)
-
-
-def op_point_add(items):
-    cost = POINT_ADD_BASE_COST
-    p = G1Element.generator() * 0
-
-    for _ in items.as_iter():
-        if _.pair:
-            raise EvalError("point_add expects blob, got list", items)
-        try:
-            p += G1Element.from_bytes(_.as_atom())
-            cost += POINT_ADD_COST_PER_ARG
-        except Exception as ex:
-            raise EvalError("point_add expects blob, got %s: %s" % (_, ex), items)
-    return cost, items.to(p)
-
-*/
