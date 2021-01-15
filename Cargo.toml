@@ -11,7 +11,7 @@ name = "clvm_rs"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3]
-version = "0.12.1"
+version = "0.13.0"
 features = ["extension-module"]
 
 [dependencies]
