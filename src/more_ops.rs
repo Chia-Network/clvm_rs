@@ -48,6 +48,9 @@ const CONCAT_COST_PER_BYTE_DIVIDER: u32 = 830;
 const DIVMOD_BASE_COST: u32 = 29;
 const DIVMOD_COST_PER_LIMB_DIVIDER: u32 = 64;
 
+const DIV_BASE_COST: u32 = 29;
+const DIV_COST_PER_LIMB_DIVIDER: u32 = 64;
+
 const SHA256_BASE_COST: u32 = 3;
 const SHA256_COST_PER_ARG: u32 = 8;
 const SHA256_COST_PER_BYTE_DIVIDER: u32 = 64;
@@ -159,6 +162,28 @@ pub fn op_multiply<T>(args: &Node<T>) -> Response<T> {
     }
     let total: Node<T> = node_from_number(args.into(), &total);
     Ok(Reduction(cost, total.node))
+}
+
+pub fn op_div<T>(args: &Node<T>) -> Response<T> {
+    let (a0, a1) = two_ints(args, "div")?;
+    let cost =
+        DIV_BASE_COST + (limbs_for_int(&a0) + limbs_for_int(&a1)) / DIV_COST_PER_LIMB_DIVIDER;
+    if a1.sign() == Sign::NoSign {
+        args.first()?.err("div with 0")
+    } else {
+        let q = &a0 / &a1;
+        let r = &a0 - &a1 * &q;
+
+        // rust rounds division towards zero, but we want division to round
+        // toward negative infinity.
+        let q = if q.sign() == Sign::Minus && r.sign() != Sign::NoSign {
+            q - 1
+        } else {
+            q
+        };
+        let q1: Node<T> = node_from_number(args.into(), &q);
+        Ok(Reduction(cost, q1.node))
+    }
 }
 
 pub fn op_divmod<T>(args: &Node<T>) -> Response<T> {

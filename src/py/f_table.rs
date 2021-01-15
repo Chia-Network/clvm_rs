@@ -1,15 +1,15 @@
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::more_ops::{
-    op_add, op_all, op_any, op_ash, op_concat, op_divmod, op_gr, op_gr_bytes, op_logand, op_logior,
-    op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add, op_pubkey_for_exp, op_sha256,
-    op_softfork, op_strlen, op_substr, op_subtract,
+    op_add, op_all, op_any, op_ash, op_concat, op_div, op_divmod, op_gr, op_gr_bytes, op_logand,
+    op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add, op_pubkey_for_exp,
+    op_sha256, op_softfork, op_strlen, op_substr, op_subtract,
 };
 use crate::types::OpFn;
 
 pub type FLookup<T> = [Option<OpFn<T>>; 256];
 
 pub fn make_f_lookup<T>() -> FLookup<T> {
-    let opcode_lookup: [(u8, OpFn<T>); 29] = [
+    let opcode_lookup: [(u8, OpFn<T>); 30] = [
         (4, op_if),
         (5, op_cons),
         (6, op_first),
@@ -39,6 +39,7 @@ pub fn make_f_lookup<T>() -> FLookup<T> {
         (31, op_any),
         (32, op_all),
         (33, op_softfork),
+        (34, op_div),
     ];
     let mut f_lookup: FLookup<T> = [None; 256];
     for (op, f) in &opcode_lookup {
