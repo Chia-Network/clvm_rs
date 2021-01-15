@@ -129,8 +129,7 @@ fn raise_eval_error(py: Python, msg: &PyString, sexp: &PyNode) -> PyResult<PyObj
 #[pyfunction]
 fn serialize_from_bytes(blob: &[u8]) -> PyNode {
     let allocator: ArcAllocator = ArcAllocator::new();
-    let node = node_from_bytes(&allocator, blob).unwrap();
-    node
+    node_from_bytes(&allocator, blob).unwrap()
 }
 
 #[pyfunction]
@@ -139,8 +138,7 @@ fn serialize_to_bytes(py: Python, sexp: &PyNode) -> PyObject {
     let node_t: Node<PyNode> = Node::new(&allocator, sexp.clone());
     let blob = node_to_bytes(&node_t).unwrap();
     let pybytes = PyBytes::new(py, &blob);
-    let pyany: PyObject = pybytes.to_object(py);
-    pyany
+    pybytes.to_object(py)
 }
 
 /// This module is a python module implemented in Rust.
