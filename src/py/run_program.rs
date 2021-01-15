@@ -8,6 +8,7 @@ use crate::serialize::{node_from_bytes, node_to_bytes};
 use crate::types::OperatorHandler;
 use lazy_static::lazy_static;
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 
 lazy_static! {
     static ref F_TABLE: FLookup<u32> = make_f_lookup();
@@ -24,8 +25,8 @@ pub fn operator_handler2(
             return f(&node_t);
         }
     }
-    // BRAIN DAMAGE need an error
-    Ok(Reduction(1, 0)) //        argument_list.err("unknown op")
+    let op_arg = allocator.new_atom(op);
+    allocator.err(&op_arg, "unimplemented operator")
 }
 
 #[pyfunction]
@@ -52,11 +53,22 @@ pub fn py_run_program2(
             let node_as_blob = node_to_bytes(&Node::new(&allocator, reduction.1)).unwrap();
             Ok((reduction.0, node_as_blob))
         }
-        Err(_eval_err) => {
+        Err(eval_err) => {
+            let node_as_blob = node_to_bytes(&Node::new(&allocator, eval_err.0)).unwrap();
+            let msg = eval_err.1;
+            let ctx: &PyDict = PyDict::new(py);
+            ctx.set_item("msg", msg)?;
+            ctx.set_item("node_as_blob", node_as_blob)?;
             let r = py.run(
-                "from clvm import SExp; from clvm.EvalError import EvalError; raise EvalError('unknown error', SExp.to(0))",
+                "
+from clvm import SExp
+from clvm.EvalError import EvalError
+from clvm.serialize import sexp_from_stream
+import io
+sexp = sexp_from_stream(io.BytesIO(bytes(node_as_blob)), SExp.to)
+raise EvalError(msg, sexp)",
                 None,
-                None,
+                Some(ctx),
             );
             match r {
                 Err(x) => Err(x),
