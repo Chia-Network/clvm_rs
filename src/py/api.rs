@@ -2,6 +2,7 @@ use super::arc_allocator::ArcAllocator;
 use super::native_op_lookup::NativeOpLookup;
 use super::py_node::PyNode;
 use crate::node::Node;
+use crate::py::run_program::__pyo3_get_function_py_run_program2;
 use crate::reduction::{EvalErr, Reduction};
 use crate::run_program::{run_program, OperatorHandler, PostEval, PreEval};
 use crate::serialize::{node_from_bytes, node_to_bytes};
@@ -145,6 +146,7 @@ fn serialize_to_bytes(py: Python, sexp: &PyNode) -> PyObject {
 #[pymodule]
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_run_program, m)?)?;
+    m.add_function(wrap_pyfunction!(py_run_program2, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_from_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_to_bytes, m)?)?;
 
