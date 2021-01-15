@@ -38,6 +38,7 @@ fn post_eval_for_pyobject(obj: PyObject) -> Option<Box<PostEval<PyNode>>> {
 }
 
 #[pyfunction]
+#[allow(clippy::too_many_arguments)]
 fn py_run_program(
     py: Python,
     program: &PyNode,

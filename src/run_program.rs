@@ -268,6 +268,7 @@ fn apply_op<T: 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn run_program<T: 'static>(
     allocator: &dyn Allocator<T>,
     program: &T,
