@@ -3,25 +3,24 @@ use crate::int_allocator::IntAllocator;
 use crate::node::Node;
 use crate::py::f_table::{make_f_lookup, FLookup};
 use crate::reduction::{EvalErr, Reduction};
-use crate::run_program::run_program;
+use crate::run_program::{run_program, OperatorHandler};
 use crate::serialize::{node_from_bytes, node_to_bytes};
-use crate::types::OperatorHandler;
 use lazy_static::lazy_static;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
 lazy_static! {
-    static ref F_TABLE: FLookup<u32> = make_f_lookup();
+    static ref F_TABLE: FLookup<IntAllocator> = make_f_lookup();
 }
 
 pub fn operator_handler2(
-    allocator: &dyn Allocator<u32>,
+    allocator: &IntAllocator,
     op: &[u8],
     argument_list: &u32,
 ) -> Result<Reduction<u32>, EvalErr<u32>> {
     if op.len() == 1 {
         if let Some(f) = F_TABLE[op[0] as usize] {
-            let node_t: Node<u32> = Node::new(allocator, argument_list.clone());
+            let node_t: Node<IntAllocator> = Node::new(allocator, *argument_list);
             return f(&node_t);
         }
     }
@@ -39,7 +38,7 @@ pub fn py_run_program2(
     max_cost: u32,
 ) -> PyResult<(u32, Vec<u8>)> {
     let allocator = IntAllocator::new();
-    let f: OperatorHandler<u32> = Box::new(operator_handler2);
+    let f: OperatorHandler<IntAllocator> = Box::new(operator_handler2);
 
     let program: u32 = node_from_bytes(&allocator, program).unwrap();
 

@@ -35,7 +35,9 @@ impl IntAllocator {
     }
 }
 
-impl Allocator<u32> for IntAllocator {
+impl Allocator for IntAllocator {
+    type Ptr = u32;
+
     fn new_atom(&self, v: &[u8]) -> u32 {
         let index = self.u8_vec.len() as u32;
         self.u8_vec.push(v.into());
