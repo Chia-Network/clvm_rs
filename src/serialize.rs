@@ -87,7 +87,10 @@ fn decode_size(f: &mut dyn Read, initial_b: u8) -> std::io::Result<usize> {
     Ok(bytes_to_read)
 }
 
-pub fn node_from_stream<T>(allocator: &dyn Allocator<T>, f: &mut dyn Read) -> std::io::Result<T> {
+pub fn node_from_stream<T>(
+    allocator: &dyn Allocator<Ptr = T>,
+    f: &mut dyn Read,
+) -> std::io::Result<T> {
     let mut b = [0; 1];
     f.read_exact(&mut b)?;
     if b[0] == CONS_BOX_MARKER {
@@ -104,7 +107,7 @@ pub fn node_from_stream<T>(allocator: &dyn Allocator<T>, f: &mut dyn Read) -> st
     Ok(allocator.new_atom(&blob))
 }
 
-pub fn node_from_bytes<T>(allocator: &dyn Allocator<T>, b: &[u8]) -> std::io::Result<T> {
+pub fn node_from_bytes<T>(allocator: &dyn Allocator<Ptr = T>, b: &[u8]) -> std::io::Result<T> {
     let mut buffer = Cursor::new(b);
     node_from_stream(allocator, &mut buffer)
 }

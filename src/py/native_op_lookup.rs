@@ -45,7 +45,7 @@ fn eval_err_for_pyerr(py: Python, pyerr: &PyErr) -> PyResult<EvalErr<PyNode>> {
 impl NativeOpLookup {
     pub fn operator_handler(
         &self,
-        allocator: &dyn Allocator<PyNode>,
+        allocator: &dyn Allocator<Ptr = PyNode>,
         op: &[u8],
         argument_list: &PyNode,
     ) -> Result<Reduction<PyNode>, EvalErr<PyNode>> {

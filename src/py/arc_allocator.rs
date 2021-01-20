@@ -41,7 +41,9 @@ impl ArcAllocator {
     }
 }
 
-impl Allocator<PyNode> for ArcAllocator {
+impl Allocator for ArcAllocator {
+    type Ptr = PyNode;
+
     fn new_atom(&self, v: &[u8]) -> PyNode {
         Arc::new(PySExp::Atom(Vec::from(v).into())).into()
     }

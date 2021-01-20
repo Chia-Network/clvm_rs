@@ -1,12 +1,12 @@
 use super::allocator::{Allocator, SExp};
 
 pub struct Node<'a, T> {
-    allocator: &'a dyn Allocator<T>,
+    allocator: &'a dyn Allocator<Ptr = T>,
     pub node: T,
 }
 
 impl<'a, T> Node<'a, T> {
-    pub fn new(allocator: &'a dyn Allocator<T>, node: T) -> Self {
+    pub fn new(allocator: &'a dyn Allocator<Ptr = T>, node: T) -> Self {
         Node { allocator, node }
     }
 
@@ -90,7 +90,7 @@ impl<'a, T> Node<'a, T> {
     }
 }
 
-impl<'a, T> From<&Node<'a, T>> for &'a dyn Allocator<T> {
+impl<'a, T> From<&Node<'a, T>> for &'a dyn Allocator<Ptr = T> {
     fn from(v: &Node<'a, T>) -> Self {
         v.allocator
     }

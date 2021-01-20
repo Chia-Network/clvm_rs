@@ -21,7 +21,7 @@ type RPCOperator<T> = dyn FnOnce(&mut RunProgramContext<T>) -> Result<u32, EvalE
 // operator stack (of RPCOperators)
 
 pub struct RunProgramContext<'a, T> {
-    allocator: &'a dyn Allocator<T>,
+    allocator: &'a dyn Allocator<Ptr = T>,
     quote_kw: u8,
     apply_kw: u8,
     operator_lookup: &'a OperatorHandler<T>,
@@ -47,7 +47,7 @@ impl<T> RunProgramContext<'_, T> {
     }
 }
 
-fn traverse_path<T>(allocator: &dyn Allocator<T>, path_node: &T, args: &T) -> Response<T> {
+fn traverse_path<T>(allocator: &dyn Allocator<Ptr = T>, path_node: &T, args: &T) -> Response<T> {
     /*
     Follow integer `NodePath` down a tree.
     */
@@ -270,7 +270,7 @@ fn apply_op<T: 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T
 
 #[allow(clippy::too_many_arguments)]
 pub fn run_program<T: 'static>(
-    allocator: &dyn Allocator<T>,
+    allocator: &dyn Allocator<Ptr = T>,
     program: &T,
     args: &T,
     quote_kw: u8,

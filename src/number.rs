@@ -4,7 +4,10 @@ use crate::node::Node;
 use num_bigint::BigInt;
 pub type Number = BigInt;
 
-pub fn node_from_number<'a, T>(allocator: &'a dyn Allocator<T>, item: &Number) -> Node<'a, T> {
+pub fn node_from_number<'a, T>(
+    allocator: &'a dyn Allocator<Ptr = T>,
+    item: &Number,
+) -> Node<'a, T> {
     // BRAIN DAMAGE: make it minimal by removing leading zeros
     let bytes: Vec<u8> = item.to_signed_bytes_be();
     let mut slice = bytes.as_slice();

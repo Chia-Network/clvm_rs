@@ -272,7 +272,7 @@ pub fn op_concat<T>(args: &Node<T>) -> Response<T> {
         v.extend_from_slice(blob);
     }
     cost += (total_size as u32) / CONCAT_COST_PER_BYTE_DIVIDER;
-    let allocator: &dyn Allocator<T> = args.into();
+    let allocator: &dyn Allocator<Ptr = T> = args.into();
     let r: T = allocator.new_atom(&v);
 
     Ok(Reduction(cost, r))
