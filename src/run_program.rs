@@ -2,7 +2,7 @@ use crate::allocator::{Allocator, SExp};
 use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction, Response};
 
-use crate::number::{node_from_number, Number};
+use crate::number::{ptr_from_number, Number};
 
 const QUOTE_COST: u32 = 1;
 const TRAVERSE_COST_PER_ZERO_BYTE: u32 = 1;
@@ -329,7 +329,7 @@ pub fn run_program<T: Allocator + 'static>(
         }
         if cost > max_cost && max_cost > 0 {
             let max_cost: Number = max_cost.into();
-            let n: Node<T> = node_from_number(allocator, &max_cost);
+            let n: Node<T> = Node::new(allocator, ptr_from_number(allocator, &max_cost));
             return n.err("cost exceeded");
         }
     }
