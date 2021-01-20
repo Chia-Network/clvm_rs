@@ -46,20 +46,36 @@ pub fn atom<'a, T>(args: &'a Node<T>, op_name: &str) -> Result<&'a [u8], EvalErr
     }
 }
 
-pub fn two_ints<T>(args: &Node<T>, op_name: &str) -> Result<(Number, Number), EvalErr<T>> {
+pub fn two_ints<T>(
+    args: &Node<T>,
+    op_name: &str,
+) -> Result<(Number, u32, Number, u32), EvalErr<T>> {
     check_arg_count(&args, 2, op_name)?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
-    let n0 = number_from_u8(int_atom(&a0, op_name)?);
-    let n1 = number_from_u8(int_atom(&a1, op_name)?);
-    Ok((n0, n1))
+    let n0 = int_atom(&a0, op_name)?;
+    let n1 = int_atom(&a1, op_name)?;
+    Ok((
+        number_from_u8(n0),
+        n0.len() as u32,
+        number_from_u8(n1),
+        n1.len() as u32,
+    ))
 }
 
-pub fn uint_int<T>(args: &Node<T>, op_name: &str) -> Result<(BigUint, Number), EvalErr<T>> {
+pub fn uint_int<T>(
+    args: &Node<T>,
+    op_name: &str,
+) -> Result<(BigUint, u32, Number, u32), EvalErr<T>> {
     check_arg_count(&args, 2, op_name)?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
-    let n0 = BigUint::from_bytes_be(int_atom(&a0, op_name)?);
-    let n1 = number_from_u8(int_atom(&a1, op_name)?);
-    Ok((n0, n1))
+    let v0 = int_atom(&a0, op_name)?;
+    let v1 = int_atom(&a1, op_name)?;
+    Ok((
+        BigUint::from_bytes_be(v0),
+        v0.len() as u32,
+        number_from_u8(v1),
+        v1.len() as u32,
+    ))
 }

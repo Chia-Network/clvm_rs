@@ -93,7 +93,7 @@ pub fn op_add<T>(args: &Node<T>) -> Response<T> {
         cost += ARITH_COST_PER_ARG;
         let blob = int_atom(&arg, "+")?;
         let v: Number = number_from_u8(&blob);
-        byte_count += limbs_for_int(&v);
+        byte_count += blob.len() as u32;
         total += v;
     }
     let total: Node<T> = node_from_number(args.into(), &total);
@@ -110,7 +110,7 @@ pub fn op_subtract<T>(args: &Node<T>) -> Response<T> {
         cost += ARITH_COST_PER_ARG;
         let blob = int_atom(&arg, "-")?;
         let v: Number = number_from_u8(&blob);
-        byte_count += limbs_for_int(&v);
+        byte_count += blob.len() as u32;
         if is_first {
             total += v;
         } else {
@@ -127,31 +127,32 @@ pub fn op_multiply<T>(args: &Node<T>) -> Response<T> {
     let mut cost: u32 = MUL_BASE_COST;
     let mut first_iter: bool = true;
     let mut total: Number = 1.into();
+    let mut l0: u32 = 0;
     for arg in args {
         let blob = int_atom(&arg, "*")?;
         if first_iter {
+            l0 = blob.len() as u32;
             total = number_from_u8(&blob);
             first_iter = false;
             continue;
         }
-        let v: Number = number_from_u8(&blob);
-        let rs = limbs_for_int(&total);
-        let vs = limbs_for_int(&v);
+        let l1 = blob.len() as u32;
 
-        total *= v;
+        total *= number_from_u8(&blob);
         cost += MUL_COST_PER_OP;
 
-        cost += (rs + vs) / MUL_LINEAR_COST_PER_BYTE_DIVIDER;
-        cost += (rs * vs) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
+        cost += (l0 + l1) / MUL_LINEAR_COST_PER_BYTE_DIVIDER;
+        cost += (l0 * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
+
+        l0 = limbs_for_int(&total);
     }
     let total: Node<T> = node_from_number(args.into(), &total);
     Ok(Reduction(cost, total.node))
 }
 
 pub fn op_div<T>(args: &Node<T>) -> Response<T> {
-    let (a0, a1) = two_ints(args, "div")?;
-    let cost =
-        DIV_BASE_COST + (limbs_for_int(&a0) + limbs_for_int(&a1)) / DIV_COST_PER_LIMB_DIVIDER;
+    let (a0, l0, a1, l1) = two_ints(args, "div")?;
+    let cost = DIV_BASE_COST + (l0 + l1) / DIV_COST_PER_LIMB_DIVIDER;
     if a1.sign() == Sign::NoSign {
         args.first()?.err("div with 0")
     } else {
@@ -171,9 +172,8 @@ pub fn op_div<T>(args: &Node<T>) -> Response<T> {
 }
 
 pub fn op_divmod<T>(args: &Node<T>) -> Response<T> {
-    let (a0, a1) = two_ints(args, "divmod")?;
-    let cost =
-        DIVMOD_BASE_COST + (limbs_for_int(&a0) + limbs_for_int(&a1)) / DIVMOD_COST_PER_LIMB_DIVIDER;
+    let (a0, l0, a1, l1) = two_ints(args, "divmod")?;
+    let cost = DIVMOD_BASE_COST + (l0 + l1) / DIVMOD_COST_PER_LIMB_DIVIDER;
     if a1.sign() == Sign::NoSign {
         args.first()?.err("divmod with 0")
     } else {
@@ -197,13 +197,12 @@ pub fn op_gr<T>(args: &Node<T>) -> Response<T> {
     check_arg_count(&args, 2, ">")?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
-    let n0 = number_from_u8(int_atom(&a0, ">")?);
-    let n1 = number_from_u8(int_atom(&a1, ">")?);
-    let cost =
-        GR_BASE_COST + (limbs_for_int(&n0) + limbs_for_int(&n1)) as u32 / GR_COST_PER_LIMB_DIVIDER;
+    let v0 = int_atom(&a0, ">")?;
+    let v1 = int_atom(&a1, ">")?;
+    let cost = GR_BASE_COST + (v0.len() + v1.len()) as u32 / GR_COST_PER_LIMB_DIVIDER;
     Ok(Reduction(
         cost,
-        if n0 > n1 {
+        if number_from_u8(v0) > number_from_u8(v1) {
             args.one().node
         } else {
             args.null().node
@@ -243,7 +242,7 @@ pub fn op_substr<T>(args: &Node<T>) -> Response<T> {
     check_arg_count(&args, 3, "substr")?;
     let a0 = args.first()?;
     let s0 = atom(&a0, "substr")?;
-    let (n1, n2) = two_ints(&args.rest()?, "substr")?;
+    let (n1, _, n2, _) = two_ints(&args.rest()?, "substr")?;
     let i1: isize = isize::try_from(n1).unwrap_or(isize::max_value());
     let i2: isize = isize::try_from(n2).unwrap_or(0);
     let size = s0.len() as isize;
@@ -280,7 +279,7 @@ pub fn op_concat<T>(args: &Node<T>) -> Response<T> {
 }
 
 pub fn op_ash<T>(args: &Node<T>) -> Response<T> {
-    let (i0, i1) = two_ints(&args, "ash")?;
+    let (i0, l0, i1, _) = two_ints(&args, "ash")?;
     let s1 = i64::try_from(&i1);
     if match s1 {
         Err(_) => true,
@@ -290,16 +289,15 @@ pub fn op_ash<T>(args: &Node<T>) -> Response<T> {
     }
 
     let a1 = s1.unwrap();
-    let l1 = limbs_for_int(&i0);
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
-    let l2 = limbs_for_int(&v);
+    let l1 = limbs_for_int(&v);
     let r: Node<T> = node_from_number(args.into(), &v);
-    let cost = SHIFT_BASE_COST + (l1 + l2) / SHIFT_COST_PER_BYTE_DIVIDER;
+    let cost = SHIFT_BASE_COST + (l0 + l1) / SHIFT_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, r.node))
 }
 
 pub fn op_lsh<T>(args: &Node<T>) -> Response<T> {
-    let (i0, i1) = uint_int(&args, "lsh")?;
+    let (i0, l0, i1, _) = uint_int(&args, "lsh")?;
     let s1 = i64::try_from(&i1);
     if match s1 {
         Err(_) => true,
@@ -310,11 +308,10 @@ pub fn op_lsh<T>(args: &Node<T>) -> Response<T> {
 
     let a1 = s1.unwrap();
     let i0: Number = i0.into();
-    let l1 = limbs_for_int(&i0);
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
-    let l2 = limbs_for_int(&v);
+    let l1 = limbs_for_int(&v);
     let r: Node<T> = node_from_number(args.into(), &v);
-    let cost = SHIFT_BASE_COST + (l1 + l2) / SHIFT_COST_PER_BYTE_DIVIDER;
+    let cost = SHIFT_BASE_COST + (l0 + l1) / SHIFT_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, r.node))
 }
 
@@ -328,9 +325,10 @@ fn binop_reduction<T>(
     let mut arg_size = 0;
     let mut cost = LOG_BASE_COST;
     for arg in args {
-        let n0 = number_from_u8(int_atom(&arg, op_name)?);
+        let blob = int_atom(&arg, op_name)?;
+        let n0 = number_from_u8(blob);
         op_f(&mut total, &n0);
-        arg_size += limbs_for_int(&total);
+        arg_size += blob.len() as u32;
         cost += LOG_COST_PER_ARG;
     }
     cost += arg_size / LOG_COST_PER_LIMB_DIVIDER;
@@ -371,7 +369,7 @@ pub fn op_lognot<T>(args: &Node<T>) -> Response<T> {
     let v0 = int_atom(&a0, "lognot")?;
     let mut n: Number = number_from_u8(&v0);
     n = !n;
-    let cost: u32 = LOGNOT_BASE_COST + limbs_for_int(&n) / LOGNOT_COST_PER_BYTE_DIVIDER;
+    let cost: u32 = LOGNOT_BASE_COST + (v0.len() as u32) / LOGNOT_COST_PER_BYTE_DIVIDER;
     let r: Node<T> = node_from_number(args.into(), &n);
     Ok(Reduction(cost, r.node))
 }
@@ -457,7 +455,7 @@ pub fn op_pubkey_for_exp<T>(args: &Node<T>) -> Response<T> {
 
     let v0 = int_atom(&a0, "pubkey_for_exp")?;
     let exp: Number = mod_group_order(number_from_u8(&v0));
-    let cost: u32 = PUBKEY_BASE_COST + limbs_for_int(&exp) / PUBKEY_COST_PER_BYTE_DIVIDER;
+    let cost: u32 = PUBKEY_BASE_COST + (v0.len() as u32) / PUBKEY_COST_PER_BYTE_DIVIDER;
     let exp: Scalar = number_to_scalar(exp);
     let point: G1Projective = G1Affine::generator() * exp;
     let point: G1Affine = point.into();
