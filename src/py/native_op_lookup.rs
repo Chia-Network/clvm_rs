@@ -1,7 +1,7 @@
-use crate::allocator::Allocator;
 use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction};
 
+use super::arc_allocator::ArcAllocator;
 use super::f_table::{make_f_lookup, FLookup};
 use super::py_node::PyNode;
 
@@ -12,7 +12,7 @@ use pyo3::types::{PyString, PyTuple};
 #[derive(Clone)]
 pub struct NativeOpLookup {
     py_callback: PyObject,
-    f_lookup: FLookup<PyNode>,
+    f_lookup: FLookup<ArcAllocator>,
 }
 
 #[pymethods]
@@ -20,7 +20,7 @@ impl NativeOpLookup {
     #[new]
     fn new(native_opcode_list: &[u8], unknown_op_callback: &PyAny) -> Self {
         let native_lookup = make_f_lookup();
-        let mut f_lookup: FLookup<PyNode> = [None; 256];
+        let mut f_lookup: FLookup<ArcAllocator> = [None; 256];
         for i in native_opcode_list.iter() {
             let idx = *i as usize;
             f_lookup[idx] = native_lookup[idx];
@@ -45,13 +45,13 @@ fn eval_err_for_pyerr(py: Python, pyerr: &PyErr) -> PyResult<EvalErr<PyNode>> {
 impl NativeOpLookup {
     pub fn operator_handler(
         &self,
-        allocator: &dyn Allocator<Ptr = PyNode>,
+        allocator: &ArcAllocator,
         op: &[u8],
         argument_list: &PyNode,
     ) -> Result<Reduction<PyNode>, EvalErr<PyNode>> {
         if op.len() == 1 {
             if let Some(f) = self.f_lookup[op[0] as usize] {
-                let node_t: Node<PyNode> = Node::new(allocator, argument_list.clone());
+                let node_t: Node<ArcAllocator> = Node::new(allocator, argument_list.clone());
                 return f(&node_t);
             }
         }

@@ -1,3 +1,4 @@
+use crate::allocator::Allocator;
 use crate::node::Node;
 use crate::op_utils::{atom, check_arg_count};
 use crate::reduction::{EvalErr, Reduction, Response};
@@ -10,27 +11,27 @@ const LISTP_COST: u32 = 5;
 const CMP_BASE_COST: u32 = 16;
 const CMP_COST_PER_LIMB_DIVIDER: u32 = 64;
 
-impl<'a, T> Node<'a, T> {
-    pub fn first(&self) -> Result<Node<'a, T>, EvalErr<T>> {
+impl<'a, T: Allocator> Node<'a, T> {
+    pub fn first(&self) -> Result<Node<'a, T>, EvalErr<T::Ptr>> {
         match self.pair() {
             Some((p1, _)) => Ok(self.with_node(p1.node)),
             _ => self.err("first of non-cons"),
         }
     }
 
-    pub fn rest(&self) -> Result<Node<'a, T>, EvalErr<T>> {
+    pub fn rest(&self) -> Result<Node<'a, T>, EvalErr<T::Ptr>> {
         match self.pair() {
             Some((_, p2)) => Ok(self.with_node(p2.node)),
             _ => self.err("rest of non-cons"),
         }
     }
 
-    pub fn err<U>(&self, msg: &str) -> Result<U, EvalErr<T>> {
+    pub fn err<U>(&self, msg: &str) -> Result<U, EvalErr<T::Ptr>> {
         Err(EvalErr(self.make_clone().node, msg.into()))
     }
 }
 
-pub fn op_if<T>(args: &Node<T>) -> Response<T> {
+pub fn op_if<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     check_arg_count(args, 3, "i")?;
     let cond = args.first()?;
     let mut chosen_node = args.rest()?;
@@ -40,24 +41,24 @@ pub fn op_if<T>(args: &Node<T>) -> Response<T> {
     Ok(Reduction(IF_COST, chosen_node.first()?.node))
 }
 
-pub fn op_cons<T>(args: &Node<T>) -> Response<T> {
+pub fn op_cons<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     check_arg_count(args, 2, "c")?;
     let a1 = args.first()?;
     let a2 = args.rest()?.first()?;
     Ok(Reduction(CONS_COST, a1.cons(&a2).node))
 }
 
-pub fn op_first<T>(args: &Node<T>) -> Response<T> {
+pub fn op_first<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     check_arg_count(args, 1, "f")?;
     Ok(Reduction(FIRST_COST, args.first()?.first()?.node))
 }
 
-pub fn op_rest<T>(args: &Node<T>) -> Response<T> {
+pub fn op_rest<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     check_arg_count(args, 1, "r")?;
     Ok(Reduction(REST_COST, args.first()?.rest()?.node))
 }
 
-pub fn op_listp<T>(args: &Node<T>) -> Response<T> {
+pub fn op_listp<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     check_arg_count(args, 1, "l")?;
     match args.first()?.pair() {
         Some((_first, _rest)) => Ok(Reduction(LISTP_COST, args.one().node)),
@@ -65,11 +66,11 @@ pub fn op_listp<T>(args: &Node<T>) -> Response<T> {
     }
 }
 
-pub fn op_raise<T>(args: &Node<T>) -> Response<T> {
+pub fn op_raise<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     args.err("clvm raise")
 }
 
-pub fn op_eq<T>(args: &Node<T>) -> Response<T> {
+pub fn op_eq<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     check_arg_count(args, 2, "=")?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;

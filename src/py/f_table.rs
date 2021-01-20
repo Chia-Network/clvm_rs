@@ -1,3 +1,4 @@
+use crate::allocator::Allocator;
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_concat, op_div, op_divmod, op_gr, op_gr_bytes, op_logand,
@@ -8,7 +9,7 @@ use crate::types::OpFn;
 
 pub type FLookup<T> = [Option<OpFn<T>>; 256];
 
-pub fn make_f_lookup<T>() -> FLookup<T> {
+pub fn make_f_lookup<T: Allocator>() -> FLookup<T> {
     let opcode_lookup: [(u8, OpFn<T>); 30] = [
         (4, op_if),
         (5, op_cons),

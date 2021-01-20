@@ -1,10 +1,15 @@
 use num_bigint::BigUint;
 
+use crate::allocator::Allocator;
 use crate::node::Node;
 use crate::number::{number_from_u8, Number};
 use crate::reduction::EvalErr;
 
-pub fn check_arg_count<T>(args: &Node<T>, expected: i32, name: &str) -> Result<(), EvalErr<T>> {
+pub fn check_arg_count<T: Allocator>(
+    args: &Node<T>,
+    expected: i32,
+    name: &str,
+) -> Result<(), EvalErr<T::Ptr>> {
     let mut cnt = expected;
     // It would be nice to have a trait that wouldn't require us to copy every
     // node
@@ -31,7 +36,10 @@ pub fn check_arg_count<T>(args: &Node<T>, expected: i32, name: &str) -> Result<(
     }
 }
 
-pub fn int_atom<'a, T>(args: &'a Node<T>, op_name: &str) -> Result<&'a [u8], EvalErr<T>> {
+pub fn int_atom<'a, T: Allocator>(
+    args: &'a Node<T>,
+    op_name: &str,
+) -> Result<&'a [u8], EvalErr<T::Ptr>> {
     match args.atom() {
         Some(a) => Ok(a),
         _ => args.err(&format!("{} requires int args", op_name)),
@@ -39,17 +47,20 @@ pub fn int_atom<'a, T>(args: &'a Node<T>, op_name: &str) -> Result<&'a [u8], Eva
 }
 
 // rename to atom()
-pub fn atom<'a, T>(args: &'a Node<T>, op_name: &str) -> Result<&'a [u8], EvalErr<T>> {
+pub fn atom<'a, T: Allocator>(
+    args: &'a Node<T>,
+    op_name: &str,
+) -> Result<&'a [u8], EvalErr<T::Ptr>> {
     match args.atom() {
         Some(a) => Ok(a),
         _ => args.err(&format!("{} on list", op_name)),
     }
 }
 
-pub fn two_ints<T>(
+pub fn two_ints<T: Allocator>(
     args: &Node<T>,
     op_name: &str,
-) -> Result<(Number, u32, Number, u32), EvalErr<T>> {
+) -> Result<(Number, u32, Number, u32), EvalErr<T::Ptr>> {
     check_arg_count(&args, 2, op_name)?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
@@ -63,10 +74,10 @@ pub fn two_ints<T>(
     ))
 }
 
-pub fn uint_int<T>(
+pub fn uint_int<T: Allocator>(
     args: &Node<T>,
     op_name: &str,
-) -> Result<(BigUint, u32, Number, u32), EvalErr<T>> {
+) -> Result<(BigUint, u32, Number, u32), EvalErr<T::Ptr>> {
     check_arg_count(&args, 2, op_name)?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;

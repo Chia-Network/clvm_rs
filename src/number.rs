@@ -4,10 +4,7 @@ use crate::node::Node;
 use num_bigint::BigInt;
 pub type Number = BigInt;
 
-pub fn node_from_number<'a, T>(
-    allocator: &'a dyn Allocator<Ptr = T>,
-    item: &Number,
-) -> Node<'a, T> {
+pub fn node_from_number<'a, T: Allocator>(allocator: &'a T, item: &Number) -> Node<'a, T> {
     // BRAIN DAMAGE: make it minimal by removing leading zeros
     let bytes: Vec<u8> = item.to_signed_bytes_be();
     let mut slice = bytes.as_slice();
@@ -20,7 +17,7 @@ pub fn node_from_number<'a, T>(
     Node::new(allocator, allocator.new_atom(&slice))
 }
 
-impl<T> From<&Node<'_, T>> for Option<Number> {
+impl<T: Allocator> From<&Node<'_, T>> for Option<Number> {
     fn from(item: &Node<T>) -> Self {
         let v: &[u8] = &item.atom()?;
         Some(number_from_u8(v))

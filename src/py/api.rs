@@ -3,9 +3,8 @@ use super::native_op_lookup::NativeOpLookup;
 use super::py_node::PyNode;
 use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction};
-use crate::run_program::{run_program, PostEval, PreEval};
+use crate::run_program::{run_program, OperatorHandler, PostEval, PreEval};
 use crate::serialize::{node_from_bytes, node_to_bytes};
-use crate::types::OperatorHandler;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;
@@ -26,14 +25,15 @@ fn note_result(obj: &PyObject, result: Option<&PyNode>) {
     });
 }
 
-fn post_eval_for_pyobject(obj: PyObject) -> Option<Box<PostEval<PyNode>>> {
-    let py_post_eval: Option<Box<PostEval<PyNode>>> = if Python::with_gil(|py| obj.is_none(py)) {
-        None
-    } else {
-        Some(Box::new(move |result: Option<&PyNode>| {
-            note_result(&obj, result)
-        }))
-    };
+fn post_eval_for_pyobject(obj: PyObject) -> Option<Box<PostEval<ArcAllocator>>> {
+    let py_post_eval: Option<Box<PostEval<ArcAllocator>>> =
+        if Python::with_gil(|py| obj.is_none(py)) {
+            None
+        } else {
+            Some(Box::new(move |result: Option<&PyNode>| {
+                note_result(&obj, result)
+            }))
+        };
     py_post_eval
 }
 
@@ -50,7 +50,7 @@ fn py_run_program(
     pre_eval: PyObject,
 ) -> PyResult<(u32, PyNode)> {
     let allocator = ArcAllocator::new();
-    let py_pre_eval_t: Option<PreEval<PyNode>> = if pre_eval.is_none(py) {
+    let py_pre_eval_t: Option<PreEval<ArcAllocator>> = if pre_eval.is_none(py) {
         None
     } else {
         Some(Box::new(move |program: &PyNode, args: &PyNode| {
@@ -74,7 +74,7 @@ fn py_run_program(
     // you can create a pair from nodes from different allocators.
 
     let allocator: ArcAllocator = ArcAllocator::new();
-    let f: OperatorHandler<PyNode> =
+    let f: OperatorHandler<ArcAllocator> =
         Box::new(move |allocator, op, args| op_lookup.operator_handler(allocator, op, args));
 
     let r: Result<Reduction<PyNode>, EvalErr<PyNode>> = run_program(
@@ -135,7 +135,7 @@ fn serialize_from_bytes(blob: &[u8]) -> PyNode {
 #[pyfunction]
 fn serialize_to_bytes(py: Python, sexp: &PyNode) -> PyObject {
     let allocator: ArcAllocator = ArcAllocator::new();
-    let node_t: Node<PyNode> = Node::new(&allocator, sexp.clone());
+    let node_t: Node<ArcAllocator> = Node::new(&allocator, sexp.clone());
     let blob = node_to_bytes(&node_t).unwrap();
     let pybytes = PyBytes::new(py, &blob);
     pybytes.to_object(py)

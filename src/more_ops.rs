@@ -71,7 +71,7 @@ fn limbs_for_int(v: &Number) -> u32 {
     ((v.bits() + 7) >> 3) as u32
 }
 
-pub fn op_sha256<T>(args: &Node<T>) -> Response<T> {
+pub fn op_sha256<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     let mut cost: u32 = SHA256_BASE_COST;
     let mut byte_count: u32 = 0;
     let mut hasher = Sha256::new();
@@ -85,7 +85,7 @@ pub fn op_sha256<T>(args: &Node<T>) -> Response<T> {
     Ok(Reduction(cost, args.new_atom(&hasher.result()).node))
 }
 
-pub fn op_add<T>(args: &Node<T>) -> Response<T> {
+pub fn op_add<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     let mut cost: u32 = ARITH_BASE_COST;
     let mut byte_count: u32 = 0;
     let mut total: Number = 0.into();
@@ -96,12 +96,12 @@ pub fn op_add<T>(args: &Node<T>) -> Response<T> {
         byte_count += blob.len() as u32;
         total += v;
     }
-    let total: Node<T> = node_from_number(args.into(), &total);
+    let total: Node<T> = node_from_number(args.allocator, &total);
     cost += byte_count / ARITH_COST_PER_LIMB_DIVIDER;
     Ok(Reduction(cost, total.node))
 }
 
-pub fn op_subtract<T>(args: &Node<T>) -> Response<T> {
+pub fn op_subtract<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     let mut cost: u32 = ARITH_BASE_COST;
     let mut byte_count: u32 = 0;
     let mut total: Number = 0.into();
@@ -118,12 +118,12 @@ pub fn op_subtract<T>(args: &Node<T>) -> Response<T> {
         };
         is_first = false;
     }
-    let total: Node<T> = node_from_number(args.into(), &total);
+    let total: Node<T> = node_from_number(args.allocator, &total);
     cost += byte_count / ARITH_COST_PER_LIMB_DIVIDER;
     Ok(Reduction(cost, total.node))
 }
 
-pub fn op_multiply<T>(args: &Node<T>) -> Response<T> {
+pub fn op_multiply<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     let mut cost: u32 = MUL_BASE_COST;
     let mut first_iter: bool = true;
     let mut total: Number = 1.into();
@@ -146,11 +146,11 @@ pub fn op_multiply<T>(args: &Node<T>) -> Response<T> {
 
         l0 = limbs_for_int(&total);
     }
-    let total: Node<T> = node_from_number(args.into(), &total);
+    let total: Node<T> = node_from_number(args.allocator, &total);
     Ok(Reduction(cost, total.node))
 }
 
-pub fn op_div<T>(args: &Node<T>) -> Response<T> {
+pub fn op_div<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     let (a0, l0, a1, l1) = two_ints(args, "div")?;
     let cost = DIV_BASE_COST + (l0 + l1) / DIV_COST_PER_LIMB_DIVIDER;
     if a1.sign() == Sign::NoSign {
@@ -166,12 +166,12 @@ pub fn op_div<T>(args: &Node<T>) -> Response<T> {
         } else {
             q
         };
-        let q1: Node<T> = node_from_number(args.into(), &q);
+        let q1: Node<T> = node_from_number(args.allocator, &q);
         Ok(Reduction(cost, q1.node))
     }
 }
 
-pub fn op_divmod<T>(args: &Node<T>) -> Response<T> {
+pub fn op_divmod<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     let (a0, l0, a1, l1) = two_ints(args, "divmod")?;
     let cost = DIVMOD_BASE_COST + (l0 + l1) / DIVMOD_COST_PER_LIMB_DIVIDER;
     if a1.sign() == Sign::NoSign {
@@ -187,13 +187,13 @@ pub fn op_divmod<T>(args: &Node<T>) -> Response<T> {
         } else {
             (q, r)
         };
-        let q1: Node<T> = node_from_number(args.into(), &q);
-        let r1: Node<T> = node_from_number(args.into(), &r);
+        let q1: Node<T> = node_from_number(args.allocator, &q);
+        let r1: Node<T> = node_from_number(args.allocator, &r);
         Ok(Reduction(cost, q1.cons(&r1).node))
     }
 }
 
-pub fn op_gr<T>(args: &Node<T>) -> Response<T> {
+pub fn op_gr<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     check_arg_count(&args, 2, ">")?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
@@ -210,7 +210,7 @@ pub fn op_gr<T>(args: &Node<T>) -> Response<T> {
     ))
 }
 
-pub fn op_gr_bytes<T>(args: &Node<T>) -> Response<T> {
+pub fn op_gr_bytes<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     check_arg_count(&args, 2, ">s")?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
@@ -227,18 +227,18 @@ pub fn op_gr_bytes<T>(args: &Node<T>) -> Response<T> {
     ))
 }
 
-pub fn op_strlen<T>(args: &Node<T>) -> Response<T> {
+pub fn op_strlen<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     check_arg_count(&args, 1, "strlen")?;
     let a0 = args.first()?;
     let v0 = atom(&a0, "strlen")?;
     let size: u32 = v0.len() as u32;
     let size_num: Number = size.into();
-    let size_node = node_from_number(args.into(), &size_num).node;
+    let size_node = node_from_number(args.allocator, &size_num).node;
     let cost: u32 = STRLEN_BASE_COST + size / STRLEN_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, size_node))
 }
 
-pub fn op_substr<T>(args: &Node<T>) -> Response<T> {
+pub fn op_substr<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     check_arg_count(&args, 3, "substr")?;
     let a0 = args.first()?;
     let s0 = atom(&a0, "substr")?;
@@ -257,7 +257,7 @@ pub fn op_substr<T>(args: &Node<T>) -> Response<T> {
     }
 }
 
-pub fn op_concat<T>(args: &Node<T>) -> Response<T> {
+pub fn op_concat<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     let mut cost: u32 = CONCAT_BASE_COST;
     let mut total_size: usize = 0;
     for arg in args {
@@ -272,13 +272,13 @@ pub fn op_concat<T>(args: &Node<T>) -> Response<T> {
         v.extend_from_slice(blob);
     }
     cost += (total_size as u32) / CONCAT_COST_PER_BYTE_DIVIDER;
-    let allocator: &dyn Allocator<Ptr = T> = args.into();
-    let r: T = allocator.new_atom(&v);
+    let allocator: &T = args.allocator;
+    let r: T::Ptr = allocator.new_atom(&v);
 
     Ok(Reduction(cost, r))
 }
 
-pub fn op_ash<T>(args: &Node<T>) -> Response<T> {
+pub fn op_ash<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     let (i0, l0, i1, _) = two_ints(&args, "ash")?;
     let s1 = i64::try_from(&i1);
     if match s1 {
@@ -291,12 +291,12 @@ pub fn op_ash<T>(args: &Node<T>) -> Response<T> {
     let a1 = s1.unwrap();
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
     let l1 = limbs_for_int(&v);
-    let r: Node<T> = node_from_number(args.into(), &v);
+    let r: Node<T> = node_from_number(args.allocator, &v);
     let cost = SHIFT_BASE_COST + (l0 + l1) / SHIFT_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, r.node))
 }
 
-pub fn op_lsh<T>(args: &Node<T>) -> Response<T> {
+pub fn op_lsh<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     let (i0, l0, i1, _) = uint_int(&args, "lsh")?;
     let s1 = i64::try_from(&i1);
     if match s1 {
@@ -310,17 +310,17 @@ pub fn op_lsh<T>(args: &Node<T>) -> Response<T> {
     let i0: Number = i0.into();
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
     let l1 = limbs_for_int(&v);
-    let r: Node<T> = node_from_number(args.into(), &v);
+    let r: Node<T> = node_from_number(args.allocator, &v);
     let cost = SHIFT_BASE_COST + (l0 + l1) / SHIFT_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, r.node))
 }
 
-fn binop_reduction<T>(
+fn binop_reduction<T: Allocator>(
     op_name: &str,
     initial_value: Number,
     args: &Node<T>,
     op_f: fn(&mut Number, &Number) -> (),
-) -> Response<T> {
+) -> Response<T::Ptr> {
     let mut total = initial_value;
     let mut arg_size = 0;
     let mut cost = LOG_BASE_COST;
@@ -332,56 +332,56 @@ fn binop_reduction<T>(
         cost += LOG_COST_PER_ARG;
     }
     cost += arg_size / LOG_COST_PER_LIMB_DIVIDER;
-    let total: Node<T> = node_from_number(args.into(), &total);
+    let total: Node<T> = node_from_number(args.allocator, &total);
     Ok(Reduction(cost, total.node))
 }
 
-fn logand_op<T>(a: &mut Number, b: &Number) {
+fn logand_op<T: Allocator>(a: &mut Number, b: &Number) {
     a.bitand_assign(b);
 }
 
-pub fn op_logand<T>(args: &Node<T>) -> Response<T> {
+pub fn op_logand<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     let v: Number = (-1).into();
     binop_reduction("logand", v, args, logand_op::<T>)
 }
 
-fn logior_op<T>(a: &mut Number, b: &Number) {
+fn logior_op<T: Allocator>(a: &mut Number, b: &Number) {
     a.bitor_assign(b);
 }
 
-pub fn op_logior<T>(args: &Node<T>) -> Response<T> {
+pub fn op_logior<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     let v: Number = (0).into();
     binop_reduction("logior", v, args, logior_op::<T>)
 }
 
-fn logxor_op<T>(a: &mut Number, b: &Number) {
+fn logxor_op<T: Allocator>(a: &mut Number, b: &Number) {
     a.bitxor_assign(b);
 }
 
-pub fn op_logxor<T>(args: &Node<T>) -> Response<T> {
+pub fn op_logxor<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     let v: Number = (0).into();
     binop_reduction("logxor", v, args, logxor_op::<T>)
 }
 
-pub fn op_lognot<T>(args: &Node<T>) -> Response<T> {
+pub fn op_lognot<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     check_arg_count(&args, 1, "lognot")?;
     let a0 = args.first()?;
     let v0 = int_atom(&a0, "lognot")?;
     let mut n: Number = number_from_u8(&v0);
     n = !n;
     let cost: u32 = LOGNOT_BASE_COST + (v0.len() as u32) / LOGNOT_COST_PER_BYTE_DIVIDER;
-    let r: Node<T> = node_from_number(args.into(), &n);
+    let r: Node<T> = node_from_number(args.allocator, &n);
     Ok(Reduction(cost, r.node))
 }
 
-pub fn op_not<T>(args: &Node<T>) -> Response<T> {
+pub fn op_not<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     check_arg_count(&args, 1, "not")?;
-    let r: T = args.from_bool(!args.first()?.as_bool()).node;
+    let r: T::Ptr = args.from_bool(!args.first()?.as_bool()).node;
     let cost: u32 = BOOL_BASE_COST + BOOL_COST_PER_ARG;
     Ok(Reduction(cost, r))
 }
 
-pub fn op_any<T>(args: &Node<T>) -> Response<T> {
+pub fn op_any<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     let mut cost: u32 = BOOL_BASE_COST;
     let mut is_any = false;
     for arg in args {
@@ -392,7 +392,7 @@ pub fn op_any<T>(args: &Node<T>) -> Response<T> {
     Ok(Reduction(cost, total.node))
 }
 
-pub fn op_all<T>(args: &Node<T>) -> Response<T> {
+pub fn op_all<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     let mut cost: u32 = BOOL_BASE_COST;
     let mut is_all = true;
     for arg in args {
@@ -403,7 +403,7 @@ pub fn op_all<T>(args: &Node<T>) -> Response<T> {
     Ok(Reduction(cost, total.node))
 }
 
-pub fn op_softfork<T>(args: &Node<T>) -> Response<T> {
+pub fn op_softfork<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     match args.pair() {
         Some((p1, _)) => {
             let n: Number = number_from_u8(int_atom(&p1, "softfork")?);
@@ -449,7 +449,7 @@ fn number_to_scalar(n: Number) -> Scalar {
     }
 }
 
-pub fn op_pubkey_for_exp<T>(args: &Node<T>) -> Response<T> {
+pub fn op_pubkey_for_exp<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     check_arg_count(&args, 1, "pubkey_for_exp")?;
     let a0 = args.first()?;
 
@@ -464,7 +464,7 @@ pub fn op_pubkey_for_exp<T>(args: &Node<T>) -> Response<T> {
     Ok(Reduction(cost, point_node.node))
 }
 
-pub fn op_point_add<T>(args: &Node<T>) -> Response<T> {
+pub fn op_point_add<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     let mut cost: u32 = POINT_ADD_BASE_COST;
     let mut total: G1Projective = G1Projective::identity();
     for arg in args {

@@ -4,50 +4,68 @@ use crate::reduction::{EvalErr, Reduction, Response};
 
 use crate::number::{node_from_number, Number};
 
-use crate::types::OperatorHandler;
-
 const QUOTE_COST: u32 = 1;
 const TRAVERSE_COST_PER_ZERO_BYTE: u32 = 1;
 const TRAVERSE_COST_PER_BIT: u32 = 1;
 const APPLY_COST: u32 = 1;
 
-pub type PreEval<T> = Box<dyn Fn(&T, &T) -> Result<Option<Box<PostEval<T>>>, EvalErr<T>>>;
+pub type OperatorHandler<T> =
+    Box<dyn Fn(&T, &[u8], &<T as Allocator>::Ptr) -> Response<<T as Allocator>::Ptr>>;
 
-pub type PostEval<T> = dyn Fn(Option<&T>);
+pub type PreEval<T> = Box<
+    dyn Fn(
+        &<T as Allocator>::Ptr,
+        &<T as Allocator>::Ptr,
+    ) -> Result<Option<Box<PostEval<T>>>, EvalErr<<T as Allocator>::Ptr>>,
+>;
 
-type RPCOperator<T> = dyn FnOnce(&mut RunProgramContext<T>) -> Result<u32, EvalErr<T>>;
+pub type PostEval<T> = dyn Fn(Option<&<T as Allocator>::Ptr>);
+
+type RPCOperator<T> =
+    dyn FnOnce(&mut RunProgramContext<T>) -> Result<u32, EvalErr<<T as Allocator>::Ptr>>;
 
 // `run_program` has two stacks: the operand stack (of `Node` objects) and the
 // operator stack (of RPCOperators)
 
-pub struct RunProgramContext<'a, T> {
-    allocator: &'a dyn Allocator<Ptr = T>,
+pub struct RunProgramContext<'a, T: Allocator> {
+    allocator: &'a T,
     quote_kw: u8,
     apply_kw: u8,
     operator_lookup: &'a OperatorHandler<T>,
     pre_eval: Option<PreEval<T>>,
-    val_stack: Vec<T>,
+    val_stack: Vec<T::Ptr>,
     op_stack: Vec<Box<RPCOperator<T>>>,
 }
 
-impl<T> RunProgramContext<'_, T> {
-    pub fn pop(&mut self) -> Result<T, EvalErr<T>> {
-        let v = self.val_stack.pop();
+pub fn make_err<T, V>(
+    allocator: &(dyn Allocator<Ptr = T>),
+    node: &T,
+    msg: &str,
+) -> Result<V, EvalErr<T>> {
+    Err(EvalErr(allocator.make_clone(node), msg.into()))
+}
+
+impl<T: Allocator> RunProgramContext<'_, T> {
+    pub fn pop(&mut self) -> Result<T::Ptr, EvalErr<T::Ptr>> {
+        let v: Option<T::Ptr> = self.val_stack.pop();
         match v {
             None => {
-                let node: T = self.allocator.null();
-                self.allocator
-                    .err(&node, "runtime error: value stack empty")
+                let node: T::Ptr = self.allocator.null();
+                make_err(self.allocator, &node, "runtime error: value stack empty")
             }
             Some(k) => Ok(k),
         }
     }
-    pub fn push(&mut self, node: T) {
+    pub fn push(&mut self, node: T::Ptr) {
         self.val_stack.push(node);
     }
 }
 
-fn traverse_path<T>(allocator: &dyn Allocator<Ptr = T>, path_node: &T, args: &T) -> Response<T> {
+fn traverse_path<T: Allocator>(
+    allocator: &T,
+    path_node: &T::Ptr,
+    args: &T::Ptr,
+) -> Response<T::Ptr> {
     /*
     Follow integer `NodePath` down a tree.
     */
@@ -56,7 +74,7 @@ fn traverse_path<T>(allocator: &dyn Allocator<Ptr = T>, path_node: &T, args: &T)
         _ => panic!("problem in traverse_path"),
     };
 
-    let mut arg_list: T = allocator.make_clone(args);
+    let mut arg_list: T::Ptr = allocator.make_clone(args);
 
     // find first non-zero byte
     let mut first_bit_byte_index = 0;
@@ -108,7 +126,7 @@ fn traverse_path<T>(allocator: &dyn Allocator<Ptr = T>, path_node: &T, args: &T)
     Ok(Reduction(cost, arg_list))
 }
 
-fn swap_op<T>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>> {
+fn swap_op<T: Allocator>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T::Ptr>> {
     /* Swap the top two operands. */
     let v2 = rpc.pop()?;
     let v1 = rpc.pop()?;
@@ -117,7 +135,7 @@ fn swap_op<T>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>> {
     Ok(0)
 }
 
-fn cons_op<T>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>> {
+fn cons_op<T: Allocator>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T::Ptr>> {
     /* Join the top two operands. */
     let v1 = rpc.pop()?;
     let v2 = rpc.pop()?;
@@ -125,42 +143,47 @@ fn cons_op<T>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>> {
     Ok(0)
 }
 
-fn eval_op_atom<T: 'static>(
+fn eval_op_atom<T: Allocator + 'static>(
     rpc: &mut RunProgramContext<T>,
     op_atom: &[u8],
-    operator_node: &T,
-    operand_list: &T,
-    args: &T,
-) -> Result<u32, EvalErr<T>> {
+    operator_node: &T::Ptr,
+    operand_list: &T::Ptr,
+    args: &T::Ptr,
+) -> Result<u32, EvalErr<T::Ptr>> {
     // special case check for quote
     if op_atom.len() == 1 && op_atom[0] == rpc.quote_kw {
         match rpc.allocator.sexp(operand_list) {
-            SExp::Atom(_) => rpc
-                .allocator
-                .err(&operand_list, "quote requires exactly 1 parameter"),
+            SExp::Atom(_) => make_err(
+                rpc.allocator,
+                &operand_list,
+                "quote requires exactly 1 parameter",
+            ),
             SExp::Pair(quoted_val, nil) => {
-                if rpc.allocator.nullp(&nil) {
+                if Node::new(rpc.allocator, nil).nullp() {
                     rpc.push(quoted_val);
                     Ok(QUOTE_COST)
                 } else {
-                    rpc.allocator
-                        .err(&operand_list, "quote requires exactly 1 parameter")
+                    make_err(
+                        rpc.allocator,
+                        &operand_list,
+                        "quote requires exactly 1 parameter",
+                    )
                 }
             }
         }
     } else {
         rpc.op_stack.push(Box::new(apply_op));
         rpc.push(rpc.allocator.make_clone(operator_node));
-        let mut operands = rpc.allocator.make_clone(operand_list);
+        let mut operands: T::Ptr = rpc.allocator.make_clone(operand_list);
         loop {
-            if rpc.allocator.nullp(&operands) {
+            if Node::new(rpc.allocator, rpc.allocator.make_clone(&operands)).nullp() {
                 break;
             }
             rpc.op_stack.push(Box::new(cons_op));
             rpc.op_stack.push(Box::new(eval_op));
             rpc.op_stack.push(Box::new(swap_op));
             match rpc.allocator.sexp(&operands) {
-                SExp::Atom(_) => return rpc.allocator.err(operand_list, "bad operand list"),
+                SExp::Atom(_) => return make_err(rpc.allocator, operand_list, "bad operand list"),
                 SExp::Pair(first, rest) => {
                     let new_pair = rpc.allocator.new_pair(&first, args);
                     rpc.push(new_pair);
@@ -173,16 +196,16 @@ fn eval_op_atom<T: 'static>(
     }
 }
 
-fn eval_pair<T: 'static>(
+fn eval_pair<T: Allocator + 'static>(
     rpc: &mut RunProgramContext<T>,
-    program: &T,
-    args: &T,
-) -> Result<u32, EvalErr<T>> {
+    program: &T::Ptr,
+    args: &T::Ptr,
+) -> Result<u32, EvalErr<T::Ptr>> {
     // put a bunch of ops on op_stack
     match rpc.allocator.sexp(program) {
         // the program is just a bitfield path through the args tree
         SExp::Atom(_) => {
-            let r: Reduction<T> = traverse_path(rpc.allocator, &program, &args)?;
+            let r: Reduction<T::Ptr> = traverse_path(rpc.allocator, &program, &args)?;
             rpc.push(r.1);
             Ok(r.0)
         }
@@ -200,15 +223,15 @@ fn eval_pair<T: 'static>(
     }
 }
 
-fn eval_op<T: 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>> {
+fn eval_op<T: Allocator + 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T::Ptr>> {
     /*
     Pop the top value and treat it as a (program, args) pair, and manipulate
     the op & value stack to evaluate all the arguments and apply the operator.
     */
 
-    let pair: T = rpc.pop()?;
+    let pair: T::Ptr = rpc.pop()?;
     match rpc.allocator.sexp(&pair) {
-        SExp::Atom(_) => rpc.allocator.err(&pair, "pair expected"),
+        SExp::Atom(_) => make_err(rpc.allocator, &pair, "pair expected"),
         SExp::Pair(program, args) => {
             let post_eval = match rpc.pre_eval {
                 None => None,
@@ -218,7 +241,7 @@ fn eval_op<T: 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>
                 None => (),
                 Some(post_eval) => {
                     let new_function = Box::new(move |rpc: &mut RunProgramContext<T>| {
-                        let peek: Option<&T> = rpc.val_stack.last();
+                        let peek: Option<&T::Ptr> = rpc.val_stack.last();
                         post_eval(peek);
                         Ok(0)
                     });
@@ -230,7 +253,9 @@ fn eval_op<T: 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>
     }
 }
 
-fn apply_op<T: 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T>> {
+fn apply_op<T: Allocator + 'static>(
+    rpc: &mut RunProgramContext<T>,
+) -> Result<u32, EvalErr<T::Ptr>> {
     let operand_list = rpc.pop()?;
     let operator = rpc.pop()?;
     match rpc.allocator.sexp(&operator) {
@@ -269,17 +294,17 @@ fn apply_op<T: 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_program<T: 'static>(
-    allocator: &dyn Allocator<Ptr = T>,
-    program: &T,
-    args: &T,
+pub fn run_program<T: Allocator + 'static>(
+    allocator: &T,
+    program: &T::Ptr,
+    args: &T::Ptr,
     quote_kw: u8,
     apply_kw: u8,
     max_cost: u32,
     operator_lookup: &OperatorHandler<T>,
     pre_eval: Option<PreEval<T>>,
-) -> Response<T> {
-    let values: Vec<T> = vec![allocator.new_pair(program, args)];
+) -> Response<T::Ptr> {
+    let values: Vec<T::Ptr> = vec![allocator.new_pair(program, args)];
     let op_stack: Vec<Box<RPCOperator<T>>> = vec![Box::new(eval_op)];
 
     let mut rpc = RunProgramContext {

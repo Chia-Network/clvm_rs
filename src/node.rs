@@ -1,12 +1,12 @@
 use super::allocator::{Allocator, SExp};
 
-pub struct Node<'a, T> {
-    allocator: &'a dyn Allocator<Ptr = T>,
-    pub node: T,
+pub struct Node<'a, T: Allocator> {
+    pub allocator: &'a T,
+    pub node: T::Ptr,
 }
 
-impl<'a, T> Node<'a, T> {
-    pub fn new(allocator: &'a dyn Allocator<Ptr = T>, node: T) -> Self {
+impl<'a, T: Allocator> Node<'a, T> {
+    pub fn new(allocator: &'a T, node: T::Ptr) -> Self {
         Node { allocator, node }
     }
 
@@ -20,11 +20,11 @@ impl<'a, T> Node<'a, T> {
         self.with_node(self.allocator.new_pair(&self.node, &right.node))
     }
 
-    pub fn with_node(&self, node: T) -> Self {
+    pub fn with_node(&self, node: T::Ptr) -> Self {
         Node::new(self.allocator, node)
     }
 
-    pub fn sexp(&self) -> SExp<T> {
+    pub fn sexp(&self) -> SExp<T::Ptr> {
         self.allocator.sexp(&self.node)
     }
 
@@ -47,7 +47,10 @@ impl<'a, T> Node<'a, T> {
     }
 
     pub fn nullp(&self) -> bool {
-        self.allocator.nullp(&self.node)
+        match self.sexp() {
+            SExp::Atom(a) => a.is_empty(),
+            _ => false,
+        }
     }
 
     pub fn arg_count_is(&self, mut count: usize) -> bool {
@@ -90,13 +93,27 @@ impl<'a, T> Node<'a, T> {
     }
 }
 
-impl<'a, T> From<&Node<'a, T>> for &'a dyn Allocator<Ptr = T> {
+/*
+
+impl<'a, T: Allocator> From<&Node<'a, T>> for &T {
     fn from(v: &Node<'a, T>) -> Self {
         v.allocator
     }
 }
 
-impl<'a, T> IntoIterator for &Node<'a, T> {
+impl<T: Allocator> From<&Node<'_, T>> for &T {
+    fn from(v: &Node<'_, T>) -> Self {
+        v.allocator
+    }
+}
+impl<T: Allocator> Into<&T> for &Node<'_, T> {
+  fn into(&self) -> &T {
+    self.allocator
+  }
+}
+*/
+
+impl<'a, T: Allocator> IntoIterator for &Node<'a, T> {
     type Item = Node<'a, T>;
 
     type IntoIter = Node<'a, T>;
@@ -106,7 +123,7 @@ impl<'a, T> IntoIterator for &Node<'a, T> {
     }
 }
 
-impl<'a, T> Iterator for Node<'a, T> {
+impl<'a, T: Allocator> Iterator for Node<'a, T> {
     type Item = Node<'a, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
