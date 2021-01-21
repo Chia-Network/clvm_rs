@@ -29,7 +29,7 @@ pub fn operator_handler2(
 }
 
 #[pyfunction]
-pub fn py_run_program2(
+pub fn serialize_and_run_program(
     py: Python,
     program: &[u8],
     args: &[u8],
