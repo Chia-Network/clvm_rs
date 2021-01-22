@@ -2,7 +2,7 @@ use std::io::Cursor;
 use std::io::Read;
 use std::io::Write;
 
-use crate::allocator::Allocator;
+use crate::allocator::{Allocator, SExp};
 use crate::node::Node;
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
@@ -39,24 +39,31 @@ fn encode_size(f: &mut dyn Write, size: usize) -> std::io::Result<()> {
 }
 
 pub fn node_to_stream<T: Allocator>(node: &Node<T>, f: &mut dyn Write) -> std::io::Result<()> {
-    if let Some(atom) = node.atom() {
-        let size = atom.len();
-        if size == 0 {
-            f.write_all(&[0x80_u8])?;
-        } else {
-            let atom0 = atom[0];
-            if size == 1 && (atom0 <= MAX_SINGLE_BYTE) {
-                f.write_all(&[atom0])?;
-            } else {
-                encode_size(f, size)?;
-                f.write_all(&atom)?;
+    let mut values: Vec<T::Ptr> = vec![node.node.clone()];
+    let a = node.allocator;
+    while !values.is_empty() {
+        let n = a.sexp(&values.pop().unwrap());
+        match n {
+            SExp::Atom(atom) => {
+                let size = atom.len();
+                if size == 0 {
+                    f.write_all(&[0x80_u8])?;
+                } else {
+                    let atom0 = atom[0];
+                    if size == 1 && (atom0 <= MAX_SINGLE_BYTE) {
+                        f.write_all(&[atom0])?;
+                    } else {
+                        encode_size(f, size)?;
+                        f.write_all(&atom)?;
+                    }
+                }
+            }
+            SExp::Pair(left, right) => {
+                f.write_all(&[CONS_BOX_MARKER as u8])?;
+                values.push(right);
+                values.push(left);
             }
         }
-    }
-    if let Some((left, right)) = node.pair() {
-        f.write_all(&[CONS_BOX_MARKER as u8])?;
-        node_to_stream(&left, f)?;
-        node_to_stream(&right, f)?;
     }
     Ok(())
 }
@@ -87,21 +94,46 @@ fn decode_size(f: &mut dyn Read, initial_b: u8) -> std::io::Result<usize> {
     Ok(bytes_to_read)
 }
 
+enum ParseOp {
+    SExp,
+    Cons,
+}
+
 pub fn node_from_stream<T: Allocator>(allocator: &T, f: &mut dyn Read) -> std::io::Result<T::Ptr> {
+    let mut values: Vec<T::Ptr> = Vec::new();
+    let mut ops = vec![ParseOp::SExp];
+
     let mut b = [0; 1];
-    f.read_exact(&mut b)?;
-    if b[0] == CONS_BOX_MARKER {
-        let v1 = node_from_stream(allocator, f)?;
-        let v2 = node_from_stream(allocator, f)?;
-        return Ok(allocator.new_pair(&v1, &v2));
+    loop {
+        let op = ops.pop();
+        if op.is_none() {
+            break;
+        }
+        match op.unwrap() {
+            ParseOp::SExp => {
+                f.read_exact(&mut b)?;
+                if b[0] == CONS_BOX_MARKER {
+                    ops.push(ParseOp::Cons);
+                    ops.push(ParseOp::SExp);
+                    ops.push(ParseOp::SExp);
+                } else if b[0] <= MAX_SINGLE_BYTE {
+                    values.push(allocator.new_atom(&b));
+                } else {
+                    let blob_size = decode_size(f, b[0])?;
+                    let mut blob: Vec<u8> = vec![0; blob_size];
+                    f.read_exact(&mut blob)?;
+                    values.push(allocator.new_atom(&blob));
+                }
+            }
+            ParseOp::Cons => {
+                // cons
+                let v2 = values.pop();
+                let v1 = values.pop();
+                values.push(allocator.new_pair(&v1.unwrap(), &v2.unwrap()));
+            }
+        }
     }
-    if b[0] <= MAX_SINGLE_BYTE {
-        return Ok(allocator.new_atom(&b));
-    }
-    let blob_size = decode_size(f, b[0])?;
-    let mut blob: Vec<u8> = vec![0; blob_size];
-    f.read_exact(&mut blob)?;
-    Ok(allocator.new_atom(&blob))
+    Ok(values.pop().unwrap())
 }
 
 pub fn node_from_bytes<T: Allocator>(allocator: &T, b: &[u8]) -> std::io::Result<T::Ptr> {

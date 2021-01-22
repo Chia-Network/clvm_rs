@@ -42,14 +42,20 @@ fn test_roundtrip() {
     test_serialize_roundtrip(&n);
 
     // deep tree
-    /*
-        let mut prev = a.null();
-        for idx in 0..=4000 {
-            prev = a.new_pair(&a.one(), &prev);
-        }
-        let n = Node::new(&a, prev);
-        test_serialize_roundtrip(&n);
-    */
+    let mut prev = a.null();
+    for _ in 0..=4000 {
+        prev = a.new_pair(&a.one(), &prev);
+    }
+    let n = Node::new(&a, prev);
+    test_serialize_roundtrip(&n);
+
+    // deep reverse tree
+    let mut prev = a.null();
+    for _ in 0..=4000 {
+        prev = a.new_pair(&prev, &a.one());
+    }
+    let n = Node::new(&a, prev);
+    test_serialize_roundtrip(&n);
 }
 
 #[test]
