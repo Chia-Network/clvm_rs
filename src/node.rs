@@ -1,4 +1,5 @@
 use super::allocator::{Allocator, SExp};
+use std::fmt;
 
 pub struct Node<'a, T: Allocator> {
     pub allocator: &'a T,
@@ -85,6 +86,31 @@ impl<'a, T: Allocator> Node<'a, T> {
             self.one()
         } else {
             self.null()
+        }
+    }
+}
+
+impl<'a, T: Allocator> PartialEq for Node<'a, T> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self.sexp(), other.sexp()) {
+            (SExp::Pair(l0, l1), SExp::Pair(r0, r1)) => {
+                self.with_node(l0) == self.with_node(r0) && self.with_node(l1) == self.with_node(r1)
+            }
+            (SExp::Atom(l0), SExp::Atom(r0)) => l0 == r0,
+            _ => false,
+        }
+    }
+}
+
+impl<'a, T: Allocator> fmt::Debug for Node<'a, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.sexp() {
+            SExp::Pair(l, r) => f
+                .debug_tuple("")
+                .field(&self.with_node(l))
+                .field(&self.with_node(r))
+                .finish(),
+            SExp::Atom(a) => a.fmt(f),
         }
     }
 }

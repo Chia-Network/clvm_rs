@@ -121,3 +121,19 @@ jobs:
         run: cargo clippy -- -D warnings
       - name: fmt
         run: cargo fmt -- --files-with-diff --check
+
+  unit_tests:
+    runs-on: ubuntu-20.04
+    name: Unit tests
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Install rust
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: nightly
+            override: true
+            components: rustfmt, clippy
+      - name: cargo test
+        run: cargo test --no-default-features
