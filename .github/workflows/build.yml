@@ -1,0 +1,123 @@
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  build_wheels:
+    name: Build wheel on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-18.04, windows-latest]
+
+    steps:
+
+    - uses: actions/checkout@v1
+      with:
+        fetch-depth: 1
+
+    - uses: actions/setup-python@v1
+      name: Install Python
+      with:
+        python-version: '3.8'
+
+    - name: Update pip
+      run: |
+          python -m pip install --upgrade pip
+
+    - name: Set up rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+
+    - name: Install dependencies
+      run: |
+          python -m pip install maturin
+
+    - name: Build with maturin
+      run: |
+        maturin build --release --manylinux 2010
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v1
+      with:
+        name: wheels
+        path: ./target/wheels/
+
+    - name: Create python venv
+      if: matrix.os != 'windows-latest'
+      run: |
+        python -m venv venv
+        ln -s venv/bin/activate
+        . ./activate
+        maturin develop --release
+
+    - name: Install wheel on windows
+      if: matrix.os == 'windows-latest'
+      run: |
+        echo ${env:PATH}
+        python -m venv venv
+        echo "" > activate
+        # on win32, `activate` is blank
+        python -m pip install target/wheels/clvm_rs-0.1.0-cp38-none-win_amd64.whl
+
+    - name: Install clvm_rs into venv for tests
+      run: |
+        . ./activate
+        echo $VIRTUAL_ENV
+        python -m pip install maturin
+        # maturin develop --release
+
+    - name: Install dependencies
+      run: |
+          . ./activate
+          python -m pip install pytest
+          python -m pip install blspy
+
+    - name: install clvm & clvm_tools
+      run: |
+        . ./activate
+        git clone https://github.com/Chia-Network/clvm.git --branch=use_clvm_rs --single-branch
+        python -m pip install ./clvm
+
+        git clone https://github.com/Chia-Network/clvm_tools.git --branch=develop --single-branch
+        python -m pip install ./clvm_tools
+
+    - name: Ensure clvm, clvm_rs, clvm_tools are installed
+      run: |
+        . ./activate
+        python -c 'import clvm'
+        python -c 'import clvm; print(clvm.__file__)'
+        python -c 'import clvm_rs; print(clvm_rs.__file__)'
+        python -c 'import clvm_tools; print(clvm_tools.__file__)'
+
+    - name: Run tests from clvm
+      run: |
+        . ./activate
+        cd clvm
+        python -m py.test tests
+
+    - name: Run tests from clvm_tools
+      run: |
+        . ./activate
+        cd clvm_tools
+        python -m py.test tests
+
+  checks:
+    runs-on: ubuntu-20.04
+    name: Checks
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Install rust
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: nightly
+            override: true
+            components: rustfmt, clippy
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+      - name: fmt
+        run: cargo fmt -- --files-with-diff --check

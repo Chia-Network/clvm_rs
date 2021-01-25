@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [tool.maturin]
 bindings = "cffi"
-manylinux = "on"
+manylinux = "2010"
 
 [lib]
 crate-type = ["cdylib"]
