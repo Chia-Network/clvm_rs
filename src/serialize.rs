@@ -1,12 +1,17 @@
 use std::io::Cursor;
 use std::io::Read;
 use std::io::Write;
+use std::io::{Error, ErrorKind};
 
 use crate::allocator::{Allocator, SExp};
 use crate::node::Node;
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const CONS_BOX_MARKER: u8 = 0xff;
+
+fn bad_encoding() -> std::io::Error {
+    Error::new(ErrorKind::InvalidInput, "bad encoding")
+}
 
 fn encode_size(f: &mut dyn Write, size: usize) -> std::io::Result<()> {
     if size < 0x40 {
@@ -34,6 +39,8 @@ fn encode_size(f: &mut dyn Write, size: usize) -> std::io::Result<()> {
             ((size >> 8) & 0xff) as u8,
             ((size) & 0xff) as u8,
         ])?;
+    } else {
+        panic!("atom size exceeded maximum {}", size);
     }
     Ok(())
 }
@@ -69,6 +76,11 @@ pub fn node_to_stream<T: Allocator>(node: &Node<T>, f: &mut dyn Write) -> std::i
 }
 
 fn decode_size(f: &mut dyn Read, initial_b: u8) -> std::io::Result<usize> {
+    // this function decodes the length prefix for an atom. Atoms whose value
+    // fit in 7 bits don't have a length-prefix, so those should never be passed
+    // to this function.
+    assert!((initial_b & 0x80) != 0);
+
     let mut bit_count = 0;
     let mut bit_mask: u8 = 0x80;
     let mut b = initial_b;
@@ -86,12 +98,17 @@ fn decode_size(f: &mut dyn Read, initial_b: u8) -> std::io::Result<usize> {
     }
     // need to convert size_blob to an int
     let mut v: usize = 0;
+    if size_blob.len() > 6 {
+        return Err(bad_encoding());
+    }
     for b in size_blob.iter() {
         v <<= 8;
         v += *b as usize;
     }
-    let bytes_to_read = v;
-    Ok(bytes_to_read)
+    if v >= 0x400000000 {
+        return Err(bad_encoding());
+    }
+    Ok(v)
 }
 
 enum ParseOp {
@@ -147,4 +164,89 @@ pub fn node_to_bytes<T: Allocator>(node: &Node<T>) -> std::io::Result<Vec<u8>> {
     node_to_stream(node, &mut buffer)?;
     let vec = buffer.into_inner();
     Ok(vec)
+}
+
+#[test]
+fn test_encode_size() {
+    let mut buf = Vec::<u8>::new();
+    assert!(encode_size(&mut buf, 0b111111).is_ok());
+    assert_eq!(buf, vec![0b10111111]);
+
+    let mut buf = Vec::<u8>::new();
+    assert!(encode_size(&mut buf, 0b1000000).is_ok());
+    assert_eq!(buf, vec![0b11000000, 0b1000000]);
+
+    let mut buf = Vec::<u8>::new();
+    assert!(encode_size(&mut buf, 0xfffff).is_ok());
+    assert_eq!(buf, vec![0b11101111, 0xff, 0xff]);
+
+    let mut buf = Vec::<u8>::new();
+    assert!(encode_size(&mut buf, 0xffffff).is_ok());
+    assert_eq!(buf, vec![0b11110000, 0xff, 0xff, 0xff]);
+
+    let mut buf = Vec::<u8>::new();
+    assert!(encode_size(&mut buf, 0xffffffff).is_ok());
+    assert_eq!(buf, vec![0b11111000, 0xff, 0xff, 0xff, 0xff]);
+
+    // this is the largest possible atom size
+    let mut buf = Vec::<u8>::new();
+    assert!(encode_size(&mut buf, 0x3ffffffff).is_ok());
+    assert_eq!(buf, vec![0b11111011, 0xff, 0xff, 0xff, 0xff]);
+}
+
+#[test]
+#[should_panic]
+fn test_encode_panic() {
+    // this is too large
+    let mut buf = Vec::<u8>::new();
+    assert!(encode_size(&mut buf, 0x400000000).is_ok());
+}
+
+#[test]
+fn test_decode_size() {
+    // single-byte length prefix
+    let mut buffer = Cursor::new(&[]);
+    assert_eq!(decode_size(&mut buffer, 0x80 | 0x20).unwrap(), 0x20);
+
+    // two-byte length prefix
+    let first = 0b11001111;
+    let mut buffer = Cursor::new(&[0xaa]);
+    assert_eq!(decode_size(&mut buffer, first).unwrap(), 0xfaa);
+}
+
+#[test]
+fn test_large_decode_size() {
+    // this is an atom length-prefix 0xffffffffffff, or (2^48 - 1).
+    // We don't support atoms this large and we should fail before attempting to
+    // allocate this much memory
+    let first = 0b11111110;
+    let mut buffer = Cursor::new(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
+    let ret = decode_size(&mut buffer, first);
+    let e = ret.unwrap_err();
+    assert_eq!(e.kind(), bad_encoding().kind());
+    assert_eq!(e.to_string(), "bad encoding");
+
+    // this is still too large
+    let first = 0b11111100;
+    let mut buffer = Cursor::new(&[0x4, 0, 0, 0, 0]);
+    let ret = decode_size(&mut buffer, first);
+    let e = ret.unwrap_err();
+    assert_eq!(e.kind(), bad_encoding().kind());
+    assert_eq!(e.to_string(), "bad encoding");
+
+    // But this is *just* within what we support
+    // Still a very large blob, probably enough for a DoS attack
+    let first = 0b11111100;
+    let mut buffer = Cursor::new(&[0x3, 0xff, 0xff, 0xff, 0xff]);
+    assert_eq!(decode_size(&mut buffer, first).unwrap(), 0x3ffffffff);
+}
+
+#[test]
+fn test_truncated_decode_size() {
+    // the stream is truncated
+    let first = 0b11111100;
+    let mut buffer = Cursor::new(&[0x4, 0, 0, 0]);
+    let ret = decode_size(&mut buffer, first);
+    let e = ret.unwrap_err();
+    assert_eq!(e.kind(), std::io::ErrorKind::UnexpectedEof);
 }
