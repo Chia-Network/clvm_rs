@@ -37,12 +37,8 @@ pub struct RunProgramContext<'a, T: Allocator> {
     op_stack: Vec<Box<RPCOperator<T>>>,
 }
 
-pub fn make_err<T, V>(
-    allocator: &(dyn Allocator<Ptr = T>),
-    node: &T,
-    msg: &str,
-) -> Result<V, EvalErr<T>> {
-    Err(EvalErr(allocator.make_clone(node), msg.into()))
+pub fn make_err<T: Clone, V>(node: &T, msg: &str) -> Result<V, EvalErr<T>> {
+    Err(EvalErr(node.clone(), msg.into()))
 }
 
 impl<T: Allocator> RunProgramContext<'_, T> {
@@ -51,7 +47,7 @@ impl<T: Allocator> RunProgramContext<'_, T> {
         match v {
             None => {
                 let node: T::Ptr = self.allocator.null();
-                make_err(self.allocator, &node, "runtime error: value stack empty")
+                make_err(&node, "runtime error: value stack empty")
             }
             Some(k) => Ok(k),
         }
@@ -74,7 +70,7 @@ fn traverse_path<T: Allocator>(
         _ => panic!("problem in traverse_path"),
     };
 
-    let mut arg_list: T::Ptr = allocator.make_clone(args);
+    let mut arg_list: T::Ptr = args.clone();
 
     // find first non-zero byte
     let mut first_bit_byte_index = 0;
@@ -116,7 +112,7 @@ fn traverse_path<T: Allocator>(
                     return Err(EvalErr(arg_list, "path into atom".into()));
                 }
                 SExp::Pair(left, right) => {
-                    arg_list = allocator.make_clone(if is_bit_set { &right } else { &left });
+                    arg_list = (if is_bit_set { &right } else { &left }).clone();
                 }
             }
             bit_idx <<= 1;
@@ -153,41 +149,33 @@ fn eval_op_atom<T: Allocator + 'static>(
     // special case check for quote
     if op_atom.len() == 1 && op_atom[0] == rpc.quote_kw {
         match rpc.allocator.sexp(operand_list) {
-            SExp::Atom(_) => make_err(
-                rpc.allocator,
-                &operand_list,
-                "quote requires exactly 1 parameter",
-            ),
+            SExp::Atom(_) => make_err(&operand_list, "quote requires exactly 1 parameter"),
             SExp::Pair(quoted_val, nil) => {
                 if Node::new(rpc.allocator, nil).nullp() {
                     rpc.push(quoted_val);
                     Ok(QUOTE_COST)
                 } else {
-                    make_err(
-                        rpc.allocator,
-                        &operand_list,
-                        "quote requires exactly 1 parameter",
-                    )
+                    make_err(&operand_list, "quote requires exactly 1 parameter")
                 }
             }
         }
     } else {
         rpc.op_stack.push(Box::new(apply_op));
-        rpc.push(rpc.allocator.make_clone(operator_node));
-        let mut operands: T::Ptr = rpc.allocator.make_clone(operand_list);
+        rpc.push(operator_node.clone());
+        let mut operands: T::Ptr = operand_list.clone();
         loop {
-            if Node::new(rpc.allocator, rpc.allocator.make_clone(&operands)).nullp() {
+            if Node::new(rpc.allocator, operands.clone()).nullp() {
                 break;
             }
             rpc.op_stack.push(Box::new(cons_op));
             rpc.op_stack.push(Box::new(eval_op));
             rpc.op_stack.push(Box::new(swap_op));
             match rpc.allocator.sexp(&operands) {
-                SExp::Atom(_) => return make_err(rpc.allocator, operand_list, "bad operand list"),
+                SExp::Atom(_) => return make_err(operand_list, "bad operand list"),
                 SExp::Pair(first, rest) => {
                     let new_pair = rpc.allocator.new_pair(&first, args);
                     rpc.push(new_pair);
-                    operands = rpc.allocator.make_clone(&rest);
+                    operands = rest.clone();
                 }
             }
         }
@@ -231,7 +219,7 @@ fn eval_op<T: Allocator + 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32
 
     let pair: T::Ptr = rpc.pop()?;
     match rpc.allocator.sexp(&pair) {
-        SExp::Atom(_) => make_err(rpc.allocator, &pair, "pair expected"),
+        SExp::Atom(_) => make_err(&pair, "pair expected"),
         SExp::Pair(program, args) => {
             let post_eval = match rpc.pre_eval {
                 None => None,

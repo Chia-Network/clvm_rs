@@ -42,10 +42,6 @@ impl<'a, T: Allocator> Node<'a, T> {
         }
     }
 
-    pub fn make_clone(&self) -> Self {
-        self.with_node(self.allocator.make_clone(&self.node))
-    }
-
     pub fn nullp(&self) -> bool {
         match self.sexp() {
             SExp::Atom(a) => a.is_empty(),
@@ -54,14 +50,14 @@ impl<'a, T: Allocator> Node<'a, T> {
     }
 
     pub fn arg_count_is(&self, mut count: usize) -> bool {
-        let mut ptr = self.make_clone();
+        let mut ptr: Self = self.clone();
         loop {
             if count == 0 {
                 return ptr.nullp();
             }
             match ptr.sexp() {
                 SExp::Pair(_, new_ptr) => {
-                    ptr = ptr.with_node(new_ptr);
+                    ptr = ptr.with_node(new_ptr).clone();
                 }
                 _ => return false,
             }
@@ -93,25 +89,12 @@ impl<'a, T: Allocator> Node<'a, T> {
     }
 }
 
-/*
-
-impl<'a, T: Allocator> From<&Node<'a, T>> for &T {
-    fn from(v: &Node<'a, T>) -> Self {
-        v.allocator
+impl<'a, T: Allocator> Clone for Node<'a, T> {
+    fn clone(&self) -> Self {
+        self.with_node(self.node.clone())
     }
 }
 
-impl<T: Allocator> From<&Node<'_, T>> for &T {
-    fn from(v: &Node<'_, T>) -> Self {
-        v.allocator
-    }
-}
-impl<T: Allocator> Into<&T> for &Node<'_, T> {
-  fn into(&self) -> &T {
-    self.allocator
-  }
-}
-*/
 
 impl<'a, T: Allocator> IntoIterator for &Node<'a, T> {
     type Item = Node<'a, T>;
@@ -119,7 +102,7 @@ impl<'a, T: Allocator> IntoIterator for &Node<'a, T> {
     type IntoIter = Node<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.make_clone()
+        self.clone()
     }
 }
 

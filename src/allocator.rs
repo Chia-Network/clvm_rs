@@ -10,12 +10,11 @@ pub enum SExp<'a, T> {
 }
 
 pub trait Allocator {
-    type Ptr;
+    type Ptr: Clone;
 
     fn new_atom(&self, v: &[u8]) -> Self::Ptr;
     fn new_pair(&self, first: &Self::Ptr, rest: &Self::Ptr) -> Self::Ptr;
     fn sexp(&self, node: &Self::Ptr) -> SExp<Self::Ptr>;
-    fn make_clone(&self, node: &Self::Ptr) -> Self::Ptr;
     fn null(&self) -> Self::Ptr;
     fn one(&self) -> Self::Ptr;
 }

@@ -68,10 +68,6 @@ impl Allocator for ArcAllocator {
         }
     }
 
-    fn make_clone(&self, node: &PyNode) -> PyNode {
-        node.clone()
-    }
-
     fn null(&self) -> PyNode {
         let a = NULL.clone();
         Arc::new(PySExp::Atom(a)).into()
@@ -85,6 +81,6 @@ impl Allocator for ArcAllocator {
 
 impl ArcAllocator {
     pub fn err<T>(&self, node: &PyNode, msg: &str) -> Result<T, EvalErr<PyNode>> {
-        Err(EvalErr(self.make_clone(node), msg.into()))
+        Err(EvalErr(node.clone(), msg.into()))
     }
 }

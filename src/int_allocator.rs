@@ -62,10 +62,6 @@ impl Allocator for IntAllocator {
         }
     }
 
-    fn make_clone(&self, node: &u32) -> u32 {
-        *node
-    }
-
     fn null(&self) -> u32 {
         0
     }
@@ -77,6 +73,6 @@ impl Allocator for IntAllocator {
 
 impl IntAllocator {
     pub fn err<T>(&self, node: &u32, msg: &str) -> Result<T, EvalErr<u32>> {
-        Err(EvalErr(self.make_clone(node), msg.into()))
+        Err(EvalErr(*node, msg.into()))
     }
 }

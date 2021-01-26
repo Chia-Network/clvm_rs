@@ -13,11 +13,11 @@ pub fn check_arg_count<T: Allocator>(
     let mut cnt = expected;
     // It would be nice to have a trait that wouldn't require us to copy every
     // node
-    let mut ptr = args.make_clone();
+    let mut ptr = args.clone();
     loop {
         match ptr.pair() {
             Some((_, next)) => {
-                ptr = next;
+                ptr = next.clone();
             }
             _ => {
                 return if cnt == 0 {

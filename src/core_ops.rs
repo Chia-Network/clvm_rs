@@ -27,7 +27,7 @@ impl<'a, T: Allocator> Node<'a, T> {
     }
 
     pub fn err<U>(&self, msg: &str) -> Result<U, EvalErr<T::Ptr>> {
-        Err(EvalErr(self.make_clone().node, msg.into()))
+        Err(EvalErr(self.node.clone(), msg.into()))
     }
 }
 
