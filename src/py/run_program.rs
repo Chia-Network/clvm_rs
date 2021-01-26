@@ -7,7 +7,7 @@ use crate::run_program::{run_program, OperatorHandler};
 use crate::serialize::{node_from_bytes, node_to_bytes};
 use lazy_static::lazy_static;
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyBytes, PyDict};
 
 lazy_static! {
     static ref F_TABLE: FLookup<IntAllocator> = make_f_lookup();
@@ -36,7 +36,7 @@ pub fn serialize_and_run_program(
     quote_kw: u8,
     apply_kw: u8,
     max_cost: u32,
-) -> PyResult<(u32, Vec<u8>)> {
+) -> PyResult<(u32, Py<PyBytes>)> {
     let allocator = IntAllocator::new();
     let f: OperatorHandler<IntAllocator> = Box::new(operator_handler2);
 
@@ -50,7 +50,8 @@ pub fn serialize_and_run_program(
     match r {
         Ok(reduction) => {
             let node_as_blob = node_to_bytes(&Node::new(&allocator, reduction.1)).unwrap();
-            Ok((reduction.0, node_as_blob))
+            let node_as_bytes: Py<PyBytes> = PyBytes::new(py, &node_as_blob).into();
+            Ok((reduction.0, node_as_bytes))
         }
         Err(eval_err) => {
             let node_as_blob = node_to_bytes(&Node::new(&allocator, eval_err.0)).unwrap();
@@ -71,7 +72,7 @@ raise EvalError(msg, sexp)",
             );
             match r {
                 Err(x) => Err(x),
-                Ok(_) => Ok((0, vec![])),
+                Ok(_) => Ok((0, PyBytes::new(py, &[]).into())),
             }
         }
     }
