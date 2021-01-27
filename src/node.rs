@@ -121,7 +121,6 @@ impl<'a, T: Allocator> Clone for Node<'a, T> {
     }
 }
 
-
 impl<'a, T: Allocator> IntoIterator for &Node<'a, T> {
     type Item = Node<'a, T>;
 
