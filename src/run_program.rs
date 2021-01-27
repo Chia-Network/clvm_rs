@@ -57,6 +57,8 @@ impl<T: Allocator> RunProgramContext<'_, T> {
     }
 }
 
+// return a bitmask with a single bit set, for the most significant set bit in
+// the input byte
 fn msb_mask(byte: u8) -> u8 {
     let mut byte = (byte | (byte >> 1)) as u32;
     byte |= byte >> 2;
@@ -65,27 +67,25 @@ fn msb_mask(byte: u8) -> u8 {
     ((byte + 1) >> 1) as u8
 }
 
+// return the index of the first non-zero byte in buf. If all bytes are 0, the
+// length (one past end) will be returned.
+fn first_non_zero(buf: &[u8]) -> usize {
+    let mut c: usize = 0;
+    while c < buf.len() && buf[c] == 0 {
+        c += 1;
+    }
+    c
+}
+
 fn traverse_path<T: Allocator>(
     allocator: &T,
-    path_node: &T::Ptr,
+    node_index: &[u8],
     args: &T::Ptr,
 ) -> Response<T::Ptr> {
-    // Follow integer `NodePath` down a tree.
-    let node_index: &[u8] = match allocator.sexp(path_node) {
-        SExp::Atom(a) => a,
-        _ => panic!("problem in traverse_path"),
-    };
-
     let mut arg_list: T::Ptr = args.clone();
 
     // find first non-zero byte
-    let first_bit_byte_index = {
-        let mut c: usize = 0;
-        while c < node_index.len() && node_index[c] == 0 {
-            c += 1;
-        }
-        c
-    };
+    let first_bit_byte_index = first_non_zero(node_index);
 
     let mut cost: u32 =
         (first_bit_byte_index as u32) * TRAVERSE_COST_PER_ZERO_BYTE + TRAVERSE_COST_PER_BIT;
@@ -191,8 +191,8 @@ fn eval_pair<T: Allocator + 'static>(
     // put a bunch of ops on op_stack
     match rpc.allocator.sexp(program) {
         // the program is just a bitfield path through the args tree
-        SExp::Atom(_) => {
-            let r: Reduction<T::Ptr> = traverse_path(rpc.allocator, &program, &args)?;
+        SExp::Atom(path) => {
+            let r: Reduction<T::Ptr> = traverse_path(rpc.allocator, path, &args)?;
             rpc.push(r.1);
             Ok(r.0)
         }
@@ -326,18 +326,89 @@ pub fn run_program<T: Allocator + 'static>(
 
 #[test]
 fn test_msb_mask() {
-    assert!(msb_mask(0x0) == 0x0);
-    assert!(msb_mask(0x01) == 0x01);
-    assert!(msb_mask(0x02) == 0x02);
-    assert!(msb_mask(0x04) == 0x04);
-    assert!(msb_mask(0x08) == 0x08);
-    assert!(msb_mask(0x10) == 0x10);
-    assert!(msb_mask(0x20) == 0x20);
-    assert!(msb_mask(0x40) == 0x40);
-    assert!(msb_mask(0x80) == 0x80);
+    assert_eq!(msb_mask(0x0), 0x0);
+    assert_eq!(msb_mask(0x01), 0x01);
+    assert_eq!(msb_mask(0x02), 0x02);
+    assert_eq!(msb_mask(0x04), 0x04);
+    assert_eq!(msb_mask(0x08), 0x08);
+    assert_eq!(msb_mask(0x10), 0x10);
+    assert_eq!(msb_mask(0x20), 0x20);
+    assert_eq!(msb_mask(0x40), 0x40);
+    assert_eq!(msb_mask(0x80), 0x80);
 
-    assert!(msb_mask(0x44) == 0x40);
-    assert!(msb_mask(0x2a) == 0x20);
-    assert!(msb_mask(0xff) == 0x80);
-    assert!(msb_mask(0x0f) == 0x08);
+    assert_eq!(msb_mask(0x44), 0x40);
+    assert_eq!(msb_mask(0x2a), 0x20);
+    assert_eq!(msb_mask(0xff), 0x80);
+    assert_eq!(msb_mask(0x0f), 0x08);
+}
+
+#[test]
+fn test_first_non_zero() {
+    assert_eq!(first_non_zero(&[]), 0);
+    assert_eq!(first_non_zero(&[1]), 0);
+    assert_eq!(first_non_zero(&[0]), 1);
+    assert_eq!(first_non_zero(&[0, 0, 0, 1, 1, 1]), 3);
+    assert_eq!(first_non_zero(&[0, 0, 0, 0, 0, 0]), 6);
+    assert_eq!(first_non_zero(&[1, 0, 0, 0, 0, 0]), 0);
+}
+
+#[test]
+fn test_traverse_path() {
+    use crate::int_allocator::IntAllocator;
+
+    let a = IntAllocator::new();
+    let nul = a.null();
+    let n1 = a.new_atom(&[0, 1, 2]);
+    let n2 = a.new_atom(&[4, 5, 6]);
+
+    assert_eq!(traverse_path(&a, &[0], &n1).unwrap(), Reduction(2, nul));
+    assert_eq!(traverse_path(&a, &[0b1], &n1).unwrap(), Reduction(1, n1));
+    assert_eq!(traverse_path(&a, &[0b1], &n2).unwrap(), Reduction(1, n2));
+
+    // cost for leading zeros
+    assert_eq!(
+        traverse_path(&a, &[0, 0, 0, 0], &n1).unwrap(),
+        Reduction(5, nul)
+    );
+
+    let n3 = a.new_pair(&n1, &n2);
+    assert_eq!(traverse_path(&a, &[0b1], &n3).unwrap(), Reduction(1, n3));
+    assert_eq!(traverse_path(&a, &[0b10], &n3).unwrap(), Reduction(2, n1));
+    assert_eq!(traverse_path(&a, &[0b11], &n3).unwrap(), Reduction(2, n2));
+    assert_eq!(traverse_path(&a, &[0b11], &n3).unwrap(), Reduction(2, n2));
+
+    let list = a.new_pair(&n1, &nul);
+    let list = a.new_pair(&n2, &list);
+
+    assert_eq!(traverse_path(&a, &[0b10], &list).unwrap(), Reduction(2, n2));
+    assert_eq!(
+        traverse_path(&a, &[0b101], &list).unwrap(),
+        Reduction(3, n1)
+    );
+    assert_eq!(
+        traverse_path(&a, &[0b111], &list).unwrap(),
+        Reduction(3, nul)
+    );
+
+    // errors
+    assert_eq!(
+        traverse_path(&a, &[0b1011], &list).unwrap_err(),
+        EvalErr(nul.clone(), "path into atom".to_string())
+    );
+    assert_eq!(
+        traverse_path(&a, &[0b1101], &list).unwrap_err(),
+        EvalErr(n1.clone(), "path into atom".to_string())
+    );
+    assert_eq!(
+        traverse_path(&a, &[0b1001], &list).unwrap_err(),
+        EvalErr(n1.clone(), "path into atom".to_string())
+    );
+    assert_eq!(
+        traverse_path(&a, &[0b1010], &list).unwrap_err(),
+        EvalErr(n2.clone(), "path into atom".to_string())
+    );
+    assert_eq!(
+        traverse_path(&a, &[0b1110], &list).unwrap_err(),
+        EvalErr(n2.clone(), "path into atom".to_string())
+    );
 }
