@@ -57,14 +57,20 @@ impl<T: Allocator> RunProgramContext<'_, T> {
     }
 }
 
+fn msb_mask(byte: u8) -> u8 {
+    let mut byte = (byte | (byte >> 1)) as u32;
+    byte |= byte >> 2;
+    byte |= byte >> 4;
+    debug_assert!((byte + 1) >> 1 <= 0x80);
+    ((byte + 1) >> 1) as u8
+}
+
 fn traverse_path<T: Allocator>(
     allocator: &T,
     path_node: &T::Ptr,
     args: &T::Ptr,
 ) -> Response<T::Ptr> {
-    /*
-    Follow integer `NodePath` down a tree.
-    */
+    // Follow integer `NodePath` down a tree.
     let node_index: &[u8] = match allocator.sexp(path_node) {
         SExp::Atom(a) => a,
         _ => panic!("problem in traverse_path"),
@@ -73,51 +79,44 @@ fn traverse_path<T: Allocator>(
     let mut arg_list: T::Ptr = args.clone();
 
     // find first non-zero byte
-    let mut first_bit_byte_index = 0;
-    loop {
-        if first_bit_byte_index >= node_index.len() || node_index[first_bit_byte_index] != 0 {
-            break;
+    let first_bit_byte_index = {
+        let mut c: usize = 0;
+        while c < node_index.len() && node_index[c] == 0 {
+            c += 1;
         }
-        first_bit_byte_index += 1;
-    }
+        c
+    };
 
-    let mut cost: u32 = (1 + first_bit_byte_index as u32) * TRAVERSE_COST_PER_ZERO_BYTE;
+    let mut cost: u32 =
+        (first_bit_byte_index as u32) * TRAVERSE_COST_PER_ZERO_BYTE + TRAVERSE_COST_PER_BIT;
 
     if first_bit_byte_index >= node_index.len() {
-        arg_list = allocator.null();
-    } else {
-        // find first non-zero bit (the most significant bit is a sentinal)
-        let mut last_bit_mask = 0x80;
-        loop {
-            if node_index[first_bit_byte_index] & last_bit_mask > 0 {
-                break;
-            }
-            last_bit_mask >>= 1;
-        }
+        return Ok(Reduction(cost, allocator.null()));
+    }
 
-        // follow through the bits, moving left and right
-        let mut byte_idx = node_index.len() - 1;
-        let mut bit_idx = 1;
-        loop {
-            if bit_idx > 128 {
-                bit_idx = 1;
-                byte_idx -= 1;
+    // find first non-zero bit (the most significant bit is a sentinel)
+    let last_bitmask = msb_mask(node_index[first_bit_byte_index]);
+
+    // follow through the bits, moving left and right
+    let mut byte_idx = node_index.len() - 1;
+    let mut bitmask = 0x01;
+    while byte_idx > first_bit_byte_index || bitmask < last_bitmask {
+        let is_bit_set: bool = (node_index[byte_idx] & bitmask) != 0;
+        match allocator.sexp(&arg_list) {
+            SExp::Atom(_) => {
+                return Err(EvalErr(arg_list, "path into atom".into()));
             }
-            if byte_idx == first_bit_byte_index && bit_idx == last_bit_mask {
-                break;
+            SExp::Pair(left, right) => {
+                arg_list = (if is_bit_set { &right } else { &left }).clone();
             }
-            let is_bit_set: bool = node_index[byte_idx] & bit_idx == bit_idx;
-            match allocator.sexp(&arg_list) {
-                SExp::Atom(_) => {
-                    return Err(EvalErr(arg_list, "path into atom".into()));
-                }
-                SExp::Pair(left, right) => {
-                    arg_list = (if is_bit_set { &right } else { &left }).clone();
-                }
-            }
-            bit_idx <<= 1;
-            cost += TRAVERSE_COST_PER_BIT;
         }
+        if bitmask == 0x80 {
+            bitmask = 0x01;
+            byte_idx -= 1;
+        } else {
+            bitmask <<= 1;
+        }
+        cost += TRAVERSE_COST_PER_BIT;
     }
     Ok(Reduction(cost, arg_list))
 }
@@ -323,4 +322,22 @@ pub fn run_program<T: Allocator + 'static>(
     }
 
     Ok(Reduction(cost, rpc.pop()?))
+}
+
+#[test]
+fn test_msb_mask() {
+    assert!(msb_mask(0x0) == 0x0);
+    assert!(msb_mask(0x01) == 0x01);
+    assert!(msb_mask(0x02) == 0x02);
+    assert!(msb_mask(0x04) == 0x04);
+    assert!(msb_mask(0x08) == 0x08);
+    assert!(msb_mask(0x10) == 0x10);
+    assert!(msb_mask(0x20) == 0x20);
+    assert!(msb_mask(0x40) == 0x40);
+    assert!(msb_mask(0x80) == 0x80);
+
+    assert!(msb_mask(0x44) == 0x40);
+    assert!(msb_mask(0x2a) == 0x20);
+    assert!(msb_mask(0xff) == 0x80);
+    assert!(msb_mask(0x0f) == 0x08);
 }
