@@ -45,7 +45,8 @@ pub fn op_cons<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     check_arg_count(args, 2, "c")?;
     let a1 = args.first()?;
     let a2 = args.rest()?.first()?;
-    Ok(Reduction(CONS_COST, a1.cons(&a2).node))
+    let r = args.allocator.new_pair(&a1.node, &a2.node);
+    Ok(Reduction(CONS_COST, r))
 }
 
 pub fn op_first<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
