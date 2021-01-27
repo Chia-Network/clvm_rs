@@ -28,21 +28,23 @@ fn extract_atom(_allocator: &ArcAllocator, obj: &PyAny) -> PyResult<PyNode> {
     Ok(py_node)
 }
 
-fn extract_node(_allocator: &ArcAllocator, obj: &PyAny) -> PyResult<PyNode> {
-    let ps: &PyCell<PyNode> = obj.extract()?;
-    let node: PyNode = ps.try_borrow()?.clone();
+fn extract_node<'a>(_allocator: &ArcAllocator, obj: &'a PyAny) -> PyResult<PyRef<'a, PyNode>> {
+    let ps: &PyCell<PyNode> = obj.downcast()?;
+    let node: PyRef<'a, PyNode> = ps.try_borrow()?;
     Ok(node)
 }
 
 fn extract_tuple(allocator: &ArcAllocator, obj: &PyAny) -> PyResult<PyNode> {
-    let v: &PyTuple = obj.extract()?;
+    let v: &PyTuple = obj.downcast()?;
     if v.len() != 2 {
         return Err(PyValueError::new_err("SExp tuples must be size 2"));
     }
     let i0: &PyAny = v.get_item(0);
     let i1: &PyAny = v.get_item(1);
-    let left: PyNode = extract_node(&allocator, i0)?;
-    let right: PyNode = extract_node(&allocator, i1)?;
+    let left: PyRef<PyNode> = extract_node(&allocator, i0)?;
+    let right: PyRef<PyNode> = extract_node(&allocator, i1)?;
+    let left: &PyNode = &left;
+    let right: &PyNode = &right;
     let left: ArcSExp = left.into();
     let right: ArcSExp = right.into();
     let node: ArcSExp = allocator.new_pair(&left, &right);
