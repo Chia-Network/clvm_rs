@@ -14,7 +14,7 @@ pub trait Allocator {
 
     fn new_atom(&self, v: &[u8]) -> Self::Ptr;
     fn new_pair(&self, first: &Self::Ptr, rest: &Self::Ptr) -> Self::Ptr;
-    fn sexp(&self, node: &Self::Ptr) -> SExp<Self::Ptr>;
+    fn sexp<'a: 'c, 'b: 'c, 'c>(&'a self, node: &'b Self::Ptr) -> SExp<'c, Self::Ptr>;
     fn null(&self) -> Self::Ptr;
     fn one(&self) -> Self::Ptr;
 }

@@ -3,16 +3,12 @@ use crate::reduction::EvalErr;
 
 use std::sync::Arc;
 
-use aovec::Aovec;
-
 use lazy_static::*;
 
 use pyo3::prelude::*;
 
 #[pyclass(subclass, unsendable)]
-pub struct ArcAllocator {
-    vec: Aovec<Arc<Vec<u8>>>,
-}
+pub struct ArcAllocator {}
 
 pub enum ArcSExp {
     Atom(Arc<Vec<u8>>),
@@ -35,9 +31,7 @@ impl Clone for ArcSExp {
 
 impl ArcAllocator {
     pub fn new() -> Self {
-        ArcAllocator {
-            vec: Aovec::new(16),
-        }
+        ArcAllocator {}
     }
 
     pub fn blob(&self, v: &str) -> ArcSExp {
@@ -57,13 +51,9 @@ impl Allocator for ArcAllocator {
         ArcSExp::Pair(Arc::new(first.to_owned()), Arc::new(rest.to_owned()))
     }
 
-    fn sexp(&self, node: &ArcSExp) -> SExp<ArcSExp> {
+    fn sexp<'a: 'c, 'b: 'c, 'c>(&'a self, node: &'b ArcSExp) -> SExp<'c, ArcSExp> {
         match node {
-            ArcSExp::Atom(atom) => {
-                let idx = self.vec.len();
-                self.vec.push(atom.to_owned());
-                SExp::Atom(self.vec.get(idx).unwrap())
-            }
+            ArcSExp::Atom(atom) => SExp::Atom(&atom),
             ArcSExp::Pair(left, right) => {
                 let p1: &ArcSExp = &left;
                 let p2: &ArcSExp = &right;

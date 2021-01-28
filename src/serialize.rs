@@ -49,7 +49,8 @@ pub fn node_to_stream<T: Allocator>(node: &Node<T>, f: &mut dyn Write) -> std::i
     let mut values: Vec<T::Ptr> = vec![node.node.clone()];
     let a = node.allocator;
     while !values.is_empty() {
-        let n = a.sexp(&values.pop().unwrap());
+        let v = values.pop().unwrap();
+        let n = a.sexp(&v);
         match n {
             SExp::Atom(atom) => {
                 let size = atom.len();

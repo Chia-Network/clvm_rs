@@ -52,7 +52,7 @@ impl Allocator for IntAllocator {
         r
     }
 
-    fn sexp(&self, node: &u32) -> SExp<u32> {
+    fn sexp<'a: 'c, 'b: 'c, 'c>(&'a self, node: &'b u32) -> SExp<'c, u32> {
         match self.node_vec[*node as usize] {
             NodePtr::Atom(index) => {
                 let atom = &self.u8_vec[index as usize];
