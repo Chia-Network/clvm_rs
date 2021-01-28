@@ -88,8 +88,35 @@ impl PyNode {
     }
 
     #[getter(pair)]
-    pub fn pair(&self) -> Option<(PyNode, PyNode)> {
-        self._pair()
+    pub fn pair(&self, py: Python) -> PyResult<Option<PyObject>> {
+        match ArcAllocator::new().sexp(&self.node) {
+            SExp::Pair(p1, p2) => {
+                {
+                    let mut borrowed_pair = self.pyobj.borrow_mut();
+                    if borrowed_pair.is_none() {
+                        let r1 = PyCell::new(
+                            py,
+                            PyNode {
+                                node: p1,
+                                pyobj: RefCell::new(None),
+                            },
+                        )?;
+                        let r2 = PyCell::new(
+                            py,
+                            PyNode {
+                                node: p2,
+                                pyobj: RefCell::new(None),
+                            },
+                        )?;
+                        let v: &PyTuple = PyTuple::new(py, &[r1, r2]);
+                        let v: PyObject = v.into();
+                        *borrowed_pair = Some(v);
+                    }
+                };
+                Ok(self.pyobj.borrow().clone())
+            }
+            _ => Ok(None),
+        }
     }
 
     pub fn _pair(&self) -> Option<(PyNode, PyNode)> {
