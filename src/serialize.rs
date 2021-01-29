@@ -13,7 +13,7 @@ fn bad_encoding() -> std::io::Error {
     Error::new(ErrorKind::InvalidInput, "bad encoding")
 }
 
-fn encode_size(f: &mut dyn Write, size: usize) -> std::io::Result<()> {
+fn encode_size(f: &mut dyn Write, size: u64) -> std::io::Result<()> {
     if size < 0x40 {
         f.write_all(&[(0x80 | size) as u8])?;
     } else if size < 0x2000 {
@@ -61,7 +61,7 @@ pub fn node_to_stream<T: Allocator>(node: &Node<T>, f: &mut dyn Write) -> std::i
                     if size == 1 && (atom0 <= MAX_SINGLE_BYTE) {
                         f.write_all(&[atom0])?;
                     } else {
-                        encode_size(f, size)?;
+                        encode_size(f, size as u64)?;
                         f.write_all(&atom)?;
                     }
                 }
@@ -76,7 +76,7 @@ pub fn node_to_stream<T: Allocator>(node: &Node<T>, f: &mut dyn Write) -> std::i
     Ok(())
 }
 
-fn decode_size(f: &mut dyn Read, initial_b: u8) -> std::io::Result<usize> {
+fn decode_size(f: &mut dyn Read, initial_b: u8) -> std::io::Result<u64> {
     // this function decodes the length prefix for an atom. Atoms whose value
     // fit in 7 bits don't have a length-prefix, so those should never be passed
     // to this function.
@@ -98,13 +98,13 @@ fn decode_size(f: &mut dyn Read, initial_b: u8) -> std::io::Result<usize> {
         f.read_exact(remaining_buffer)?;
     }
     // need to convert size_blob to an int
-    let mut v: usize = 0;
+    let mut v: u64 = 0;
     if size_blob.len() > 6 {
         return Err(bad_encoding());
     }
     for b in size_blob.iter() {
         v <<= 8;
-        v += *b as usize;
+        v += *b as u64;
     }
     if v >= 0x400000000 {
         return Err(bad_encoding());
@@ -138,7 +138,7 @@ pub fn node_from_stream<T: Allocator>(allocator: &T, f: &mut dyn Read) -> std::i
                     values.push(allocator.new_atom(&b));
                 } else {
                     let blob_size = decode_size(f, b[0])?;
-                    let mut blob: Vec<u8> = vec![0; blob_size];
+                    let mut blob: Vec<u8> = vec![0; blob_size as usize];
                     f.read_exact(&mut blob)?;
                     values.push(allocator.new_atom(&blob));
                 }
