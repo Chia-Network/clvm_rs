@@ -8,7 +8,7 @@ on:
 
 jobs:
   build_wheels:
-    name: Build wheel on ${{ matrix.os }}
+    name: Wheel on ${{ matrix.os }} py-${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -24,7 +24,17 @@ jobs:
     - uses: actions/setup-python@v1
       name: Install Python
       with:
-        python-version: '3.8'
+        python-version: 3.7
+
+    - uses: actions/setup-python@v1
+      name: Install Python
+      with:
+        python-version: 3.9
+
+    - uses: actions/setup-python@v1
+      name: Install Python
+      with:
+        python-version: 3.8
 
     - name: Update pip
       run: |
