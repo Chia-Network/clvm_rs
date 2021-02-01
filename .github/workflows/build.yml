@@ -105,6 +105,36 @@ jobs:
         cd clvm_tools
         python -m py.test tests
 
+    - name: Install Twine
+      run: pip install twine
+
+    - name: Test for secrets access
+      id: check_secrets
+      shell: bash
+      run: |
+        unset HAS_SECRET
+        if [ -n "$SECRET" ]; then HAS_SECRET='true' ; fi
+        echo ::set-output name=HAS_SECRET::${HAS_SECRET}
+      env:
+        SECRET: "${{ secrets.test_pypi_password }}"
+
+    - name: publish (PyPi)
+      if: startsWith(github.event.ref, 'refs/tags') && steps.check_secrets.outputs.HAS_SECRET
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_NON_INTERACTIVE: 1
+        TWINE_PASSWORD: ${{ secrets.pypi_password }}
+      run: twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
+
+    - name: publish (Test PyPi)
+      if: steps.check_secrets.outputs.HAS_SECRET
+      env:
+        TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
+        TWINE_USERNAME: __token__
+        TWINE_NON_INTERACTIVE: 1
+        TWINE_PASSWORD: ${{ secrets.test_pypi_password }}
+      run: twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
+
   checks:
     runs-on: ubuntu-20.04
     name: Checks
@@ -133,8 +163,7 @@ jobs:
       - name: Install rust
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: nightly
-            override: true
+            toolchain: stable
             components: rustfmt, clippy
       - name: cargo test
         run: cargo test --no-default-features
