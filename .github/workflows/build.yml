@@ -1,4 +1,4 @@
-name: Build
+name: Build Python-${{ matrix.python }} wheel on ${{ matrix.os }}
 
 on:
   push:
@@ -17,24 +17,14 @@ jobs:
 
     steps:
 
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
       with:
         fetch-depth: 1
 
-    - uses: actions/setup-python@v1
+    - uses: actions/setup-python@v2
       name: Install Python
       with:
-        python-version: 3.7
-
-    - uses: actions/setup-python@v1
-      name: Install Python
-      with:
-        python-version: 3.9
-
-    - uses: actions/setup-python@v1
-      name: Install Python
-      with:
-        python-version: 3.8
+        python-version: ${{ matrix.python }}
 
     - name: Update pip
       run: |
@@ -49,15 +39,10 @@ jobs:
       run: |
           python -m pip install maturin
 
-    - name: Build with maturin
+    - name: Build with maturin - ${{ matrix.os }}
+      if: matrix.os = 'Linux'
       run: |
         maturin build --release --manylinux 2010
-
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v1
-      with:
-        name: wheels
-        path: ./target/wheels/
 
     - name: Create python venv
       if: matrix.os != 'windows-latest'
@@ -67,14 +52,21 @@ jobs:
         . ./activate
         maturin develop --release
 
-    - name: Install wheel on windows
+    - name: Create python venv Windows
       if: matrix.os == 'windows-latest'
       run: |
-        echo ${env:PATH}
         python -m venv venv
-        echo "" > activate
-        # on win32, `activate` is blank
-        python -m pip install target/wheels/clvm_rs-*-cp38-none-win_amd64.whl
+        . .\venv\Scripts\Activate.ps1
+        maturin develop --release
+
+#    - name: Install wheel on windows
+#      if: matrix.os == 'windows-latest'
+#      run: |
+#        echo ${env:PATH}
+#        python -m venv venv
+#        echo "" > activate
+       # on win32, `activate` is blank
+#        python -m pip install target/wheels/clvm_rs-*-cp38-none-win_amd64.whl
 
     - name: Install clvm_rs into venv for tests
       run: |
@@ -118,6 +110,12 @@ jobs:
         . ./activate
         cd clvm_tools
         python -m py.test tests
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: wheels
+        path: ./target/wheels/
 
     - name: Install Twine
       run: pip install twine
