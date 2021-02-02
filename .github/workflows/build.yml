@@ -74,7 +74,7 @@ jobs:
         python -m venv venv
         echo "" > activate
         # on win32, `activate` is blank
-        python -m pip install target/wheels/clvm_rs-0.1.0-cp38-none-win_amd64.whl
+        python -m pip install target/wheels/clvm_rs-*-cp38-none-win_amd64.whl
 
     - name: Install clvm_rs into venv for tests
       run: |
