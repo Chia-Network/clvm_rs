@@ -1,6 +1,9 @@
 name: Build Mac, Linux, and Windows wheels
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
 
 jobs:
   build_wheels:
