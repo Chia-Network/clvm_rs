@@ -10,9 +10,9 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest]
+        python: [3.7, 3.8, 3.9]
 
     steps:
-
     - uses: actions/checkout@v2
       with:
         fetch-depth: 1
@@ -35,16 +35,16 @@ jobs:
       run: |
           python -m pip install maturin
 
-    - name: Build MacOs with maturin
-      if: startsWith(matrix.os, 'mac')
+    - name: Build MacOs with maturin on Python ${{ matrix.python }}
+      if: startsWith(matrix.os, 'macos')
       run: |
-        python -m venv venv
+        python3 -m venv venv
         ln -s venv/bin/activate
         . ./activate
         maturin develop --release
 
-    - name: Build Linux with maturin
-      if: startsWith(matrix.os, 'linux')
+    - name: Build Linux with maturin on Python ${{ matrix.python }}
+      if: startsWith(matrix.os, 'ubuntu')
       run: |
         python -m venv venv
         ln -s venv/bin/activate
