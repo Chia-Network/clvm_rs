@@ -40,7 +40,7 @@ jobs:
       run: |
         python -m venv venv
         . .\venv\Scripts\Activate.ps1
-        maturin develop --release
+        maturin build -i python${{ matrix.python }} --release
         dir
         dir target/
 
@@ -48,7 +48,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: wheels
-        path: ./target/wheels/
+        path: ./target/release/
 
     - name: Install Twine
       run: pip install twine
@@ -69,7 +69,7 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_NON_INTERACTIVE: 1
         TWINE_PASSWORD: ${{ secrets.pypi_password }}
-      run: twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
+      run: twine upload --non-interactive --skip-existing --verbose 'target/release/*'
 
     - name: publish (Test PyPi)
       if: steps.check_secrets.outputs.HAS_SECRET
@@ -78,4 +78,4 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_NON_INTERACTIVE: 1
         TWINE_PASSWORD: ${{ secrets.test_pypi_password }}
-      run: twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
+      run: twine upload --non-interactive --skip-existing --verbose 'target/release/*'
