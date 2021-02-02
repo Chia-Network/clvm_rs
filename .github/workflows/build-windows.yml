@@ -42,6 +42,7 @@ jobs:
         . .\venv\Scripts\Activate.ps1
         maturin develop --release
         dir
+        dir target/
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
