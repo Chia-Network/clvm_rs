@@ -38,7 +38,7 @@ jobs:
     - name: Build MacOs with maturin on Python ${{ matrix.python }}
       if: startsWith(matrix.os, 'macos')
       run: |
-        python3 -m venv venv
+        python -m venv venv
         ln -s venv/bin/activate
         . ./activate
         maturin build -i python${{ matrix.python }} --release
