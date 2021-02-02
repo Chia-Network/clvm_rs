@@ -51,6 +51,14 @@ jobs:
         . ./activate
         maturin build -i python --release --manylinux 2010
 
+    - name: Build Windows with maturin on Python ${{ matrix.python }}
+      if: startsWith(matrix.os, 'windows')
+      run: |
+        python -m venv venv
+        . .\venv\Scripts\Activate.ps1
+        ln -s venv\Scripts\Activate.ps1 activate
+        maturin build --interpreter python --release
+
     - name: Install dependencies
       run: |
         . ./activate
