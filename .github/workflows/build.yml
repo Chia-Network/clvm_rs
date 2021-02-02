@@ -18,7 +18,7 @@ jobs:
         fetch-depth: 1
 
     - uses: actions/setup-python@v2
-      name: Install Python
+      name: Install Python ${{ matrix.python }}
       with:
         python-version: ${{ matrix.python }}
 
