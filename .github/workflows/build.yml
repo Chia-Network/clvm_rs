@@ -53,9 +53,10 @@ jobs:
 
     - name: Install dependencies
       run: |
-          . ./activate
-          python -m pip install pytest
-          python -m pip install blspy
+        . ./activate
+        pip install target/wheels/clvm_rs-*.whl
+        python -m pip install pytest
+        python -m pip install blspy
 
     - name: install clvm & clvm_tools
       run: |
