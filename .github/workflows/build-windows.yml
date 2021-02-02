@@ -40,7 +40,7 @@ jobs:
       run: |
         python -m venv venv
         . .\venv\Scripts\Activate.ps1
-        maturin build --release
+        maturin build --interpreter python --release
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
