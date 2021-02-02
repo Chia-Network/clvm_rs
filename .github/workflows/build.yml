@@ -1,4 +1,4 @@
-name: Build wheels
+name: Build Mac and Linux wheels
 
 on: [push, pull_request]
 
@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-18.04]
+        os: [macos-latest, ubuntu-latest]
 
     steps:
 
@@ -50,13 +50,6 @@ jobs:
         ln -s venv/bin/activate
         . ./activate
         maturin build --release --manylinux 2010
-
-    - name: Install clvm_rs into venv for tests
-      if: ! startsWith(matrix.os, 'windows')
-      run: |
-        . ./activate
-        echo $VIRTUAL_ENV
-        python -m pip install maturin
 
     - name: Install dependencies
       run: |
