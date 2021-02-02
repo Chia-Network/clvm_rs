@@ -1,4 +1,4 @@
-name: Build Mac and Linux wheels
+name: Build Mac, Linux, and Windows wheels
 
 on: [push, pull_request]
 
@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest]
+        os: [macos-latest, ubuntu-latest, windows-latest]
         python: [3.7, 3.8, 3.9]
 
     steps:
@@ -50,6 +50,14 @@ jobs:
         ln -s venv/bin/activate
         . ./activate
         maturin build -i python --release --manylinux 2010
+
+    - name: Build Windows with maturin on Python ${{ matrix.python }}
+      if: startsWith(matrix.os, 'windows')
+      run: |
+        python -m venv venv
+        . .\venv\Scripts\Activate.ps1
+        ln -s venv\Scripts\Activate.ps1 activate
+        maturin build --interpreter python --release
 
     - name: Install dependencies
       run: |
