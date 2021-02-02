@@ -1,4 +1,4 @@
-name: Build Python-${{ matrix.python }} wheel on ${{ matrix.os }}
+name: Build wheels
 
 on: [push, pull_request]
 
