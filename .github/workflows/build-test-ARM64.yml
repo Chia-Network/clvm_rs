@@ -1,0 +1,117 @@
+name: Build ARM64 wheels
+
+on: [push, pull_request]
+
+jobs:
+  build_wheels:
+    name: ARM64 Wheel on py-${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    container: quay.io/pypa/manylinux2014_aarch64
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: [3.7, 3.8, 3.9]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+
+    - uses: actions/setup-python@v2
+      name: Install Python ${{ matrix.python }}
+      with:
+        python-version: ${{ matrix.python }}
+
+    - name: Update pip
+      run: |
+          python -m pip install --upgrade pip
+
+    - name: Set up rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+
+    - name: Install dependencies
+      run: |
+          python -m pip install maturin
+
+    - name: Build Linux ARM64 with maturin on Python ${{ matrix.python }}
+      run: |
+        python -m venv venv
+        ln -s venv/bin/activate
+        . ./activate
+        maturin build -i python --release --manylinux 2014
+
+    - name: Install dependencies
+      run: |
+        . ./activate
+        pip install target/wheels/clvm_rs-*.whl
+        python -m pip install pytest
+        python -m pip install blspy
+
+    - name: install clvm & clvm_tools
+      run: |
+        . ./activate
+        git clone https://github.com/Chia-Network/clvm.git --branch=use_clvm_rs --single-branch
+        python -m pip install ./clvm
+
+        git clone https://github.com/Chia-Network/clvm_tools.git --branch=develop --single-branch
+        python -m pip install ./clvm_tools
+
+    - name: Ensure clvm, clvm_rs, clvm_tools are installed
+      run: |
+        . ./activate
+        python -c 'import clvm'
+        python -c 'import clvm; print(clvm.__file__)'
+        python -c 'import clvm_rs; print(clvm_rs.__file__)'
+        python -c 'import clvm_tools; print(clvm_tools.__file__)'
+
+    - name: Run tests from clvm
+      run: |
+        . ./activate
+        cd clvm
+        python -m py.test tests
+
+    - name: Run tests from clvm_tools
+      continue-on-error: true
+      run: |
+        . ./activate
+        cd clvm_tools
+        python -m py.test tests
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: wheels
+        path: ./target/wheels/
+
+    - name: Install Twine
+      run: pip install twine
+
+    - name: Test for secrets access
+      id: check_secrets
+      shell: bash
+      run: |
+        unset HAS_SECRET
+        if [ -n "$SECRET" ]; then HAS_SECRET='true' ; fi
+        echo ::set-output name=HAS_SECRET::${HAS_SECRET}
+      env:
+        SECRET: "${{ secrets.test_pypi_password }}"
+
+    - name: publish (PyPi)
+      if: startsWith(github.event.ref, 'refs/tags') && steps.check_secrets.outputs.HAS_SECRET
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_NON_INTERACTIVE: 1
+        TWINE_PASSWORD: ${{ secrets.pypi_password }}
+      run: twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
+
+    - name: publish (Test PyPi)
+      if: steps.check_secrets.outputs.HAS_SECRET
+      env:
+        TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
+        TWINE_USERNAME: __token__
+        TWINE_NON_INTERACTIVE: 1
+        TWINE_PASSWORD: ${{ secrets.test_pypi_password }}
+      run: twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
