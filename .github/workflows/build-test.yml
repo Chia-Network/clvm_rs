@@ -1,4 +1,4 @@
-name: Build Mac and Linux wheels
+name: Build Mac, Linux, and Windows wheels
 
 on: [push, pull_request]
 
