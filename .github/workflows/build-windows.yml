@@ -40,7 +40,7 @@ jobs:
       run: |
         python -m venv venv
         . .\venv\Scripts\Activate.ps1
-        maturin build -i python${{ matrix.python }} --release
+        maturin build --release
         dir
         dir target/
 
