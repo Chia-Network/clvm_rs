@@ -41,7 +41,7 @@ jobs:
         python -m venv venv
         ln -s venv/bin/activate
         . ./activate
-        maturin build -i python${{ matrix.python }} --release
+        maturin build -i python --release
 
     - name: Build Linux with maturin on Python ${{ matrix.python }}
       if: startsWith(matrix.os, 'ubuntu')
@@ -49,7 +49,7 @@ jobs:
         python -m venv venv
         ln -s venv/bin/activate
         . ./activate
-        maturin build -i python${{ matrix.python }} --release --manylinux 2010
+        maturin build -i python --release --manylinux 2010
 
     - name: Install dependencies
       run: |
