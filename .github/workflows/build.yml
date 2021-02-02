@@ -1,10 +1,6 @@
-name: Build
+name: Build Mac and Linux wheels
 
-on:
-  push:
-    branches: [ main, dev ]
-  pull_request:
-
+on: [push, pull_request]
 
 jobs:
   build_wheels:
@@ -13,28 +9,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-18.04, windows-latest]
+        os: [macos-latest, ubuntu-latest]
+        python: [3.7, 3.8, 3.9]
 
     steps:
-
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
       with:
         fetch-depth: 1
 
-    - uses: actions/setup-python@v1
-      name: Install Python
+    - uses: actions/setup-python@v2
+      name: Install Python ${{ matrix.python }}
       with:
-        python-version: 3.7
-
-    - uses: actions/setup-python@v1
-      name: Install Python
-      with:
-        python-version: 3.9
-
-    - uses: actions/setup-python@v1
-      name: Install Python
-      with:
-        python-version: 3.8
+        python-version: ${{ matrix.python }}
 
     - name: Update pip
       run: |
@@ -49,45 +35,28 @@ jobs:
       run: |
           python -m pip install maturin
 
-    - name: Build with maturin
-      run: |
-        maturin build --release --manylinux 2010
-
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v1
-      with:
-        name: wheels
-        path: ./target/wheels/
-
-    - name: Create python venv
-      if: matrix.os != 'windows-latest'
+    - name: Build MacOs with maturin on Python ${{ matrix.python }}
+      if: startsWith(matrix.os, 'macos')
       run: |
         python -m venv venv
         ln -s venv/bin/activate
         . ./activate
-        maturin develop --release
+        maturin build -i python --release
 
-    - name: Install wheel on windows
-      if: matrix.os == 'windows-latest'
+    - name: Build Linux with maturin on Python ${{ matrix.python }}
+      if: startsWith(matrix.os, 'ubuntu')
       run: |
-        echo ${env:PATH}
         python -m venv venv
-        echo "" > activate
-        # on win32, `activate` is blank
-        python -m pip install target/wheels/clvm_rs-0.1.0-cp38-none-win_amd64.whl
-
-    - name: Install clvm_rs into venv for tests
-      run: |
+        ln -s venv/bin/activate
         . ./activate
-        echo $VIRTUAL_ENV
-        python -m pip install maturin
-        # maturin develop --release
+        maturin build -i python --release --manylinux 2010
 
     - name: Install dependencies
       run: |
-          . ./activate
-          python -m pip install pytest
-          python -m pip install blspy
+        . ./activate
+        pip install target/wheels/clvm_rs-*.whl
+        python -m pip install pytest
+        python -m pip install blspy
 
     - name: install clvm & clvm_tools
       run: |
@@ -118,6 +87,12 @@ jobs:
         . ./activate
         cd clvm_tools
         python -m py.test tests
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: wheels
+        path: ./target/wheels/
 
     - name: Install Twine
       run: pip install twine
