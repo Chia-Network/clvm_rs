@@ -6,25 +6,26 @@ jobs:
   build_wheels:
     name: ARM64 Wheel on py-${{ matrix.python }}
     runs-on: ubuntu-latest
-    container:
-      image: quay.io/pypa/manylinux2014_aarch64
     strategy:
-      fail-fast: false
       matrix:
         python: [37, 38, 39]
 #        os: [ubuntu-latest]
 
     steps:
-    - name: Checkout repository
-      run: |
-        git clone https://github.com/Chia-Network/clvm_rs.git
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+      with:
+        platforms: arm64
 
-    - name: Set up rust
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+
+    - name: Run manylinux2014_aarch64
+      uses: docker://quay.io/pypa/manylinux2014_aarch64
       run: |
         curl https://sh.rustup.rs -sSf | sh
-
-    - name: Build Linux ARM64 with maturin on Python ${{ matrix.python }}
-      run: |
         cd clvm_rs
         /opt/python/cp${{ matrix.python }}-${{ matrix.python }}mu/python -m venv venv
         ln -s venv/bin/activate
