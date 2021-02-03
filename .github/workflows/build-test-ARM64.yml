@@ -5,80 +5,29 @@ on: [push, pull_request]
 jobs:
   build_wheels:
     name: ARM64 Wheel on py-${{ matrix.python }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     container: quay.io/pypa/manylinux2014_aarch64
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
-        python: [3.7, 3.8, 3.9]
+        python: [37, 38, 39]
+#        os: [ubuntu-latest]
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 1
-
-    - uses: actions/setup-python@v2
-      name: Install Python ${{ matrix.python }}
-      with:
-        python-version: ${{ matrix.python }}
-
-    - name: Update pip
-      run: |
-          python -m pip install --upgrade pip
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
     - name: Set up rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-
-    - name: Install dependencies
       run: |
-          python -m pip install maturin
+        curl https://sh.rustup.rs -sSf | sh
 
     - name: Build Linux ARM64 with maturin on Python ${{ matrix.python }}
       run: |
-        python -m venv venv
+        /opt/python/cp${{ matrix.python }}-${{ matrix.python }}mu/python -m venv venv
         ln -s venv/bin/activate
         . ./activate
+        pip install maturin
         maturin build -i python --release --manylinux 2014
-
-    - name: Install dependencies
-      run: |
-        . ./activate
-        pip install target/wheels/clvm_rs-*.whl
-        python -m pip install pytest
-        python -m pip install blspy
-
-    - name: install clvm & clvm_tools
-      run: |
-        . ./activate
-        git clone https://github.com/Chia-Network/clvm.git --branch=use_clvm_rs --single-branch
-        python -m pip install ./clvm
-
-        git clone https://github.com/Chia-Network/clvm_tools.git --branch=develop --single-branch
-        python -m pip install ./clvm_tools
-
-    - name: Ensure clvm, clvm_rs, clvm_tools are installed
-      run: |
-        . ./activate
-        python -c 'import clvm'
-        python -c 'import clvm; print(clvm.__file__)'
-        python -c 'import clvm_rs; print(clvm_rs.__file__)'
-        python -c 'import clvm_tools; print(clvm_tools.__file__)'
-
-    - name: Run tests from clvm
-      run: |
-        . ./activate
-        cd clvm
-        python -m py.test tests
-
-    - name: Run tests from clvm_tools
-      continue-on-error: true
-      run: |
-        . ./activate
-        cd clvm_tools
-        python -m py.test tests
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
