@@ -22,16 +22,17 @@ jobs:
       with:
         fetch-depth: 1
 
-    - name: Run manylinux2014_aarch64
-      uses: docker://quay.io/pypa/manylinux2014_aarch64
-      run: |
-        curl https://sh.rustup.rs -sSf | sh
-        cd clvm_rs
-        /opt/python/cp${{ matrix.python }}-${{ matrix.python }}mu/python -m venv venv
-        ln -s venv/bin/activate
-        . ./activate
-        pip install maturin
-        maturin build -i python --release --manylinux 2014
+    - uses: addnab/docker-run-action@v1
+      with:
+        image: docker://quay.io/pypa/manylinux2014_aarch64
+        run: |
+          curl https://sh.rustup.rs -sSf | sh
+          cd clvm_rs
+          /opt/python/cp${{ matrix.python }}-${{ matrix.python }}mu/python -m venv venv
+          ln -s venv/bin/activate
+          . ./activate
+          pip install maturin
+          maturin build -i python --release --manylinux 2014
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
