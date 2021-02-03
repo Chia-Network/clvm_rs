@@ -16,7 +16,8 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      run: |
+        git clone https://github.com/Chia-Network/clvm_rs.git
 
     - name: Set up rust
       run: |
@@ -24,6 +25,7 @@ jobs:
 
     - name: Build Linux ARM64 with maturin on Python ${{ matrix.python }}
       run: |
+        cd clvm_rs
         /opt/python/cp${{ matrix.python }}-${{ matrix.python }}mu/python -m venv venv
         ln -s venv/bin/activate
         . ./activate
@@ -34,7 +36,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: wheels
-        path: ./target/wheels/
+        path: clvm_rs/target/wheels/
 
     - name: Install Twine
       run: pip install twine
@@ -55,7 +57,7 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_NON_INTERACTIVE: 1
         TWINE_PASSWORD: ${{ secrets.pypi_password }}
-      run: twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
+      run: twine upload --non-interactive --skip-existing --verbose 'clvm_rs/target/wheels/*'
 
     - name: publish (Test PyPi)
       if: steps.check_secrets.outputs.HAS_SECRET
@@ -64,4 +66,4 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_NON_INTERACTIVE: 1
         TWINE_PASSWORD: ${{ secrets.test_pypi_password }}
-      run: twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
+      run: twine upload --non-interactive --skip-existing --verbose 'clvm_rs/target/wheels/*'
