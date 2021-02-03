@@ -6,7 +6,8 @@ jobs:
   build_wheels:
     name: ARM64 Wheel on py-${{ matrix.python }}
     runs-on: ubuntu-latest
-    container: quay.io/pypa/manylinux2014_aarch64
+    container:
+      image: quay.io/pypa/manylinux2014_aarch64
     strategy:
       fail-fast: false
       matrix:
