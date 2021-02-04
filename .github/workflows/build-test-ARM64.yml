@@ -5,34 +5,37 @@ on: [push, pull_request]
 jobs:
   build_wheels:
     name: ARM64 Wheel on py-${{ matrix.python }}
-    runs-on: ubuntu-latest
+    runs-on: ARM64
     strategy:
       matrix:
         python: [37, 38, 39]
 #        os: [ubuntu-latest]
 
     steps:
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
-      with:
-        platforms: arm64
-
     - name: Checkout repository
       uses: actions/checkout@v2
       with:
         fetch-depth: 1
 
-    - uses: addnab/docker-run-action@v1
-      with:
-        image: docker://quay.io/pypa/manylinux2014_aarch64
-        run: |
-          curl https://sh.rustup.rs -sSf | sh
-          cd clvm_rs
-          /opt/python/cp${{ matrix.python }}-${{ matrix.python }}mu/python -m venv venv
-          ln -s venv/bin/activate
-          . ./activate
-          pip install maturin
-          maturin build -i python --release --manylinux 2014
+    - name: Build and test wheels
+      run: |
+        podman run --rm \
+          quay.io/pypa/manylinux2014_aarch64 \
+          bash -exc '\
+            curl https://sh.rustup.rs -sSf | sh && \
+            /opt/python/${{ matrix.name }}/bin/pip wheel \
+              --no-deps --wheel-dir /tmp/wheels --no-binary :all: \
+              argon2-cffi==${{ github.event.inputs.version }} && \
+            auditwheel repair /tmp/wheels/* --wheel-dir /dist && \
+            find /dist -type f | xargs --verbose --replace unzip -l {} \
+          '
+        curl https://sh.rustup.rs -sSf | sh
+        cd clvm_rs
+        /opt/python/cp${{ matrix.python }}-${{ matrix.python }}mu/python -m venv venv
+        ln -s venv/bin/activate
+        . ./activate
+        pip install maturin
+        maturin build -i python --release --manylinux 2014
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
