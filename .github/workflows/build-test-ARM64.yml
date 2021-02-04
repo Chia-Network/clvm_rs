@@ -23,7 +23,7 @@ jobs:
           quay.io/pypa/manylinux2014_aarch64 \
           bash -exc '\
             curl https://sh.rustup.rs -sSf | sh && \
-            /opt/python/${{ matrix.name }}/bin/pip wheel \
+            /opt/python/${{ matrix.python }}/bin/pip wheel \
               --no-deps --wheel-dir /tmp/wheels --no-binary :all: \
               argon2-cffi==${{ github.event.inputs.version }} && \
             auditwheel repair /tmp/wheels/* --wheel-dir /dist && \
