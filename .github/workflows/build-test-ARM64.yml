@@ -35,8 +35,8 @@ jobs:
             curl -L https://sh.rustup.rs > rustup.rs && \
             chmod +x rustup.rs && \
             ./rustup.rs -y && \
-            ls -l /opt/python/cp37-cp37m && \
-            /opt/python/cp37-cp37m/python \
+            ls -l /opt/python/cp37-cp37m/ && \
+            /opt/python/cp37-cp37m/bin/python \
               -m venv venv && \
               ln -s venv/bin/activate && \
               . ./activate && \
@@ -52,8 +52,8 @@ jobs:
             curl -L https://sh.rustup.rs > rustup.rs && \
             chmod +x rustup.rs && \
             ./rustup.rs -y && \
-            ls -l /opt/python/ && \
-            /opt/python/cp38-cp38m/python \
+            ls -l /opt/python/cp38-cp38m/ && \
+            /opt/python/cp38-cp38m/bin/python \
               -m venv venv && \
               ln -s venv/bin/activate && \
               . ./activate && \
