@@ -1,7 +1,16 @@
 name: Build Mac, Linux, and Windows wheels
 
-on: [pull_request]
-
+on:
+  push:
+    branches:
+      - main
+      - dev
+    tags:
+        - '**'
+  pull_request:
+    branches:
+      - '**'
+      
 jobs:
   build_wheels:
     name: Wheel on ${{ matrix.os }} py-${{ matrix.python }}
