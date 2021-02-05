@@ -35,6 +35,7 @@ jobs:
             curl -L https://sh.rustup.rs > rustup.rs && \
             chmod +x rustup.rs && \
             ./rustup.rs -y && \
+            export PATH=$HOME/.cargo/bin:$PATH && \
             ls -l /opt/python/cp37-cp37m/ && \
             /opt/python/cp37-cp37m/bin/python \
               -m venv venv && \
@@ -52,6 +53,7 @@ jobs:
             curl -L https://sh.rustup.rs > rustup.rs && \
             chmod +x rustup.rs && \
             ./rustup.rs -y && \
+            export PATH=$HOME/.cargo/bin:$PATH && \
             ls -l /opt/python/cp38-cp38m/ && \
             /opt/python/cp38-cp38m/bin/python \
               -m venv venv && \
