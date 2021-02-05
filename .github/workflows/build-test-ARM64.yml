@@ -87,7 +87,11 @@ jobs:
         path: target/wheels/
 
     - name: Install Twine
-      run: pip install twine
+      run: |
+        python3 -m venv venv
+        if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi
+        . ./activate
+        pip install twine
 
     - name: Test for secrets access
       id: check_secrets
@@ -105,7 +109,9 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_NON_INTERACTIVE: 1
         TWINE_PASSWORD: ${{ secrets.pypi_password }}
-      run: twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
+      run: |
+        . ./activate
+        twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
 
     - name: publish (Test PyPi)
       if: steps.check_secrets.outputs.HAS_SECRET
@@ -114,4 +120,11 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_NON_INTERACTIVE: 1
         TWINE_PASSWORD: ${{ secrets.test_pypi_password }}
-      run: twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
+      run: |
+        . ./activate
+        twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
+
+    - name: Clean up
+      run: |
+        rm -rf venv
+        rm -rf target
