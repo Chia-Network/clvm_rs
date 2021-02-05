@@ -19,23 +19,17 @@ jobs:
 
     - name: Build and test wheels
       run: |
-        podman run --rm \
+        podman run --rm=true \
           quay.io/pypa/manylinux2014_aarch64 \
           bash -exc '\
             curl https://sh.rustup.rs -sSf | sh && \
-            /opt/python/${{ matrix.python }}/bin/pip wheel \
-              --no-deps --wheel-dir /tmp/wheels --no-binary :all: \
-              argon2-cffi==${{ github.event.inputs.version }} && \
-            auditwheel repair /tmp/wheels/* --wheel-dir /dist && \
-            find /dist -type f | xargs --verbose --replace unzip -l {} \
+            /opt/python/${{ matrix.python }}-${{ matrix.python }}/python \
+              -m venv venv && \
+              ln -s venv/bin/activate && \
+              . ./activate && \
+            pip install maturin && \
+            maturin build -i python --release --manylinux 2014 \
           '
-        curl https://sh.rustup.rs -sSf | sh
-        cd clvm_rs
-        /opt/python/cp${{ matrix.python }}-${{ matrix.python }}mu/python -m venv venv
-        ln -s venv/bin/activate
-        . ./activate
-        pip install maturin
-        maturin build -i python --release --manylinux 2014
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
