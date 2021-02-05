@@ -29,8 +29,10 @@ jobs:
 
     - name: Build and test Python 3.7 wheels
       run: |
+        mkdir dist
         podman run --rm=true \
-          quay.io/pypa/manylinux2014_aarch64 \
+          -v $PWD/dist:/dist:rw \
+          pypywheels/manylinux2014-pypy_aarch64 \
           bash -exc '\
             curl -L https://sh.rustup.rs > rustup.rs && \
             chmod +x rustup.rs && \
@@ -42,7 +44,8 @@ jobs:
             . ./activate && \
             ls -l && \
             pip install maturin && \
-            maturin build -i python --release --manylinux 2014 \
+            maturin build -i python --release --manylinux 2014 && \
+            cp target/wheels/clvm_rs-*.whl /dist
           '
 
     - name: Build and test Python 3.8 wheels
