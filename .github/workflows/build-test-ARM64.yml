@@ -1,6 +1,6 @@
 name: Build ARM64 wheels
 
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
   build_wheels:
