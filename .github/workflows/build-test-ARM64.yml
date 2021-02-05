@@ -54,6 +54,7 @@ jobs:
             chmod +x rustup.rs && \
             ./rustup.rs -y && \
             export PATH=$HOME/.cargo/bin:$PATH && \
+            rm -rf venv && \
             /opt/python/cp38-cp38/bin/python -m venv venv && \
             if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
             . ./activate && \
@@ -71,6 +72,7 @@ jobs:
             chmod +x rustup.rs && \
             ./rustup.rs -y && \
             export PATH=$HOME/.cargo/bin:$PATH && \
+            rm -rf venv && \
             /opt/python/cp39-cp39/bin/python -m venv venv && \
             if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
             . ./activate && \
