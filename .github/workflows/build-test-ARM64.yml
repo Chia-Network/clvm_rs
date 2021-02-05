@@ -31,7 +31,7 @@ jobs:
       run: |
         mkdir dist
         podman run --rm=true \
-          -v $PWD/dist:/dist:rw \
+          -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
           quay.io/pypa/manylinux2014_aarch64 \
           bash -exc '\
             curl -L https://sh.rustup.rs > rustup.rs && \
