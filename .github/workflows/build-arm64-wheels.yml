@@ -51,7 +51,7 @@ jobs:
             if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
             . ./activate && \
             pip install --extra-index-url https://download.chia.net/simple/ maturin && \
-            maturin build --release --manylinux 2014 \
+            maturin build --no-sdist --release --manylinux 2014 \
           '
 
     - name: Upload artifacts
