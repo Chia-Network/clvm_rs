@@ -92,7 +92,7 @@ jobs:
         sudo apt-get install python3-venv python3-pip -y
         python3 -m venv venv
         if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi
-        . ,/activate
+        . ./activate
         pip install twine
 
     - name: Test for secrets access
