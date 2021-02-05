@@ -26,7 +26,7 @@ jobs:
         fetch-depth: 1
 
     - name: Set up QEMU
-      if: ! startsWith(matrix.os, 'ARM64')
+      if: startsWith(matrix.os, 'ubuntu-latest')
       id: qemu
       uses: docker/setup-qemu-action@v1
       with:
