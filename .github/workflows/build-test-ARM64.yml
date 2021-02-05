@@ -16,7 +16,7 @@ jobs:
   build_wheels:
     name: ARM64 Wheel on py-${{ matrix.python }}
     runs-on: ARM64
-    strategy:
+#    strategy:
 #      matrix:
 #        python: [37, 38, 39]
 #        os: [ubuntu-latest]
