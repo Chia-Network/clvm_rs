@@ -32,7 +32,7 @@ jobs:
         mkdir dist
         podman run --rm=true \
           -v $PWD/dist:/dist:rw \
-          pypywheels/manylinux2014-pypy_aarch64 \
+          quay.io/pypa/manylinux2014_aarch64 \
           bash -exc '\
             curl -L https://sh.rustup.rs > rustup.rs && \
             chmod +x rustup.rs && \
