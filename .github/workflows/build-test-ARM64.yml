@@ -35,7 +35,7 @@ jobs:
             uname -a && \
             curl -L https://sh.rustup.rs > rustup.rs && \
             chmod +x rustup.rs && \
-            ./rustup.rs -yes && \
+            ./rustup.rs -y && \
             ls -l /opt/python/ && \
             /opt/python/cp37-cp37/python \
               -m venv venv && \
