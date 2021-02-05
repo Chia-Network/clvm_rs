@@ -25,7 +25,7 @@ jobs:
       with:
         fetch-depth: 1
 
-    - name: Set up QEMU
+    - name: Set up QEMU on x86_64
       if: startsWith(matrix.os, 'ubuntu-latest')
       id: qemu
       uses: docker/setup-qemu-action@v1
@@ -100,7 +100,7 @@ jobs:
         . ./activate
         twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
 
-    - name: Clean up
+    - name: Clean up AMR64
       if: startsWith(matrix.os, 'ARM64')
       run: |
         rm -rf venv
