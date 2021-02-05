@@ -29,11 +29,11 @@ jobs:
 
     - name: Build and test Python 3.7 wheels
       run: |
-        sudo podman run --rm=true \
+        podman run --rm=true \
           quay.io/pypa/manylinux2014_aarch64 \
           bash -exc '\
             uname -a && \
-            curl https://sh.rustup.rs -sSf | sh -y && \
+            curl https://sh.rustup.rs -sSf | sh && \
             ls -l /opt/python/ && \
             /opt/python/cp37-cp37/python \
               -m venv venv && \
