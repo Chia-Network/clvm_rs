@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - dev
+      - arm64
     tags:
         - '**'
   pull_request:
