@@ -17,8 +17,8 @@ jobs:
     name: ARM64 Wheel on py-${{ matrix.python }}
     runs-on: ARM64
     strategy:
-      matrix:
-        python: [37, 38, 39]
+#      matrix:
+#        python: [37, 38, 39]
 #        os: [ubuntu-latest]
 
     steps:
@@ -27,13 +27,15 @@ jobs:
       with:
         fetch-depth: 1
 
-    - name: Build and test wheels
+    - name: Build and test Python 3.7 wheels
       run: |
-        podman run --rm=true \
+        sudo podman run --rm=true \
           quay.io/pypa/manylinux2014_aarch64 \
           bash -exc '\
-            curl https://sh.rustup.rs -sSf | sh && \
-            /opt/python/${{ matrix.python }}-${{ matrix.python }}/python \
+            uname -a && \
+            curl https://sh.rustup.rs -sSfy | sh && \
+            ls -l /opt/python/cp37-cp37/ && \
+            /opt/python/cp37-cp37/python \
               -m venv venv && \
               ln -s venv/bin/activate && \
               . ./activate && \
