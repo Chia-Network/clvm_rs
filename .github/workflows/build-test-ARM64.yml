@@ -37,10 +37,10 @@ jobs:
             ./rustup.rs -y && \
             export PATH=$HOME/.cargo/bin:$PATH && \
             ls -l /opt/python/cp37-cp37m/ && \
-            /opt/python/cp37-cp37m/bin/python \
-              -m venv venv && \
-              ln -s venv/bin/activate && \
-              . ./activate && \
+            /opt/python/cp37-cp37m/bin/python -m venv venv && \
+            ln -s venv/bin/activate && \
+            . ./activate && \
+            ls -l && \
             pip install maturin && \
             maturin build -i python --release --manylinux 2014 \
           '
@@ -57,8 +57,9 @@ jobs:
             ls -l /opt/python/cp38-cp38m/ && \
             /opt/python/cp38-cp38m/bin/python \
               -m venv venv && \
-              ln -s venv/bin/activate && \
-              . ./activate && \
+            ln -s venv/bin/activate && \
+            . ./activate && \
+
             pip install maturin && \
             maturin build -i python --release --manylinux 2014 \
           '
