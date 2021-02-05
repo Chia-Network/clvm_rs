@@ -10,7 +10,7 @@ on:
   pull_request:
     branches:
       - '**'
-      
+
 jobs:
   build_wheels:
     name: Wheel on ${{ matrix.os }} py-${{ matrix.python }}

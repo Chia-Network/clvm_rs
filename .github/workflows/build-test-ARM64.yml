@@ -5,7 +5,6 @@ on:
     branches:
       - main
       - dev
-      - arm64
     tags:
         - '**'
   pull_request:
@@ -14,12 +13,8 @@ on:
 
 jobs:
   build_wheels:
-    name: ARM64 Wheel on py-${{ matrix.python }}
+    name: ARM64 Python Wheels on ARM64 Runner
     runs-on: ARM64
-#    strategy:
-#      matrix:
-#        python: [37, 38, 39]
-#        os: [ubuntu-latest]
 
     steps:
     - name: Checkout repository
@@ -37,6 +32,7 @@ jobs:
             chmod +x rustup.rs && \
             ./rustup.rs -y && \
             export PATH=$HOME/.cargo/bin:$PATH && \
+            rm -rf venv && \
             /opt/python/cp37-cp37m/bin/python -m venv venv && \
             if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
             . ./activate && \
