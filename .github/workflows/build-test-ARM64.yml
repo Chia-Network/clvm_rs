@@ -38,33 +38,47 @@ jobs:
             chmod +x rustup.rs && \
             ./rustup.rs -y && \
             export PATH=$HOME/.cargo/bin:$PATH && \
-            ls -l /opt/python/cp37-cp37m/ && \
             /opt/python/cp37-cp37m/bin/python -m venv venv && \
             ln -s venv/bin/activate && \
             . ./activate && \
-            ls -l && \
             pip install maturin && \
             maturin build -i python --release --manylinux 2014 && \
-            cp target/wheels/clvm_rs-*.whl /dist
           '
 
     - name: Build and test Python 3.8 wheels
       run: |
+        mkdir dist
         podman run --rm=true \
+          -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
           quay.io/pypa/manylinux2014_aarch64 \
           bash -exc '\
             curl -L https://sh.rustup.rs > rustup.rs && \
             chmod +x rustup.rs && \
             ./rustup.rs -y && \
             export PATH=$HOME/.cargo/bin:$PATH && \
-            ls -l /opt/python/cp38-cp38m/ && \
-            /opt/python/cp38-cp38m/bin/python \
-              -m venv venv && \
+            /opt/python/cp38-cp38/bin/python -m venv venv && \
             ln -s venv/bin/activate && \
             . ./activate && \
-
             pip install maturin && \
-            maturin build -i python --release --manylinux 2014 \
+            maturin build -i python --release --manylinux 2014 && \
+          '
+
+    - name: Build and test Python 3.9 wheels
+      run: |
+        mkdir dist
+        podman run --rm=true \
+          -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
+          quay.io/pypa/manylinux2014_aarch64 \
+          bash -exc '\
+            curl -L https://sh.rustup.rs > rustup.rs && \
+            chmod +x rustup.rs && \
+            ./rustup.rs -y && \
+            export PATH=$HOME/.cargo/bin:$PATH && \
+            /opt/python/cp39-cp39/bin/python -m venv venv && \
+            ln -s venv/bin/activate && \
+            . ./activate && \
+            pip install maturin && \
+            maturin build -i python --release --manylinux 2014 && \
           '
 
 
@@ -72,7 +86,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: wheels
-        path: clvm_rs/target/wheels/
+        path: target/wheels/
 
     - name: Install Twine
       run: pip install twine
@@ -93,7 +107,7 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_NON_INTERACTIVE: 1
         TWINE_PASSWORD: ${{ secrets.pypi_password }}
-      run: twine upload --non-interactive --skip-existing --verbose 'clvm_rs/target/wheels/*'
+      run: twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
 
     - name: publish (Test PyPi)
       if: steps.check_secrets.outputs.HAS_SECRET
@@ -102,4 +116,4 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_NON_INTERACTIVE: 1
         TWINE_PASSWORD: ${{ secrets.test_pypi_password }}
-      run: twine upload --non-interactive --skip-existing --verbose 'clvm_rs/target/wheels/*'
+      run: twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
