@@ -40,7 +40,7 @@ jobs:
             ./rustup.rs -y && \
             export PATH=$HOME/.cargo/bin:$PATH && \
             rm -rf venv && \
-            export PATH=/opt/python/cp39-cp39m/bin/:$PATH && \
+            export PATH=/opt/python/cp39-cp39/bin/:$PATH && \
             export PATH=/opt/python/cp38-cp38/bin/:$PATH && \
             export PATH=/opt/python/cp37-cp37m/bin/:$PATH && \
             /opt/python/cp38-cp38/bin/python -m venv venv && \
