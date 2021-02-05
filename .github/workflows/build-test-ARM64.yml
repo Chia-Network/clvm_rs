@@ -42,7 +42,7 @@ jobs:
             ln -s venv/bin/activate && \
             . ./activate && \
             pip install maturin && \
-            maturin build -i python --release --manylinux 2014 && \
+            maturin build -i python --release --manylinux 2014 \
           '
 
     - name: Build and test Python 3.8 wheels
@@ -60,7 +60,7 @@ jobs:
             ln -s venv/bin/activate && \
             . ./activate && \
             pip install maturin && \
-            maturin build -i python --release --manylinux 2014 && \
+            maturin build -i python --release --manylinux 2014 \
           '
 
     - name: Build and test Python 3.9 wheels
@@ -78,7 +78,7 @@ jobs:
             ln -s venv/bin/activate && \
             . ./activate && \
             pip install maturin && \
-            maturin build -i python --release --manylinux 2014 && \
+            maturin build -i python --release --manylinux 2014 \
           '
 
 
