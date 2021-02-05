@@ -2,8 +2,14 @@ name: Build Mac, Linux, and Windows wheels
 
 on:
   push:
-    branches: [ main, dev ]
+    branches:
+      - main
+      - dev
+    tags:
+        - '**'
   pull_request:
+    branches:
+      - '**'
 
 jobs:
   build_wheels:
