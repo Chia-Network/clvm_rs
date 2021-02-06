@@ -4,7 +4,7 @@ use super::native_op_lookup::GenericNativeOpLookup;
 use super::py_node::PyNode;
 use crate::allocator::Allocator;
 use crate::node::Node;
-use crate::py::run_program::__pyo3_get_function_serialize_and_run_program;
+use crate::py::run_program::{__pyo3_get_function_serialize_and_run_program, STRICT_MODE};
 use crate::reduction::{EvalErr, Reduction};
 use crate::run_program::{run_program, OperatorHandler, PostEval, PreEval};
 use crate::serialize::{node_from_bytes, node_to_bytes};
@@ -169,6 +169,8 @@ fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(serialize_and_run_program, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_from_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_to_bytes, m)?)?;
+
+    m.add("STRICT_MODE", STRICT_MODE)?;
 
     m.add_class::<PyNode>()?;
     m.add_class::<NativeOpLookup>()?;
