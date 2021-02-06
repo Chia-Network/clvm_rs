@@ -1,0 +1,8 @@
+;(mod (point pow)
+;  (defun point_power (input pow)
+;    (if (= pow 1) input (point_add input (point_power input (- pow 1))))
+;  )
+;  (point_power point pow)
+;)
+
+((c (q ((c 2 (c 2 (c 5 (c 11 (q ()))))))) (c (q ((c (i (= 11 (q 1)) (q 5) (q (point_add 5 ((c 2 (c 2 (c 5 (c (- 11 (q 1)) (q ()))))))))) 1))) 1)))
