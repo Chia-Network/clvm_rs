@@ -1,5 +1,6 @@
 use crate::allocator::Allocator;
 use crate::int_allocator::IntAllocator;
+use crate::more_ops::op_unknown;
 use crate::node::Node;
 use crate::py::f_table::{make_f_lookup, FLookup};
 use crate::reduction::{EvalErr, Reduction};
@@ -13,7 +14,9 @@ lazy_static! {
     static ref F_TABLE: FLookup<IntAllocator> = make_f_lookup();
 }
 
-pub fn operator_handler2(
+pub const STRICT_MODE: u32 = 1;
+
+fn operator_strict_mode(
     allocator: &IntAllocator,
     op: &[u8],
     argument_list: &u32,
@@ -28,6 +31,21 @@ pub fn operator_handler2(
     allocator.err(&op_arg, "unimplemented operator")
 }
 
+fn operator_lenient_mode(
+    allocator: &IntAllocator,
+    op: &[u8],
+    args: &u32,
+) -> Result<Reduction<u32>, EvalErr<u32>> {
+    if op.len() == 1 {
+        if let Some(f) = F_TABLE[op[0] as usize] {
+            let node_t: Node<IntAllocator> = Node::new(allocator, *args);
+            return f(&node_t);
+        }
+    }
+
+    op_unknown(op, &Node::new(allocator, *args))
+}
+
 #[pyfunction]
 pub fn serialize_and_run_program(
     py: Python,
@@ -36,9 +54,14 @@ pub fn serialize_and_run_program(
     quote_kw: u8,
     apply_kw: u8,
     max_cost: u32,
+    flags: u32,
 ) -> PyResult<(u32, Py<PyBytes>)> {
     let allocator = IntAllocator::new();
-    let f: OperatorHandler<IntAllocator> = Box::new(operator_handler2);
+    let f: OperatorHandler<IntAllocator> = if (flags & STRICT_MODE) != 0 {
+        Box::new(operator_strict_mode)
+    } else {
+        Box::new(operator_lenient_mode)
+    };
 
     let program: u32 = node_from_bytes(&allocator, program).unwrap();
 

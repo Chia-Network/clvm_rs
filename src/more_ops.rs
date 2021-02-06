@@ -8,10 +8,11 @@ use std::ops::BitXorAssign;
 use lazy_static::lazy_static;
 
 use crate::allocator::Allocator;
+use crate::int_allocator::IntAllocator;
 use crate::node::Node;
 use crate::number::{node_from_number, number_from_u8, Number};
 use crate::op_utils::{atom, check_arg_count, int_atom, two_ints, uint_int};
-use crate::reduction::{Reduction, Response};
+use crate::reduction::{EvalErr, Reduction, Response};
 use crate::serialize::node_to_bytes;
 
 use sha2::{Digest, Sha256};
@@ -69,6 +70,228 @@ const PUBKEY_COST_PER_BYTE_DIVIDER: u32 = 4;
 
 fn limbs_for_int(v: &Number) -> u32 {
     ((v.bits() + 7) >> 3) as u32
+}
+
+fn u32_from_u8(mut buf: &[u8]) -> Option<u32> {
+    // skip leading zeroes
+    while !buf.is_empty() && buf[0] == 0 {
+        buf = &buf[1..];
+    }
+
+    if buf.is_empty() {
+        return Some(0);
+    }
+
+    // too many bytes for u32
+    if buf.len() > 4 {
+        return None;
+    }
+
+    let mut ret: u32 = 0;
+    for b in buf {
+        ret <<= 8;
+        ret |= *b as u32;
+    }
+    Some(ret)
+}
+
+#[test]
+fn test_u32_from_u8() {
+    assert_eq!(u32_from_u8(&[]), Some(0));
+    assert_eq!(u32_from_u8(&[0xcc]), Some(0xcc));
+    assert_eq!(u32_from_u8(&[0xcc, 0x55]), Some(0xcc55));
+    assert_eq!(u32_from_u8(&[0xcc, 0x55, 0x88]), Some(0xcc5588));
+    assert_eq!(u32_from_u8(&[0xcc, 0x55, 0x88, 0xf3]), Some(0xcc5588f3));
+
+    // leading zeros are stripped
+    assert_eq!(u32_from_u8(&[0x00]), Some(0));
+    assert_eq!(u32_from_u8(&[0x00, 0x00]), Some(0));
+    assert_eq!(u32_from_u8(&[0x00, 0xcc, 0x55, 0x88]), Some(0xcc5588));
+    assert_eq!(u32_from_u8(&[0x00, 0x00, 0xcc, 0x55, 0x88]), Some(0xcc5588));
+    assert_eq!(
+        u32_from_u8(&[0x00, 0xcc, 0x55, 0x88, 0xf3]),
+        Some(0xcc5588f3)
+    );
+
+    // overflow
+    assert_eq!(u32_from_u8(&[0x01, 0xcc, 0x55, 0x88, 0xf3]), None);
+    assert_eq!(u32_from_u8(&[0x01, 0x00, 0x00, 0x00, 0x00]), None);
+    assert_eq!(u32_from_u8(&[0x7d, 0xcc, 0x55, 0x88, 0xf3]), None);
+}
+
+pub fn op_unknown(op: &[u8], args: &Node<IntAllocator>) -> Result<Reduction<u32>, EvalErr<u32>> {
+    // unknown opcode in lenient mode
+    // unknown ops are reserved if they start with 0xffff
+    // otherwise, unknown ops are no-ops, but they have costs. The cost is computed
+    // like this:
+
+    // byte index (reverse):
+    // n | .... | 1          | 0          |
+    // --+- - --+------------+------------+
+    // n | .... |            |XX | XXXXXX |
+    // --+- - --+------------+---+--------+
+    // ^                      ^   ^
+    // |                      |   + 6 bits ignored when computing cost
+    // cost_multiplier        |
+    //                        + 2 bits
+    //                          cost_function
+
+    // 1 is always added to the multiplier before using it to multiply the cost, this
+    // is since cost may not be 0.
+
+    // cost_function is 2 bits and defines how cost is computed based on arguments:
+    // 0: constant, cost is 1 * (multiplier + 1)
+    // 1: computed like operator add, multiplied by (multiplier + 1)
+    // 2: computed like operator mul, multiplied by (multiplier + 1)
+    // 3: computed like operator concat, multiplied by (multiplier + 1)
+
+    // this means that unknown ops where cost_function is 1, 2, or 3, may still be
+    // fatal errors if the arguments passed are not atoms.
+
+    let allocator = &args.allocator;
+    if op.is_empty() || (op.len() >= 2 && op[0] == 0xff && op[1] == 0xff) {
+        let op_arg = allocator.new_atom(op);
+        return allocator.err(&op_arg, "reserved operator");
+    }
+
+    let cost_function = (op[op.len() - 1] & 0b11000000) >> 6;
+    let cost_multiplier: u64 = match u32_from_u8(&op[0..op.len() - 1]) {
+        Some(v) => v as u64,
+        None => {
+            let op_arg = allocator.new_atom(op);
+            return allocator.err(&op_arg, "invalid operator");
+        }
+    };
+
+    let mut cost = match cost_function {
+        0 => 1,
+        1 => {
+            let mut cost = ARITH_BASE_COST as u64;
+            let mut byte_count: u64 = 0;
+            for arg in args {
+                cost += ARITH_COST_PER_ARG as u64;
+                let blob = int_atom(&arg, "unknown op")?;
+                byte_count += blob.len() as u64;
+            }
+            cost + byte_count / ARITH_COST_PER_LIMB_DIVIDER as u64
+        }
+        2 => {
+            let mut cost = MUL_BASE_COST as u64;
+            let mut first_iter: bool = true;
+            let mut l0: u64 = 0;
+            for arg in args {
+                let blob = int_atom(&arg, "unknown op")?;
+                if first_iter {
+                    l0 = blob.len() as u64;
+                    first_iter = false;
+                    continue;
+                }
+                let l1 = blob.len() as u64;
+                cost += MUL_COST_PER_OP as u64;
+                cost += (l0 + l1) / MUL_LINEAR_COST_PER_BYTE_DIVIDER as u64;
+                cost += (l0 * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER as u64;
+                l0 += l1;
+            }
+            cost
+        }
+        3 => {
+            let mut cost = CONCAT_BASE_COST as u64;
+            let mut total_size: u64 = 0;
+            for arg in args {
+                cost += CONCAT_COST_PER_ARG as u64;
+                let blob = atom(&arg, "unknown op")?;
+                total_size += blob.len() as u64;
+            }
+            cost + total_size / CONCAT_COST_PER_BYTE_DIVIDER as u64
+        }
+        _ => panic!(),
+    };
+
+    assert!(cost > 0);
+
+    if cost > u32::MAX.into() {
+        let op_arg = allocator.new_atom(op);
+        return allocator.err(&op_arg, "invalid operator");
+    }
+
+    cost *= cost_multiplier + 1;
+
+    if cost > u32::MAX.into() {
+        let op_arg = allocator.new_atom(op);
+        return allocator.err(&op_arg, "invalid operator");
+    }
+
+    Ok(Reduction(cost as u32, allocator.null()))
+}
+
+#[test]
+fn test_unknown_op_reserved() {
+    let a = IntAllocator::new();
+
+    // any op starting with ffff is reserved and a hard failure
+    let buf = vec![0xff, 0xff];
+    assert!(!op_unknown(&buf, &Node::new(&a, a.null())).is_ok());
+
+    let buf = vec![0xff, 0xff, 0xff];
+    assert!(!op_unknown(&buf, &Node::new(&a, a.null())).is_ok());
+
+    let buf = vec![0xff, 0xff, '0' as u8];
+    assert!(!op_unknown(&buf, &Node::new(&a, a.null())).is_ok());
+
+    let buf = vec![0xff, 0xff, 0];
+    assert!(!op_unknown(&buf, &Node::new(&a, a.null())).is_ok());
+
+    let buf = vec![0xff, 0xff, 0xcc, 0xcc, 0xfe, 0xed, 0xce];
+    assert!(!op_unknown(&buf, &Node::new(&a, a.null())).is_ok());
+
+    // an empty atom is not a valid opcode
+    let buf = Vec::<u8>::new();
+    assert!(!op_unknown(&buf, &Node::new(&a, a.null())).is_ok());
+
+    // a single ff is not sufficient to be treated as a reserved opcode
+    let buf = vec![0xff];
+    assert_eq!(
+        op_unknown(&buf, &Node::new(&a, a.null())),
+        Ok(Reduction(4, a.null()))
+    );
+
+    // leading zeros count, so this is not considered an ffff-prefix
+    let buf = vec![0x00, 0xff, 0xff, 0x00, 0x00];
+    // the cost is 0xffff00 = 16776960 plus the implied 1
+    assert_eq!(
+        op_unknown(&buf, &Node::new(&a, a.null())),
+        Ok(Reduction(16776961, a.null()))
+    );
+}
+
+#[test]
+fn test_lenient_mode_last_bits() {
+    let a = IntAllocator::new();
+
+    // the last 6 bits are ignored for computing cost
+    let buf = vec![0x3c, 0x3f];
+    assert_eq!(
+        op_unknown(&buf, &Node::new(&a, a.null())),
+        Ok(Reduction(61, a.null()))
+    );
+
+    let buf = vec![0x3c, 0x0f];
+    assert_eq!(
+        op_unknown(&buf, &Node::new(&a, a.null())),
+        Ok(Reduction(61, a.null()))
+    );
+
+    let buf = vec![0x3c, 0x00];
+    assert_eq!(
+        op_unknown(&buf, &Node::new(&a, a.null())),
+        Ok(Reduction(61, a.null()))
+    );
+
+    let buf = vec![0x3c, 0x2c];
+    assert_eq!(
+        op_unknown(&buf, &Node::new(&a, a.null())),
+        Ok(Reduction(61, a.null()))
+    );
 }
 
 pub fn op_sha256<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
