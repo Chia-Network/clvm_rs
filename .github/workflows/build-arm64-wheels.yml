@@ -1,4 +1,4 @@
-name: Build ARM64 wheels
+name: Build ARM64 wheels on ubuntu-latest
 
 on:
   push:
@@ -13,8 +13,11 @@ on:
 
 jobs:
   build_wheels:
-    name: ARM64 Python Wheels on ARM64 Runner
-    runs-on: ARM64
+    name: ARM64 Python Wheels on ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ARM64, ubuntu-latest ]
 
     steps:
     - name: Checkout repository
@@ -22,58 +25,33 @@ jobs:
       with:
         fetch-depth: 1
 
-    - name: Build Python 3.7 wheels
-      run: |
-        podman run --rm=true \
-          -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
-          quay.io/pypa/manylinux2014_aarch64 \
-          bash -exc '\
-            curl -L https://sh.rustup.rs > rustup.rs && \
-            chmod +x rustup.rs && \
-            ./rustup.rs -y && \
-            export PATH=$HOME/.cargo/bin:$PATH && \
-            rm -rf venv && \
-            /opt/python/cp37-cp37m/bin/python -m venv venv && \
-            if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
-            . ./activate && \
-            pip install maturin && \
-            maturin build -i python --release --manylinux 2014 \
-          '
+    - name: Set up QEMU on x86_64
+      if: startsWith(matrix.os, 'ubuntu-latest')
+      id: qemu
+      uses: docker/setup-qemu-action@v1
+      with:
+        platforms: arm64
 
-    - name: Build Python 3.8 wheels
+    - name: Build Python wheels
       run: |
         podman run --rm=true \
           -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
           quay.io/pypa/manylinux2014_aarch64 \
           bash -exc '\
+            echo $PATH && \
             curl -L https://sh.rustup.rs > rustup.rs && \
             chmod +x rustup.rs && \
             ./rustup.rs -y && \
             export PATH=$HOME/.cargo/bin:$PATH && \
             rm -rf venv && \
+            export PATH=/opt/python/cp39-cp39/bin/:$PATH && \
+            export PATH=/opt/python/cp38-cp38/bin/:$PATH && \
+            export PATH=/opt/python/cp37-cp37m/bin/:$PATH && \
             /opt/python/cp38-cp38/bin/python -m venv venv && \
             if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
             . ./activate && \
-            pip install maturin && \
-            maturin build -i python --release --manylinux 2014 \
-          '
-
-    - name: Build Python 3.9 wheels
-      run: |
-        podman run --rm=true \
-          -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
-          quay.io/pypa/manylinux2014_aarch64 \
-          bash -exc '\
-            curl -L https://sh.rustup.rs > rustup.rs && \
-            chmod +x rustup.rs && \
-            ./rustup.rs -y && \
-            export PATH=$HOME/.cargo/bin:$PATH && \
-            rm -rf venv && \
-            /opt/python/cp39-cp39/bin/python -m venv venv && \
-            if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
-            . ./activate && \
-            pip install maturin && \
-            maturin build -i python --release --manylinux 2014 \
+            pip install --extra-index-url https://download.chia.net/simple/ maturin && \
+            maturin build --no-sdist --release --manylinux 2014 \
           '
 
     - name: Upload artifacts
@@ -122,7 +100,8 @@ jobs:
         . ./activate
         twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
 
-    - name: Clean up
+    - name: Clean up AMR64
+      if: startsWith(matrix.os, 'ARM64')
       run: |
         rm -rf venv
-        rm -rf target
+        rm -rf dist

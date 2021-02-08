@@ -50,7 +50,7 @@ jobs:
         python -m venv venv
         ln -s venv/bin/activate
         . ./activate
-        maturin build -i python --release
+        maturin build --no-sdist -i python --release
 
     - name: Build Linux with maturin on Python ${{ matrix.python }}
       if: startsWith(matrix.os, 'ubuntu')
@@ -66,7 +66,7 @@ jobs:
         python -m venv venv
         . .\venv\Scripts\Activate.ps1
         ln -s venv\Scripts\Activate.ps1 activate
-        maturin build --interpreter python --release
+        maturin build --no-sdist -i python --release
 
     - name: Install dependencies
       run: |
