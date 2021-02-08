@@ -18,6 +18,9 @@ fn test_roundtrip() {
     let n = Node::new(&a, a.null());
     test_serialize_roundtrip(&n);
 
+    let n = Node::new(&a, a.one());
+    test_serialize_roundtrip(&n);
+
     let n = Node::new(&a, a.new_atom(&[1_u8, 2_u8, 3_u8]));
     test_serialize_roundtrip(&n);
 
