@@ -134,6 +134,10 @@ pub fn node_from_stream<T: Allocator>(allocator: &T, f: &mut dyn Read) -> std::i
                     ops.push(ParseOp::Cons);
                     ops.push(ParseOp::SExp);
                     ops.push(ParseOp::SExp);
+                } else if b[0] == 0x01 {
+                    values.push(allocator.one());
+                } else if b[0] == 0x80 {
+                    values.push(allocator.null());
                 } else if b[0] <= MAX_SINGLE_BYTE {
                     values.push(allocator.new_atom(&b));
                 } else {
