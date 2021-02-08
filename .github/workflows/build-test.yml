@@ -81,7 +81,7 @@ jobs:
         git clone https://github.com/Chia-Network/clvm.git --branch=develop --single-branch
         python -m pip install ./clvm
 
-        git clone https://github.com/Chia-Network/clvm_tools.git --branch=develop --single-branch
+        git clone https://github.com/Chia-Network/clvm_tools.git --branch=rust-strict-mode --single-branch
         python -m pip install ./clvm_tools
 
     - name: Ensure clvm, clvm_rs, clvm_tools are installed
