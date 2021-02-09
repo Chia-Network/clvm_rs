@@ -9,6 +9,7 @@ use super::py_node::PyNode;
 
 use pyo3::prelude::*;
 use pyo3::types::{PyString, PyTuple};
+use pyo3::PyClass;
 
 #[pyclass]
 #[derive(Clone)]
@@ -53,7 +54,9 @@ where
 
 impl NativeOpLookup {
     pub fn make_operator_handler(self) -> OperatorHandler<ArcAllocator> {
-        Box::new(move |allocator, op, args| self.nol.operator_handler(allocator, op, args))
+        Box::new(move |allocator, op, args| {
+            self.nol.operator_handler::<PyNode>(allocator, op, args)
+        })
     }
 }
 #[derive(Clone)]
@@ -63,15 +66,17 @@ struct GenericNativeOpLookup<A: Allocator> {
 }
 
 impl<A: Allocator> GenericNativeOpLookup<A> {
-    pub fn operator_handler<'t>(
+    pub fn operator_handler<'t, N>(
         &self,
         allocator: &A,
         op: &[u8],
         argument_list: &'t <A as Allocator>::Ptr,
     ) -> Result<Reduction<<A as Allocator>::Ptr>, EvalErr<<A as Allocator>::Ptr>>
     where
-        <A as Allocator>::Ptr: From<PyNode>,
-        PyNode: From<&'t <A as Allocator>::Ptr>,
+        <A as Allocator>::Ptr: From<N>,
+        N: From<&'t <A as Allocator>::Ptr>,
+        N: PyClass + Clone,
+        N: IntoPy<PyObject>,
     {
         if op.len() == 1 {
             if let Some(f) = self.f_lookup[op[0] as usize] {
@@ -81,11 +86,11 @@ impl<A: Allocator> GenericNativeOpLookup<A> {
         }
 
         Python::with_gil(|py| {
-            let pynode: PyNode = argument_list.into();
+            let pynode: N = argument_list.into();
             let r1 = self.py_callback.call1(py, (op, pynode));
             match r1 {
                 Err(pyerr) => {
-                    let ee = eval_err_for_pyerr::<<A as Allocator>::Ptr, PyNode>(py, &pyerr);
+                    let ee = eval_err_for_pyerr::<<A as Allocator>::Ptr, N>(py, &pyerr);
                     match ee {
                         Err(_x) => {
                             println!("{:?}", _x);
@@ -104,7 +109,7 @@ impl<A: Allocator> GenericNativeOpLookup<A> {
                         "expected u32",
                     )?;
 
-                    let py_node: PyNode = unwrap_or_eval_err(
+                    let py_node: N = unwrap_or_eval_err(
                         pair.get_item(1).extract(),
                         argument_list,
                         "expected node",
