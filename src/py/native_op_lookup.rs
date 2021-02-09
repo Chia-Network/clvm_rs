@@ -3,7 +3,7 @@ use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction};
 use crate::run_program::OperatorHandler;
 
-use super::arc_allocator::{ArcAllocator, ArcSExp};
+use super::arc_allocator::ArcAllocator;
 use super::f_table::{make_f_lookup, FLookup};
 use super::py_node::PyNode;
 
@@ -13,7 +13,7 @@ use pyo3::types::{PyString, PyTuple};
 #[pyclass]
 #[derive(Clone)]
 pub struct NativeOpLookup {
-    nol: GenericNativeOpLookup,
+    nol: GenericNativeOpLookup<ArcAllocator>,
 }
 
 #[pymethods]
@@ -48,37 +48,29 @@ fn eval_err_for_pyerr(py: Python, pyerr: &PyErr) -> PyResult<EvalErr<ArcSExp>> {
 
 impl NativeOpLookup {
     pub fn make_operator_handler(self) -> OperatorHandler<ArcAllocator> {
-        Box::new(move |allocator, op, args| self.operator_handler(allocator, op, args))
-    }
-
-    pub fn operator_handler(
-        &self,
-        allocator: &ArcAllocator,
-        op: &[u8],
-        argument_list: &ArcSExp,
-    ) -> Result<Reduction<ArcSExp>, EvalErr<ArcSExp>> {
-        self.nol.operator_handler(allocator, op, argument_list)
+        Box::new(move |allocator, op, args| self.nol.operator_handler(allocator, op, args))
     }
 }
 #[derive(Clone)]
-struct GenericNativeOpLookup {
+struct GenericNativeOpLookup<A: Allocator> {
     py_callback: PyObject,
-    f_lookup: FLookup<ArcAllocator>,
+    f_lookup: FLookup<A>,
 }
 
-impl GenericNativeOpLookup {
-    pub fn operator_handler(
+impl<A: Allocator> GenericNativeOpLookup<A> {
+    pub fn operator_handler<'t>(
         &self,
-        allocator: &ArcAllocator,
+        allocator: &A,
         op: &[u8],
-        argument_list: &<ArcAllocator as Allocator>::Ptr,
-    ) -> Result<
-        Reduction<<ArcAllocator as Allocator>::Ptr>,
-        EvalErr<<ArcAllocator as Allocator>::Ptr>,
-    > {
+        argument_list: &'t <A as Allocator>::Ptr,
+    ) -> Result<Reduction<<A as Allocator>::Ptr>, EvalErr<<A as Allocator>::Ptr>>
+    where
+        <A as Allocator>::Ptr: From<PyNode>,
+        PyNode: From<&'t <A as Allocator>::Ptr>,
+    {
         if op.len() == 1 {
             if let Some(f) = self.f_lookup[op[0] as usize] {
-                let node_t: Node<ArcAllocator> = Node::new(allocator, argument_list.clone());
+                let node_t: Node<A> = Node::new(allocator, argument_list.clone());
                 return f(&node_t);
             }
         }
@@ -98,17 +90,22 @@ impl GenericNativeOpLookup {
                     }
                 }
                 Ok(o) => {
-                    let py_any: PyResult<&PyTuple> = o.extract(py);
                     let pair: &PyTuple =
-                        unwrap_or_eval_err(py_any, argument_list, "expected tuple")?;
+                        unwrap_or_eval_err(o.extract(py), argument_list, "expected tuple")?;
 
-                    let t: PyResult<u32> = pair.get_item(0).extract();
-                    let i0: u32 = unwrap_or_eval_err(t, argument_list, "expected u32")?;
+                    let i0: u32 = unwrap_or_eval_err(
+                        pair.get_item(0).extract(),
+                        argument_list,
+                        "expected u32",
+                    )?;
 
-                    let t: PyResult<<ArcAllocator as Allocator>::Ptr> = pair.get_item(1).extract();
+                    let py_node: PyNode = unwrap_or_eval_err(
+                        pair.get_item(1).extract(),
+                        argument_list,
+                        "expected node",
+                    )?;
 
-                    let node: <ArcAllocator as Allocator>::Ptr =
-                        unwrap_or_eval_err(t, argument_list, "expected node")?;
+                    let node: <A as Allocator>::Ptr = py_node.into();
                     Ok(Reduction(i0, node))
                 }
             }
