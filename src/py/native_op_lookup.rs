@@ -1,6 +1,7 @@
 use crate::allocator::Allocator;
 use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction};
+use crate::run_program::OperatorHandler;
 
 use super::arc_allocator::{ArcAllocator, ArcSExp};
 use super::f_table::{make_f_lookup, FLookup};
@@ -46,6 +47,10 @@ fn eval_err_for_pyerr(py: Python, pyerr: &PyErr) -> PyResult<EvalErr<ArcSExp>> {
 }
 
 impl NativeOpLookup {
+    pub fn make_operator_handler(self) -> OperatorHandler<ArcAllocator> {
+        Box::new(move |allocator, op, args| self.operator_handler(allocator, op, args))
+    }
+
     pub fn operator_handler(
         &self,
         allocator: &ArcAllocator,

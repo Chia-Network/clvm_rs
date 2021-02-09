@@ -5,7 +5,7 @@ use crate::allocator::Allocator;
 use crate::node::Node;
 use crate::py::run_program::__pyo3_get_function_serialize_and_run_program;
 use crate::reduction::{EvalErr, Reduction};
-use crate::run_program::{run_program, OperatorHandler, PostEval, PreEval};
+use crate::run_program::{run_program, PostEval, PreEval};
 use crate::serialize::{node_from_bytes, node_to_bytes};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyString};
@@ -59,28 +59,23 @@ fn py_run_program(
                 let args: PyNode = args.into();
                 let r: PyResult<PyObject> = pre_eval.call1(py, (program_clone, args));
                 match r {
-                    Ok(py_post_eval) => {
-                        let f = post_eval_for_pyobject::<ArcAllocator>(py_post_eval);
-                        Ok(f)
-                    }
-                    Err(ref err) => allocator.err(program, &err.to_string()),
+                    Ok(py_post_eval) => Ok(post_eval_for_pyobject::<ArcAllocator>(py_post_eval)),
+                    Err(ref err) => (allocator
+                        as &dyn Allocator<Ptr = <ArcAllocator as Allocator>::Ptr>)
+                        .err(program, &err.to_string()),
                 }
             })
         }))
     };
 
-    let allocator: ArcAllocator = ArcAllocator::new();
-    let f: OperatorHandler<ArcAllocator> =
-        Box::new(move |allocator, op, args| op_lookup.operator_handler(allocator, op, args));
-
     let r: Result<Reduction<ArcSExp>, EvalErr<ArcSExp>> = run_program(
-        &allocator,
+        &ArcAllocator::new(),
         &program.into(),
         &args.into(),
         quote_kw,
         apply_kw,
         max_cost,
-        &f,
+        &op_lookup.make_operator_handler(),
         py_pre_eval_t,
     );
     match r {
@@ -100,14 +95,9 @@ fn py_run_program(
 
 #[pyfunction]
 fn raise_eval_error(py: Python, msg: &PyString, sexp: PyObject) -> PyResult<PyObject> {
-    let msg_any: PyObject = msg.into_py(py);
-
-    let s0: &PyString = PyString::new(py, "msg");
-    let s1: &PyString = PyString::new(py, "sexp");
     let ctx: &PyDict = PyDict::new(py);
-    ctx.set_item(s0, msg_any)?;
-    ctx.set_item(s1, sexp)?;
-
+    ctx.set_item("msg", msg)?;
+    ctx.set_item("sexp", sexp)?;
     let r = py.run(
         "from clvm.EvalError import EvalError; raise EvalError(msg, sexp)",
         None,

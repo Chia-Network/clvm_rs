@@ -80,8 +80,11 @@ impl Default for ArcAllocator {
     }
 }
 
-impl ArcAllocator {
-    pub fn err<T>(&self, node: &ArcSExp, msg: &str) -> Result<T, EvalErr<ArcSExp>> {
-        Err(EvalErr(node.to_owned(), msg.into()))
+impl<P> dyn Allocator<Ptr = P>
+where
+    P: Clone,
+{
+    pub fn err<T>(&self, node: &P, msg: &str) -> Result<T, EvalErr<P>> {
+        Err(EvalErr(node.clone(), msg.into()))
     }
 }
