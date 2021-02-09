@@ -1,11 +1,13 @@
-use super::f_table::FLookup;
+use pyo3::prelude::*;
+use pyo3::types::{PyString, PyTuple};
+use pyo3::PyClass;
+
 use crate::allocator::Allocator;
 use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction};
 
-use pyo3::prelude::*;
-use pyo3::types::{PyString, PyTuple};
-use pyo3::PyClass;
+use super::f_table::FLookup;
+use super::to_py_node::ToPyNode;
 
 fn eval_err_for_pyerr<'s, 'p: 's, 'e: 's, P, N>(
     py: Python<'p>,
@@ -44,9 +46,9 @@ impl<A: Allocator> GenericNativeOpLookup<A> {
     ) -> Result<Reduction<<A as Allocator>::Ptr>, EvalErr<<A as Allocator>::Ptr>>
     where
         <A as Allocator>::Ptr: From<N>,
-        N: From<&'t <A as Allocator>::Ptr>,
         N: PyClass + Clone,
         N: IntoPy<PyObject>,
+        A: ToPyNode<N>,
     {
         if op.len() == 1 {
             if let Some(f) = self.f_lookup[op[0] as usize] {
@@ -56,7 +58,7 @@ impl<A: Allocator> GenericNativeOpLookup<A> {
         }
 
         Python::with_gil(|py| {
-            let pynode: N = argument_list.into();
+            let pynode: N = allocator.to_pynode(argument_list);
             let r1 = self.py_callback.call1(py, (op, pynode));
             match r1 {
                 Err(pyerr) => {

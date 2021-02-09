@@ -1,20 +1,29 @@
+use pyo3::prelude::*;
+use pyo3::types::{PyBytes, PyDict, PyString};
+use pyo3::wrap_pyfunction;
+use pyo3::PyObject;
+
 use super::arc_allocator::ArcAllocator;
 use super::f_table::{make_f_lookup, FLookup};
 use super::native_op_lookup::GenericNativeOpLookup;
 use super::py_node::PyNode;
+use super::to_py_node::ToPyNode;
+
 use crate::allocator::Allocator;
 use crate::node::Node;
 use crate::py::run_program::{__pyo3_get_function_serialize_and_run_program, STRICT_MODE};
 use crate::reduction::{EvalErr, Reduction};
 use crate::run_program::{run_program, OperatorHandler, PostEval, PreEval};
 use crate::serialize::{node_from_bytes, node_to_bytes};
-use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict, PyString};
-use pyo3::wrap_pyfunction;
-use pyo3::PyObject;
 
 type AllocatorT = ArcAllocator;
 type NodeClass = PyNode;
+
+impl ToPyNode<PyNode> for ArcAllocator {
+    fn to_pynode(&self, ptr: &Self::Ptr) -> PyNode {
+        PyNode::new(ptr.clone())
+    }
+}
 
 #[pyclass]
 #[derive(Clone)]
@@ -89,8 +98,8 @@ fn py_run_program(
     } else {
         Some(Box::new(move |allocator, program, args| {
             Python::with_gil(|py| {
-                let program_clone: NodeClass = program.into();
-                let args: NodeClass = args.into();
+                let program_clone: NodeClass = allocator.to_pynode(program);
+                let args: NodeClass = allocator.to_pynode(args);
                 let r: PyResult<PyObject> = pre_eval.call1(py, (program_clone, args));
                 match r {
                     Ok(py_post_eval) => Ok(post_eval_for_pyobject::<AllocatorT>(py_post_eval)),
@@ -102,11 +111,12 @@ fn py_run_program(
         }))
     };
 
+    let allocator = AllocatorT::new();
     let r: Result<
         Reduction<<AllocatorT as Allocator>::Ptr>,
         EvalErr<<AllocatorT as Allocator>::Ptr>,
     > = run_program(
-        &AllocatorT::new(),
+        &allocator,
         &program.into(),
         &args.into(),
         quote_kw,
@@ -116,7 +126,7 @@ fn py_run_program(
         py_pre_eval_t,
     );
     match r {
-        Ok(reduction) => Ok((reduction.0, reduction.1.into())),
+        Ok(reduction) => Ok((reduction.0, allocator.to_pynode(&reduction.1))),
         Err(eval_err) => {
             let node: PyObject = eval_err.0.to_object(py);
             let s: String = eval_err.1;
@@ -149,7 +159,14 @@ fn raise_eval_error(py: Python, msg: &PyString, sexp: PyObject) -> PyResult<PyOb
 #[pyfunction]
 fn serialize_from_bytes(blob: &[u8]) -> NodeClass {
     let allocator: AllocatorT = AllocatorT::default();
-    node_from_bytes(&allocator, blob).unwrap().into()
+    _serialize_from_bytes(&allocator, blob)
+}
+
+fn _serialize_from_bytes<A: Allocator, N: PyClass>(allocator: &A, blob: &[u8]) -> N
+where
+    A: ToPyNode<N>,
+{
+    allocator.to_pynode(&node_from_bytes(allocator, blob).unwrap())
 }
 
 #[pyfunction]
