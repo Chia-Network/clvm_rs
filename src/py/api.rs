@@ -1,4 +1,4 @@
-use super::arc_allocator::{ArcAllocator, ArcSExp};
+use super::arc_allocator::ArcAllocator;
 use super::f_table::{make_f_lookup, FLookup};
 use super::native_op_lookup::GenericNativeOpLookup;
 use super::py_node::PyNode;
@@ -13,10 +13,13 @@ use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
+type AllocatorT = ArcAllocator;
+type NodeClass = PyNode;
+
 #[pyclass]
 #[derive(Clone)]
 pub struct NativeOpLookup {
-    nol: GenericNativeOpLookup<ArcAllocator>,
+    nol: GenericNativeOpLookup<AllocatorT>,
 }
 
 #[pymethods]
@@ -24,7 +27,7 @@ impl NativeOpLookup {
     #[new]
     fn new(native_opcode_list: &[u8], unknown_op_callback: PyObject) -> Self {
         let native_lookup = make_f_lookup();
-        let mut f_lookup: FLookup<ArcAllocator> = [None; 256];
+        let mut f_lookup: FLookup<AllocatorT> = [None; 256];
         for i in native_opcode_list.iter() {
             let idx = *i as usize;
             f_lookup[idx] = native_lookup[idx];
@@ -36,9 +39,9 @@ impl NativeOpLookup {
 }
 
 impl NativeOpLookup {
-    pub fn make_operator_handler(self) -> OperatorHandler<ArcAllocator> {
+    pub fn make_operator_handler(self) -> OperatorHandler<AllocatorT> {
         Box::new(move |allocator, op, args| {
-            self.nol.operator_handler::<PyNode>(allocator, op, args)
+            self.nol.operator_handler::<NodeClass>(allocator, op, args)
         })
     }
 }
@@ -73,34 +76,37 @@ where
 #[allow(clippy::too_many_arguments)]
 fn py_run_program(
     py: Python,
-    program: &PyNode,
-    args: &PyNode,
+    program: &NodeClass,
+    args: &NodeClass,
     quote_kw: u8,
     apply_kw: u8,
     max_cost: u32,
     op_lookup: NativeOpLookup,
     pre_eval: PyObject,
-) -> PyResult<(u32, PyNode)> {
-    let py_pre_eval_t: Option<PreEval<ArcAllocator>> = if pre_eval.is_none(py) {
+) -> PyResult<(u32, NodeClass)> {
+    let py_pre_eval_t: Option<PreEval<AllocatorT>> = if pre_eval.is_none(py) {
         None
     } else {
         Some(Box::new(move |allocator, program, args| {
             Python::with_gil(|py| {
-                let program_clone: PyNode = program.into();
-                let args: PyNode = args.into();
+                let program_clone: NodeClass = program.into();
+                let args: NodeClass = args.into();
                 let r: PyResult<PyObject> = pre_eval.call1(py, (program_clone, args));
                 match r {
-                    Ok(py_post_eval) => Ok(post_eval_for_pyobject::<ArcAllocator>(py_post_eval)),
+                    Ok(py_post_eval) => Ok(post_eval_for_pyobject::<AllocatorT>(py_post_eval)),
                     Err(ref err) => (allocator
-                        as &dyn Allocator<Ptr = <ArcAllocator as Allocator>::Ptr>)
+                        as &dyn Allocator<Ptr = <AllocatorT as Allocator>::Ptr>)
                         .err(program, &err.to_string()),
                 }
             })
         }))
     };
 
-    let r: Result<Reduction<ArcSExp>, EvalErr<ArcSExp>> = run_program(
-        &ArcAllocator::new(),
+    let r: Result<
+        Reduction<<AllocatorT as Allocator>::Ptr>,
+        EvalErr<<AllocatorT as Allocator>::Ptr>,
+    > = run_program(
+        &AllocatorT::new(),
         &program.into(),
         &args.into(),
         quote_kw,
@@ -141,22 +147,28 @@ fn raise_eval_error(py: Python, msg: &PyString, sexp: PyObject) -> PyResult<PyOb
 }
 
 #[pyfunction]
-fn serialize_from_bytes(blob: &[u8]) -> PyNode {
-    let allocator: ArcAllocator = ArcAllocator::default();
+fn serialize_from_bytes(blob: &[u8]) -> NodeClass {
+    let allocator: AllocatorT = AllocatorT::default();
     node_from_bytes(&allocator, blob).unwrap().into()
 }
 
 #[pyfunction]
 fn serialize_to_bytes(py: Python, sexp: &PyAny) -> PyResult<PyObject> {
-    _serialize_to_bytes(&ArcAllocator::default(), py, sexp)
+    _serialize_to_bytes::<AllocatorT, NodeClass>(&AllocatorT::default(), py, sexp)
 }
 
-fn _serialize_to_bytes<A: Allocator<Ptr = ArcSExp>>(
+use pyo3::PyClass;
+fn _serialize_to_bytes<A: Allocator, N>(
     allocator: &A,
     py: Python,
     sexp: &PyAny,
-) -> PyResult<PyObject> {
-    let node_t: Node<A> = Node::new(allocator, sexp.extract()?);
+) -> PyResult<PyObject>
+where
+    N: PyClass + Clone,
+    <A as Allocator>::Ptr: From<N>,
+{
+    let py_node: N = sexp.extract()?;
+    let node_t: Node<A> = Node::new(allocator, py_node.into());
     let blob = node_to_bytes(&node_t).unwrap();
     let pybytes = PyBytes::new(py, &blob);
     Ok(pybytes.to_object(py))
