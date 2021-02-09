@@ -35,13 +35,18 @@ impl NativeOpLookup {
     }
 }
 
-fn eval_err_for_pyerr(py: Python, pyerr: &PyErr) -> PyResult<EvalErr<ArcSExp>> {
+fn eval_err_for_pyerr<'s, 'p: 's, 'e: 's, P, N>(
+    py: Python<'p>,
+    pyerr: &'e PyErr,
+) -> PyResult<EvalErr<P>>
+where
+    P: From<N>,
+    N: FromPyObject<'s>,
+{
     let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
     let arg0: &PyString = args.get_item(0).extract()?;
-    let sexp: &PyCell<PyNode> = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
-
-    let sexp_ptr: PyRef<PyNode> = sexp.try_borrow()?;
-    let node: ArcSExp = (&sexp_ptr as &PyNode).into();
+    let sexp: N = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
+    let node: P = sexp.into();
     let s: String = arg0.to_str()?.to_string();
     Ok(EvalErr(node, s))
 }
@@ -80,7 +85,7 @@ impl<A: Allocator> GenericNativeOpLookup<A> {
             let r1 = self.py_callback.call1(py, (op, pynode));
             match r1 {
                 Err(pyerr) => {
-                    let ee = eval_err_for_pyerr(py, &pyerr);
+                    let ee = eval_err_for_pyerr::<<A as Allocator>::Ptr, PyNode>(py, &pyerr);
                     match ee {
                         Err(_x) => {
                             println!("{:?}", _x);
