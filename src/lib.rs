@@ -9,7 +9,6 @@ mod py;
 mod reduction;
 mod run_program;
 mod serialize;
-mod types;
 
 #[cfg(test)]
 mod tests;
