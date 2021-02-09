@@ -12,11 +12,12 @@ const APPLY_COST: u32 = 1;
 pub type OperatorHandler<T> =
     Box<dyn Fn(&T, &[u8], &<T as Allocator>::Ptr) -> Response<<T as Allocator>::Ptr>>;
 
-pub type PreEval<T> = Box<
+pub type PreEval<A> = Box<
     dyn Fn(
-        &<T as Allocator>::Ptr,
-        &<T as Allocator>::Ptr,
-    ) -> Result<Option<Box<PostEval<T>>>, EvalErr<<T as Allocator>::Ptr>>,
+        &A,
+        &<A as Allocator>::Ptr,
+        &<A as Allocator>::Ptr,
+    ) -> Result<Option<Box<PostEval<A>>>, EvalErr<<A as Allocator>::Ptr>>,
 >;
 
 pub type PostEval<T> = dyn Fn(Option<&<T as Allocator>::Ptr>);
@@ -222,7 +223,7 @@ fn eval_op<T: Allocator + 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32
         SExp::Pair(program, args) => {
             let post_eval = match rpc.pre_eval {
                 None => None,
-                Some(ref pre_eval) => pre_eval(&program, &args)?,
+                Some(ref pre_eval) => pre_eval(&rpc.allocator, &program, &args)?,
             };
             match post_eval {
                 None => (),

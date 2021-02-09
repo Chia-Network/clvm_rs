@@ -50,12 +50,10 @@ fn py_run_program(
     op_lookup: NativeOpLookup,
     pre_eval: PyObject,
 ) -> PyResult<(u32, PyNode)> {
-    let allocator = ArcAllocator::new();
-
     let py_pre_eval_t: Option<PreEval<ArcAllocator>> = if pre_eval.is_none(py) {
         None
     } else {
-        Some(Box::new(move |program: &ArcSExp, args: &ArcSExp| {
+        Some(Box::new(move |allocator, program, args| {
             Python::with_gil(|py| {
                 let program_clone: PyNode = program.into();
                 let args: PyNode = args.into();
@@ -70,10 +68,6 @@ fn py_run_program(
             })
         }))
     };
-
-    // BRAIN DAMAGE: we create a second `ArcAllocator` here
-    // This only works because this allocator type has the property that
-    // you can create a pair from nodes from different allocators.
 
     let allocator: ArcAllocator = ArcAllocator::new();
     let f: OperatorHandler<ArcAllocator> =
