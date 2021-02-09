@@ -60,14 +60,11 @@ impl<A: Allocator> GenericNativeOpLookup<A> {
             let r1 = self.py_callback.call1(py, (op, pynode));
             match r1 {
                 Err(pyerr) => {
-                    let ee = eval_err_for_pyerr::<<A as Allocator>::Ptr, N>(py, &pyerr);
-                    match ee {
-                        Err(_x) => {
-                            println!("{:?}", _x);
-                            Err(EvalErr(argument_list.clone(), "internal error".to_string()))
-                        }
-                        Ok(ee) => Err(ee),
-                    }
+                    let eval_err: PyResult<EvalErr<<A as Allocator>::Ptr>> =
+                        eval_err_for_pyerr(py, &pyerr);
+                    let r: EvalErr<<A as Allocator>::Ptr> =
+                        unwrap_or_eval_err(eval_err, argument_list, "unexpected exception")?;
+                    Err(r)
                 }
                 Ok(o) => {
                     let pair: &PyTuple =
