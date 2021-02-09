@@ -180,9 +180,12 @@ pub fn op_divmod<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
         let q = &a0 / &a1;
         let r = &a0 - &a1 * &q;
 
+        let signed_quotient = (a0.sign() == Sign::Minus || a1.sign() == Sign::Minus)
+            && a0.sign() != a1.sign();
+
         // rust rounds division towards zero, but we want division to round
         // toward negative infinity.
-        let (q, r) = if q.sign() == Sign::Minus && r.sign() != Sign::NoSign {
+        let (q, r) = if signed_quotient && r.sign() != Sign::NoSign {
             (q - 1, r + &a1)
         } else {
             (q, r)
