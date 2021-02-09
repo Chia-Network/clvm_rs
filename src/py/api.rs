@@ -8,7 +8,7 @@ use crate::reduction::{EvalErr, Reduction};
 use crate::run_program::{run_program, PostEval, PreEval};
 use crate::serialize::{node_from_bytes, node_to_bytes};
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyString};
+use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
@@ -110,16 +110,25 @@ fn raise_eval_error(py: Python, msg: &PyString, sexp: PyObject) -> PyResult<PyOb
 }
 
 #[pyfunction]
-fn serialize_from_bytes(blob: &[u8]) -> ArcSExp {
-    let allocator: ArcAllocator = ArcAllocator::new();
-    node_from_bytes(&allocator, blob).unwrap()
+fn serialize_from_bytes(blob: &[u8]) -> PyNode {
+    let allocator: ArcAllocator = ArcAllocator::default();
+    node_from_bytes(&allocator, blob).unwrap().into()
 }
 
 #[pyfunction]
-fn serialize_to_bytes(sexp: &PyNode) -> Vec<u8> {
-    let allocator: ArcAllocator = ArcAllocator::new();
-    let node_t: Node<ArcAllocator> = Node::new(&allocator, sexp.into());
-    node_to_bytes(&node_t).unwrap()
+fn serialize_to_bytes(py: Python, sexp: &PyAny) -> PyResult<PyObject> {
+    _serialize_to_bytes(&ArcAllocator::default(), py, sexp)
+}
+
+fn _serialize_to_bytes<A: Allocator<Ptr = ArcSExp>>(
+    allocator: &A,
+    py: Python,
+    sexp: &PyAny,
+) -> PyResult<PyObject> {
+    let node_t: Node<A> = Node::new(allocator, sexp.extract()?);
+    let blob = node_to_bytes(&node_t).unwrap();
+    let pybytes = PyBytes::new(py, &blob);
+    Ok(pybytes.to_object(py))
 }
 
 /// This module is a python module implemented in Rust.
