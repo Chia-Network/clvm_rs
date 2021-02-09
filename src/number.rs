@@ -9,9 +9,10 @@ pub fn node_from_number<'a, T: Allocator>(node: &'a Node<'a, T>, item: &Number) 
 }
 
 pub fn ptr_from_number<T: Allocator>(allocator: &T, item: &Number) -> T::Ptr {
-    // BRAIN DAMAGE: make it minimal by removing leading zeros
     let bytes: Vec<u8> = item.to_signed_bytes_be();
     let mut slice = bytes.as_slice();
+
+    // make number minimal by removing leading zeros
     while (!slice.is_empty()) && (slice[0] == 0) {
         if slice.len() > 1 && (slice[1] & 0x80 == 0x80) {
             break;
