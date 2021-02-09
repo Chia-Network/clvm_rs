@@ -12,7 +12,6 @@ use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
-
 fn note_result<T>(obj: &PyObject, result: Option<&T>)
 where
     T: ToPyObject,

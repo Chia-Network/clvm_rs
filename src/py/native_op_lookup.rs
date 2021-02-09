@@ -93,21 +93,30 @@ impl GenericNativeOpLookup {
                     }
                 }
                 Ok(o) => {
-                    let pair: &PyTuple = o.extract(py).unwrap();
-                    let i0: u32 = pair.get_item(0).extract()?;
-                    let i1: PyRef<PyNode> = pair.get_item(1).extract()?;
-                    let n = i1.clone();
-                    let r: Reduction<<ArcAllocator as Allocator>::Ptr> = Reduction(i0, n.into());
-                    Ok(r)
+                    let py_any: PyResult<&PyTuple> = o.extract(py);
+                    let pair: &PyTuple =
+                        unwrap_or_eval_err(py_any, argument_list, "expected tuple")?;
+
+                    let t: PyResult<u32> = pair.get_item(0).extract();
+                    let i0: u32 = unwrap_or_eval_err(t, argument_list, "expected u32")?;
+
+                    let t: PyResult<<ArcAllocator as Allocator>::Ptr> = pair.get_item(1).extract();
+
+                    let node: <ArcAllocator as Allocator>::Ptr =
+                        unwrap_or_eval_err(t, argument_list, "expected node")?;
+                    Ok(Reduction(i0, node))
                 }
             }
         })
     }
 }
 
-impl From<PyErr> for EvalErr<ArcSExp> {
-    fn from(_err: PyErr) -> Self {
-        let pyerr_node: ArcSExp = ArcAllocator::new().blob("PyErr");
-        EvalErr(pyerr_node, "bad type from python call".to_string())
+fn unwrap_or_eval_err<T, P>(obj: PyResult<T>, err_node: &P, msg: &str) -> Result<T, EvalErr<P>>
+where
+    P: Clone,
+{
+    match obj {
+        Err(_py_err) => Err(EvalErr(err_node.clone(), msg.to_string())),
+        Ok(o) => Ok(o),
     }
 }
