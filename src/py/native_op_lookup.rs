@@ -1,40 +1,11 @@
+use super::f_table::FLookup;
 use crate::allocator::Allocator;
 use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction};
-use crate::run_program::OperatorHandler;
-
-use super::arc_allocator::ArcAllocator;
-use super::f_table::{make_f_lookup, FLookup};
-use super::py_node::PyNode;
 
 use pyo3::prelude::*;
 use pyo3::types::{PyString, PyTuple};
 use pyo3::PyClass;
-
-#[pyclass]
-#[derive(Clone)]
-pub struct NativeOpLookup {
-    nol: GenericNativeOpLookup<ArcAllocator>,
-}
-
-#[pymethods]
-impl NativeOpLookup {
-    #[new]
-    fn new(native_opcode_list: &[u8], unknown_op_callback: &PyAny) -> Self {
-        let native_lookup = make_f_lookup();
-        let mut f_lookup: FLookup<ArcAllocator> = [None; 256];
-        for i in native_opcode_list.iter() {
-            let idx = *i as usize;
-            f_lookup[idx] = native_lookup[idx];
-        }
-        NativeOpLookup {
-            nol: GenericNativeOpLookup {
-                py_callback: unknown_op_callback.into(),
-                f_lookup,
-            },
-        }
-    }
-}
 
 fn eval_err_for_pyerr<'s, 'p: 's, 'e: 's, P, N>(
     py: Python<'p>,
@@ -51,21 +22,20 @@ where
     let s: String = arg0.to_str()?.to_string();
     Ok(EvalErr(node, s))
 }
-
-impl NativeOpLookup {
-    pub fn make_operator_handler(self) -> OperatorHandler<ArcAllocator> {
-        Box::new(move |allocator, op, args| {
-            self.nol.operator_handler::<PyNode>(allocator, op, args)
-        })
-    }
-}
 #[derive(Clone)]
-struct GenericNativeOpLookup<A: Allocator> {
+pub struct GenericNativeOpLookup<A: Allocator> {
     py_callback: PyObject,
     f_lookup: FLookup<A>,
 }
 
 impl<A: Allocator> GenericNativeOpLookup<A> {
+    pub fn new(py_callback: PyObject, f_lookup: FLookup<A>) -> Self {
+        GenericNativeOpLookup {
+            py_callback,
+            f_lookup,
+        }
+    }
+
     pub fn operator_handler<'t, N>(
         &self,
         allocator: &A,

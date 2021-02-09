@@ -1,16 +1,47 @@
 use super::arc_allocator::{ArcAllocator, ArcSExp};
-use super::native_op_lookup::NativeOpLookup;
+use super::f_table::{make_f_lookup, FLookup};
+use super::native_op_lookup::GenericNativeOpLookup;
 use super::py_node::PyNode;
 use crate::allocator::Allocator;
 use crate::node::Node;
 use crate::py::run_program::__pyo3_get_function_serialize_and_run_program;
 use crate::reduction::{EvalErr, Reduction};
-use crate::run_program::{run_program, PostEval, PreEval};
+use crate::run_program::{run_program, OperatorHandler, PostEval, PreEval};
 use crate::serialize::{node_from_bytes, node_to_bytes};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
+
+#[pyclass]
+#[derive(Clone)]
+pub struct NativeOpLookup {
+    nol: GenericNativeOpLookup<ArcAllocator>,
+}
+
+#[pymethods]
+impl NativeOpLookup {
+    #[new]
+    fn new(native_opcode_list: &[u8], unknown_op_callback: PyObject) -> Self {
+        let native_lookup = make_f_lookup();
+        let mut f_lookup: FLookup<ArcAllocator> = [None; 256];
+        for i in native_opcode_list.iter() {
+            let idx = *i as usize;
+            f_lookup[idx] = native_lookup[idx];
+        }
+        NativeOpLookup {
+            nol: GenericNativeOpLookup::new(unknown_op_callback, f_lookup),
+        }
+    }
+}
+
+impl NativeOpLookup {
+    pub fn make_operator_handler(self) -> OperatorHandler<ArcAllocator> {
+        Box::new(move |allocator, op, args| {
+            self.nol.operator_handler::<PyNode>(allocator, op, args)
+        })
+    }
+}
 
 fn note_result<T>(obj: &PyObject, result: Option<&T>)
 where
