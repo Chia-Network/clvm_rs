@@ -8,7 +8,7 @@ use crate::reduction::{EvalErr, Reduction};
 use crate::run_program::{run_program, PostEval, PreEval};
 use crate::serialize::{node_from_bytes, node_to_bytes};
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict, PyString};
+use pyo3::types::{PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
@@ -110,18 +110,16 @@ fn raise_eval_error(py: Python, msg: &PyString, sexp: PyObject) -> PyResult<PyOb
 }
 
 #[pyfunction]
-fn serialize_from_bytes(blob: &[u8]) -> PyNode {
+fn serialize_from_bytes(blob: &[u8]) -> ArcSExp {
     let allocator: ArcAllocator = ArcAllocator::new();
-    node_from_bytes(&allocator, blob).unwrap().into()
+    node_from_bytes(&allocator, blob).unwrap()
 }
 
 #[pyfunction]
-fn serialize_to_bytes(py: Python, sexp: &PyNode) -> PyObject {
+fn serialize_to_bytes(sexp: &PyNode) -> Vec<u8> {
     let allocator: ArcAllocator = ArcAllocator::new();
     let node_t: Node<ArcAllocator> = Node::new(&allocator, sexp.into());
-    let blob = node_to_bytes(&node_t).unwrap();
-    let pybytes = PyBytes::new(py, &blob);
-    pybytes.to_object(py)
+    node_to_bytes(&node_t).unwrap()
 }
 
 /// This module is a python module implemented in Rust.
