@@ -1,6 +1,7 @@
 use super::arc_allocator::{ArcAllocator, ArcSExp};
 use super::native_op_lookup::NativeOpLookup;
 use super::py_node::PyNode;
+use crate::allocator::Allocator;
 use crate::node::Node;
 use crate::py::run_program::__pyo3_get_function_serialize_and_run_program;
 use crate::reduction::{EvalErr, Reduction};
@@ -11,24 +12,30 @@ use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
-fn note_result(obj: &PyObject, result: Option<&ArcSExp>) {
+
+fn note_result<T>(obj: &PyObject, result: Option<&T>)
+where
+    T: ToPyObject,
+{
     Python::with_gil(|py| {
         if let Some(node) = result {
-            let node: PyNode = node.into();
+            let node: PyObject = node.to_object(py);
             let _r: PyResult<PyObject> = obj.call1(py, (node,));
         }
     });
 }
 
-fn post_eval_for_pyobject(obj: PyObject) -> Option<Box<PostEval<ArcAllocator>>> {
-    let py_post_eval: Option<Box<PostEval<ArcAllocator>>> =
-        if Python::with_gil(|py| obj.is_none(py)) {
-            None
-        } else {
-            Some(Box::new(move |result: Option<&ArcSExp>| {
-                note_result(&obj, result)
-            }))
-        };
+fn post_eval_for_pyobject<A: Allocator>(obj: PyObject) -> Option<Box<PostEval<A>>>
+where
+    A::Ptr: ToPyObject,
+{
+    let py_post_eval: Option<Box<PostEval<A>>> = if Python::with_gil(|py| obj.is_none(py)) {
+        None
+    } else {
+        Some(Box::new(move |result: Option<&A::Ptr>| {
+            note_result(&obj, result)
+        }))
+    };
     py_post_eval
 }
 
@@ -56,7 +63,7 @@ fn py_run_program(
                 let r: PyResult<PyObject> = pre_eval.call1(py, (program_clone, args));
                 match r {
                     Ok(py_post_eval) => {
-                        let f = post_eval_for_pyobject(py_post_eval);
+                        let f = post_eval_for_pyobject::<ArcAllocator>(py_post_eval);
                         Ok(f)
                     }
                     Err(ref err) => allocator.err(program, &err.to_string()),
@@ -86,12 +93,11 @@ fn py_run_program(
     match r {
         Ok(reduction) => Ok((reduction.0, reduction.1.into())),
         Err(eval_err) => {
-            let node: PyNode = eval_err.0.into();
+            let node: PyObject = eval_err.0.to_object(py);
             let s: String = eval_err.1;
             let s1: &str = &s;
             let msg: &PyString = PyString::new(py, s1);
-            let sexp_any: PyNode = node;
-            match raise_eval_error(py, &msg, &sexp_any) {
+            match raise_eval_error(py, &msg, node) {
                 Err(x) => Err(x),
                 _ => panic!(),
             }
@@ -100,16 +106,14 @@ fn py_run_program(
 }
 
 #[pyfunction]
-fn raise_eval_error(py: Python, msg: &PyString, sexp: &PyNode) -> PyResult<PyObject> {
-    let local_sexp: PyNode = sexp.clone();
-    let sexp_any: PyObject = local_sexp.into_py(py);
+fn raise_eval_error(py: Python, msg: &PyString, sexp: PyObject) -> PyResult<PyObject> {
     let msg_any: PyObject = msg.into_py(py);
 
     let s0: &PyString = PyString::new(py, "msg");
     let s1: &PyString = PyString::new(py, "sexp");
     let ctx: &PyDict = PyDict::new(py);
     ctx.set_item(s0, msg_any)?;
-    ctx.set_item(s1, sexp_any)?;
+    ctx.set_item(s1, sexp)?;
 
     let r = py.run(
         "from clvm.EvalError import EvalError; raise EvalError(msg, sexp)",

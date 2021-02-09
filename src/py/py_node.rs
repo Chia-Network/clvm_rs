@@ -71,6 +71,22 @@ impl From<ArcSExp> for PyNode {
     }
 }
 
+impl<'source> FromPyObject<'source> for ArcSExp {
+    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+        let py_node: PyNode = obj.extract()?;
+        Ok(py_node.into())
+    }
+}
+
+impl ToPyObject for ArcSExp {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        let pynode: PyNode = self.into();
+        let pynode: &PyCell<PyNode> = PyCell::new(py, pynode).unwrap();
+        let pa: &PyAny = &pynode;
+        pa.to_object(py)
+    }
+}
+
 #[pymethods]
 impl PyNode {
     #[new]

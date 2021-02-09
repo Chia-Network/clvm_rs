@@ -8,6 +8,7 @@ use lazy_static::*;
 use pyo3::prelude::*;
 
 #[pyclass(subclass, unsendable)]
+#[derive(Clone)]
 pub struct ArcAllocator {}
 
 pub enum ArcSExp {
