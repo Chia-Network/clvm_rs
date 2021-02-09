@@ -5,6 +5,7 @@ use pyo3::PyClass;
 use crate::allocator::Allocator;
 use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction};
+use crate::run_program::OperatorHandler;
 
 use super::f_table::FLookup;
 use super::to_py_node::ToPyNode;
@@ -30,12 +31,21 @@ pub struct GenericNativeOpLookup<A: Allocator> {
     f_lookup: FLookup<A>,
 }
 
-impl<A: Allocator> GenericNativeOpLookup<A> {
+impl<A: 'static + Allocator> GenericNativeOpLookup<A> {
     pub fn new(py_callback: PyObject, f_lookup: FLookup<A>) -> Self {
         GenericNativeOpLookup {
             py_callback,
             f_lookup,
         }
+    }
+
+    pub fn make_operator_handler<N>(self) -> OperatorHandler<A>
+    where
+        A: ToPyNode<N>,
+        N: PyClass + Clone + IntoPy<PyObject>,
+        <A as Allocator>::Ptr: From<N>,
+    {
+        Box::new(move |allocator, op, args| self.operator_handler::<N>(allocator, op, args))
     }
 
     pub fn operator_handler<'t, N>(

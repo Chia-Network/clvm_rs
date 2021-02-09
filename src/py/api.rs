@@ -4,7 +4,7 @@ use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
 use super::arc_allocator::ArcAllocator;
-use super::f_table::{make_f_lookup, FLookup};
+use super::f_table::make_f_lookup;
 use super::native_op_lookup::GenericNativeOpLookup;
 use super::py_node::PyNode;
 use super::to_py_node::ToPyNode;
@@ -13,7 +13,7 @@ use crate::allocator::Allocator;
 use crate::node::Node;
 use crate::py::run_program::{__pyo3_get_function_serialize_and_run_program, STRICT_MODE};
 use crate::reduction::{EvalErr, Reduction};
-use crate::run_program::{run_program, OperatorHandler, PostEval, PreEval};
+use crate::run_program::{run_program, PostEval, PreEval};
 use crate::serialize::{node_from_bytes, node_to_bytes};
 
 type AllocatorT = ArcAllocator;
@@ -36,7 +36,7 @@ impl NativeOpLookup {
     #[new]
     fn new(native_opcode_list: &[u8], unknown_op_callback: PyObject) -> Self {
         let native_lookup = make_f_lookup();
-        let mut f_lookup: FLookup<AllocatorT> = [None; 256];
+        let mut f_lookup = [None; 256];
         for i in native_opcode_list.iter() {
             let idx = *i as usize;
             f_lookup[idx] = native_lookup[idx];
@@ -44,14 +44,6 @@ impl NativeOpLookup {
         NativeOpLookup {
             nol: GenericNativeOpLookup::new(unknown_op_callback, f_lookup),
         }
-    }
-}
-
-impl NativeOpLookup {
-    pub fn make_operator_handler(self) -> OperatorHandler<AllocatorT> {
-        Box::new(move |allocator, op, args| {
-            self.nol.operator_handler::<NodeClass>(allocator, op, args)
-        })
     }
 }
 
@@ -93,30 +85,48 @@ fn py_run_program(
     op_lookup: NativeOpLookup,
     pre_eval: PyObject,
 ) -> PyResult<(u32, NodeClass)> {
-    let py_pre_eval_t: Option<PreEval<AllocatorT>> = if pre_eval.is_none(py) {
+    let allocator = AllocatorT::new();
+    _py_run_program(
+        py, &allocator, program, args, quote_kw, apply_kw, max_cost, op_lookup.nol, pre_eval,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn _py_run_program<'n, A, N>(
+    py: Python,
+    allocator: &A,
+    program: &'n N,
+    args: &'n N,
+    quote_kw: u8,
+    apply_kw: u8,
+    max_cost: u32,
+    op_lookup: GenericNativeOpLookup<A>,
+    pre_eval: PyObject,
+) -> PyResult<(u32, N)>
+where
+    A: 'static + Allocator + ToPyNode<N>,
+    N: PyClass + IntoPy<PyObject> + Clone,
+    <A as Allocator>::Ptr: IntoPy<PyObject> + From<&'n N> + From<N> + ToPyObject,
+{
+    let py_pre_eval_t: Option<PreEval<A>> = if pre_eval.is_none(py) {
         None
     } else {
         Some(Box::new(move |allocator, program, args| {
             Python::with_gil(|py| {
-                let program_clone: NodeClass = allocator.to_pynode(program);
-                let args: NodeClass = allocator.to_pynode(args);
+                let program_clone: N = allocator.to_pynode(program);
+                let args: N = allocator.to_pynode(args);
                 let r: PyResult<PyObject> = pre_eval.call1(py, (program_clone, args));
                 match r {
-                    Ok(py_post_eval) => Ok(post_eval_for_pyobject::<AllocatorT>(py_post_eval)),
-                    Err(ref err) => (allocator
-                        as &dyn Allocator<Ptr = <AllocatorT as Allocator>::Ptr>)
+                    Ok(py_post_eval) => Ok(post_eval_for_pyobject::<A>(py_post_eval)),
+                    Err(ref err) => (allocator as &dyn Allocator<Ptr = <A as Allocator>::Ptr>)
                         .err(program, &err.to_string()),
                 }
             })
         }))
     };
 
-    let allocator = AllocatorT::new();
-    let r: Result<
-        Reduction<<AllocatorT as Allocator>::Ptr>,
-        EvalErr<<AllocatorT as Allocator>::Ptr>,
-    > = run_program(
-        &allocator,
+    let r: Result<Reduction<<A as Allocator>::Ptr>, EvalErr<<A as Allocator>::Ptr>> = run_program(
+        allocator,
         &program.into(),
         &args.into(),
         quote_kw,
@@ -158,8 +168,7 @@ fn raise_eval_error(py: Python, msg: &PyString, sexp: PyObject) -> PyResult<PyOb
 
 #[pyfunction]
 fn serialize_from_bytes(blob: &[u8]) -> NodeClass {
-    let allocator: AllocatorT = AllocatorT::default();
-    _serialize_from_bytes(&allocator, blob)
+    _serialize_from_bytes(&AllocatorT::default(), blob)
 }
 
 fn _serialize_from_bytes<A: Allocator, N: PyClass>(allocator: &A, blob: &[u8]) -> N
