@@ -1,109 +1,105 @@
 use super::allocator::Allocator;
 use super::int_allocator::IntAllocator;
-use super::node;
+use super::node::Node;
 use super::serialize::node_from_bytes;
 use super::serialize::node_to_bytes;
 
-type Node<'a> = node::Node<'a, IntAllocator>;
-
-fn test_serialize_roundtrip(n: &Node) {
-    let vec = node_to_bytes(n).unwrap();
-    let n1: Node = Node::new(&n.allocator, node_from_bytes(n.allocator, &vec).unwrap());
-    assert_eq!(*n, n1);
+fn test_serialize_roundtrip<T: Allocator>(a: &mut T, n: T::Ptr) {
+    let vec = node_to_bytes(&Node::new(a, n.clone())).unwrap();
+    let n0 = node_from_bytes(a, &vec).unwrap();
+    let n1 = Node::new(a, n0);
+    assert_eq!(Node::new(a, n), n1);
 }
 
 #[test]
 fn test_roundtrip() {
-    let a = IntAllocator::new();
-    let n = Node::new(&a, a.null());
-    test_serialize_roundtrip(&n);
+    let mut a = IntAllocator::new();
+    let n = a.null();
+    test_serialize_roundtrip(&mut a, n);
 
-    let n = Node::new(&a, a.one());
-    test_serialize_roundtrip(&n);
+    let n = a.one();
+    test_serialize_roundtrip(&mut a, n);
 
-    let n = Node::new(&a, a.new_atom(&[1_u8, 2_u8, 3_u8]));
-    test_serialize_roundtrip(&n);
+    let n = a.new_atom(&[1_u8, 2_u8, 3_u8]);
+    test_serialize_roundtrip(&mut a, n);
 
-    let n = Node::new(
-        &a,
-        a.new_pair(
-            a.new_atom(&[1_u8, 2_u8, 3_u8]),
-            a.new_atom(&[4_u8, 5_u8, 6_u8]),
-        ),
-    );
-    test_serialize_roundtrip(&n);
+    let a1 = a.new_atom(&[1_u8, 2_u8, 3_u8]);
+    let a2 = a.new_atom(&[4_u8, 5_u8, 6_u8]);
+    let p = a.new_pair(a1, a2);
+    test_serialize_roundtrip(&mut a, p);
 
     for idx in 0..=255 {
-        let n = Node::new(&a, a.new_atom(&[idx]));
-        test_serialize_roundtrip(&n);
+        let n = a.new_atom(&[idx]);
+        test_serialize_roundtrip(&mut a, n);
     }
 
     // large blob
     let mut buf = Vec::<u8>::new();
     buf.resize(1000000, 0_u8);
-    let n = Node::new(&a, a.new_atom(&buf));
-    test_serialize_roundtrip(&n);
+    let n = a.new_atom(&buf);
+    test_serialize_roundtrip(&mut a, n);
 
     // deep tree
     let mut prev = a.null();
     for _ in 0..=4000 {
         prev = a.new_pair(a.one(), prev);
     }
-    let n = Node::new(&a, prev);
-    test_serialize_roundtrip(&n);
+    test_serialize_roundtrip(&mut a, prev);
 
     // deep reverse tree
     let mut prev = a.null();
     for _ in 0..=4000 {
-        prev = a.new_pair(prev, a.one());
+        let n = a.one();
+        prev = a.new_pair(prev, n);
     }
-    let n = Node::new(&a, prev);
-    test_serialize_roundtrip(&n);
+    test_serialize_roundtrip(&mut a, prev);
 }
 
 #[test]
 fn test_serialize_blobs() {
-    let a = IntAllocator::new();
+    let mut a = IntAllocator::new();
 
     // null
     let n = Node::new(&a, a.null());
     assert_eq!(node_to_bytes(&n).unwrap(), &[0x80]);
-    test_serialize_roundtrip(&n);
 
     // one
     let n = Node::new(&a, a.one());
     assert_eq!(node_to_bytes(&n).unwrap(), &[1]);
-    test_serialize_roundtrip(&n);
 
     // single byte
-    let n = Node::new(&a, a.new_atom(&[128]));
+    let atom = a.new_atom(&[128]);
+    let n = Node::new(&a, atom);
     assert_eq!(node_to_bytes(&n).unwrap(), &[0x81, 128]);
-    test_serialize_roundtrip(&n);
+    let n = n.node;
+    test_serialize_roundtrip(&mut a, n);
 
     // two bytes
-    let n = Node::new(&a, a.new_atom(&[0x10, 0xff]));
+    let atom = a.new_atom(&[0x10, 0xff]);
+    let n = Node::new(&a, atom);
     assert_eq!(node_to_bytes(&n).unwrap(), &[0x82, 0x10, 0xff]);
-    test_serialize_roundtrip(&n);
+    let n = n.node;
+    test_serialize_roundtrip(&mut a, n);
 
     // three bytes
-    let n = Node::new(&a, a.new_atom(&[0xff, 0x10, 0xff]));
+    let atom = a.new_atom(&[0xff, 0x10, 0xff]);
+    let n = Node::new(&a, atom);
     assert_eq!(node_to_bytes(&n).unwrap(), &[0x83, 0xff, 0x10, 0xff]);
-    test_serialize_roundtrip(&n);
+    let n = n.node;
+    test_serialize_roundtrip(&mut a, n);
 }
 
 #[test]
 fn test_serialize_lists() {
-    let a = IntAllocator::new();
+    let mut a = IntAllocator::new();
 
     // null
     let n = a.null();
     assert_eq!(node_to_bytes(&Node::new(&a, n)).unwrap(), &[0x80]);
-    test_serialize_roundtrip(&Node::new(&a, n));
 
     // one item
     let n = a.new_pair(a.one(), n);
     assert_eq!(node_to_bytes(&Node::new(&a, n)).unwrap(), &[0xff, 1, 0x80]);
-    test_serialize_roundtrip(&Node::new(&a, n));
 
     // two items
     let n = a.new_pair(a.one(), n);
@@ -111,7 +107,7 @@ fn test_serialize_lists() {
         node_to_bytes(&Node::new(&a, n)).unwrap(),
         &[0xff, 1, 0xff, 1, 0x80]
     );
-    test_serialize_roundtrip(&Node::new(&a, n));
+    test_serialize_roundtrip(&mut a, n);
 
     // three items
     let n = a.new_pair(a.one(), n);
@@ -119,7 +115,7 @@ fn test_serialize_lists() {
         node_to_bytes(&Node::new(&a, n)).unwrap(),
         &[0xff, 1, 0xff, 1, 0xff, 1, 0x80]
     );
-    test_serialize_roundtrip(&Node::new(&a, n));
+    test_serialize_roundtrip(&mut a, n);
 
     // a backwards list
     let n = a.one();
@@ -130,21 +126,25 @@ fn test_serialize_lists() {
         node_to_bytes(&Node::new(&a, n)).unwrap(),
         &[0xff, 0xff, 0xff, 1, 1, 1, 1]
     );
-    test_serialize_roundtrip(&Node::new(&a, n));
+    test_serialize_roundtrip(&mut a, n);
 }
 
 #[test]
 fn test_serialize_tree() {
-    let a = IntAllocator::new();
+    let mut a = IntAllocator::new();
 
-    let l = a.new_pair(a.new_atom(&[1]), a.new_atom(&[2]));
-    let r = a.new_pair(a.new_atom(&[3]), a.new_atom(&[4]));
+    let a1 = a.new_atom(&[1]);
+    let a2 = a.new_atom(&[2]);
+    let a3 = a.new_atom(&[3]);
+    let a4 = a.new_atom(&[4]);
+    let l = a.new_pair(a1, a2);
+    let r = a.new_pair(a3, a4);
     let n = a.new_pair(l, r);
     assert_eq!(
         node_to_bytes(&Node::new(&a, n)).unwrap(),
         &[0xff, 0xff, 1, 2, 0xff, 3, 4]
     );
-    test_serialize_roundtrip(&Node::new(&a, n));
+    test_serialize_roundtrip(&mut a, n);
 }
 
 /*
@@ -159,7 +159,7 @@ fn node_to_hex(node: &Node) -> String {
 }
 
 fn do_test_run_program(input_as_hex: &str, expected_as_hex: &str) -> () {
-    let a = IntAllocator::new();
+    let mut a = IntAllocator::new();
     let n = node_from_hex(&a, input_as_hex);
     println!("n = {:?}", n);
     let r = do_run_program(&n, &null);

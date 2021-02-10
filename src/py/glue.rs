@@ -50,7 +50,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub fn _py_run_program<'p, 'a, 'n, A, N>(
     py: Python<'p>,
-    allocator: &'a A,
+    allocator: &'a mut A,
     program: &'n N,
     args: &'n N,
     quote_kw: u8,
@@ -123,11 +123,12 @@ fn raise_eval_error(py: Python, msg: &PyString, sexp: PyObject) -> PyResult<PyOb
     }
 }
 
-pub fn _serialize_from_bytes<A: Allocator, N: PyClass>(allocator: &A, blob: &[u8]) -> N
+pub fn _serialize_from_bytes<A: Allocator, N: PyClass>(allocator: &mut A, blob: &[u8]) -> N
 where
     A: ToPyNode<N>,
 {
-    allocator.to_pynode(&node_from_bytes(allocator, blob).unwrap())
+    let n = node_from_bytes(allocator, blob).unwrap();
+    allocator.to_pynode(&n)
 }
 
 pub fn _serialize_to_bytes<A: Allocator, N>(

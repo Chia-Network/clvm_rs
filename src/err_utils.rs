@@ -6,7 +6,7 @@ pub fn err<T, P>(node: P, msg: &str) -> Result<T, EvalErr<P>> {
 }
 
 pub fn u8_err<A: Allocator, T>(
-    allocator: &A,
+    allocator: &mut A,
     o: &A::AtomBuf,
     msg: &str,
 ) -> Result<T, EvalErr<A::Ptr>> {

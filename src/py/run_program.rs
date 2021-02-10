@@ -24,14 +24,14 @@ struct OperatorHandlerWithMode {
 impl OperatorHandler<IntAllocator> for OperatorHandlerWithMode {
     fn op(
         &self,
-        allocator: &IntAllocator,
+        allocator: &mut IntAllocator,
         o: <IntAllocator as Allocator>::AtomBuf,
         argument_list: &u32,
     ) -> Result<Reduction<u32>, EvalErr<u32>> {
         let op = &allocator.buf(&o);
         if op.len() == 1 {
             if let Some(f) = F_TABLE[op[0] as usize] {
-                return f(&allocator, *argument_list);
+                return f(allocator, *argument_list);
             }
         }
         if self.strict {
@@ -54,16 +54,23 @@ pub fn serialize_and_run_program(
     max_cost: u32,
     flags: u32,
 ) -> PyResult<(u32, Py<PyBytes>)> {
-    let allocator = IntAllocator::new();
+    let mut allocator = IntAllocator::new();
     let f: Box<dyn OperatorHandler<IntAllocator>> = Box::new(OperatorHandlerWithMode {
         strict: (flags & STRICT_MODE) != 0,
     });
-    let program: u32 = node_from_bytes(&allocator, program).unwrap();
+    let program: u32 = node_from_bytes(&mut allocator, program).unwrap();
 
-    let args: u32 = node_from_bytes(&allocator, args).unwrap();
+    let args: u32 = node_from_bytes(&mut allocator, args).unwrap();
 
     let r: Result<Reduction<u32>, EvalErr<u32>> = run_program(
-        &allocator, &program, &args, quote_kw, apply_kw, max_cost, f, None,
+        &mut allocator,
+        &program,
+        &args,
+        quote_kw,
+        apply_kw,
+        max_cost,
+        f,
+        None,
     );
     match r {
         Ok(reduction) => {

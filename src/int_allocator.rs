@@ -1,7 +1,5 @@
 use std::vec;
 
-use aovec::Aovec;
-
 use crate::allocator::{Allocator, SExp};
 
 enum NodePtr {
@@ -10,8 +8,8 @@ enum NodePtr {
 }
 
 pub struct IntAllocator {
-    u8_vec: Aovec<Vec<u8>>,
-    node_vec: Aovec<NodePtr>,
+    u8_vec: Vec<Vec<u8>>,
+    node_vec: Vec<NodePtr>,
 }
 
 impl Default for IntAllocator {
@@ -22,9 +20,9 @@ impl Default for IntAllocator {
 
 impl IntAllocator {
     pub fn new() -> Self {
-        let r = IntAllocator {
-            u8_vec: Aovec::new(1024 * 1024),
-            node_vec: Aovec::new(32768),
+        let mut r = IntAllocator {
+            u8_vec: Vec::new(),
+            node_vec: Vec::new(),
         };
         r.u8_vec.push(vec![]);
         r.u8_vec.push(vec![1_u8]);
@@ -38,7 +36,7 @@ impl Allocator for IntAllocator {
     type Ptr = u32;
     type AtomBuf = u32;
 
-    fn new_atom(&self, v: &[u8]) -> u32 {
+    fn new_atom(&mut self, v: &[u8]) -> u32 {
         let index = self.u8_vec.len() as u32;
         self.u8_vec.push(v.into());
         let r: u32 = self.node_vec.len() as u32;
@@ -46,7 +44,7 @@ impl Allocator for IntAllocator {
         r
     }
 
-    fn new_pair(&self, first: Self::Ptr, rest: Self::Ptr) -> Self::Ptr {
+    fn new_pair(&mut self, first: Self::Ptr, rest: Self::Ptr) -> Self::Ptr {
         let r: u32 = self.node_vec.len() as u32;
         self.node_vec.push(NodePtr::Pair(first, rest));
         r

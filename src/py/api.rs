@@ -68,13 +68,21 @@ fn py_run_program(
     op_lookup: Py<NativeOpLookup>,
     pre_eval: PyObject,
 ) -> PyResult<(u32, NodeClass)> {
-    let allocator = allocator_for_py(py);
+    let mut allocator = allocator_for_py(py);
     let op_lookup: &PyCell<NativeOpLookup> = op_lookup.as_ref(py);
     let op_lookup: PyRef<NativeOpLookup> = op_lookup.borrow();
     let op_lookup: Box<GenericNativeOpLookup<AllocatorT, NodeClass>> =
         Box::new(op_lookup.gnol(py).to_owned());
     _py_run_program(
-        py, &allocator, program, args, quote_kw, apply_kw, max_cost, op_lookup, pre_eval,
+        py,
+        &mut allocator,
+        program,
+        args,
+        quote_kw,
+        apply_kw,
+        max_cost,
+        op_lookup,
+        pre_eval,
     )
 }
 
@@ -100,8 +108,8 @@ fn allocator_for_py(_py: Python) -> AllocatorT {
 
 #[pyfunction]
 fn serialize_from_bytes(py: Python, blob: &[u8]) -> NodeClass {
-    let allocator = allocator_for_py(py);
-    _serialize_from_bytes(&allocator, blob)
+    let mut allocator = allocator_for_py(py);
+    _serialize_from_bytes(&mut allocator, blob)
 }
 
 #[pyfunction]
