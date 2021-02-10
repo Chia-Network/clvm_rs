@@ -59,17 +59,18 @@ where
     });
 }
 
-fn post_eval_for_pyobject<A: Allocator>(obj: PyObject) -> Option<Box<PostEval<A>>>
+fn post_eval_for_pyobject<A: Allocator>(py: Python, obj: PyObject) -> Option<Box<PostEval<A>>>
 where
     A::Ptr: ToPyObject,
 {
-    let py_post_eval: Option<Box<PostEval<A>>> = if Python::with_gil(|py| obj.is_none(py)) {
+    let py_post_eval: Option<Box<PostEval<A>>> = if obj.is_none(py) {
         None
     } else {
         Some(Box::new(move |result: Option<&A::Ptr>| {
             note_result(&obj, result)
         }))
     };
+
     py_post_eval
 }
 
@@ -87,7 +88,15 @@ fn py_run_program(
 ) -> PyResult<(u32, NodeClass)> {
     let allocator = AllocatorT::new();
     _py_run_program(
-        py, &allocator, program, args, quote_kw, apply_kw, max_cost, op_lookup.nol, pre_eval,
+        py,
+        &allocator,
+        program,
+        args,
+        quote_kw,
+        apply_kw,
+        max_cost,
+        op_lookup.nol,
+        pre_eval,
     )
 }
 
@@ -117,7 +126,7 @@ where
                 let args: N = allocator.to_pynode(args);
                 let r: PyResult<PyObject> = pre_eval.call1(py, (program_clone, args));
                 match r {
-                    Ok(py_post_eval) => Ok(post_eval_for_pyobject::<A>(py_post_eval)),
+                    Ok(py_post_eval) => Ok(post_eval_for_pyobject::<A>(py, py_post_eval)),
                     Err(ref err) => (allocator as &dyn Allocator<Ptr = <A as Allocator>::Ptr>)
                         .err(program, &err.to_string()),
                 }
