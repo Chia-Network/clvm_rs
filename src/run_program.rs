@@ -122,162 +122,211 @@ fn traverse_path<T: Allocator>(
     Ok(Reduction(cost, arg_list))
 }
 
-fn swap_op<T: Allocator>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T::Ptr>> {
-    /* Swap the top two operands. */
-    let v2 = rpc.pop()?;
-    let v1 = rpc.pop()?;
-    rpc.push(v2);
-    rpc.push(v1);
-    Ok(0)
-}
-
-fn cons_op<T: Allocator>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T::Ptr>> {
-    /* Join the top two operands. */
-    let v1 = rpc.pop()?;
-    let v2 = rpc.pop()?;
-    rpc.push(rpc.allocator.new_pair(&v1, &v2));
-    Ok(0)
-}
-
-fn eval_op_atom<T: Allocator + 'static>(
-    rpc: &mut RunProgramContext<T>,
-    op_atom: &[u8],
-    operator_node: &T::Ptr,
-    operand_list: &T::Ptr,
-    args: &T::Ptr,
-) -> Result<u32, EvalErr<T::Ptr>> {
-    // special case check for quote
-    if op_atom.len() == 1 && op_atom[0] == rpc.quote_kw {
-        match rpc.allocator.sexp(operand_list) {
-            SExp::Atom(_) => make_err(&operand_list, "quote requires exactly 1 parameter"),
-            SExp::Pair(quoted_val, nil) => {
-                if Node::new(rpc.allocator, nil).nullp() {
-                    rpc.push(quoted_val);
-                    Ok(QUOTE_COST)
-                } else {
-                    make_err(&operand_list, "quote requires exactly 1 parameter")
-                }
-            }
+impl<'r, T: Allocator> RunProgramContext<'r, T> {
+    fn new(
+        allocator: &'r T,
+        quote_kw: u8,
+        apply_kw: u8,
+        operator_lookup: &'r OperatorHandler<T>,
+        pre_eval: Option<PreEval<T>>,
+    ) -> Self {
+        RunProgramContext {
+            allocator,
+            quote_kw,
+            apply_kw,
+            operator_lookup,
+            pre_eval,
+            val_stack: Vec::new(),
+            op_stack: Vec::new(),
         }
-    } else {
-        rpc.op_stack.push(Box::new(apply_op));
-        rpc.push(operator_node.clone());
-        let mut operands: T::Ptr = operand_list.clone();
-        loop {
-            if Node::new(rpc.allocator, operands.clone()).nullp() {
-                break;
-            }
-            rpc.op_stack.push(Box::new(cons_op));
-            rpc.op_stack.push(Box::new(eval_op));
-            rpc.op_stack.push(Box::new(swap_op));
-            match rpc.allocator.sexp(&operands) {
-                SExp::Atom(_) => return make_err(operand_list, "bad operand list"),
-                SExp::Pair(first, rest) => {
-                    let new_pair = rpc.allocator.new_pair(&first, args);
-                    rpc.push(new_pair);
-                    operands = rest.clone();
-                }
-            }
-        }
-        rpc.push(rpc.allocator.null());
-        Ok(1)
+    }
+
+    fn swap_op(&mut self) -> Result<u32, EvalErr<T::Ptr>> {
+        /* Swap the top two operands. */
+        let v2 = self.pop()?;
+        let v1 = self.pop()?;
+        self.push(v2);
+        self.push(v1);
+        Ok(0)
+    }
+
+    fn cons_op(&mut self) -> Result<u32, EvalErr<T::Ptr>> {
+        /* Join the top two operands. */
+        let v1 = self.pop()?;
+        let v2 = self.pop()?;
+        self.push(self.allocator.new_pair(&v1, &v2));
+        Ok(0)
     }
 }
 
-fn eval_pair<T: Allocator + 'static>(
-    rpc: &mut RunProgramContext<T>,
-    program: &T::Ptr,
-    args: &T::Ptr,
-) -> Result<u32, EvalErr<T::Ptr>> {
-    // put a bunch of ops on op_stack
-    match rpc.allocator.sexp(program) {
-        // the program is just a bitfield path through the args tree
-        SExp::Atom(path) => {
-            let r: Reduction<T::Ptr> = traverse_path(rpc.allocator, path, &args)?;
-            rpc.push(r.1);
-            Ok(r.0)
-        }
-        // the program is an operator and a list of operands
-        SExp::Pair(operator_node, operand_list) => match rpc.allocator.sexp(&operator_node) {
-            SExp::Pair(_, _) => {
-                // the operator is also a list, so we need two evals here
-                rpc.push(rpc.allocator.new_pair(&operator_node, &args));
-                rpc.op_stack.push(Box::new(eval_op));
-                rpc.op_stack.push(Box::new(eval_op));
-                Ok(1)
+impl<'r, T: Allocator + 'static> RunProgramContext<'r, T> {
+    fn eval_op_atom(
+        &mut self,
+        op_atom: &[u8],
+        operator_node: &T::Ptr,
+        operand_list: &T::Ptr,
+        args: &T::Ptr,
+    ) -> Result<u32, EvalErr<T::Ptr>> {
+        // special case check for quote
+        if op_atom.len() == 1 && op_atom[0] == self.quote_kw {
+            match self.allocator.sexp(operand_list) {
+                SExp::Atom(_) => make_err(&operand_list, "quote requires exactly 1 parameter"),
+                SExp::Pair(quoted_val, nil) => {
+                    if Node::new(self.allocator, nil).nullp() {
+                        self.push(quoted_val);
+                        Ok(QUOTE_COST)
+                    } else {
+                        make_err(&operand_list, "quote requires exactly 1 parameter")
+                    }
+                }
             }
-            SExp::Atom(op_atom) => eval_op_atom(rpc, &op_atom, &operator_node, &operand_list, args),
-        },
-    }
-}
-
-fn eval_op<T: Allocator + 'static>(rpc: &mut RunProgramContext<T>) -> Result<u32, EvalErr<T::Ptr>> {
-    /*
-    Pop the top value and treat it as a (program, args) pair, and manipulate
-    the op & value stack to evaluate all the arguments and apply the operator.
-    */
-
-    let pair: T::Ptr = rpc.pop()?;
-    match rpc.allocator.sexp(&pair) {
-        SExp::Atom(_) => make_err(&pair, "pair expected"),
-        SExp::Pair(program, args) => {
-            let post_eval = match rpc.pre_eval {
-                None => None,
-                Some(ref pre_eval) => pre_eval(&rpc.allocator, &program, &args)?,
-            };
-            match post_eval {
-                None => (),
-                Some(post_eval) => {
-                    let new_function = Box::new(move |rpc: &mut RunProgramContext<T>| {
-                        let peek: Option<&T::Ptr> = rpc.val_stack.last();
-                        post_eval(peek);
-                        Ok(0)
-                    });
-                    rpc.op_stack.push(new_function);
+        } else {
+            self.op_stack.push(Box::new(|r| r.apply_op()));
+            self.push(operator_node.clone());
+            let mut operands: T::Ptr = operand_list.clone();
+            loop {
+                if Node::new(self.allocator, operands.clone()).nullp() {
+                    break;
                 }
-            };
-            eval_pair(rpc, &program, &args)
+                self.op_stack.push(Box::new(|r| r.cons_op()));
+                self.op_stack.push(Box::new(|r| r.eval_op()));
+                self.op_stack.push(Box::new(|r| r.swap_op()));
+                match self.allocator.sexp(&operands) {
+                    SExp::Atom(_) => return make_err(operand_list, "bad operand list"),
+                    SExp::Pair(first, rest) => {
+                        let new_pair = self.allocator.new_pair(&first, args);
+                        self.push(new_pair);
+                        operands = rest.clone();
+                    }
+                }
+            }
+            self.push(self.allocator.null());
+            Ok(1)
         }
     }
-}
 
-fn apply_op<T: Allocator + 'static>(
-    rpc: &mut RunProgramContext<T>,
-) -> Result<u32, EvalErr<T::Ptr>> {
-    let operand_list = rpc.pop()?;
-    let operator = rpc.pop()?;
-    match rpc.allocator.sexp(&operator) {
-        SExp::Pair(_, _) => Err(EvalErr(operator, "internal error".into())),
-        SExp::Atom(op_atom) => {
-            if op_atom.len() == 1 && op_atom[0] == rpc.apply_kw {
-                let operand_list = Node::new(rpc.allocator, operand_list);
-                if operand_list.arg_count_is(2) {
-                    let new_operator = operand_list.first()?;
-                    let new_operand_list = operand_list.rest()?.first()?;
-                    match new_operator.sexp() {
-                        SExp::Pair(_, _) => {
-                            let new_pair = rpc
-                                .allocator
-                                .new_pair(&new_operator.node, &new_operand_list.node);
-                            rpc.push(new_pair);
-                            rpc.op_stack.push(Box::new(eval_op));
-                        }
-                        SExp::Atom(_) => {
-                            rpc.push(new_operator.node);
-                            rpc.push(new_operand_list.node);
-                            rpc.op_stack.push(Box::new(apply_op));
-                        }
-                    };
-                    Ok(APPLY_COST)
-                } else {
-                    operand_list.err("apply requires exactly 2 parameters")
-                }
-            } else {
-                let r = (rpc.operator_lookup)(rpc.allocator, &op_atom, &operand_list)?;
-                rpc.push(r.1);
+    fn eval_pair(&mut self, program: &T::Ptr, args: &T::Ptr) -> Result<u32, EvalErr<T::Ptr>> {
+        // put a bunch of ops on op_stack
+        match self.allocator.sexp(program) {
+            // the program is just a bitfield path through the args tree
+            SExp::Atom(path) => {
+                let r: Reduction<T::Ptr> = traverse_path(self.allocator, path, &args)?;
+                self.push(r.1);
                 Ok(r.0)
             }
+            // the program is an operator and a list of operands
+            SExp::Pair(operator_node, operand_list) => match self.allocator.sexp(&operator_node) {
+                SExp::Pair(_, _) => {
+                    // the operator is also a list, so we need two evals here
+                    self.push(self.allocator.new_pair(&operator_node, &args));
+                    self.op_stack.push(Box::new(|r| r.eval_op()));
+                    self.op_stack.push(Box::new(|r| r.eval_op()));
+                    Ok(1)
+                }
+                SExp::Atom(op_atom) => {
+                    self.eval_op_atom(&op_atom, &operator_node, &operand_list, args)
+                }
+            },
         }
+    }
+
+    fn eval_op(&mut self) -> Result<u32, EvalErr<T::Ptr>> {
+        /*
+        Pop the top value and treat it as a (program, args) pair, and manipulate
+        the op & value stack to evaluate all the arguments and apply the operator.
+        */
+
+        let pair: T::Ptr = self.pop()?;
+        match self.allocator.sexp(&pair) {
+            SExp::Atom(_) => make_err(&pair, "pair expected"),
+            SExp::Pair(program, args) => {
+                let post_eval = match self.pre_eval {
+                    None => None,
+                    Some(ref pre_eval) => pre_eval(&self.allocator, &program, &args)?,
+                };
+                match post_eval {
+                    None => (),
+                    Some(post_eval) => {
+                        let new_function = Box::new(move |rpc: &mut RunProgramContext<T>| {
+                            let peek: Option<&T::Ptr> = rpc.val_stack.last();
+                            post_eval(peek);
+                            Ok(0)
+                        });
+                        self.op_stack.push(new_function);
+                    }
+                };
+                self.eval_pair(&program, &args)
+            }
+        }
+    }
+
+    fn apply_op(&mut self) -> Result<u32, EvalErr<T::Ptr>> {
+        let operand_list = self.pop()?;
+        let operator = self.pop()?;
+        match self.allocator.sexp(&operator) {
+            SExp::Pair(_, _) => Err(EvalErr(operator, "internal error".into())),
+            SExp::Atom(op_atom) => {
+                if op_atom.len() == 1 && op_atom[0] == self.apply_kw {
+                    let operand_list = Node::new(self.allocator, operand_list);
+                    if operand_list.arg_count_is(2) {
+                        let new_operator = operand_list.first()?;
+                        let new_operand_list = operand_list.rest()?.first()?;
+                        match new_operator.sexp() {
+                            SExp::Pair(_, _) => {
+                                let new_pair = self
+                                    .allocator
+                                    .new_pair(&new_operator.node, &new_operand_list.node);
+                                self.push(new_pair);
+                                self.op_stack.push(Box::new(|r| r.eval_op()));
+                            }
+                            SExp::Atom(_) => {
+                                self.push(new_operator.node);
+                                self.push(new_operand_list.node);
+                                self.op_stack.push(Box::new(|r| r.apply_op()));
+                            }
+                        };
+                        Ok(APPLY_COST)
+                    } else {
+                        operand_list.err("apply requires exactly 2 parameters")
+                    }
+                } else {
+                    let r = (self.operator_lookup)(self.allocator, &op_atom, &operand_list)?;
+                    self.push(r.1);
+                    Ok(r.0)
+                }
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn run_program(
+        &mut self,
+        program: &T::Ptr,
+        args: &T::Ptr,
+        max_cost: u32,
+    ) -> Response<T::Ptr> {
+        self.val_stack = vec![self.allocator.new_pair(program, args)];
+        self.op_stack = vec![Box::new(|r| r.eval_op())];
+
+        let mut cost: u32 = 0;
+
+        loop {
+            let top = self.op_stack.pop();
+            match top {
+                Some(f) => {
+                    cost += f(self)?;
+                }
+                None => break,
+            }
+            if cost > max_cost && max_cost > 0 {
+                let max_cost: Number = max_cost.into();
+                let n: Node<T> =
+                    Node::new(self.allocator, ptr_from_number(self.allocator, &max_cost));
+                return n.err("cost exceeded");
+            }
+        }
+
+        Ok(Reduction(cost, self.pop()?))
     }
 }
 
@@ -292,37 +341,8 @@ pub fn run_program<T: Allocator + 'static>(
     operator_lookup: &OperatorHandler<T>,
     pre_eval: Option<PreEval<T>>,
 ) -> Response<T::Ptr> {
-    let values: Vec<T::Ptr> = vec![allocator.new_pair(program, args)];
-    let op_stack: Vec<Box<RPCOperator<T>>> = vec![Box::new(eval_op)];
-
-    let mut rpc = RunProgramContext {
-        allocator,
-        quote_kw,
-        apply_kw,
-        operator_lookup,
-        pre_eval,
-        val_stack: values,
-        op_stack,
-    };
-
-    let mut cost: u32 = 0;
-
-    loop {
-        let top = rpc.op_stack.pop();
-        match top {
-            Some(f) => {
-                cost += f(&mut rpc)?;
-            }
-            None => break,
-        }
-        if cost > max_cost && max_cost > 0 {
-            let max_cost: Number = max_cost.into();
-            let n: Node<T> = Node::new(allocator, ptr_from_number(allocator, &max_cost));
-            return n.err("cost exceeded");
-        }
-    }
-
-    Ok(Reduction(cost, rpc.pop()?))
+    let mut rpc = RunProgramContext::new(allocator, quote_kw, apply_kw, operator_lookup, pre_eval);
+    rpc.run_program(program, args, max_cost)
 }
 
 #[test]
