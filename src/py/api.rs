@@ -16,7 +16,7 @@ type NodeClass = PyNode;
 #[pyclass]
 #[derive(Clone)]
 pub struct NativeOpLookup {
-    nol: GenericNativeOpLookup<AllocatorT>,
+    nol: Box<GenericNativeOpLookup<AllocatorT>>,
 }
 
 #[pymethods]
@@ -30,7 +30,7 @@ impl NativeOpLookup {
             f_lookup[idx] = native_lookup[idx];
         }
         NativeOpLookup {
-            nol: GenericNativeOpLookup::new(unknown_op_callback, f_lookup),
+            nol: Box::new(GenericNativeOpLookup::new(unknown_op_callback, f_lookup)),
         }
     }
 }

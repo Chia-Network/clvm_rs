@@ -56,7 +56,7 @@ pub fn _py_run_program<'n, A, N>(
     quote_kw: u8,
     apply_kw: u8,
     max_cost: u32,
-    op_lookup: GenericNativeOpLookup<A>,
+    op_lookup: Box<GenericNativeOpLookup<A>>,
     pre_eval: PyObject,
 ) -> PyResult<(u32, N)>
 where
