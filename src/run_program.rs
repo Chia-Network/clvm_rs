@@ -28,11 +28,11 @@ type RPCOperator<T> =
 // `run_program` has two stacks: the operand stack (of `Node` objects) and the
 // operator stack (of RPCOperators)
 
-pub struct RunProgramContext<'a, T: Allocator> {
+pub struct RunProgramContext<'a, 'h, T: Allocator> {
     allocator: &'a T,
     quote_kw: u8,
     apply_kw: u8,
-    operator_lookup: &'a OperatorHandler<T>,
+    operator_lookup: &'h OperatorHandler<T>,
     pre_eval: Option<PreEval<T>>,
     val_stack: Vec<T::Ptr>,
     op_stack: Vec<Box<RPCOperator<T>>>,
@@ -42,7 +42,7 @@ pub fn make_err<T: Clone, V>(node: &T, msg: &str) -> Result<V, EvalErr<T>> {
     Err(EvalErr(node.clone(), msg.into()))
 }
 
-impl<T: Allocator> RunProgramContext<'_, T> {
+impl<'a, 'h, T: Allocator> RunProgramContext<'a, 'h, T> {
     pub fn pop(&mut self) -> Result<T::Ptr, EvalErr<T::Ptr>> {
         let v: Option<T::Ptr> = self.val_stack.pop();
         match v {
@@ -122,12 +122,12 @@ fn traverse_path<T: Allocator>(
     Ok(Reduction(cost, arg_list))
 }
 
-impl<'r, T: Allocator> RunProgramContext<'r, T> {
+impl<'a, 'h, T: Allocator> RunProgramContext<'a, 'h, T> {
     fn new(
-        allocator: &'r T,
+        allocator: &'a T,
         quote_kw: u8,
         apply_kw: u8,
-        operator_lookup: &'r OperatorHandler<T>,
+        operator_lookup: &'h OperatorHandler<T>,
         pre_eval: Option<PreEval<T>>,
     ) -> Self {
         RunProgramContext {
@@ -159,7 +159,10 @@ impl<'r, T: Allocator> RunProgramContext<'r, T> {
     }
 }
 
-impl<'r, T: Allocator + 'static> RunProgramContext<'r, T> {
+impl<'a, 'h, T: Allocator> RunProgramContext<'a, 'h, T>
+where
+    <T as Allocator>::Ptr: 'static,
+{
     fn eval_op_atom(
         &mut self,
         op_atom: &[u8],
@@ -247,11 +250,12 @@ impl<'r, T: Allocator + 'static> RunProgramContext<'r, T> {
                 match post_eval {
                     None => (),
                     Some(post_eval) => {
-                        let new_function = Box::new(move |rpc: &mut RunProgramContext<T>| {
-                            let peek: Option<&T::Ptr> = rpc.val_stack.last();
-                            post_eval(peek);
-                            Ok(0)
-                        });
+                        let new_function: Box<RPCOperator<T>> =
+                            Box::new(move |rpc: &mut RunProgramContext<T>| {
+                                let peek: Option<&T::Ptr> = rpc.val_stack.last();
+                                post_eval(peek);
+                                Ok(0)
+                            });
                         self.op_stack.push(new_function);
                     }
                 };
@@ -331,7 +335,7 @@ impl<'r, T: Allocator + 'static> RunProgramContext<'r, T> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_program<T: Allocator + 'static>(
+pub fn run_program<T: Allocator>(
     allocator: &T,
     program: &T::Ptr,
     args: &T::Ptr,
@@ -340,7 +344,10 @@ pub fn run_program<T: Allocator + 'static>(
     max_cost: u32,
     operator_lookup: &OperatorHandler<T>,
     pre_eval: Option<PreEval<T>>,
-) -> Response<T::Ptr> {
+) -> Response<T::Ptr>
+where
+    <T as Allocator>::Ptr: 'static,
+{
     let mut rpc = RunProgramContext::new(allocator, quote_kw, apply_kw, operator_lookup, pre_eval);
     rpc.run_program(program, args, max_cost)
 }
