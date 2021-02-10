@@ -118,7 +118,10 @@ enum ParseOp {
     Cons,
 }
 
-pub fn node_from_stream<T: Allocator>(allocator: &T, f: &mut dyn Read) -> std::io::Result<T::Ptr> {
+pub fn node_from_stream<T: Allocator>(
+    allocator: &mut T,
+    f: &mut dyn Read,
+) -> std::io::Result<T::Ptr> {
     let mut values: Vec<T::Ptr> = Vec::new();
     let mut ops = vec![ParseOp::SExp];
 
@@ -159,7 +162,7 @@ pub fn node_from_stream<T: Allocator>(allocator: &T, f: &mut dyn Read) -> std::i
     Ok(values.pop().unwrap())
 }
 
-pub fn node_from_bytes<T: Allocator>(allocator: &T, b: &[u8]) -> std::io::Result<T::Ptr> {
+pub fn node_from_bytes<T: Allocator>(allocator: &mut T, b: &[u8]) -> std::io::Result<T::Ptr> {
     let mut buffer = Cursor::new(b);
     node_from_stream(allocator, &mut buffer)
 }

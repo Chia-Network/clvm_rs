@@ -11,7 +11,7 @@ const LISTP_COST: u32 = 5;
 const CMP_BASE_COST: u32 = 16;
 const CMP_COST_PER_LIMB_DIVIDER: u32 = 64;
 
-pub fn op_if<T: Allocator>(a: &T, input: T::Ptr) -> Response<T::Ptr> {
+pub fn op_if<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let args = Node::new(a, input);
     check_arg_count(&args, 3, "i")?;
     let cond = args.first()?;
@@ -22,7 +22,7 @@ pub fn op_if<T: Allocator>(a: &T, input: T::Ptr) -> Response<T::Ptr> {
     Ok(Reduction(IF_COST, chosen_node.first()?.node))
 }
 
-pub fn op_cons<T: Allocator>(a: &T, input: T::Ptr) -> Response<T::Ptr> {
+pub fn op_cons<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let args = Node::new(a, input);
     check_arg_count(&args, 2, "c")?;
     let a1 = args.first()?;
@@ -33,19 +33,19 @@ pub fn op_cons<T: Allocator>(a: &T, input: T::Ptr) -> Response<T::Ptr> {
     Ok(Reduction(CONS_COST, r))
 }
 
-pub fn op_first<T: Allocator>(a: &T, input: T::Ptr) -> Response<T::Ptr> {
+pub fn op_first<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let args = Node::new(a, input);
     check_arg_count(&args, 1, "f")?;
     Ok(Reduction(FIRST_COST, args.first()?.first()?.node))
 }
 
-pub fn op_rest<T: Allocator>(a: &T, input: T::Ptr) -> Response<T::Ptr> {
+pub fn op_rest<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let args = Node::new(a, input);
     check_arg_count(&args, 1, "r")?;
     Ok(Reduction(REST_COST, args.first()?.rest()?.node))
 }
 
-pub fn op_listp<T: Allocator>(a: &T, input: T::Ptr) -> Response<T::Ptr> {
+pub fn op_listp<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let args = Node::new(a, input);
     check_arg_count(&args, 1, "l")?;
     match args.first()?.pair() {
@@ -54,12 +54,12 @@ pub fn op_listp<T: Allocator>(a: &T, input: T::Ptr) -> Response<T::Ptr> {
     }
 }
 
-pub fn op_raise<T: Allocator>(a: &T, input: T::Ptr) -> Response<T::Ptr> {
+pub fn op_raise<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let args = Node::new(a, input);
     args.err("clvm raise")
 }
 
-pub fn op_eq<T: Allocator>(a: &T, input: T::Ptr) -> Response<T::Ptr> {
+pub fn op_eq<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let args = Node::new(a, input);
     check_arg_count(&args, 2, "=")?;
     let a0 = args.first()?;

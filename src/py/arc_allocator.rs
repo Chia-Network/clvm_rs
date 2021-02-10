@@ -34,7 +34,7 @@ impl ArcAllocator {
         ArcAllocator {}
     }
 
-    pub fn blob(&self, v: &str) -> ArcSExp {
+    pub fn blob(&mut self, v: &str) -> ArcSExp {
         let v: Vec<u8> = v.into();
         self.new_atom(&v)
     }
@@ -44,11 +44,11 @@ impl Allocator for ArcAllocator {
     type Ptr = ArcSExp;
     type AtomBuf = Arc<Vec<u8>>;
 
-    fn new_atom(&self, v: &[u8]) -> ArcSExp {
+    fn new_atom(&mut self, v: &[u8]) -> ArcSExp {
         ArcSExp::Atom(Arc::new(v.into()))
     }
 
-    fn new_pair(&self, first: ArcSExp, rest: ArcSExp) -> ArcSExp {
+    fn new_pair(&mut self, first: ArcSExp, rest: ArcSExp) -> ArcSExp {
         ArcSExp::Pair(Arc::new(first), Arc::new(rest))
     }
 

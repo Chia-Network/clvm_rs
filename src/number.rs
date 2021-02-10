@@ -4,7 +4,7 @@ use crate::node::Node;
 use num_bigint::BigInt;
 pub type Number = BigInt;
 
-pub fn ptr_from_number<T: Allocator>(allocator: &T, item: &Number) -> T::Ptr {
+pub fn ptr_from_number<T: Allocator>(allocator: &mut T, item: &Number) -> T::Ptr {
     let bytes: Vec<u8> = item.to_signed_bytes_be();
     let mut slice = bytes.as_slice();
 

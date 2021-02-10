@@ -13,8 +13,8 @@ pub trait Allocator {
     type Ptr: Clone;
     type AtomBuf: Clone;
 
-    fn new_atom(&self, v: &[u8]) -> Self::Ptr;
-    fn new_pair(&self, first: Self::Ptr, rest: Self::Ptr) -> Self::Ptr;
+    fn new_atom(&mut self, v: &[u8]) -> Self::Ptr;
+    fn new_pair(&mut self, first: Self::Ptr, rest: Self::Ptr) -> Self::Ptr;
 
     // The lifetime here is a bit special because IntAllocator and ArcAllocator
     // have slightly different requirements. With IntAllocator, all buffers are

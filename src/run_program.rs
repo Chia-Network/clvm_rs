@@ -13,7 +13,7 @@ const APPLY_COST: u32 = 1;
 pub trait OperatorHandler<T: Allocator> {
     fn op(
         &self,
-        allocator: &T,
+        allocator: &mut T,
         op: <T as Allocator>::AtomBuf,
         args: &<T as Allocator>::Ptr,
     ) -> Response<<T as Allocator>::Ptr>;
@@ -21,7 +21,7 @@ pub trait OperatorHandler<T: Allocator> {
 
 pub type PreEval<A> = Box<
     dyn Fn(
-        &A,
+        &mut A,
         &<A as Allocator>::Ptr,
         &<A as Allocator>::Ptr,
     ) -> Result<Option<Box<PostEval<A>>>, EvalErr<<A as Allocator>::Ptr>>,
@@ -36,7 +36,7 @@ type RpcOperator<T> =
 // operator stack (of RpcOperators)
 
 pub struct RunProgramContext<'a, T: Allocator> {
-    allocator: &'a T,
+    allocator: &'a mut T,
     quote_kw: u8,
     apply_kw: u8,
     operator_lookup: Box<dyn OperatorHandler<T>>,
@@ -127,7 +127,7 @@ fn traverse_path<T: Allocator>(
 
 impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
     fn new(
-        allocator: &'a T,
+        allocator: &'a mut T,
         quote_kw: u8,
         apply_kw: u8,
         operator_lookup: Box<dyn OperatorHandler<T>>,
@@ -157,7 +157,8 @@ impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
         /* Join the top two operands. */
         let v1 = self.pop()?;
         let v2 = self.pop()?;
-        self.push(self.allocator.new_pair(v1, v2));
+        let p = self.allocator.new_pair(v1, v2);
+        self.push(p);
         Ok(0)
     }
 }
@@ -253,7 +254,7 @@ where
             SExp::Pair(program, args) => {
                 let post_eval = match self.pre_eval {
                     None => None,
-                    Some(ref pre_eval) => pre_eval(&self.allocator, &program, &args)?,
+                    Some(ref pre_eval) => pre_eval(&mut self.allocator, &program, &args)?,
                 };
                 if let Some(post_eval) = post_eval {
                     let new_function: Box<RpcOperator<T>> =
@@ -332,8 +333,8 @@ where
             }
             if cost > max_cost && max_cost > 0 {
                 let max_cost: Number = max_cost.into();
-                let n: Node<T> =
-                    Node::new(self.allocator, ptr_from_number(self.allocator, &max_cost));
+                let ptr = ptr_from_number(self.allocator, &max_cost);
+                let n: Node<T> = Node::new(self.allocator, ptr);
                 return n.err("cost exceeded");
             }
         }
@@ -344,7 +345,7 @@ where
 
 #[allow(clippy::too_many_arguments)]
 pub fn run_program<T: Allocator>(
-    allocator: &T,
+    allocator: &mut T,
     program: &T::Ptr,
     args: &T::Ptr,
     quote_kw: u8,
@@ -392,7 +393,7 @@ fn test_first_non_zero() {
 fn test_traverse_path() {
     use crate::int_allocator::IntAllocator;
 
-    let a = IntAllocator::new();
+    let mut a = IntAllocator::new();
     let nul = a.null();
     let n1 = a.new_atom(&[0, 1, 2]);
     let n2 = a.new_atom(&[4, 5, 6]);

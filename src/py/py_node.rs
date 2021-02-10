@@ -30,7 +30,7 @@ fn extract_node<'a>(_allocator: &ArcAllocator, obj: &'a PyAny) -> PyResult<PyRef
     Ok(node)
 }
 
-fn extract_tuple(allocator: &ArcAllocator, obj: &PyAny) -> PyResult<PyNode> {
+fn extract_tuple(allocator: &mut ArcAllocator, obj: &PyAny) -> PyResult<PyNode> {
     let v: &PyTuple = obj.downcast()?;
     if v.len() != 2 {
         return Err(PyValueError::new_err("SExp tuples must be size 2"));
@@ -81,13 +81,13 @@ impl ToPyObject for ArcSExp {
 impl PyNode {
     #[new]
     pub fn py_new(obj: &PyAny) -> PyResult<Self> {
-        let allocator = ArcAllocator::new();
+        let mut allocator = ArcAllocator::new();
         let node: PyNode = {
             let n = extract_atom(&allocator, obj);
             if let Ok(r) = n {
                 r
             } else {
-                extract_tuple(&allocator, obj)?
+                extract_tuple(&mut allocator, obj)?
             }
         };
         Ok(node)
