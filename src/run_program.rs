@@ -247,17 +247,14 @@ where
                     None => None,
                     Some(ref pre_eval) => pre_eval(&self.allocator, &program, &args)?,
                 };
-                match post_eval {
-                    None => (),
-                    Some(post_eval) => {
-                        let new_function: Box<RPCOperator<T>> =
-                            Box::new(move |rpc: &mut RunProgramContext<T>| {
-                                let peek: Option<&T::Ptr> = rpc.val_stack.last();
-                                post_eval(peek);
-                                Ok(0)
-                            });
-                        self.op_stack.push(new_function);
-                    }
+                if let Some(post_eval) = post_eval {
+                    let new_function: Box<RPCOperator<T>> =
+                        Box::new(move |rpc: &mut RunProgramContext<T>| {
+                            let peek: Option<&T::Ptr> = rpc.val_stack.last();
+                            post_eval(peek);
+                            Ok(0)
+                        });
+                    self.op_stack.push(new_function);
                 };
                 self.eval_pair(&program, &args)
             }
