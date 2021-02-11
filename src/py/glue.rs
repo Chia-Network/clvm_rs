@@ -48,15 +48,15 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn _py_run_program<'n, A, N>(
-    py: Python,
-    allocator: &A,
+pub fn _py_run_program<'p, 'a, 'n, A, N>(
+    py: Python<'p>,
+    allocator: &'a A,
     program: &'n N,
     args: &'n N,
     quote_kw: u8,
     apply_kw: u8,
     max_cost: u32,
-    op_lookup: Box<GenericNativeOpLookup<A>>,
+    op_lookup: &GenericNativeOpLookup<A>,
     pre_eval: PyObject,
 ) -> PyResult<(u32, N)>
 where

@@ -39,7 +39,7 @@ impl<A: 'static + Allocator> GenericNativeOpLookup<A> {
         }
     }
 
-    pub fn make_operator_handler<N>(self) -> OperatorHandler<A>
+    pub fn make_operator_handler<N>(&self) -> OperatorHandler<A>
     where
         A: ToPyNode<N>,
         N: PyClass + Clone + IntoPy<PyObject>,

@@ -9,8 +9,8 @@ const TRAVERSE_COST_PER_ZERO_BYTE: u32 = 1;
 const TRAVERSE_COST_PER_BIT: u32 = 1;
 const APPLY_COST: u32 = 1;
 
-pub type OperatorHandler<T> =
-    Box<dyn Fn(&T, &[u8], &<T as Allocator>::Ptr) -> Response<<T as Allocator>::Ptr>>;
+pub type OperatorHandler<'a, T> =
+    Box<dyn 'a + Fn(&T, &[u8], &<T as Allocator>::Ptr) -> Response<<T as Allocator>::Ptr>>;
 
 pub type PreEval<A> = Box<
     dyn Fn(
@@ -32,7 +32,7 @@ pub struct RunProgramContext<'a, 'h, T: Allocator> {
     allocator: &'a T,
     quote_kw: u8,
     apply_kw: u8,
-    operator_lookup: &'h OperatorHandler<T>,
+    operator_lookup: &'h OperatorHandler<'a, T>,
     pre_eval: Option<PreEval<T>>,
     val_stack: Vec<T::Ptr>,
     op_stack: Vec<Box<RPCOperator<T>>>,
@@ -127,7 +127,7 @@ impl<'a, 'h, T: Allocator> RunProgramContext<'a, 'h, T> {
         allocator: &'a T,
         quote_kw: u8,
         apply_kw: u8,
-        operator_lookup: &'h OperatorHandler<T>,
+        operator_lookup: &'h OperatorHandler<'a, T>,
         pre_eval: Option<PreEval<T>>,
     ) -> Self {
         RunProgramContext {
