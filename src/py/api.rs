@@ -37,12 +37,13 @@ impl NativeOpLookup {
 
 impl Drop for NativeOpLookup {
     fn drop(&mut self) {
-        let _b = unsafe { Box::from_raw(self.nol as *mut GenericNativeOpLookup<AllocatorT>) };
+        let _b =
+            unsafe { Box::from_raw(self.nol as *mut GenericNativeOpLookup<AllocatorT, NodeClass>) };
     }
 }
 
 impl NativeOpLookup {
-    fn new_from_gnol(gnol: Box<GenericNativeOpLookup<AllocatorT>>) -> Self {
+    fn new_from_gnol(gnol: Box<GenericNativeOpLookup<AllocatorT, PyNode>>) -> Self {
         NativeOpLookup {
             nol: Box::into_raw(gnol) as usize,
         }
@@ -50,8 +51,8 @@ impl NativeOpLookup {
 }
 
 impl NativeOpLookup {
-    fn gnol<'a, 'p>(&self, _py: Python<'p>) -> &'a GenericNativeOpLookup<AllocatorT<'p>> {
-        unsafe { &*(self.nol as *const GenericNativeOpLookup<AllocatorT>) }
+    fn gnol<'a, 'p>(&self, _py: Python<'p>) -> &'a GenericNativeOpLookup<AllocatorT<'p>, PyNode> {
+        unsafe { &*(self.nol as *const GenericNativeOpLookup<AllocatorT, NodeClass>) }
     }
 }
 
@@ -70,7 +71,8 @@ fn py_run_program(
     let allocator = allocator_for_py(py);
     let op_lookup: &PyCell<NativeOpLookup> = op_lookup.as_ref(py);
     let op_lookup: PyRef<NativeOpLookup> = op_lookup.borrow();
-    let op_lookup: &GenericNativeOpLookup<AllocatorT> = op_lookup.gnol(py);
+    let op_lookup: Box<GenericNativeOpLookup<AllocatorT, NodeClass>> =
+        Box::new(op_lookup.gnol(py).to_owned());
     _py_run_program(
         py, &allocator, program, args, quote_kw, apply_kw, max_cost, op_lookup, pre_eval,
     )

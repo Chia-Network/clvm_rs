@@ -56,12 +56,12 @@ pub fn _py_run_program<'p, 'a, 'n, A, N>(
     quote_kw: u8,
     apply_kw: u8,
     max_cost: u32,
-    op_lookup: &GenericNativeOpLookup<A>,
+    op_lookup: Box<GenericNativeOpLookup<A, N>>,
     pre_eval: PyObject,
 ) -> PyResult<(u32, N)>
 where
     A: 'static + Allocator + ToPyNode<N>,
-    N: PyClass + IntoPy<PyObject> + Clone,
+    N: 'static + PyClass + IntoPy<PyObject> + Clone,
     <A as Allocator>::Ptr: IntoPy<PyObject> + From<&'n N> + From<N> + ToPyObject,
 {
     let py_pre_eval_t: Option<PreEval<A>> = if pre_eval.is_none(py) {
@@ -88,7 +88,7 @@ where
         quote_kw,
         apply_kw,
         max_cost,
-        &op_lookup.make_operator_handler(),
+        op_lookup,
         py_pre_eval_t,
     );
     match r {

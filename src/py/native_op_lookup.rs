@@ -1,10 +1,12 @@
+use std::marker::PhantomData;
+
 use pyo3::prelude::*;
 use pyo3::types::{PyString, PyTuple};
 use pyo3::PyClass;
 
 use crate::allocator::Allocator;
 use crate::node::Node;
-use crate::reduction::{EvalErr, Reduction};
+use crate::reduction::{EvalErr, Reduction, Response};
 use crate::run_program::OperatorHandler;
 
 use super::f_table::FLookup;
@@ -26,45 +28,66 @@ where
     Ok(EvalErr(node, s))
 }
 #[derive(Clone)]
-pub struct GenericNativeOpLookup<A: Allocator> {
+pub struct GenericNativeOpLookup<A, N>
+where
+    A: 'static + Allocator + ToPyNode<N>,
+    N: PyClass,
+    <A as Allocator>::Ptr: From<N>,
+{
     py_callback: PyObject,
     f_lookup: FLookup<A>,
+    phantom_data: PhantomData<N>,
 }
 
-impl<A: 'static + Allocator> GenericNativeOpLookup<A> {
+impl<A, N> GenericNativeOpLookup<A, N>
+where
+    A: 'static + Allocator + ToPyNode<N>,
+    N: PyClass,
+    <A as Allocator>::Ptr: From<N>,
+{
     pub fn new(py_callback: PyObject, f_lookup: FLookup<A>) -> Self {
         GenericNativeOpLookup {
             py_callback,
             f_lookup,
+            phantom_data: PhantomData,
         }
-    }
-
-    pub fn make_operator_handler<N>(&self) -> OperatorHandler<A>
-    where
-        A: ToPyNode<N>,
-        N: PyClass + Clone + IntoPy<PyObject>,
-        <A as Allocator>::Ptr: From<N>,
-    {
-        let f_lookup = self.f_lookup;
-        let py_obj = self.py_callback.clone();
-        Box::new(move |allocator, op, args| {
-            operator_handler::<A, N>(&f_lookup, py_obj.clone(), allocator, op, args)
-        })
     }
 }
 
-pub fn operator_handler<'a, A: 'a + Allocator, N>(
-    f_lookup: &FLookup<A>,
-    py_callback: PyObject,
-    allocator: &'a A,
-    op: &[u8],
-    argument_list: &'a <A as Allocator>::Ptr,
-) -> Result<Reduction<<A as Allocator>::Ptr>, EvalErr<<A as Allocator>::Ptr>>
+impl<A, N> OperatorHandler<A> for GenericNativeOpLookup<A, N>
 where
+    A: 'static + Allocator + ToPyNode<N>,
+    N: PyClass + Clone + IntoPy<PyObject>,
+    <A as Allocator>::Ptr: From<N>,
+{
+    fn op(
+        &self,
+        allocator: &A,
+        op: &[u8],
+        argument_list: &<A as Allocator>::Ptr,
+    ) -> Response<<A as Allocator>::Ptr> {
+        eval_op::<A, N>(
+            &self.f_lookup,
+            &self.py_callback,
+            allocator,
+            op,
+            argument_list,
+        )
+    }
+}
+
+fn eval_op<A, N>(
+    f_lookup: &FLookup<A>,
+    py_callback: &PyObject,
+    allocator: &A,
+    op: &[u8],
+    argument_list: &<A as Allocator>::Ptr,
+) -> Response<<A as Allocator>::Ptr>
+where
+    A: Allocator + ToPyNode<N>,
     <A as Allocator>::Ptr: From<N>,
     N: PyClass + Clone,
     N: IntoPy<PyObject>,
-    A: ToPyNode<N>,
 {
     if op.len() == 1 {
         if let Some(f) = f_lookup[op[0] as usize] {

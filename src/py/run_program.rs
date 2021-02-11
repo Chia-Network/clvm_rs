@@ -16,34 +16,30 @@ lazy_static! {
 
 pub const STRICT_MODE: u32 = 1;
 
-fn operator_strict_mode(
-    allocator: &IntAllocator,
-    op: &[u8],
-    argument_list: &u32,
-) -> Result<Reduction<u32>, EvalErr<u32>> {
-    if op.len() == 1 {
-        if let Some(f) = F_TABLE[op[0] as usize] {
-            let node_t: Node<IntAllocator> = Node::new(allocator, *argument_list);
-            return f(&node_t);
-        }
-    }
-    let op_arg = allocator.new_atom(op);
-    allocator.err(&op_arg, "unimplemented operator")
+struct OperatorHandlerWithMode {
+    strict: bool,
 }
 
-fn operator_lenient_mode(
-    allocator: &IntAllocator,
-    op: &[u8],
-    args: &u32,
-) -> Result<Reduction<u32>, EvalErr<u32>> {
-    if op.len() == 1 {
-        if let Some(f) = F_TABLE[op[0] as usize] {
-            let node_t: Node<IntAllocator> = Node::new(allocator, *args);
-            return f(&node_t);
+impl OperatorHandler<IntAllocator> for OperatorHandlerWithMode {
+    fn op(
+        &self,
+        allocator: &IntAllocator,
+        op: &[u8],
+        argument_list: &u32,
+    ) -> Result<Reduction<u32>, EvalErr<u32>> {
+        if op.len() == 1 {
+            if let Some(f) = F_TABLE[op[0] as usize] {
+                let node_t: Node<IntAllocator> = Node::new(allocator, *argument_list);
+                return f(&node_t);
+            }
+        }
+        if self.strict {
+            let op_arg = allocator.new_atom(op);
+            allocator.err(&op_arg, "unimplemented operator")
+        } else {
+            op_unknown(op, &Node::new(allocator, *argument_list))
         }
     }
-
-    op_unknown(op, &Node::new(allocator, *args))
 }
 
 #[pyfunction]
@@ -57,18 +53,15 @@ pub fn serialize_and_run_program(
     flags: u32,
 ) -> PyResult<(u32, Py<PyBytes>)> {
     let allocator = IntAllocator::new();
-    let f: OperatorHandler<IntAllocator> = if (flags & STRICT_MODE) != 0 {
-        Box::new(operator_strict_mode)
-    } else {
-        Box::new(operator_lenient_mode)
-    };
-
+    let f: Box<dyn OperatorHandler<IntAllocator>> = Box::new(OperatorHandlerWithMode {
+        strict: (flags & STRICT_MODE) != 0,
+    });
     let program: u32 = node_from_bytes(&allocator, program).unwrap();
 
     let args: u32 = node_from_bytes(&allocator, args).unwrap();
 
     let r: Result<Reduction<u32>, EvalErr<u32>> = run_program(
-        &allocator, &program, &args, quote_kw, apply_kw, max_cost, &f, None,
+        &allocator, &program, &args, quote_kw, apply_kw, max_cost, f, None,
     );
     match r {
         Ok(reduction) => {

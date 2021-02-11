@@ -9,8 +9,14 @@ const TRAVERSE_COST_PER_ZERO_BYTE: u32 = 1;
 const TRAVERSE_COST_PER_BIT: u32 = 1;
 const APPLY_COST: u32 = 1;
 
-pub type OperatorHandler<'a, T> =
-    Box<dyn 'a + Fn(&T, &[u8], &<T as Allocator>::Ptr) -> Response<<T as Allocator>::Ptr>>;
+pub trait OperatorHandler<T: Allocator> {
+    fn op(
+        &self,
+        allocator: &T,
+        op: &[u8],
+        args: &<T as Allocator>::Ptr,
+    ) -> Response<<T as Allocator>::Ptr>;
+}
 
 pub type PreEval<A> = Box<
     dyn Fn(
@@ -28,11 +34,11 @@ type RpcOperator<T> =
 // `run_program` has two stacks: the operand stack (of `Node` objects) and the
 // operator stack (of RpcOperators)
 
-pub struct RunProgramContext<'a, 'h, T: Allocator> {
+pub struct RunProgramContext<'a, T: Allocator> {
     allocator: &'a T,
     quote_kw: u8,
     apply_kw: u8,
-    operator_lookup: &'h OperatorHandler<'a, T>,
+    operator_lookup: Box<dyn OperatorHandler<T>>,
     pre_eval: Option<PreEval<T>>,
     val_stack: Vec<T::Ptr>,
     op_stack: Vec<Box<RpcOperator<T>>>,
@@ -42,7 +48,7 @@ pub fn make_err<T: Clone, V>(node: &T, msg: &str) -> Result<V, EvalErr<T>> {
     Err(EvalErr(node.clone(), msg.into()))
 }
 
-impl<'a, 'h, T: Allocator> RunProgramContext<'a, 'h, T> {
+impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
     pub fn pop(&mut self) -> Result<T::Ptr, EvalErr<T::Ptr>> {
         let v: Option<T::Ptr> = self.val_stack.pop();
         match v {
@@ -122,12 +128,12 @@ fn traverse_path<T: Allocator>(
     Ok(Reduction(cost, arg_list))
 }
 
-impl<'a, 'h, T: Allocator> RunProgramContext<'a, 'h, T> {
+impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
     fn new(
         allocator: &'a T,
         quote_kw: u8,
         apply_kw: u8,
-        operator_lookup: &'h OperatorHandler<'a, T>,
+        operator_lookup: Box<dyn OperatorHandler<T>>,
         pre_eval: Option<PreEval<T>>,
     ) -> Self {
         RunProgramContext {
@@ -159,7 +165,7 @@ impl<'a, 'h, T: Allocator> RunProgramContext<'a, 'h, T> {
     }
 }
 
-impl<'a, 'h, T: Allocator> RunProgramContext<'a, 'h, T>
+impl<'a, T: Allocator> RunProgramContext<'a, T>
 where
     <T as Allocator>::Ptr: 'static,
 {
@@ -291,7 +297,9 @@ where
                         operand_list.err("apply requires exactly 2 parameters")
                     }
                 } else {
-                    let r = (self.operator_lookup)(self.allocator, &op_atom, &operand_list)?;
+                    let r = self
+                        .operator_lookup
+                        .op(self.allocator, &op_atom, &operand_list)?;
                     self.push(r.1);
                     Ok(r.0)
                 }
@@ -339,7 +347,7 @@ pub fn run_program<T: Allocator>(
     quote_kw: u8,
     apply_kw: u8,
     max_cost: u32,
-    operator_lookup: &OperatorHandler<T>,
+    operator_lookup: Box<dyn OperatorHandler<T>>,
     pre_eval: Option<PreEval<T>>,
 ) -> Response<T::Ptr>
 where
