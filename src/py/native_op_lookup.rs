@@ -45,61 +45,60 @@ impl<A: 'static + Allocator> GenericNativeOpLookup<A> {
         N: PyClass + Clone + IntoPy<PyObject>,
         <A as Allocator>::Ptr: From<N>,
     {
-        Box::new(move |allocator, op, args| self.operator_handler::<N>(allocator, op, args))
-    }
-
-    pub fn operator_handler<'t, N>(
-        &self,
-        allocator: &A,
-        op: &[u8],
-        argument_list: &'t <A as Allocator>::Ptr,
-    ) -> Result<Reduction<<A as Allocator>::Ptr>, EvalErr<<A as Allocator>::Ptr>>
-    where
-        <A as Allocator>::Ptr: From<N>,
-        N: PyClass + Clone,
-        N: IntoPy<PyObject>,
-        A: ToPyNode<N>,
-    {
-        if op.len() == 1 {
-            if let Some(f) = self.f_lookup[op[0] as usize] {
-                let node_t: Node<A> = Node::new(allocator, argument_list.clone());
-                return f(&node_t);
-            }
-        }
-
-        Python::with_gil(|py| {
-            let pynode: N = allocator.to_pynode(argument_list);
-            let r1 = self.py_callback.call1(py, (op, pynode));
-            match r1 {
-                Err(pyerr) => {
-                    let eval_err: PyResult<EvalErr<<A as Allocator>::Ptr>> =
-                        eval_err_for_pyerr(py, &pyerr);
-                    let r: EvalErr<<A as Allocator>::Ptr> =
-                        unwrap_or_eval_err(eval_err, argument_list, "unexpected exception")?;
-                    Err(r)
-                }
-                Ok(o) => {
-                    let pair: &PyTuple =
-                        unwrap_or_eval_err(o.extract(py), argument_list, "expected tuple")?;
-
-                    let i0: u32 = unwrap_or_eval_err(
-                        pair.get_item(0).extract(),
-                        argument_list,
-                        "expected u32",
-                    )?;
-
-                    let py_node: N = unwrap_or_eval_err(
-                        pair.get_item(1).extract(),
-                        argument_list,
-                        "expected node",
-                    )?;
-
-                    let node: <A as Allocator>::Ptr = py_node.into();
-                    Ok(Reduction(i0, node))
-                }
-            }
+        let f_lookup = self.f_lookup;
+        let py_obj = self.py_callback.clone();
+        Box::new(move |allocator, op, args| {
+            operator_handler::<A, N>(&f_lookup, py_obj.clone(), allocator, op, args)
         })
     }
+}
+
+pub fn operator_handler<'a, A: 'a + Allocator, N>(
+    f_lookup: &FLookup<A>,
+    py_callback: PyObject,
+    allocator: &'a A,
+    op: &[u8],
+    argument_list: &'a <A as Allocator>::Ptr,
+) -> Result<Reduction<<A as Allocator>::Ptr>, EvalErr<<A as Allocator>::Ptr>>
+where
+    <A as Allocator>::Ptr: From<N>,
+    N: PyClass + Clone,
+    N: IntoPy<PyObject>,
+    A: ToPyNode<N>,
+{
+    if op.len() == 1 {
+        if let Some(f) = f_lookup[op[0] as usize] {
+            let node_t: Node<A> = Node::new(allocator, argument_list.clone());
+            return f(&node_t);
+        }
+    }
+
+    Python::with_gil(|py| {
+        let pynode: N = allocator.to_pynode(argument_list);
+        let r1 = py_callback.call1(py, (op, pynode));
+        match r1 {
+            Err(pyerr) => {
+                let eval_err: PyResult<EvalErr<<A as Allocator>::Ptr>> =
+                    eval_err_for_pyerr(py, &pyerr);
+                let r: EvalErr<<A as Allocator>::Ptr> =
+                    unwrap_or_eval_err(eval_err, argument_list, "unexpected exception")?;
+                Err(r)
+            }
+            Ok(o) => {
+                let pair: &PyTuple =
+                    unwrap_or_eval_err(o.extract(py), argument_list, "expected tuple")?;
+
+                let i0: u32 =
+                    unwrap_or_eval_err(pair.get_item(0).extract(), argument_list, "expected u32")?;
+
+                let py_node: N =
+                    unwrap_or_eval_err(pair.get_item(1).extract(), argument_list, "expected node")?;
+
+                let node: <A as Allocator>::Ptr = py_node.into();
+                Ok(Reduction(i0, node))
+            }
+        }
+    })
 }
 
 fn unwrap_or_eval_err<T, P>(obj: PyResult<T>, err_node: &P, msg: &str) -> Result<T, EvalErr<P>>
