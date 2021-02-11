@@ -48,7 +48,7 @@ impl Allocator for ArcAllocator {
         ArcSExp::Atom(Arc::new(v.into()))
     }
 
-    fn new_pair(&self, first: &ArcSExp, rest: &ArcSExp) -> ArcSExp {
+    fn new_pair(&self, first: ArcSExp, rest: ArcSExp) -> ArcSExp {
         ArcSExp::Pair(Arc::new(first.to_owned()), Arc::new(rest.to_owned()))
     }
 

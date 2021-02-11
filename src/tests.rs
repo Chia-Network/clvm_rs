@@ -27,8 +27,8 @@ fn test_roundtrip() {
     let n = Node::new(
         &a,
         a.new_pair(
-            &a.new_atom(&[1_u8, 2_u8, 3_u8]),
-            &a.new_atom(&[4_u8, 5_u8, 6_u8]),
+            a.new_atom(&[1_u8, 2_u8, 3_u8]),
+            a.new_atom(&[4_u8, 5_u8, 6_u8]),
         ),
     );
     test_serialize_roundtrip(&n);
@@ -47,7 +47,7 @@ fn test_roundtrip() {
     // deep tree
     let mut prev = a.null();
     for _ in 0..=4000 {
-        prev = a.new_pair(&a.one(), &prev);
+        prev = a.new_pair(a.one(), prev);
     }
     let n = Node::new(&a, prev);
     test_serialize_roundtrip(&n);
@@ -55,7 +55,7 @@ fn test_roundtrip() {
     // deep reverse tree
     let mut prev = a.null();
     for _ in 0..=4000 {
-        prev = a.new_pair(&prev, &a.one());
+        prev = a.new_pair(prev, a.one());
     }
     let n = Node::new(&a, prev);
     test_serialize_roundtrip(&n);
@@ -101,12 +101,12 @@ fn test_serialize_lists() {
     test_serialize_roundtrip(&Node::new(&a, n));
 
     // one item
-    let n = a.new_pair(&a.one(), &n);
+    let n = a.new_pair(a.one(), n);
     assert_eq!(node_to_bytes(&Node::new(&a, n)).unwrap(), &[0xff, 1, 0x80]);
     test_serialize_roundtrip(&Node::new(&a, n));
 
     // two items
-    let n = a.new_pair(&a.one(), &n);
+    let n = a.new_pair(a.one(), n);
     assert_eq!(
         node_to_bytes(&Node::new(&a, n)).unwrap(),
         &[0xff, 1, 0xff, 1, 0x80]
@@ -114,7 +114,7 @@ fn test_serialize_lists() {
     test_serialize_roundtrip(&Node::new(&a, n));
 
     // three items
-    let n = a.new_pair(&a.one(), &n);
+    let n = a.new_pair(a.one(), n);
     assert_eq!(
         node_to_bytes(&Node::new(&a, n)).unwrap(),
         &[0xff, 1, 0xff, 1, 0xff, 1, 0x80]
@@ -123,9 +123,9 @@ fn test_serialize_lists() {
 
     // a backwards list
     let n = a.one();
-    let n = a.new_pair(&n, &a.one());
-    let n = a.new_pair(&n, &a.one());
-    let n = a.new_pair(&n, &a.one());
+    let n = a.new_pair(n, a.one());
+    let n = a.new_pair(n, a.one());
+    let n = a.new_pair(n, a.one());
     assert_eq!(
         node_to_bytes(&Node::new(&a, n)).unwrap(),
         &[0xff, 0xff, 0xff, 1, 1, 1, 1]
@@ -137,9 +137,9 @@ fn test_serialize_lists() {
 fn test_serialize_tree() {
     let a = IntAllocator::new();
 
-    let l = a.new_pair(&a.new_atom(&[1]), &a.new_atom(&[2]));
-    let r = a.new_pair(&a.new_atom(&[3]), &a.new_atom(&[4]));
-    let n = a.new_pair(&l, &r);
+    let l = a.new_pair(a.new_atom(&[1]), a.new_atom(&[2]));
+    let r = a.new_pair(a.new_atom(&[3]), a.new_atom(&[4]));
+    let n = a.new_pair(l, r);
     assert_eq!(
         node_to_bytes(&Node::new(&a, n)).unwrap(),
         &[0xff, 0xff, 1, 2, 0xff, 3, 4]

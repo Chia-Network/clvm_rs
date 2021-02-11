@@ -415,7 +415,7 @@ pub fn op_divmod<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
         };
         let q1: Node<T> = node_from_number(&args, &q);
         let r1: Node<T> = node_from_number(&args, &r);
-        let r: T::Ptr = args.allocator.new_pair(&q1.node, &r1.node);
+        let r: T::Ptr = args.allocator.new_pair(q1.node, r1.node);
         Ok(Reduction(cost, r))
     }
 }
