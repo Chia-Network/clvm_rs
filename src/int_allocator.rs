@@ -46,9 +46,9 @@ impl Allocator for IntAllocator {
         r
     }
 
-    fn new_pair(&self, first: &u32, rest: &u32) -> u32 {
+    fn new_pair(&self, first: Self::Ptr, rest: Self::Ptr) -> Self::Ptr {
         let r: u32 = self.node_vec.len() as u32;
-        self.node_vec.push(NodePtr::Pair(*first, *rest));
+        self.node_vec.push(NodePtr::Pair(first, rest));
         r
     }
 

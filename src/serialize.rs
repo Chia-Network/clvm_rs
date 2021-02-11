@@ -151,7 +151,7 @@ pub fn node_from_stream<T: Allocator>(allocator: &T, f: &mut dyn Read) -> std::i
                 // cons
                 let v2 = values.pop();
                 let v1 = values.pop();
-                values.push(allocator.new_pair(&v1.unwrap(), &v2.unwrap()));
+                values.push(allocator.new_pair(v1.unwrap(), v2.unwrap()));
             }
         }
     }

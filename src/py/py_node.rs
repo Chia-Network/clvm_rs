@@ -43,7 +43,7 @@ fn extract_tuple(allocator: &ArcAllocator, obj: &PyAny) -> PyResult<PyNode> {
     let right: &PyNode = &right;
     let left: ArcSExp = left.into();
     let right: ArcSExp = right.into();
-    let node: ArcSExp = allocator.new_pair(&left, &right);
+    let node: ArcSExp = allocator.new_pair(left, right);
     let py_node = PyNode::new_cached(node, Some(obj.into()));
 
     Ok(py_node)
