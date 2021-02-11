@@ -49,7 +49,7 @@ impl Allocator for ArcAllocator {
     }
 
     fn new_pair(&self, first: ArcSExp, rest: ArcSExp) -> ArcSExp {
-        ArcSExp::Pair(Arc::new(first.to_owned()), Arc::new(rest.to_owned()))
+        ArcSExp::Pair(Arc::new(first), Arc::new(rest))
     }
 
     fn sexp<'a: 'c, 'b: 'c, 'c>(&'a self, node: &'b ArcSExp) -> SExp<'c, ArcSExp> {
