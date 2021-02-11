@@ -22,7 +22,7 @@ pub type PreEval<A> = Box<
 
 pub type PostEval<T> = dyn Fn(Option<&<T as Allocator>::Ptr>);
 
-type RPCOperator<T> =
+type RpcOperator<T> =
     dyn FnOnce(&mut RunProgramContext<T>) -> Result<u32, EvalErr<<T as Allocator>::Ptr>>;
 
 // `run_program` has two stacks: the operand stack (of `Node` objects) and the
@@ -35,7 +35,7 @@ pub struct RunProgramContext<'a, T: Allocator> {
     operator_lookup: &'a OperatorHandler<T>,
     pre_eval: Option<PreEval<T>>,
     val_stack: Vec<T::Ptr>,
-    op_stack: Vec<Box<RPCOperator<T>>>,
+    op_stack: Vec<Box<RpcOperator<T>>>,
 }
 
 pub fn make_err<T: Clone, V>(node: &T, msg: &str) -> Result<V, EvalErr<T>> {
