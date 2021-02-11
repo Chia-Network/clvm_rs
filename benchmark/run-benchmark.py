@@ -3,6 +3,10 @@ import subprocess
 import sys
 import os
 
+# options:
+# -v  print command lines as they are executed
+# --quickmetrics <metric-name> <apikey>
+
 procs = []
 
 print('compiling...')
@@ -77,3 +81,11 @@ for n, vals in test_runs.items():
 
 print('TOTAL: %f s' % sum_time)
 print('UNCERTAINTY: %f s' % sum_uncertainty)
+
+try:
+    qm = sys.argv.index('--quickmetrics')
+    import urllib.request
+    url = 'https://qckm.io?m=clvm-benchmark-%s&v=%f&k=%s' % (sys.argv[qm + 1], sum_time, sys.argv[qm + 2])
+    urllib.request.urlopen(url)
+except:
+    pass

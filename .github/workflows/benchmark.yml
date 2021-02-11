@@ -58,7 +58,7 @@ jobs:
       if: startsWith(matrix.os, 'windows')
       run: |
         . .\venv\Scripts\Activate.ps1
-        python benchmark/run-benchmark.py
+        python benchmark/run-benchmark.py --quickmetrics ${{ matrix.os }} ${{ secrets.QUICKMETRICS_KEY }}
 
     - name: Build
       if: ${{ !startsWith(matrix.os, 'windows') }}
@@ -74,5 +74,5 @@ jobs:
       if: ${{ !startsWith(matrix.os, 'windows') }}
       run: |
         . ./activate
-        python benchmark/run-benchmark.py
+        python benchmark/run-benchmark.py --quickmetrics ${{ matrix.os }} ${{ secrets.QUICKMETRICS_KEY }}
 
