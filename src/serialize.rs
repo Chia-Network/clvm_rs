@@ -52,7 +52,8 @@ pub fn node_to_stream<T: Allocator>(node: &Node<T>, f: &mut dyn Write) -> std::i
         let v = values.pop().unwrap();
         let n = a.sexp(&v);
         match n {
-            SExp::Atom(atom) => {
+            SExp::Atom(atom_ptr) => {
+                let atom = a.buf(&atom_ptr);
                 let size = atom.len();
                 if size == 0 {
                     f.write_all(&[0x80_u8])?;

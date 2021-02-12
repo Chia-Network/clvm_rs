@@ -42,6 +42,7 @@ impl ArcAllocator {
 
 impl Allocator for ArcAllocator {
     type Ptr = ArcSExp;
+    type AtomBuf = Arc<Vec<u8>>;
 
     fn new_atom(&self, v: &[u8]) -> ArcSExp {
         ArcSExp::Atom(Arc::new(v.into()))
@@ -51,9 +52,20 @@ impl Allocator for ArcAllocator {
         ArcSExp::Pair(Arc::new(first), Arc::new(rest))
     }
 
-    fn sexp<'a: 'c, 'b: 'c, 'c>(&'a self, node: &'b ArcSExp) -> SExp<'c, ArcSExp> {
+    fn atom<'a>(&'a self, node: &'a Self::Ptr) -> &'a [u8] {
         match node {
-            ArcSExp::Atom(atom) => SExp::Atom(&atom),
+            ArcSExp::Atom(a) => &*a,
+            _ => panic!("expected atom, got pair"),
+        }
+    }
+
+    fn buf<'a>(&'a self, node: &'a Self::AtomBuf) -> &'a [u8] {
+        &*node
+    }
+
+    fn sexp(&self, node: &ArcSExp) -> SExp<ArcSExp, Arc<Vec<u8>>> {
+        match node {
+            ArcSExp::Atom(a) => SExp::Atom(a.clone()),
             ArcSExp::Pair(left, right) => {
                 let p1: &ArcSExp = &left;
                 let p2: &ArcSExp = &right;
