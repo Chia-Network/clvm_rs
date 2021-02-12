@@ -5,10 +5,9 @@ use crate::more_ops::{
     op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add, op_pubkey_for_exp,
     op_sha256, op_softfork, op_strlen, op_substr, op_subtract,
 };
-use crate::node::Node;
 use crate::reduction::Response;
 
-type OpFn<T> = fn(&Node<T>) -> Response<<T as Allocator>::Ptr>;
+type OpFn<T> = fn(&T, <T as Allocator>::Ptr) -> Response<<T as Allocator>::Ptr>;
 
 pub type FLookup<T> = [Option<OpFn<T>>; 256];
 
