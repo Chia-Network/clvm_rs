@@ -34,8 +34,8 @@ impl OperatorHandler<IntAllocator> for OperatorHandlerWithMode {
             }
         }
         if self.strict {
-            let op_arg = allocator.new_atom(op);
-            allocator.err(&op_arg, "unimplemented operator")
+            let op_arg = Node::new(allocator, allocator.new_atom(op));
+            op_arg.err("unimplemented operator")
         } else {
             op_unknown(op, &Node::new(allocator, *argument_list))
         }

@@ -1,4 +1,5 @@
 use crate::allocator::{Allocator, SExp};
+use crate::err_utils::err;
 use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction, Response};
 
@@ -44,17 +45,13 @@ pub struct RunProgramContext<'a, T: Allocator> {
     op_stack: Vec<Box<RpcOperator<T>>>,
 }
 
-pub fn make_err<T: Clone, V>(node: &T, msg: &str) -> Result<V, EvalErr<T>> {
-    Err(EvalErr(node.clone(), msg.into()))
-}
-
 impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
     pub fn pop(&mut self) -> Result<T::Ptr, EvalErr<T::Ptr>> {
         let v: Option<T::Ptr> = self.val_stack.pop();
         match v {
             None => {
                 let node: T::Ptr = self.allocator.null();
-                make_err(&node, "runtime error: value stack empty")
+                err(node, "runtime error: value stack empty")
             }
             Some(k) => Ok(k),
         }
@@ -179,13 +176,13 @@ where
         // special case check for quote
         if op_atom.len() == 1 && op_atom[0] == self.quote_kw {
             match self.allocator.sexp(operand_list) {
-                SExp::Atom(_) => make_err(&operand_list, "quote requires exactly 1 parameter"),
+                SExp::Atom(_) => err(operand_list.clone(), "quote requires exactly 1 parameter"),
                 SExp::Pair(quoted_val, nil) => {
                     if Node::new(self.allocator, nil).nullp() {
                         self.push(quoted_val);
                         Ok(QUOTE_COST)
                     } else {
-                        make_err(&operand_list, "quote requires exactly 1 parameter")
+                        err(operand_list.clone(), "quote requires exactly 1 parameter")
                     }
                 }
             }
@@ -201,7 +198,7 @@ where
                 self.op_stack.push(Box::new(|r| r.eval_op()));
                 self.op_stack.push(Box::new(|r| r.swap_op()));
                 match self.allocator.sexp(&operands) {
-                    SExp::Atom(_) => return make_err(operand_list, "bad operand list"),
+                    SExp::Atom(_) => return err(operand_list.clone(), "bad operand list"),
                     SExp::Pair(first, rest) => {
                         let new_pair = self.allocator.new_pair(first, args.clone());
                         self.push(new_pair);
@@ -247,7 +244,7 @@ where
 
         let pair: T::Ptr = self.pop()?;
         match self.allocator.sexp(&pair) {
-            SExp::Atom(_) => make_err(&pair, "pair expected"),
+            SExp::Atom(_) => err(pair, "pair expected"),
             SExp::Pair(program, args) => {
                 let post_eval = match self.pre_eval {
                     None => None,

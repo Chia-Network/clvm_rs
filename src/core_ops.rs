@@ -1,7 +1,7 @@
 use crate::allocator::Allocator;
 use crate::node::Node;
 use crate::op_utils::{atom, check_arg_count};
-use crate::reduction::{EvalErr, Reduction, Response};
+use crate::reduction::{Reduction, Response};
 
 const FIRST_COST: u32 = 8;
 const IF_COST: u32 = 31;
@@ -10,26 +10,6 @@ const REST_COST: u32 = 20;
 const LISTP_COST: u32 = 5;
 const CMP_BASE_COST: u32 = 16;
 const CMP_COST_PER_LIMB_DIVIDER: u32 = 64;
-
-impl<'a, T: Allocator> Node<'a, T> {
-    pub fn first(&self) -> Result<Node<'a, T>, EvalErr<T::Ptr>> {
-        match self.pair() {
-            Some((p1, _)) => Ok(self.with_node(p1.node)),
-            _ => self.err("first of non-cons"),
-        }
-    }
-
-    pub fn rest(&self) -> Result<Node<'a, T>, EvalErr<T::Ptr>> {
-        match self.pair() {
-            Some((_, p2)) => Ok(self.with_node(p2.node)),
-            _ => self.err("rest of non-cons"),
-        }
-    }
-
-    pub fn err<U>(&self, msg: &str) -> Result<U, EvalErr<T::Ptr>> {
-        Err(EvalErr(self.node.clone(), msg.into()))
-    }
-}
 
 pub fn op_if<T: Allocator>(args: &Node<T>) -> Response<T::Ptr> {
     check_arg_count(args, 3, "i")?;

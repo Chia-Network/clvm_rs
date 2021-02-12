@@ -1,5 +1,4 @@
 use crate::allocator::{Allocator, SExp};
-use crate::reduction::EvalErr;
 
 use std::sync::Arc;
 
@@ -77,14 +76,5 @@ impl Allocator for ArcAllocator {
 impl Default for ArcAllocator {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-impl<P> dyn Allocator<Ptr = P>
-where
-    P: Clone,
-{
-    pub fn err<T>(&self, node: &P, msg: &str) -> Result<T, EvalErr<P>> {
-        Err(EvalErr(node.clone(), msg.into()))
     }
 }

@@ -1,5 +1,6 @@
 mod allocator;
 mod core_ops;
+mod err_utils;
 mod int_allocator;
 mod more_ops;
 mod node;

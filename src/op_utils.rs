@@ -1,6 +1,7 @@
 use num_bigint::BigUint;
 
 use crate::allocator::Allocator;
+use crate::err_utils::err;
 use crate::node::Node;
 use crate::number::{number_from_u8, Number};
 use crate::reduction::EvalErr;
@@ -89,4 +90,24 @@ pub fn uint_int<T: Allocator>(
         number_from_u8(v1),
         v1.len() as u32,
     ))
+}
+
+impl<'a, A: Allocator> Node<'a, A> {
+    pub fn first(&self) -> Result<Node<'a, A>, EvalErr<A::Ptr>> {
+        match self.pair() {
+            Some((p1, _)) => Ok(self.with_node(p1.node)),
+            _ => self.err("first of non-cons"),
+        }
+    }
+
+    pub fn rest(&self) -> Result<Node<'a, A>, EvalErr<A::Ptr>> {
+        match self.pair() {
+            Some((_, p2)) => Ok(self.with_node(p2.node)),
+            _ => self.err("rest of non-cons"),
+        }
+    }
+
+    pub fn err<T>(&self, msg: &str) -> Result<T, EvalErr<A::Ptr>> {
+        err(self.node.clone(), msg)
+    }
 }

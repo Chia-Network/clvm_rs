@@ -8,11 +8,11 @@ use std::ops::BitXorAssign;
 use lazy_static::lazy_static;
 
 use crate::allocator::Allocator;
-use crate::int_allocator::IntAllocator;
+use crate::err_utils::u8_err;
 use crate::node::Node;
 use crate::number::{node_from_number, number_from_u8, Number};
 use crate::op_utils::{atom, check_arg_count, int_atom, two_ints, uint_int};
-use crate::reduction::{EvalErr, Reduction, Response};
+use crate::reduction::{Reduction, Response};
 use crate::serialize::node_to_bytes;
 
 use sha2::{Digest, Sha256};
@@ -119,7 +119,7 @@ fn test_u32_from_u8() {
     assert_eq!(u32_from_u8(&[0x7d, 0xcc, 0x55, 0x88, 0xf3]), None);
 }
 
-pub fn op_unknown(op: &[u8], args: &Node<IntAllocator>) -> Result<Reduction<u32>, EvalErr<u32>> {
+pub fn op_unknown<A: Allocator>(op: &[u8], args: &Node<A>) -> Response<A::Ptr> {
     // unknown opcode in lenient mode
     // unknown ops are reserved if they start with 0xffff
     // otherwise, unknown ops are no-ops, but they have costs. The cost is computed
@@ -148,18 +148,17 @@ pub fn op_unknown(op: &[u8], args: &Node<IntAllocator>) -> Result<Reduction<u32>
     // this means that unknown ops where cost_function is 1, 2, or 3, may still be
     // fatal errors if the arguments passed are not atoms.
 
-    let allocator = &args.allocator;
+    let allocator = args.allocator;
+
     if op.is_empty() || (op.len() >= 2 && op[0] == 0xff && op[1] == 0xff) {
-        let op_arg = allocator.new_atom(op);
-        return allocator.err(&op_arg, "reserved operator");
+        return u8_err(allocator, op, "reserved operator");
     }
 
     let cost_function = (op[op.len() - 1] & 0b11000000) >> 6;
     let cost_multiplier: u64 = match u32_from_u8(&op[0..op.len() - 1]) {
         Some(v) => v as u64,
         None => {
-            let op_arg = allocator.new_atom(op);
-            return allocator.err(&op_arg, "invalid operator");
+            return u8_err(allocator, op, "invalid operator");
         }
     };
 
@@ -210,15 +209,13 @@ pub fn op_unknown(op: &[u8], args: &Node<IntAllocator>) -> Result<Reduction<u32>
     assert!(cost > 0);
 
     if cost > u32::MAX.into() {
-        let op_arg = allocator.new_atom(op);
-        return allocator.err(&op_arg, "invalid operator");
+        return u8_err(allocator, op, "invalid operator");
     }
 
     cost *= cost_multiplier + 1;
 
     if cost > u32::MAX.into() {
-        let op_arg = allocator.new_atom(op);
-        return allocator.err(&op_arg, "invalid operator");
+        return u8_err(allocator, op, "invalid operator");
     }
 
     Ok(Reduction(cost as u32, allocator.null()))
@@ -226,7 +223,7 @@ pub fn op_unknown(op: &[u8], args: &Node<IntAllocator>) -> Result<Reduction<u32>
 
 #[test]
 fn test_unknown_op_reserved() {
-    let a = IntAllocator::new();
+    let a = crate::int_allocator::IntAllocator::new();
 
     // any op starting with ffff is reserved and a hard failure
     let buf = vec![0xff, 0xff];
@@ -266,7 +263,7 @@ fn test_unknown_op_reserved() {
 
 #[test]
 fn test_lenient_mode_last_bits() {
-    let a = IntAllocator::new();
+    let a = crate::int_allocator::IntAllocator::new();
 
     // the last 6 bits are ignored for computing cost
     let buf = vec![0x3c, 0x3f];

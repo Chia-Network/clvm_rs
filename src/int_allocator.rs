@@ -3,7 +3,6 @@ use std::vec;
 use aovec::Aovec;
 
 use crate::allocator::{Allocator, SExp};
-use crate::reduction::EvalErr;
 
 enum NodePtr {
     Atom(u32),
@@ -68,11 +67,5 @@ impl Allocator for IntAllocator {
 
     fn one(&self) -> u32 {
         1
-    }
-}
-
-impl IntAllocator {
-    pub fn err<T>(&self, node: &u32, msg: &str) -> Result<T, EvalErr<u32>> {
-        Err(EvalErr(*node, msg.into()))
     }
 }
