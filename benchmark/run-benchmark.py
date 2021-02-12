@@ -2,6 +2,8 @@ import glob
 import subprocess
 import sys
 import os
+import time
+from clvm_rs import serialize_and_run_program, STRICT_MODE
 
 procs = []
 
@@ -33,11 +35,23 @@ for n in range(3):
     print('benchmarking, pass %d' % n)
     for fn in glob.glob('benchmark/*.hex'):
         env_fn = fn[:-3] + 'envhex'
-        command = ['brun', '-c', '--backend=rust', '--quiet', '--time', '--hex', fn, env_fn]
-        if "-v" in sys.argv:
-            print(" ".join(command))
-        output = subprocess.check_output(command)
-        output = output.decode('ascii').split('\n', 5)[:-1]
+
+        max_cost = 0
+        flags = 0
+        if '--brun' in sys.argv:
+            command = ['brun', '-c', '--backend=rust', '--quiet', '--time', '--hex', fn, env_fn]
+            if "-v" in sys.argv:
+                print(" ".join(command))
+            output = subprocess.check_output(command)
+            output = output.decode('ascii').split('\n', 5)[:-1]
+        else:
+            program_data = bytes.fromhex(open(fn, 'r').read())
+            env_data = bytes.fromhex(open(env_fn, 'r').read())
+            time_start = time.perf_counter()
+            cost, result = serialize_and_run_program(
+                program_data, env_data, 1, 3, max_cost, flags)
+            time_end = time.perf_counter()
+            output = ["run_program: %f" % (time_end - time_start)]
 
         counters = {}
         for o in output:
