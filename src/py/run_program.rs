@@ -1,37 +1,36 @@
+use std::collections::HashMap;
+
 use crate::allocator::Allocator;
 use crate::err_utils::err;
 use crate::int_allocator::IntAllocator;
 use crate::more_ops::op_unknown;
 use crate::node::Node;
-use crate::py::f_table::{make_f_lookup, FLookup};
+use crate::py::f_table::{f_lookup_for_hashmap, FLookup};
 use crate::reduction::Response;
 use crate::run_program::{run_program, OperatorHandler};
 use crate::serialize::{node_from_bytes, node_to_bytes};
-use lazy_static::lazy_static;
+
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
 
-lazy_static! {
-    static ref F_TABLE: FLookup<IntAllocator> = make_f_lookup();
-}
-
 pub const STRICT_MODE: u32 = 1;
 
-struct OperatorHandlerWithMode {
+struct OperatorHandlerWithMode<A: Allocator> {
+    f_lookup: FLookup<A>,
     strict: bool,
 }
 
-impl OperatorHandler<IntAllocator> for OperatorHandlerWithMode {
+impl<A: Allocator> OperatorHandler<A> for OperatorHandlerWithMode<A> {
     fn op(
         &self,
-        allocator: &mut IntAllocator,
-        o: <IntAllocator as Allocator>::AtomBuf,
-        argument_list: &<IntAllocator as Allocator>::Ptr,
-    ) -> Response<<IntAllocator as Allocator>::Ptr> {
+        allocator: &mut A,
+        o: <A as Allocator>::AtomBuf,
+        argument_list: &A::Ptr,
+    ) -> Response<<A as Allocator>::Ptr> {
         let op = &allocator.buf(&o);
         if op.len() == 1 {
-            if let Some(f) = F_TABLE[op[0] as usize] {
-                return f(allocator, *argument_list);
+            if let Some(f) = self.f_lookup[op[0] as usize] {
+                return f(allocator, argument_list.clone());
             }
         }
         if self.strict {
@@ -39,7 +38,7 @@ impl OperatorHandler<IntAllocator> for OperatorHandlerWithMode {
             let op_arg = allocator.new_atom(&buf);
             err(op_arg, "unimplemented operator")
         } else {
-            op_unknown(allocator, o, *argument_list)
+            op_unknown(allocator, o, argument_list.clone())
         }
     }
 }
@@ -51,15 +50,17 @@ pub fn serialize_and_run_program(
     args: &[u8],
     quote_kw: u8,
     apply_kw: u8,
+    opcode_lookup_by_name: HashMap<String, &[u8]>,
     max_cost: u32,
     flags: u32,
 ) -> PyResult<(u32, Py<PyBytes>)> {
     let mut allocator = IntAllocator::new();
-    let f: Box<dyn OperatorHandler<IntAllocator>> = Box::new(OperatorHandlerWithMode {
-        strict: (flags & STRICT_MODE) != 0,
-    });
-    let program = node_from_bytes(&mut allocator, program).unwrap();
-    let args = node_from_bytes(&mut allocator, args).unwrap();
+    let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
+    let strict: bool = (flags & STRICT_MODE) != 0;
+    let f: Box<dyn OperatorHandler<IntAllocator>> =
+        Box::new(OperatorHandlerWithMode { f_lookup, strict });
+    let program: i32 = node_from_bytes(&mut allocator, program).unwrap();
+    let args: i32 = node_from_bytes(&mut allocator, args).unwrap();
 
     let r = run_program(
         &mut allocator,
