@@ -37,6 +37,7 @@ impl IntAllocator {
 
 impl Allocator for IntAllocator {
     type Ptr = u32;
+    type AtomBuf = u32;
 
     fn new_atom(&self, v: &[u8]) -> u32 {
         let index = self.u8_vec.len() as u32;
@@ -52,12 +53,20 @@ impl Allocator for IntAllocator {
         r
     }
 
-    fn sexp<'a: 'c, 'b: 'c, 'c>(&'a self, node: &'b u32) -> SExp<'c, u32> {
+    fn atom<'a>(&'a self, node: &'a Self::Ptr) -> &'a [u8] {
         match self.node_vec[*node as usize] {
-            NodePtr::Atom(index) => {
-                let atom = &self.u8_vec[index as usize];
-                SExp::Atom(&atom)
-            }
+            NodePtr::Atom(index) => &self.u8_vec[index as usize],
+            _ => panic!("expected atom, got pair"),
+        }
+    }
+
+    fn buf<'a>(&'a self, node: &'a Self::AtomBuf) -> &'a [u8] {
+        &self.u8_vec[*node as usize]
+    }
+
+    fn sexp(&self, node: &Self::Ptr) -> SExp<Self::Ptr, Self::AtomBuf> {
+        match self.node_vec[*node as usize] {
+            NodePtr::Atom(index) => SExp::Atom(index),
             NodePtr::Pair(left, right) => SExp::Pair(left, right),
         }
     }

@@ -4,17 +4,26 @@
  *
  */
 
-pub enum SExp<'a, T> {
-    Atom(&'a [u8]),
+pub enum SExp<T, B> {
+    Atom(B),
     Pair(T, T),
 }
 
 pub trait Allocator {
     type Ptr: Clone;
+    type AtomBuf: Clone;
 
     fn new_atom(&self, v: &[u8]) -> Self::Ptr;
     fn new_pair(&self, first: Self::Ptr, rest: Self::Ptr) -> Self::Ptr;
-    fn sexp<'a: 'c, 'b: 'c, 'c>(&'a self, node: &'b Self::Ptr) -> SExp<'c, Self::Ptr>;
+
+    // The lifetime here is a bit special because IntAllocator and ArcAllocator
+    // have slightly different requirements. With IntAllocator, all buffers are
+    // owned by the allocator, with ArcAllocator all buffers have shared
+    // ownership by ArcAllocator::Ptr objects. So the returned buffer here
+    // depends on both
+    fn atom<'a>(&'a self, node: &'a Self::Ptr) -> &'a [u8];
+    fn buf<'a>(&'a self, node: &'a Self::AtomBuf) -> &'a [u8];
+    fn sexp(&self, node: &Self::Ptr) -> SExp<Self::Ptr, Self::AtomBuf>;
     fn null(&self) -> Self::Ptr;
     fn one(&self) -> Self::Ptr;
 }

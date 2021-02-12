@@ -219,7 +219,8 @@ where
         match self.allocator.sexp(program) {
             // the program is just a bitfield path through the args tree
             SExp::Atom(path) => {
-                let r: Reduction<T::Ptr> = traverse_path(self.allocator, path, &args)?;
+                let r: Reduction<T::Ptr> =
+                    traverse_path(self.allocator, self.allocator.buf(&path), &args)?;
                 self.push(r.1);
                 Ok(r.0)
             }
@@ -232,9 +233,12 @@ where
                     self.op_stack.push(Box::new(|r| r.eval_op()));
                     Ok(1)
                 }
-                SExp::Atom(op_atom) => {
-                    self.eval_op_atom(&op_atom, &operator_node, &operand_list, args)
-                }
+                SExp::Atom(op_atom) => self.eval_op_atom(
+                    &self.allocator.buf(&op_atom),
+                    &operator_node,
+                    &operand_list,
+                    args,
+                ),
             },
         }
     }
@@ -272,7 +276,8 @@ where
         let operator = self.pop()?;
         match self.allocator.sexp(&operator) {
             SExp::Pair(_, _) => Err(EvalErr(operator, "internal error".into())),
-            SExp::Atom(op_atom) => {
+            SExp::Atom(opa) => {
+                let op_atom = self.allocator.buf(&opa);
                 if op_atom.len() == 1 && op_atom[0] == self.apply_kw {
                     let operand_list = Node::new(self.allocator, operand_list);
                     if operand_list.arg_count_is(2) {

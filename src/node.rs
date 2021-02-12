@@ -19,13 +19,13 @@ impl<'a, T: Allocator> Node<'a, T> {
         Node::new(self.allocator, node)
     }
 
-    pub fn sexp(&self) -> SExp<T::Ptr> {
+    pub fn sexp(&self) -> SExp<T::Ptr, T::AtomBuf> {
         self.allocator.sexp(&self.node)
     }
 
-    pub fn atom(&self) -> Option<&[u8]> {
+    pub fn atom(&'a self) -> Option<&'a [u8]> {
         match self.sexp() {
-            SExp::Atom(a) => Some(a),
+            SExp::Atom(_) => Some(self.allocator.atom(&self.node)),
             _ => None,
         }
     }
@@ -39,7 +39,7 @@ impl<'a, T: Allocator> Node<'a, T> {
 
     pub fn nullp(&self) -> bool {
         match self.sexp() {
-            SExp::Atom(a) => a.is_empty(),
+            SExp::Atom(a) => self.allocator.buf(&a).is_empty(),
             _ => false,
         }
     }
@@ -90,7 +90,7 @@ impl<'a, T: Allocator> PartialEq for Node<'a, T> {
             (SExp::Pair(l0, l1), SExp::Pair(r0, r1)) => {
                 self.with_node(l0) == self.with_node(r0) && self.with_node(l1) == self.with_node(r1)
             }
-            (SExp::Atom(l0), SExp::Atom(r0)) => l0 == r0,
+            (SExp::Atom(l0), SExp::Atom(r0)) => self.allocator.buf(&l0) == self.allocator.buf(&r0),
             _ => false,
         }
     }
@@ -104,7 +104,7 @@ impl<'a, T: Allocator> fmt::Debug for Node<'a, T> {
                 .field(&self.with_node(l))
                 .field(&self.with_node(r))
                 .finish(),
-            SExp::Atom(a) => a.fmt(f),
+            SExp::Atom(a) => self.allocator.buf(&a).fmt(f),
         }
     }
 }

@@ -74,7 +74,11 @@ where
                 let r: PyResult<PyObject> = pre_eval.call1(py, (program_clone, args));
                 match r {
                     Ok(py_post_eval) => Ok(post_eval_for_pyobject::<A>(py, py_post_eval)),
-                    Err(ref err) => (allocator as &dyn Allocator<Ptr = <A as Allocator>::Ptr>)
+                    Err(ref err) => (allocator
+                        as &dyn Allocator<
+                            Ptr = <A as Allocator>::Ptr,
+                            AtomBuf = <A as Allocator>::AtomBuf,
+                        >)
                         .err(program, &err.to_string()),
                 }
             })
