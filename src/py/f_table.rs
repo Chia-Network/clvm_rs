@@ -51,3 +51,46 @@ pub fn make_f_lookup<T: Allocator>() -> FLookup<T> {
 
     f_lookup
 }
+
+pub fn opcode_by_name<T: Allocator>(name: &str) -> Option<OpFn<T>> {
+    let opcode_lookup: [(&str, OpFn<T>); 30] = [
+        ("i", op_if),
+        ("c", op_cons),
+        ("f", op_first),
+        ("r", op_rest),
+        ("l", op_listp),
+        ("x", op_raise),
+        ("=", op_eq),
+        ("sha256", op_sha256),
+        ("+", op_add),
+        ("-", op_subtract),
+        ("*", op_multiply),
+        ("divmod", op_divmod),
+        ("substr", op_substr),
+        ("strlen", op_strlen),
+        ("point_add", op_point_add),
+        ("pubkey_for_exp", op_pubkey_for_exp),
+        ("concat", op_concat),
+        (">", op_gr),
+        (">s", op_gr_bytes),
+        ("logand", op_logand),
+        ("logior", op_logior),
+        ("logxor", op_logxor),
+        ("lognot", op_lognot),
+        ("ash", op_ash),
+        ("lsh", op_lsh),
+        ("not", op_not),
+        ("any", op_any),
+        ("all", op_all),
+        ("softfork", op_softfork),
+        ("div", op_div),
+    ];
+    let name: &[u8] = name.as_ref();
+    for (op, f) in opcode_lookup.iter() {
+        let pu8: &[u8] = op.as_ref();
+        if pu8 == name {
+            return Some(*f);
+        }
+    }
+    None
+}
