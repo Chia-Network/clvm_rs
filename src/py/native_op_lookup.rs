@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::marker::PhantomData;
 
 use pyo3::prelude::*;
@@ -8,7 +9,8 @@ use crate::allocator::Allocator;
 use crate::reduction::{EvalErr, Reduction, Response};
 use crate::run_program::OperatorHandler;
 
-use super::f_table::FLookup;
+use super::f_table::{opcode_by_name, FLookup};
+
 use super::to_py_node::ToPyNode;
 
 fn eval_err_for_pyerr<'s, 'p: 's, 'e: 's, P, N>(
@@ -44,9 +46,23 @@ where
     N: PyClass,
     <A as Allocator>::Ptr: From<N>,
 {
-    pub fn new(py_callback: PyObject, f_lookup: FLookup<A>) -> Self {
+    pub fn new(
+        opcode_lookup_by_name: HashMap<String, &[u8]>,
+        unknown_op_callback: PyObject,
+    ) -> Self {
+        let mut f_lookup = [None; 256];
+        for (name, idx) in opcode_lookup_by_name.iter() {
+            if idx.len() == 1 {
+                let index = idx[0];
+                let op = opcode_by_name(name);
+                if op.is_none() {
+                    panic!("can't find native operator {:?}", name);
+                }
+                f_lookup[index as usize] = op;
+            }
+        }
         GenericNativeOpLookup {
-            py_callback,
+            py_callback: unknown_op_callback,
             f_lookup,
             phantom_data: PhantomData,
         }

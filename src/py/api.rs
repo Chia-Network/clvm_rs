@@ -1,10 +1,11 @@
+use std::collections::HashMap;
+
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
 use super::arc_allocator::ArcAllocator;
-use super::f_table::make_f_lookup;
 use super::glue::{_py_run_program, _serialize_from_bytes, _serialize_to_bytes};
 use super::native_op_lookup::GenericNativeOpLookup;
 use super::py_node::PyNode;
@@ -21,16 +22,10 @@ pub struct NativeOpLookup {
 #[pymethods]
 impl NativeOpLookup {
     #[new]
-    fn new(native_opcode_list: &[u8], unknown_op_callback: PyObject) -> Self {
-        let native_lookup = make_f_lookup::<AllocatorT>();
-        let mut f_lookup = [None; 256];
-        for i in native_opcode_list.iter() {
-            let idx = *i as usize;
-            f_lookup[idx] = native_lookup[idx];
-        }
+    fn new(opcode_lookup_by_name: HashMap<String, &[u8]>, unknown_op_callback: PyObject) -> Self {
         NativeOpLookup::new_from_gnol(Box::new(GenericNativeOpLookup::new(
+            opcode_lookup_by_name,
             unknown_op_callback,
-            f_lookup,
         )))
     }
 }
