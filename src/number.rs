@@ -4,10 +4,6 @@ use crate::node::Node;
 use num_bigint::BigInt;
 pub type Number = BigInt;
 
-pub fn node_from_number<'a, T: Allocator>(node: &'a Node<'a, T>, item: &Number) -> Node<'a, T> {
-    Node::new(node.allocator, ptr_from_number(node.allocator, item))
-}
-
 pub fn ptr_from_number<T: Allocator>(allocator: &T, item: &Number) -> T::Ptr {
     let bytes: Vec<u8> = item.to_signed_bytes_be();
     let mut slice = bytes.as_slice();

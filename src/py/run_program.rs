@@ -29,15 +29,14 @@ impl OperatorHandler<IntAllocator> for OperatorHandlerWithMode {
     ) -> Result<Reduction<u32>, EvalErr<u32>> {
         if op.len() == 1 {
             if let Some(f) = F_TABLE[op[0] as usize] {
-                let node_t: Node<IntAllocator> = Node::new(allocator, *argument_list);
-                return f(&node_t);
+                return f(&allocator, *argument_list);
             }
         }
         if self.strict {
             let op_arg = Node::new(allocator, allocator.new_atom(op));
             op_arg.err("unimplemented operator")
         } else {
-            op_unknown(op, &Node::new(allocator, *argument_list))
+            op_unknown(op, allocator, *argument_list)
         }
     }
 }

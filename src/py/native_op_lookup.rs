@@ -5,7 +5,6 @@ use pyo3::types::{PyString, PyTuple};
 use pyo3::PyClass;
 
 use crate::allocator::Allocator;
-use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction, Response};
 use crate::run_program::OperatorHandler;
 
@@ -91,8 +90,7 @@ where
 {
     if op.len() == 1 {
         if let Some(f) = f_lookup[op[0] as usize] {
-            let node_t: Node<A> = Node::new(allocator, argument_list.clone());
-            return f(&node_t);
+            return f(&allocator, argument_list.clone());
         }
     }
 

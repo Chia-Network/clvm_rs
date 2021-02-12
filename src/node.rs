@@ -11,10 +11,6 @@ impl<'a, T: Allocator> Node<'a, T> {
         Node { allocator, node }
     }
 
-    pub fn new_atom(&self, v: &[u8]) -> Self {
-        self.with_node(self.allocator.new_atom(v))
-    }
-
     pub fn with_node(&self, node: T::Ptr) -> Self {
         Node::new(self.allocator, node)
     }
