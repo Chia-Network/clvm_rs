@@ -74,8 +74,10 @@ where
                 let r: PyResult<PyObject> = pre_eval.call1(py, (program_clone, args));
                 match r {
                     Ok(py_post_eval) => Ok(post_eval_for_pyobject::<A>(py, py_post_eval)),
-                    Err(ref err) => (allocator as &dyn Allocator<Ptr = <A as Allocator>::Ptr>)
-                        .err(program, &err.to_string()),
+                    Err(ref err) => {
+                        let program: Node<A> = Node::new(allocator, program.clone());
+                        program.err(&err.to_string())
+                    }
                 }
             })
         }))

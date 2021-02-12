@@ -30,7 +30,7 @@ where
 #[derive(Clone)]
 pub struct GenericNativeOpLookup<A, N>
 where
-    A: 'static + Allocator + ToPyNode<N>,
+    A: Allocator + ToPyNode<N>,
     N: PyClass,
     <A as Allocator>::Ptr: From<N>,
 {
@@ -41,7 +41,7 @@ where
 
 impl<A, N> GenericNativeOpLookup<A, N>
 where
-    A: 'static + Allocator + ToPyNode<N>,
+    A: Allocator + ToPyNode<N>,
     N: PyClass,
     <A as Allocator>::Ptr: From<N>,
 {
@@ -56,7 +56,7 @@ where
 
 impl<A, N> OperatorHandler<A> for GenericNativeOpLookup<A, N>
 where
-    A: 'static + Allocator + ToPyNode<N>,
+    A: Allocator + ToPyNode<N>,
     N: PyClass + Clone + IntoPy<PyObject>,
     <A as Allocator>::Ptr: From<N>,
 {
