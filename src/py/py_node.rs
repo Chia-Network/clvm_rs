@@ -122,12 +122,13 @@ impl PyNode {
 
     #[getter(atom)]
     pub fn atom(&self, py: Python) -> Option<PyObject> {
-        match ArcAllocator::new().sexp(&self.node) {
-            SExp::Atom(a) => {
+        let alloc = ArcAllocator::new();
+        match alloc.sexp(&self.node) {
+            SExp::Atom(atom) => {
                 {
                     let mut borrowed_bytes = self.pyobj.borrow_mut();
                     if borrowed_bytes.is_none() {
-                        let b: &PyBytes = PyBytes::new(py, a);
+                        let b: &PyBytes = PyBytes::new(py, alloc.buf(&atom));
                         let obj: PyObject = b.into();
                         *borrowed_bytes = Some(obj);
                     };
