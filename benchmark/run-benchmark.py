@@ -55,6 +55,20 @@ if not os.path.exists('benchmark/shift-left.env'):
     with open('benchmark/shift-left.env', 'w+') as f:
         f.write('(0xbadf00dfeedface 500)')
 
+if not os.path.exists('benchmark/matrix-multiply.env'):
+    size = 50
+    with open('benchmark/matrix-multiply.env', 'w+') as f:
+        f.write('(')
+        for k in range(2):
+            f.write('(')
+            for i in range(size):
+                f.write('(')
+                for j in range(size):
+                    f.write('%d ' % random.getrandbits(64))
+                f.write(') ')
+            f.write(') ')
+        f.write(')')
+
 print('compiling...')
 for fn in glob.glob('benchmark/*.clvm'):
 
