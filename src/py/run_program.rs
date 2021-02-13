@@ -4,7 +4,7 @@ use crate::int_allocator::IntAllocator;
 use crate::more_ops::op_unknown;
 use crate::node::Node;
 use crate::py::f_table::{make_f_lookup, FLookup};
-use crate::reduction::{EvalErr, Reduction};
+use crate::reduction::Response;
 use crate::run_program::{run_program, OperatorHandler};
 use crate::serialize::{node_from_bytes, node_to_bytes};
 use lazy_static::lazy_static;
@@ -26,8 +26,8 @@ impl OperatorHandler<IntAllocator> for OperatorHandlerWithMode {
         &self,
         allocator: &mut IntAllocator,
         o: <IntAllocator as Allocator>::AtomBuf,
-        argument_list: &u32,
-    ) -> Result<Reduction<u32>, EvalErr<u32>> {
+        argument_list: &<IntAllocator as Allocator>::Ptr,
+    ) -> Response<<IntAllocator as Allocator>::Ptr> {
         let op = &allocator.buf(&o);
         if op.len() == 1 {
             if let Some(f) = F_TABLE[op[0] as usize] {
@@ -58,11 +58,10 @@ pub fn serialize_and_run_program(
     let f: Box<dyn OperatorHandler<IntAllocator>> = Box::new(OperatorHandlerWithMode {
         strict: (flags & STRICT_MODE) != 0,
     });
-    let program: u32 = node_from_bytes(&mut allocator, program).unwrap();
+    let program = node_from_bytes(&mut allocator, program).unwrap();
+    let args = node_from_bytes(&mut allocator, args).unwrap();
 
-    let args: u32 = node_from_bytes(&mut allocator, args).unwrap();
-
-    let r: Result<Reduction<u32>, EvalErr<u32>> = run_program(
+    let r = run_program(
         &mut allocator,
         &program,
         &args,
