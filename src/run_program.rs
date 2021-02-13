@@ -168,11 +168,12 @@ where
 {
     fn eval_op_atom(
         &mut self,
-        op_atom: &[u8],
+        op_buf: T::AtomBuf,
         operator_node: &T::Ptr,
         operand_list: &T::Ptr,
         args: &T::Ptr,
     ) -> Result<u32, EvalErr<T::Ptr>> {
+        let op_atom = self.allocator.buf(&op_buf);
         // special case check for quote
         if op_atom.len() == 1 && op_atom[0] == self.quote_kw {
             match self.allocator.sexp(operand_list) {
@@ -213,31 +214,31 @@ where
 
     fn eval_pair(&mut self, program: &T::Ptr, args: &T::Ptr) -> Result<u32, EvalErr<T::Ptr>> {
         // put a bunch of ops on op_stack
-        match self.allocator.sexp(program) {
+        let (op_node, op_list) = match self.allocator.sexp(program) {
             // the program is just a bitfield path through the args tree
             SExp::Atom(path) => {
                 let r: Reduction<T::Ptr> =
                     traverse_path(self.allocator, self.allocator.buf(&path), &args)?;
                 self.push(r.1);
-                Ok(r.0)
+                return Ok(r.0);
             }
             // the program is an operator and a list of operands
-            SExp::Pair(operator_node, operand_list) => match self.allocator.sexp(&operator_node) {
-                SExp::Pair(_, _) => {
-                    // the operator is also a list, so we need two evals here
-                    self.push(self.allocator.new_pair(operator_node, args.clone()));
-                    self.op_stack.push(Box::new(|r| r.eval_op()));
-                    self.op_stack.push(Box::new(|r| r.eval_op()));
-                    Ok(1)
-                }
-                SExp::Atom(op_atom) => self.eval_op_atom(
-                    &self.allocator.buf(&op_atom),
-                    &operator_node,
-                    &operand_list,
-                    args,
-                ),
-            },
-        }
+            SExp::Pair(operator_node, operand_list) => (operator_node, operand_list),
+        };
+
+        let op_atom = match self.allocator.sexp(&op_node) {
+            SExp::Pair(_, _) => {
+                // the operator is also a list, so we need two evals here
+                let p = self.allocator.new_pair(op_node, args.clone());
+                self.push(p);
+                self.op_stack.push(Box::new(|r| r.eval_op()));
+                self.op_stack.push(Box::new(|r| r.eval_op()));
+                return Ok(1);
+            }
+            SExp::Atom(op_atom) => op_atom,
+        };
+
+        self.eval_op_atom(op_atom, &op_node, &op_list, args)
     }
 
     fn eval_op(&mut self) -> Result<u32, EvalErr<T::Ptr>> {
@@ -271,41 +272,41 @@ where
     fn apply_op(&mut self) -> Result<u32, EvalErr<T::Ptr>> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
-        match self.allocator.sexp(&operator) {
-            SExp::Pair(_, _) => Err(EvalErr(operator, "internal error".into())),
-            SExp::Atom(opa) => {
-                let op_atom = self.allocator.buf(&opa);
-                if op_atom.len() == 1 && op_atom[0] == self.apply_kw {
-                    let operand_list = Node::new(self.allocator, operand_list);
-                    if operand_list.arg_count_is(2) {
-                        let new_operator = operand_list.first()?;
-                        let new_operand_list = operand_list.rest()?.first()?;
-                        match new_operator.sexp() {
-                            SExp::Pair(_, _) => {
-                                let new_pair = self
-                                    .allocator
-                                    .new_pair(new_operator.node, new_operand_list.node);
-                                self.push(new_pair);
-                                self.op_stack.push(Box::new(|r| r.eval_op()));
-                            }
-                            SExp::Atom(_) => {
-                                self.push(new_operator.node);
-                                self.push(new_operand_list.node);
-                                self.op_stack.push(Box::new(|r| r.apply_op()));
-                            }
-                        };
-                        Ok(APPLY_COST)
-                    } else {
-                        operand_list.err("apply requires exactly 2 parameters")
-                    }
-                } else {
-                    let r = self
-                        .operator_lookup
-                        .op(self.allocator, &op_atom, &operand_list)?;
-                    self.push(r.1);
-                    Ok(r.0)
-                }
+        let opa = match self.allocator.sexp(&operator) {
+            SExp::Pair(_, _) => {
+                return Err(EvalErr(operator, "internal error".into()));
             }
+            SExp::Atom(opa) => opa,
+        };
+        let op_atom = self.allocator.buf(&opa);
+        if op_atom.len() == 1 && op_atom[0] == self.apply_kw {
+            let operand_list = Node::new(self.allocator, operand_list);
+            if operand_list.arg_count_is(2) {
+                let new_operator = operand_list.first()?;
+                let new_op_node = new_operator.node.clone();
+                let new_op_list = operand_list.rest()?.first()?.node;
+                match new_operator.sexp() {
+                    SExp::Pair(_, _) => {
+                        let new_pair = self.allocator.new_pair(new_op_node, new_op_list);
+                        self.push(new_pair);
+                        self.op_stack.push(Box::new(|r| r.eval_op()));
+                    }
+                    SExp::Atom(_) => {
+                        self.push(new_op_node);
+                        self.push(new_op_list);
+                        self.op_stack.push(Box::new(|r| r.apply_op()));
+                    }
+                };
+                Ok(APPLY_COST)
+            } else {
+                operand_list.err("apply requires exactly 2 parameters")
+            }
+        } else {
+            let r = self
+                .operator_lookup
+                .op(self.allocator, op_atom, &operand_list)?;
+            self.push(r.1);
+            Ok(r.0)
         }
     }
 
