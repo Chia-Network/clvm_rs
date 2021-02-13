@@ -10,8 +10,15 @@ use pyo3::prelude::*;
 #[derive(Clone)]
 pub struct ArcAllocator {}
 
+#[derive(Clone)]
+pub struct ArcAtomBuf {
+    buf: Arc<Vec<u8>>,
+    start: u32,
+    end: u32,
+}
+
 pub enum ArcSExp {
-    Atom(Arc<Vec<u8>>),
+    Atom(ArcAtomBuf),
     Pair(Arc<ArcSExp>, Arc<ArcSExp>),
 }
 
@@ -42,28 +49,54 @@ impl ArcAllocator {
 
 impl Allocator for ArcAllocator {
     type Ptr = ArcSExp;
-    type AtomBuf = Arc<Vec<u8>>;
+    type AtomBuf = ArcAtomBuf;
 
     fn new_atom(&mut self, v: &[u8]) -> ArcSExp {
-        ArcSExp::Atom(Arc::new(v.into()))
+        ArcSExp::Atom(ArcAtomBuf {
+            buf: Arc::new(v.into()),
+            start: 0,
+            end: v.len() as u32,
+        })
     }
 
     fn new_pair(&mut self, first: ArcSExp, rest: ArcSExp) -> ArcSExp {
         ArcSExp::Pair(Arc::new(first), Arc::new(rest))
     }
 
+    fn new_substr(&mut self, node: Self::Ptr, start: u32, end: u32) -> Self::Ptr {
+        let atom = match node {
+            ArcSExp::Atom(a) => a,
+            _ => panic!("substr expected atom, got pair"),
+        };
+        let atom_len = atom.end - atom.start;
+        if start > atom_len {
+            panic!("substr start out of bounds");
+        }
+        if end > atom_len {
+            panic!("substr end out of bounds");
+        }
+        if end < start {
+            panic!("substr invalid bounds");
+        }
+        ArcSExp::Atom(ArcAtomBuf {
+            buf: atom.buf.clone(),
+            start: atom.start,
+            end: atom.end,
+        })
+    }
+
     fn atom<'a>(&'a self, node: &'a Self::Ptr) -> &'a [u8] {
         match node {
-            ArcSExp::Atom(a) => &*a,
+            ArcSExp::Atom(a) => &a.buf[a.start as usize..a.end as usize],
             _ => panic!("expected atom, got pair"),
         }
     }
 
     fn buf<'a>(&'a self, node: &'a Self::AtomBuf) -> &'a [u8] {
-        &*node
+        &node.buf[node.start as usize..node.end as usize]
     }
 
-    fn sexp(&self, node: &ArcSExp) -> SExp<ArcSExp, Arc<Vec<u8>>> {
+    fn sexp(&self, node: &ArcSExp) -> SExp<ArcSExp, ArcAtomBuf> {
         match node {
             ArcSExp::Atom(a) => SExp::Atom(a.clone()),
             ArcSExp::Pair(left, right) => {
@@ -75,13 +108,19 @@ impl Allocator for ArcAllocator {
     }
 
     fn null(&self) -> ArcSExp {
-        let a = NULL.to_owned();
-        ArcSExp::Atom(a)
+        ArcSExp::Atom(ArcAtomBuf {
+            buf: NULL.to_owned(),
+            start: 0,
+            end: 0,
+        })
     }
 
     fn one(&self) -> ArcSExp {
-        let a = ONE.to_owned();
-        ArcSExp::Atom(a)
+        ArcSExp::Atom(ArcAtomBuf {
+            buf: ONE.to_owned(),
+            start: 0,
+            end: 1,
+        })
     }
 }
 

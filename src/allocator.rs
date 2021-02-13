@@ -16,6 +16,9 @@ pub trait Allocator {
     fn new_atom(&mut self, v: &[u8]) -> Self::Ptr;
     fn new_pair(&mut self, first: Self::Ptr, rest: Self::Ptr) -> Self::Ptr;
 
+    // create a new atom whose value is the given slice of the specified atom
+    fn new_substr(&mut self, node: Self::Ptr, start: u32, end: u32) -> Self::Ptr;
+
     // The lifetime here is a bit special because IntAllocator and ArcAllocator
     // have slightly different requirements. With IntAllocator, all buffers are
     // owned by the allocator, with ArcAllocator all buffers have shared

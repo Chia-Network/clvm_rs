@@ -70,6 +70,28 @@ impl Allocator for IntAllocator {
         r
     }
 
+    fn new_substr(&mut self, node: Self::Ptr, start: u32, end: u32) -> Self::Ptr {
+        if node >= 0 {
+            panic!("substr expected atom, got pair");
+        }
+        let atom = self.atom_vec[(-node - 1) as usize];
+        let atom_len = atom.end - atom.start;
+        if start > atom_len {
+            panic!("substr start out of bounds");
+        }
+        if end > atom_len {
+            panic!("substr end out of bounds");
+        }
+        if end < start {
+            panic!("substr invalid bounds");
+        }
+        self.atom_vec.push(IntAtomBuf {
+            start: atom.start + start,
+            end: atom.start + end,
+        });
+        -(self.atom_vec.len() as i32)
+    }
+
     fn atom<'a>(&'a self, node: &'a Self::Ptr) -> &'a [u8] {
         if *node >= 0 {
             panic!("expected atom, got pair");
