@@ -7,8 +7,10 @@ pub fn err<T, P>(node: P, msg: &str) -> Result<T, EvalErr<P>> {
 
 pub fn u8_err<A: Allocator, T>(
     allocator: &A,
-    node: &[u8],
+    o: &A::AtomBuf,
     msg: &str,
 ) -> Result<T, EvalErr<A::Ptr>> {
-    err(allocator.new_atom(node), msg)
+    let op = allocator.buf(&o);
+    let buf = op.to_vec();
+    err(allocator.new_atom(&buf), msg)
 }

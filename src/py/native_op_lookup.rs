@@ -62,7 +62,7 @@ where
     fn op(
         &self,
         allocator: &A,
-        op: &[u8],
+        op: A::AtomBuf,
         argument_list: &<A as Allocator>::Ptr,
     ) -> Response<<A as Allocator>::Ptr> {
         eval_op::<A, N>(
@@ -79,7 +79,7 @@ fn eval_op<A, N>(
     f_lookup: &FLookup<A>,
     py_callback: &PyObject,
     allocator: &A,
-    op: &[u8],
+    o: <A as Allocator>::AtomBuf,
     argument_list: &<A as Allocator>::Ptr,
 ) -> Response<<A as Allocator>::Ptr>
 where
@@ -88,6 +88,7 @@ where
     N: PyClass + Clone,
     N: IntoPy<PyObject>,
 {
+    let op = allocator.buf(&o);
     if op.len() == 1 {
         if let Some(f) = f_lookup[op[0] as usize] {
             return f(&allocator, argument_list.clone());
