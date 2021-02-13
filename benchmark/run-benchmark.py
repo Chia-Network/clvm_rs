@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import glob
 import subprocess
 import sys
@@ -5,10 +7,15 @@ import os
 import time
 import random
 from clvm_rs import serialize_and_run_program, STRICT_MODE
+from colorama import init, Fore, Style
+
+init()
 
 procs = []
 
 def long_string(filename):
+    if "-v" in sys.argv:
+        print("generating %s" % filename)
     with open(filename, 'w+') as f:
         f.write('("')
         for i in range(1000):
@@ -26,6 +33,8 @@ def _large_tree_impl(f, depth):
         f.write(')')
 
 def large_tree(filename):
+    if "-v" in sys.argv:
+        print("generating %s" % filename)
     with open(filename, 'w+') as f:
         _large_tree_impl(f, 19)
 
@@ -45,26 +54,33 @@ for fn in glob.glob('benchmark/*.clvm'):
     hex_name = fn[:-4] + 'hex'
     if not os.path.exists(hex_name):
         out = open(hex_name, 'w+')
+        if "-v" in sys.argv:
+            print("opc %s" % fn)
         proc = subprocess.Popen(['opc', fn], stdout=out)
         procs.append(proc)
 
     env_hex_name = fn[:-4] + 'envhex'
     if not os.path.exists(env_hex_name):
         out = open(env_hex_name, 'w+')
+        if "-v" in sys.argv:
+            print("opc %s" % (fn[:-4] + 'env'))
         proc = subprocess.Popen(['opc', fn[:-4] + 'env'], stdout=out)
         procs.append(proc)
 
-print("[" + (" " * len(procs)) + "]\r[", end="")
-for p in procs:
-    p.wait()
-    print(".", end="")
-    sys.stdout.flush()
+if len(procs) > 0:
+    print("[" + (" " * len(procs)) + "]\r[", end="")
+    for p in procs:
+        p.wait()
+        print(".", end="")
+        sys.stdout.flush()
+    print("")
 
-print("")
 test_runs = {}
 
+print('benchmarking...')
 for n in range(5):
-    print('benchmarking, pass %d' % n)
+    if "-v" in sys.argv:
+        print('pass %d' % n)
     for fn in glob.glob('benchmark/*.hex'):
         env_fn = fn[:-3] + 'envhex'
 
@@ -106,11 +122,10 @@ for n in range(5):
 
 sum_time = 0.0
 sum_uncertainty = 0.0
-for n, vals in test_runs.items():
-    print('%20s:' % n, end='')
+for n, vals in sorted(test_runs.items()):
+    print('%20s' % n, end='')
     mean = 0.0
     for v in vals:
-        print(' %s' % v, end='')
         mean += float(v)
         sum_time += float(v)
     mean /= len(vals)
@@ -118,8 +133,13 @@ for n, vals in test_runs.items():
     diff = 0.0
     for v in vals:
         diff = max(abs(mean - float(v)), diff)
-    print('   mean: %f (+/- %f)' % (mean, diff))
+    print(' mean: %f (+/- %f)   ' % (mean, diff), end='')
     sum_uncertainty += diff
 
-print('TOTAL: %f s' % sum_time)
-print('UNCERTAINTY: %f s' % sum_uncertainty)
+    print(Fore.MAGENTA, end='')
+    for v in vals:
+        print(' %s' % v, end='')
+    print(Fore.RESET)
+
+print(Fore.GREEN + '      TOTAL:' + Style.RESET_ALL + ' %f s' % sum_time)
+print(Fore.GREEN + 'UNCERTAINTY:' + Style.RESET_ALL + ' %f s' % sum_uncertainty)
