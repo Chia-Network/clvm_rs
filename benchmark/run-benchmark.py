@@ -32,11 +32,11 @@ def _large_tree_impl(f, depth):
         _large_tree_impl(f, depth - 1)
         f.write(')')
 
-def large_tree(filename):
+def large_tree(filename, depth=19):
     if "-v" in sys.argv:
         print("generating %s" % filename)
     with open(filename, 'w+') as f:
-        _large_tree_impl(f, 19)
+        _large_tree_impl(f, depth)
 
 print('generating...')
 if not os.path.exists('benchmark/substr.env'):
@@ -47,6 +47,9 @@ if not os.path.exists('benchmark/substr-tree.env'):
 
 if not os.path.exists('benchmark/sum-tree.env'):
     large_tree('benchmark/sum-tree.env')
+
+if not os.path.exists('benchmark/hash-tree.env'):
+    large_tree('benchmark/hash-tree.env', 16)
 
 print('compiling...')
 for fn in glob.glob('benchmark/*.clvm'):
