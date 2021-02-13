@@ -1,14 +1,21 @@
-use std::vec;
-
 use crate::allocator::{Allocator, SExp};
 
+#[derive(Clone, Copy)]
+pub struct IntAtomBuf {
+    start: u32,
+    end: u32,
+}
+
 enum NodePtr {
-    Atom(u32),
+    Atom(IntAtomBuf),
     Pair(u32, u32),
 }
 
 pub struct IntAllocator {
-    u8_vec: Vec<Vec<u8>>,
+    // this is effectively a grow-only stack where atoms are allocated. Atoms
+    // are immutable, so once they are created, they will stay around until the
+    // program completes
+    u8_vec: Vec<u8>,
     node_vec: Vec<NodePtr>,
 }
 
@@ -24,23 +31,28 @@ impl IntAllocator {
             u8_vec: Vec::new(),
             node_vec: Vec::new(),
         };
-        r.u8_vec.push(vec![]);
-        r.u8_vec.push(vec![1_u8]);
-        r.node_vec.push(NodePtr::Atom(0));
-        r.node_vec.push(NodePtr::Atom(1));
+        r.u8_vec.reserve(1024 * 1024);
+        r.u8_vec.push(1_u8);
+        // Preallocated empty list
+        r.node_vec
+            .push(NodePtr::Atom(IntAtomBuf { start: 0, end: 0 }));
+        // Preallocated 1
+        r.node_vec
+            .push(NodePtr::Atom(IntAtomBuf { start: 0, end: 1 }));
         r
     }
 }
 
 impl Allocator for IntAllocator {
     type Ptr = u32;
-    type AtomBuf = u32;
+    type AtomBuf = IntAtomBuf;
 
-    fn new_atom(&mut self, v: &[u8]) -> u32 {
-        let index = self.u8_vec.len() as u32;
-        self.u8_vec.push(v.into());
-        let r: u32 = self.node_vec.len() as u32;
-        self.node_vec.push(NodePtr::Atom(index));
+    fn new_atom(&mut self, v: &[u8]) -> Self::Ptr {
+        let start = self.u8_vec.len() as u32;
+        self.u8_vec.extend_from_slice(v);
+        let end = self.u8_vec.len() as u32;
+        let r = self.node_vec.len() as u32;
+        self.node_vec.push(NodePtr::Atom(IntAtomBuf { start, end }));
         r
     }
 
@@ -52,27 +64,27 @@ impl Allocator for IntAllocator {
 
     fn atom<'a>(&'a self, node: &'a Self::Ptr) -> &'a [u8] {
         match self.node_vec[*node as usize] {
-            NodePtr::Atom(index) => &self.u8_vec[index as usize],
+            NodePtr::Atom(IntAtomBuf { start, end }) => &self.u8_vec[start as usize..end as usize],
             _ => panic!("expected atom, got pair"),
         }
     }
 
     fn buf<'a>(&'a self, node: &'a Self::AtomBuf) -> &'a [u8] {
-        &self.u8_vec[*node as usize]
+        &self.u8_vec[node.start as usize..node.end as usize]
     }
 
     fn sexp(&self, node: &Self::Ptr) -> SExp<Self::Ptr, Self::AtomBuf> {
         match self.node_vec[*node as usize] {
-            NodePtr::Atom(index) => SExp::Atom(index),
+            NodePtr::Atom(atombuf) => SExp::Atom(atombuf),
             NodePtr::Pair(left, right) => SExp::Pair(left, right),
         }
     }
 
-    fn null(&self) -> u32 {
+    fn null(&self) -> Self::Ptr {
         0
     }
 
-    fn one(&self) -> u32 {
+    fn one(&self) -> Self::Ptr {
         1
     }
 }
