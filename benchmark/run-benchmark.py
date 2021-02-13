@@ -7,6 +7,20 @@ from clvm_rs import serialize_and_run_program, STRICT_MODE
 
 procs = []
 
+def long_string(filename):
+    with open(filename, 'w+') as f:
+        f.write('("')
+        for i in range(1000):
+            f.write('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
+        f.write('")')
+
+print('generating...')
+if not os.path.exists('benchmark/substr.env'):
+    long_string('benchmark/substr.env')
+
+if not os.path.exists('benchmark/substr-tree.env'):
+    long_string('benchmark/substr-tree.env')
+
 print('compiling...')
 for fn in glob.glob('benchmark/*.clvm'):
 
