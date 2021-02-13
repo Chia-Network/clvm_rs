@@ -1,0 +1,8 @@
+;(mod (tree)
+;    (defun sum (tree)
+;        (if (l tree) (+ (sum (f tree)) (sum (r tree))) tree)
+;    )
+;    (sum tree)
+;)
+
+((c (q ((c 2 (c 2 (c 5 (q ())))))) (c (q ((c (i (l 5) (q (+ ((c 2 (c 2 (c 9 (q ()))))) ((c 2 (c 2 (c 13 (q ()))))))) (q 5)) 1))) 1)))
