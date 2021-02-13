@@ -3,6 +3,7 @@ import subprocess
 import sys
 import os
 import time
+import random
 from clvm_rs import serialize_and_run_program, STRICT_MODE
 
 procs = []
@@ -14,12 +15,29 @@ def long_string(filename):
             f.write('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
         f.write('")')
 
+def _large_tree_impl(f, depth):
+    if depth == 0:
+        f.write('%d' % random.getrandbits(64))
+    else:
+        f.write('(')
+        _large_tree_impl(f, depth - 1)
+        f.write(' . ')
+        _large_tree_impl(f, depth - 1)
+        f.write(')')
+
+def large_tree(filename):
+    with open(filename, 'w+') as f:
+        _large_tree_impl(f, 19)
+
 print('generating...')
 if not os.path.exists('benchmark/substr.env'):
     long_string('benchmark/substr.env')
 
 if not os.path.exists('benchmark/substr-tree.env'):
     long_string('benchmark/substr-tree.env')
+
+if not os.path.exists('benchmark/sum-tree.env'):
+    large_tree('benchmark/sum-tree.env')
 
 print('compiling...')
 for fn in glob.glob('benchmark/*.clvm'):
