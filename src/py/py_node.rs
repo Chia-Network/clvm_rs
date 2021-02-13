@@ -1,7 +1,6 @@
 use super::arc_allocator::{ArcAllocator, ArcSExp};
 use crate::allocator::{Allocator, SExp};
 use std::cell::RefCell;
-use std::sync::Arc;
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -14,12 +13,10 @@ pub struct PyNode {
     pyobj: RefCell<Option<PyObject>>,
 }
 
-fn extract_atom(_allocator: &ArcAllocator, obj: &PyAny) -> PyResult<PyNode> {
+fn extract_atom(allocator: &mut ArcAllocator, obj: &PyAny) -> PyResult<PyNode> {
     let py_bytes: &PyBytes = obj.extract()?;
     let r: &[u8] = obj.extract()?;
-    let r1: Vec<u8> = r.to_owned();
-    let r2: Arc<Vec<u8>> = Arc::new(r1);
-    let inner_node: ArcSExp = ArcSExp::Atom(r2);
+    let inner_node = allocator.new_atom(r);
     let py_node = PyNode::new_cached(inner_node, Some(py_bytes.into()));
     Ok(py_node)
 }
@@ -83,7 +80,7 @@ impl PyNode {
     pub fn py_new(obj: &PyAny) -> PyResult<Self> {
         let mut allocator = ArcAllocator::new();
         let node: PyNode = {
-            let n = extract_atom(&allocator, obj);
+            let n = extract_atom(&mut allocator, obj);
             if let Ok(r) = n {
                 r
             } else {

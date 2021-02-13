@@ -469,17 +469,20 @@ pub fn op_substr<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let a0 = args.first()?;
     let s0 = atom(&a0, "substr")?;
     let (n1, _, n2, _) = two_ints(&args.rest()?, "substr")?;
-    let i1: isize = isize::try_from(n1).unwrap_or(isize::max_value());
-    let i2: isize = isize::try_from(n2).unwrap_or(0);
-    let size = s0.len() as isize;
-    if i2 > size || i2 < i1 || i2 < 0 || i1 < 0 {
+    let i1 = match u32::try_from(n1) {
+        Ok(v) => v,
+        _ => return args.err("invalid indices for substr"),
+    };
+    let i2 = match u32::try_from(n2) {
+        Ok(v) => v,
+        _ => return args.err("invalid indices for substr"),
+    };
+    let size = s0.len() as u32;
+    if i2 > size || i2 < i1 {
         args.err("invalid indices for substr")
     } else {
-        let u1: usize = i1 as usize;
-        let u2: usize = i2 as usize;
-        let buf = s0[u1..u2].to_vec();
-        // TODO: extend allocator interface to support substr directly
-        let r = a.new_atom(&buf);
+        let atom_node = a0.node;
+        let r = a.new_substr(atom_node, i1, i2);
         let cost = 1;
         Ok(Reduction(cost, r))
     }
