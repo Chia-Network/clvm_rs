@@ -63,7 +63,7 @@ for p in procs:
 print("")
 test_runs = {}
 
-for n in range(3):
+for n in range(5):
     print('benchmarking, pass %d' % n)
     for fn in glob.glob('benchmark/*.hex'):
         env_fn = fn[:-3] + 'envhex'
