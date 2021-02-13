@@ -51,6 +51,10 @@ if not os.path.exists('benchmark/sum-tree.env'):
 if not os.path.exists('benchmark/hash-tree.env'):
     large_tree('benchmark/hash-tree.env', 16)
 
+if not os.path.exists('benchmark/shift-left.env'):
+    with open('benchmark/shift-left.env', 'w+') as f:
+        f.write('(0xbadf00dfeedface 500)')
+
 print('compiling...')
 for fn in glob.glob('benchmark/*.clvm'):
 

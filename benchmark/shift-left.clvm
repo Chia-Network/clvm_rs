@@ -1,0 +1,8 @@
+;(mod (value iter)
+;    (defun shift (value iter)
+;        (if (> iter 1) (lsh (shift value (- iter 1)) 65535) value)
+;    )
+;    (shift value iter)
+;)
+
+((c (q ((c 2 (c 2 (c 5 (c 11 (q ()))))))) (c (q ((c (i (> 11 (q 1)) (q (lsh ((c 2 (c 2 (c 5 (c (- 11 (q 1)) (q ())))))) (q 0x00ffff))) (q 5)) 1))) 1)))
