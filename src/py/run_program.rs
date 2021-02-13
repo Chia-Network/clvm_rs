@@ -1,4 +1,5 @@
 use crate::allocator::Allocator;
+use crate::err_utils::err;
 use crate::int_allocator::IntAllocator;
 use crate::more_ops::op_unknown;
 use crate::node::Node;
@@ -24,19 +25,21 @@ impl OperatorHandler<IntAllocator> for OperatorHandlerWithMode {
     fn op(
         &self,
         allocator: &IntAllocator,
-        op: &[u8],
+        o: <IntAllocator as Allocator>::AtomBuf,
         argument_list: &u32,
     ) -> Result<Reduction<u32>, EvalErr<u32>> {
+        let op = &allocator.buf(&o);
         if op.len() == 1 {
             if let Some(f) = F_TABLE[op[0] as usize] {
                 return f(&allocator, *argument_list);
             }
         }
         if self.strict {
-            let op_arg = Node::new(allocator, allocator.new_atom(op));
-            op_arg.err("unimplemented operator")
+            let buf = op.to_vec();
+            let op_arg = allocator.new_atom(&buf);
+            err(op_arg, "unimplemented operator")
         } else {
-            op_unknown(op, allocator, *argument_list)
+            op_unknown(allocator, o, *argument_list)
         }
     }
 }

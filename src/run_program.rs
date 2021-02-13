@@ -14,7 +14,7 @@ pub trait OperatorHandler<T: Allocator> {
     fn op(
         &self,
         allocator: &T,
-        op: &[u8],
+        op: <T as Allocator>::AtomBuf,
         args: &<T as Allocator>::Ptr,
     ) -> Response<<T as Allocator>::Ptr>;
 }
@@ -304,7 +304,7 @@ where
         } else {
             let r = self
                 .operator_lookup
-                .op(self.allocator, op_atom, &operand_list)?;
+                .op(self.allocator, opa, &operand_list)?;
             self.push(r.1);
             Ok(r.0)
         }
