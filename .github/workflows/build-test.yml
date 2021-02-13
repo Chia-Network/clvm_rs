@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - dev
+      - manylinux2010
     tags:
         - '**'
   pull_request:
@@ -52,13 +53,36 @@ jobs:
         . ./activate
         maturin build --no-sdist -i python --release
 
-    - name: Build Linux with maturin on Python ${{ matrix.python }}
+#    - name: Build Linux with maturin on Python ${{ matrix.python }}
+#      if: startsWith(matrix.os, 'ubuntu')
+#      run: |
+#        python -m venv venv
+#        ln -s venv/bin/activate
+#        . ./activate
+#        maturin build -i python --release --manylinux 2010
+
+    - name: Build Linux with maturin on Python
       if: startsWith(matrix.os, 'ubuntu')
       run: |
-        python -m venv venv
-        ln -s venv/bin/activate
-        . ./activate
-        maturin build -i python --release --manylinux 2010
+        podman run --rm=true \
+          -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
+          quay.io/pypa/manylinux2010_x86_64 \
+          bash -exc '\
+            echo $PATH && \
+            curl -L https://sh.rustup.rs > rustup.rs && \
+            chmod +x rustup.rs && \
+            ./rustup.rs -y && \
+            export PATH=$HOME/.cargo/bin:$PATH && \
+            rm -rf venv && \
+            export PATH=/opt/python/cp39-cp39/bin/:$PATH && \
+            export PATH=/opt/python/cp38-cp38/bin/:$PATH && \
+            export PATH=/opt/python/cp37-cp37m/bin/:$PATH && \
+            /opt/python/cp38-cp38/bin/python -m venv venv && \
+            if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
+            . ./activate && \
+            pip install --extra-index-url https://download.chia.net/simple/ maturin && \
+            maturin build --no-sdist --release --manylinux 2010 \
+          '
 
     - name: Build Windows with maturin on Python ${{ matrix.python }}
       if: startsWith(matrix.os, 'windows')
