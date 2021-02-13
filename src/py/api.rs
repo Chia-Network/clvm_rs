@@ -9,7 +9,10 @@ use super::arc_allocator::ArcAllocator;
 use super::glue::{_py_run_program, _serialize_from_bytes, _serialize_to_bytes};
 use super::native_op_lookup::GenericNativeOpLookup;
 use super::py_node::PyNode;
-use super::run_program::{__pyo3_get_function_serialize_and_run_program, STRICT_MODE};
+use super::run_program::{
+    __pyo3_get_function_deserialize_and_run_program, __pyo3_get_function_serialize_and_run_program,
+    STRICT_MODE,
+};
 
 type AllocatorT<'a> = ArcAllocator;
 type NodeClass = PyNode;
@@ -22,7 +25,7 @@ pub struct NativeOpLookup {
 #[pymethods]
 impl NativeOpLookup {
     #[new]
-    fn new(opcode_lookup_by_name: HashMap<String, &[u8]>, unknown_op_callback: PyObject) -> Self {
+    fn new(opcode_lookup_by_name: HashMap<String, Vec<u8>>, unknown_op_callback: PyObject) -> Self {
         NativeOpLookup::new_from_gnol(Box::new(GenericNativeOpLookup::new(
             opcode_lookup_by_name,
             unknown_op_callback,
@@ -117,10 +120,11 @@ fn serialize_to_bytes(py: Python, sexp: &PyAny) -> PyResult<PyObject> {
 #[pymodule]
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_run_program, m)?)?;
-    m.add_function(wrap_pyfunction!(serialize_and_run_program, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_from_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_to_bytes, m)?)?;
 
+    m.add_function(wrap_pyfunction!(serialize_and_run_program, m)?)?;
+    m.add_function(wrap_pyfunction!(deserialize_and_run_program, m)?)?;
     m.add("STRICT_MODE", STRICT_MODE)?;
 
     m.add_class::<PyNode>()?;

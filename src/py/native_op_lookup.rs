@@ -47,7 +47,7 @@ where
     <A as Allocator>::Ptr: From<N>,
 {
     pub fn new(
-        opcode_lookup_by_name: HashMap<String, &[u8]>,
+        opcode_lookup_by_name: HashMap<String, Vec<u8>>,
         unknown_op_callback: PyObject,
     ) -> Self {
         let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
