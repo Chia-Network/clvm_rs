@@ -1,0 +1,12 @@
+;(mod (string)
+;    (defun split (input)
+;        (if (> (strlen input) 1)
+;            (c
+;                (split (substr input 0 (div (strlen input) 2)))
+;                (split (substr input (div (strlen input) 2) (strlen input))))
+;            input)
+;    )
+;    (split string)
+;)
+
+((c (q ((c 2 (c 2 (c 5 (q ())))))) (c (q ((c (i (> (strlen 5) (q 1)) (q (c ((c 2 (c 2 (c (substr 5 (q ()) (div (strlen 5) (q 2))) (q ()))))) ((c 2 (c 2 (c (substr 5 (div (strlen 5) (q 2)) (strlen 5)) (q ()))))))) (q 5)) 1))) 1)))
