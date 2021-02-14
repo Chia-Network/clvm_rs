@@ -29,8 +29,14 @@ pub type PreEval<A> = Box<
 
 pub type PostEval<T> = dyn Fn(Option<&<T as Allocator>::Ptr>);
 
-type RpcOperator<T> =
-    dyn FnOnce(&mut RunProgramContext<T>) -> Result<u32, EvalErr<<T as Allocator>::Ptr>>;
+#[repr(u8)]
+enum Operation {
+    Apply,
+    Cons,
+    Eval,
+    Swap,
+    PostEval,
+}
 
 // `run_program` has two stacks: the operand stack (of `Node` objects) and the
 // operator stack (of RpcOperators)
@@ -41,8 +47,9 @@ pub struct RunProgramContext<'a, T: Allocator> {
     apply_kw: u8,
     operator_lookup: Box<dyn OperatorHandler<T>>,
     pre_eval: Option<PreEval<T>>,
+    posteval_stack: Vec<Box<PostEval<T>>>,
     val_stack: Vec<T::Ptr>,
-    op_stack: Vec<Box<RpcOperator<T>>>,
+    op_stack: Vec<Operation>,
 }
 
 impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
@@ -139,6 +146,7 @@ impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
             apply_kw,
             operator_lookup,
             pre_eval,
+            posteval_stack: Vec::new(),
             val_stack: Vec::new(),
             op_stack: Vec::new(),
         }
@@ -189,16 +197,16 @@ where
                 }
             }
         } else {
-            self.op_stack.push(Box::new(|r| r.apply_op()));
+            self.op_stack.push(Operation::Apply);
             self.push(operator_node.clone());
             let mut operands: T::Ptr = operand_list.clone();
             loop {
                 if Node::new(self.allocator, operands.clone()).nullp() {
                     break;
                 }
-                self.op_stack.push(Box::new(|r| r.cons_op()));
-                self.op_stack.push(Box::new(|r| r.eval_op()));
-                self.op_stack.push(Box::new(|r| r.swap_op()));
+                self.op_stack.push(Operation::Cons);
+                self.op_stack.push(Operation::Eval);
+                self.op_stack.push(Operation::Swap);
                 match self.allocator.sexp(&operands) {
                     SExp::Atom(_) => return err(operand_list.clone(), "bad operand list"),
                     SExp::Pair(first, rest) => {
@@ -232,8 +240,8 @@ where
                 // the operator is also a list, so we need two evals here
                 let p = self.allocator.new_pair(op_node, args.clone());
                 self.push(p);
-                self.op_stack.push(Box::new(|r| r.eval_op()));
-                self.op_stack.push(Box::new(|r| r.eval_op()));
+                self.op_stack.push(Operation::Eval);
+                self.op_stack.push(Operation::Eval);
                 return Ok(1);
             }
             SExp::Atom(op_atom) => op_atom,
@@ -257,14 +265,10 @@ where
                     Some(ref pre_eval) => pre_eval(&mut self.allocator, &program, &args)?,
                 };
                 if let Some(post_eval) = post_eval {
-                    let new_function: Box<RpcOperator<T>> =
-                        Box::new(move |rpc: &mut RunProgramContext<T>| {
-                            let peek: Option<&T::Ptr> = rpc.val_stack.last();
-                            post_eval(peek);
-                            Ok(0)
-                        });
-                    self.op_stack.push(new_function);
+                    self.posteval_stack.push(post_eval);
+                    self.op_stack.push(Operation::PostEval);
                 };
+
                 self.eval_pair(&program, &args)
             }
         }
@@ -290,12 +294,12 @@ where
                     SExp::Pair(_, _) => {
                         let new_pair = self.allocator.new_pair(new_op_node, new_op_list);
                         self.push(new_pair);
-                        self.op_stack.push(Box::new(|r| r.eval_op()));
+                        self.op_stack.push(Operation::Eval);
                     }
                     SExp::Atom(_) => {
                         self.push(new_op_node);
                         self.push(new_op_list);
-                        self.op_stack.push(Box::new(|r| r.apply_op()));
+                        self.op_stack.push(Operation::Apply);
                     }
                 };
                 Ok(APPLY_COST)
@@ -319,18 +323,28 @@ where
         max_cost: u32,
     ) -> Response<T::Ptr> {
         self.val_stack = vec![self.allocator.new_pair(program.clone(), args.clone())];
-        self.op_stack = vec![Box::new(|r| r.eval_op())];
+        self.op_stack = vec![Operation::Eval];
 
         let mut cost: u32 = 0;
 
         loop {
             let top = self.op_stack.pop();
-            match top {
-                Some(f) => {
-                    cost += f(self)?;
-                }
+            let op = match top {
+                Some(f) => f,
                 None => break,
-            }
+            };
+            cost += match op {
+                Operation::Apply => self.apply_op()?,
+                Operation::Cons => self.cons_op()?,
+                Operation::Eval => self.eval_op()?,
+                Operation::Swap => self.swap_op()?,
+                Operation::PostEval => {
+                    let f = self.posteval_stack.pop().unwrap();
+                    let peek: Option<&T::Ptr> = self.val_stack.last();
+                    f(peek);
+                    0_u32
+                }
+            };
             if cost > max_cost && max_cost > 0 {
                 let max_cost: Number = max_cost.into();
                 let ptr = ptr_from_number(self.allocator, &max_cost);
