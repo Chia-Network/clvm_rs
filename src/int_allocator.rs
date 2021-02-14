@@ -1,4 +1,7 @@
 use crate::allocator::{Allocator, SExp};
+use crate::err_utils::err;
+use crate::limits::{MAX_ATOM_SIZE, MAX_CUMULATIVE_HEAP_SIZE};
+use crate::reduction::EvalErr;
 
 #[derive(Clone, Copy)]
 pub struct IntAtomBuf {
@@ -56,40 +59,55 @@ impl Allocator for IntAllocator {
     type Ptr = i32;
     type AtomBuf = IntAtomBuf;
 
-    fn new_atom(&mut self, v: &[u8]) -> Self::Ptr {
+    fn new_atom(&mut self, v: &[u8]) -> Result<Self::Ptr, EvalErr<Self::Ptr>> {
         let start = self.u8_vec.len() as u32;
+        if v.len() > MAX_ATOM_SIZE {
+            return err(self.null(), "exceeded atom size limit");
+        }
+        if self.u8_vec.len() + v.len() > MAX_CUMULATIVE_HEAP_SIZE {
+            return err(self.null(), "exceeded heap size limit");
+        }
         self.u8_vec.extend_from_slice(v);
         let end = self.u8_vec.len() as u32;
         self.atom_vec.push(IntAtomBuf { start, end });
-        -(self.atom_vec.len() as i32)
+        Ok(-(self.atom_vec.len() as i32))
     }
 
-    fn new_pair(&mut self, first: Self::Ptr, rest: Self::Ptr) -> Self::Ptr {
+    fn new_pair(
+        &mut self,
+        first: Self::Ptr,
+        rest: Self::Ptr,
+    ) -> Result<Self::Ptr, EvalErr<Self::Ptr>> {
         let r = self.pair_vec.len() as i32;
         self.pair_vec.push(IntPair { first, rest });
-        r
+        Ok(r)
     }
 
-    fn new_substr(&mut self, node: Self::Ptr, start: u32, end: u32) -> Self::Ptr {
+    fn new_substr(
+        &mut self,
+        node: Self::Ptr,
+        start: u32,
+        end: u32,
+    ) -> Result<Self::Ptr, EvalErr<Self::Ptr>> {
         if node >= 0 {
-            panic!("substr expected atom, got pair");
+            return err(node, "substr expected atom, got pair");
         }
         let atom = self.atom_vec[(-node - 1) as usize];
         let atom_len = atom.end - atom.start;
         if start > atom_len {
-            panic!("substr start out of bounds");
+            return err(node, "substr start out of bounds");
         }
         if end > atom_len {
-            panic!("substr end out of bounds");
+            return err(node, "substr end out of bounds");
         }
         if end < start {
-            panic!("substr invalid bounds");
+            return err(node, "substr invalid bounds");
         }
         self.atom_vec.push(IntAtomBuf {
             start: atom.start + start,
             end: atom.start + end,
         });
-        -(self.atom_vec.len() as i32)
+        Ok(-(self.atom_vec.len() as i32))
     }
 
     fn atom<'a>(&'a self, node: &'a Self::Ptr) -> &'a [u8] {

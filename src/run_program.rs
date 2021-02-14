@@ -165,7 +165,7 @@ impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
         /* Join the top two operands. */
         let v1 = self.pop()?;
         let v2 = self.pop()?;
-        let p = self.allocator.new_pair(v1, v2);
+        let p = self.allocator.new_pair(v1, v2)?;
         self.push(p);
         Ok(0)
     }
@@ -210,7 +210,7 @@ where
                 match self.allocator.sexp(&operands) {
                     SExp::Atom(_) => return err(operand_list.clone(), "bad operand list"),
                     SExp::Pair(first, rest) => {
-                        let new_pair = self.allocator.new_pair(first, args.clone());
+                        let new_pair = self.allocator.new_pair(first, args.clone())?;
                         self.push(new_pair);
                         operands = rest.clone();
                     }
@@ -238,7 +238,7 @@ where
         let op_atom = match self.allocator.sexp(&op_node) {
             SExp::Pair(_, _) => {
                 // the operator is also a list, so we need two evals here
-                let p = self.allocator.new_pair(op_node, args.clone());
+                let p = self.allocator.new_pair(op_node, args.clone())?;
                 self.push(p);
                 self.op_stack.push(Operation::Eval);
                 self.op_stack.push(Operation::Eval);
@@ -292,7 +292,7 @@ where
                 let new_op_list = operand_list.rest()?.first()?.node;
                 match new_operator.sexp() {
                     SExp::Pair(_, _) => {
-                        let new_pair = self.allocator.new_pair(new_op_node, new_op_list);
+                        let new_pair = self.allocator.new_pair(new_op_node, new_op_list)?;
                         self.push(new_pair);
                         self.op_stack.push(Operation::Eval);
                     }
@@ -322,7 +322,7 @@ where
         args: &T::Ptr,
         max_cost: u32,
     ) -> Response<T::Ptr> {
-        self.val_stack = vec![self.allocator.new_pair(program.clone(), args.clone())];
+        self.val_stack = vec![self.allocator.new_pair(program.clone(), args.clone())?];
         self.op_stack = vec![Operation::Eval];
 
         let mut cost: u32 = 0;
@@ -347,7 +347,7 @@ where
             };
             if cost > max_cost && max_cost > 0 {
                 let max_cost: Number = max_cost.into();
-                let ptr = ptr_from_number(self.allocator, &max_cost);
+                let ptr = ptr_from_number(self.allocator, &max_cost)?;
                 let n: Node<T> = Node::new(self.allocator, ptr);
                 return n.err("cost exceeded");
             }
@@ -409,8 +409,8 @@ fn test_traverse_path() {
 
     let mut a = IntAllocator::new();
     let nul = a.null();
-    let n1 = a.new_atom(&[0, 1, 2]);
-    let n2 = a.new_atom(&[4, 5, 6]);
+    let n1 = a.new_atom(&[0, 1, 2]).unwrap();
+    let n2 = a.new_atom(&[4, 5, 6]).unwrap();
 
     assert_eq!(traverse_path(&a, &[0], &n1).unwrap(), Reduction(2, nul));
     assert_eq!(traverse_path(&a, &[0b1], &n1).unwrap(), Reduction(1, n1));
@@ -422,14 +422,14 @@ fn test_traverse_path() {
         Reduction(5, nul)
     );
 
-    let n3 = a.new_pair(n1, n2);
+    let n3 = a.new_pair(n1, n2).unwrap();
     assert_eq!(traverse_path(&a, &[0b1], &n3).unwrap(), Reduction(1, n3));
     assert_eq!(traverse_path(&a, &[0b10], &n3).unwrap(), Reduction(2, n1));
     assert_eq!(traverse_path(&a, &[0b11], &n3).unwrap(), Reduction(2, n2));
     assert_eq!(traverse_path(&a, &[0b11], &n3).unwrap(), Reduction(2, n2));
 
-    let list = a.new_pair(n1, nul);
-    let list = a.new_pair(n2, list);
+    let list = a.new_pair(n1, nul).unwrap();
+    let list = a.new_pair(n2, list).unwrap();
 
     assert_eq!(traverse_path(&a, &[0b10], &list).unwrap(), Reduction(2, n2));
     assert_eq!(

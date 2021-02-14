@@ -1,5 +1,6 @@
 use super::arc_allocator::{ArcAllocator, ArcSExp};
 use crate::allocator::{Allocator, SExp};
+use crate::reduction::EvalErr;
 use std::cell::RefCell;
 
 use pyo3::exceptions::PyValueError;
@@ -13,10 +14,16 @@ pub struct PyNode {
     pyobj: RefCell<Option<PyObject>>,
 }
 
+impl std::convert::From<EvalErr<ArcSExp>> for pyo3::PyErr {
+    fn from(v: EvalErr<ArcSExp>) -> pyo3::PyErr {
+        PyValueError::new_err(v.0)
+    }
+}
+
 fn extract_atom(allocator: &mut ArcAllocator, obj: &PyAny) -> PyResult<PyNode> {
     let py_bytes: &PyBytes = obj.extract()?;
     let r: &[u8] = obj.extract()?;
-    let inner_node = allocator.new_atom(r);
+    let inner_node = allocator.new_atom(r)?;
     let py_node = PyNode::new_cached(inner_node, Some(py_bytes.into()));
     Ok(py_node)
 }
@@ -40,7 +47,7 @@ fn extract_tuple(allocator: &mut ArcAllocator, obj: &PyAny) -> PyResult<PyNode> 
     let right: &PyNode = &right;
     let left: ArcSExp = left.into();
     let right: ArcSExp = right.into();
-    let node: ArcSExp = allocator.new_pair(left, right);
+    let node: ArcSExp = allocator.new_pair(left, right)?;
     let py_node = PyNode::new_cached(node, Some(obj.into()));
 
     Ok(py_node)
