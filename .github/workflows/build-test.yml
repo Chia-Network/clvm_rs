@@ -78,13 +78,13 @@ jobs:
             echo "Python version with dot removed is $PY_VERSION" && \
             if [ "$PY_VERSION" = "37" ]; \
             then export SCND_VERSION="${PY_VERSION}m"; \
-            else export SCND_VERSION="PY_VERSION"; fi && \
+            else export SCND_VERSION="$PY_VERSION"; fi && \
             echo "Exporting path /opt/python/cp$PY_VERSION-cp$SCND_VERSION/bin" && \
             export PATH=/opt/python/cp$PY_VERSION-cp$SCND_VERSION/bin/:$PATH && \
             /opt/python/cp38-cp38/bin/python -m venv venv && \
             if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
             . ./activate && \
-            pip install --extra-index-url https://download.chia.net/simple/ maturin && \
+            pip install maturin && \
             maturin build --no-sdist --release --manylinux 2010 \
           '
 
