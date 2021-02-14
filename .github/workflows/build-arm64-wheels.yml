@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - dev
+      - manylinux2010
     tags:
         - '**'
   pull_request:
@@ -17,7 +18,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [] # ARM64, ubuntu-latest ]
+        os: [ ARM64 ] # , ubuntu-latest ]
 
     steps:
     - name: Checkout repository
