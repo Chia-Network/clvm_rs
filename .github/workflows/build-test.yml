@@ -63,8 +63,6 @@ jobs:
 
     - name: Build Linux with maturin on Python ${{ matrix.python }}
       if: startsWith(matrix.os, 'ubuntu')
-      env:
-        PY_VERSION: ${{ matrix.python }}
       run: |
         podman run --rm=true \
           -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
@@ -75,8 +73,9 @@ jobs:
             ./rustup.rs -y && \
             export PATH=$HOME/.cargo/bin:$PATH && \
             rm -rf venv && \
+            PY_VERSION=${{ matrix.python }}
             PY_VERSION=${PY_VERSION/.} && \
-            echo "$PY_VERSION" && \
+            echo "Python version with dot removed is $PY_VERSION" && \
             if [ "$PY_VERSION" = "37" ]; \
             then export SCND_VERSION="${PY_VERSION}m"; \
             else export SCND_VERSION="PY_VERSION"; fi && \
@@ -100,7 +99,7 @@ jobs:
     - name: Install dependencies
       run: |
         . ./activate
-        pip install target/wheels/clvm_rs-*cp${{ matrix.python }}.whl
+        pip install target/wheels/clvm_rs-*.whl
         python -m pip install pytest
         python -m pip install blspy
 
