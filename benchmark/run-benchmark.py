@@ -22,6 +22,18 @@ def long_string(filename):
             f.write('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
         f.write('")')
 
+def long_strings(filename, num):
+    if "-v" in sys.argv:
+        print("generating %s" % filename)
+    with open(filename, 'w+') as f:
+        f.write('((')
+        for k in range(num):
+            f.write('"')
+            for i in range(1000):
+                f.write('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
+            f.write('" ')
+        f.write('))')
+
 def _large_tree_impl(f, depth):
     if depth == 0:
         f.write('%d' % random.getrandbits(64))
@@ -76,6 +88,9 @@ if not os.path.exists('benchmark/substr.env'):
 
 if not os.path.exists('benchmark/substr-tree.env'):
     long_string('benchmark/substr-tree.env')
+
+if not os.path.exists('benchmark/hash-string.env'):
+    long_strings('benchmark/hash-string.env', 1000)
 
 if not os.path.exists('benchmark/sum-tree.env'):
     large_tree('benchmark/sum-tree.env')
@@ -149,6 +164,8 @@ for n in range(5):
             output = subprocess.check_output(command)
             output = output.decode('ascii').split('\n', 5)[:-1]
         else:
+            if "-v" in sys.argv:
+                print(fn)
             program_data = bytes.fromhex(open(fn, 'r').read())
             env_data = bytes.fromhex(open(env_fn, 'r').read())
             time_start = time.perf_counter()
