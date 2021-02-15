@@ -1,0 +1,11 @@
+;(mod (num)
+;    (defun count-even (numbers)
+;        (if numbers
+;            (+ (not (r (divmod (f numbers) 2)))
+;                (count-even (r numbers)))
+;            0)
+;    )
+;    (count-even num)
+;)
+
+((c (q ((c 2 (c 2 (c 5 (q ())))))) (c (q ((c (i 5 (q (+ (not (r (divmod 9 (q 2)))) ((c 2 (c 2 (c 13 (q ()))))))) (q (q ()))) 1))) 1)))
