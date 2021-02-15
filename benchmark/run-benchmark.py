@@ -82,6 +82,17 @@ def generate_block(filename, puzzle):
             f.write(transaction(puzzle))
         f.write('))')
 
+def generate_list(filename, size):
+    if "-v" in sys.argv:
+        print("generating %s" % filename)
+    with open(filename, 'w+') as f:
+        f.write('ff')
+        for i in range(size):
+            f.write('ff%02x' % random.getrandbits(7))
+        for i in range(size):
+            f.write('80')
+        f.write('80')
+
 print('generating...')
 if not os.path.exists('benchmark/substr.env'):
     long_string('benchmark/substr.env')
@@ -107,6 +118,9 @@ if not os.path.exists('benchmark/shift-left.env'):
 
 if not os.path.exists('benchmark/large-block.env'):
     generate_block('benchmark/large-block.env', p2_delegated_or_hidden_puzzle)
+
+if not os.path.exists('benchmark/count-even.envhex'):
+    generate_list('benchmark/count-even.envhex', 15000)
 
 if not os.path.exists('benchmark/matrix-multiply.env'):
     size = 50
