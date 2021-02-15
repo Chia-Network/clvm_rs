@@ -38,6 +38,38 @@ def large_tree(filename, depth=19):
     with open(filename, 'w+') as f:
         _large_tree_impl(f, depth)
 
+def random_key(size=32):
+    ret = '0x'
+    for i in range(size):
+        ret += '%02x' % random.getrandbits(8)
+    return ret
+
+def p2_delegated_or_hidden_puzzle():
+    # src/wallet/puzzles/p2_delegated_puzzle_or_hidden_puzzle.clvm
+    # parameters:
+    # (synthetic_public_key original_public_key delegated_puzzle solution)
+    program = '((c (q ((c (i 11 (q ((c (i (= 5 (point_add 11 ' \
+        '(pubkey_for_exp (sha256 11 ((c 6 (c 2 (c 23 (q ()))))))))) ' \
+        '(q ((c 23 47))) (q (x))) 1))) (q (c (c 4 (c 5 (c ((c 6 (c 2 ' \
+        '(c 23 (q ()))))) (q ())))) ((c 23 47))))) 1))) (c (q (57 (c (i (l 5) ' \
+        '(q (sha256 (q 2) ((c 6 (c 2 (c 9 (q ()))))) ((c 6 (c 2 (c 13 ' \
+        '(q ()))))))) (q (sha256 (q 1) 5))) 1))) 1)))'
+
+    return '((c (q %s) (c (q %s) 1)))' % (program, random_key())
+
+def transaction(puzzle):
+    return '(%s (%s (() (q ((51 %s %s))) ())))' \
+        % (random_key(), puzzle(), random_key(), random_key(6))
+
+def generate_block(filename, puzzle):
+    if "-v" in sys.argv:
+        print("generating %s" % filename)
+    with open(filename, 'w+') as f:
+        f.write('(q (')
+        for i in range(1000):
+            f.write(transaction(puzzle))
+        f.write('))')
+
 print('generating...')
 if not os.path.exists('benchmark/substr.env'):
     long_string('benchmark/substr.env')
@@ -54,6 +86,9 @@ if not os.path.exists('benchmark/hash-tree.env'):
 if not os.path.exists('benchmark/shift-left.env'):
     with open('benchmark/shift-left.env', 'w+') as f:
         f.write('(0xbadf00dfeedface 500)')
+
+if not os.path.exists('benchmark/large-block.env'):
+    generate_block('benchmark/large-block.env', p2_delegated_or_hidden_puzzle)
 
 if not os.path.exists('benchmark/matrix-multiply.env'):
     size = 50
