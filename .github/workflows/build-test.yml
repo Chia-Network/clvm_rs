@@ -105,10 +105,10 @@ jobs:
     - name: install clvm & clvm_tools
       run: |
         . ./activate
-        git clone https://github.com/Chia-Network/clvm.git --branch=develop --single-branch
+        git clone https://github.com/Chia-Network/clvm.git --branch=clvm_revamp --single-branch
         python -m pip install ./clvm
 
-        git clone https://github.com/Chia-Network/clvm_tools.git --branch=develop --single-branch
+        git clone https://github.com/Chia-Network/clvm_tools.git --branch=clvm_revamp --single-branch
         python -m pip install ./clvm_tools
 
     - name: Ensure clvm, clvm_rs, clvm_tools are installed
