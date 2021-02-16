@@ -185,17 +185,8 @@ where
         let op_atom = self.allocator.buf(&op_buf);
         // special case check for quote
         if op_atom.len() == 1 && op_atom[0] == self.quote_kw {
-            match self.allocator.sexp(operand_list) {
-                SExp::Atom(_) => err(operand_list.clone(), "quote requires exactly 1 parameter"),
-                SExp::Pair(quoted_val, nil) => {
-                    if Node::new(self.allocator, nil).nullp() {
-                        self.push(quoted_val);
-                        Ok(QUOTE_COST)
-                    } else {
-                        err(operand_list.clone(), "quote requires exactly 1 parameter")
-                    }
-                }
-            }
+            self.push(operand_list.clone());
+            Ok(QUOTE_COST)
         } else {
             self.op_stack.push(Operation::Apply);
             self.push(operator_node.clone());
