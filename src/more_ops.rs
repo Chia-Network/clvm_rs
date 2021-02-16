@@ -375,7 +375,7 @@ pub fn op_multiply<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
 
 pub fn op_div<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let args = Node::new(a, input);
-    let (a0, l0, a1, l1) = two_ints(&args, "div")?;
+    let (a0, l0, a1, l1) = two_ints(&args, "/")?;
     let cost = DIV_BASE_COST + (l0 + l1) / DIV_COST_PER_LIMB_DIVIDER;
     if a1.sign() == Sign::NoSign {
         args.first()?.err("div with 0")
