@@ -114,7 +114,7 @@ if not os.path.exists('benchmark/pubkey-tree.env'):
 
 if not os.path.exists('benchmark/shift-left.env'):
     with open('benchmark/shift-left.env', 'w+') as f:
-        f.write('(0xbadf00dfeedface 500)')
+        f.write('(0xbadf00dfeedface 125)')
 
 if not os.path.exists('benchmark/large-block.env'):
     generate_block('benchmark/large-block.env', p2_delegated_or_hidden_puzzle)
