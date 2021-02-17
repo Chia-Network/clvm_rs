@@ -5,4 +5,4 @@
 ;    (explode string)
 ;)
 
-((c (q ((c 2 (c 2 (c 5 (q ())))))) (c (q ((c (i (> (q 10) (strlen 5)) (q (c 5 (q ()))) (q (c (substr 5 (q ()) (q 9)) ((c 2 (c 2 (c (substr 5 (q 9) (strlen 5)) (q ())))))))) 1))) 1)))
+((c (q . ((c 2 (c 2 (c 5 (q . ())))))) (c (q . ((c (i (> (q . 10) (strlen 5)) (q . (c 5 (q . ()))) (q . (c (substr 5 (q . ()) (q . 9)) ((c 2 (c 2 (c (substr 5 (q . 9) (strlen 5)) (q . ())))))))) 1))) 1)))
