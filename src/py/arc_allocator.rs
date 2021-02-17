@@ -1,5 +1,6 @@
 use crate::allocator::{Allocator, SExp};
-
+use crate::err_utils::err;
+use crate::reduction::EvalErr;
 use std::sync::Arc;
 
 use lazy_static::*;
@@ -41,7 +42,7 @@ impl ArcAllocator {
         ArcAllocator {}
     }
 
-    pub fn blob(&mut self, v: &str) -> ArcSExp {
+    pub fn blob(&mut self, v: &str) -> Result<ArcSExp, EvalErr<ArcSExp>> {
         let v: Vec<u8> = v.into();
         self.new_atom(&v)
     }
@@ -51,38 +52,49 @@ impl Allocator for ArcAllocator {
     type Ptr = ArcSExp;
     type AtomBuf = ArcAtomBuf;
 
-    fn new_atom(&mut self, v: &[u8]) -> ArcSExp {
-        ArcSExp::Atom(ArcAtomBuf {
+    fn new_atom(&mut self, v: &[u8]) -> Result<Self::Ptr, EvalErr<Self::Ptr>> {
+        Ok(ArcSExp::Atom(ArcAtomBuf {
             buf: Arc::new(v.into()),
             start: 0,
             end: v.len() as u32,
-        })
+        }))
     }
 
-    fn new_pair(&mut self, first: ArcSExp, rest: ArcSExp) -> ArcSExp {
-        ArcSExp::Pair(Arc::new(first), Arc::new(rest))
+    fn new_pair(
+        &mut self,
+        first: Self::Ptr,
+        rest: Self::Ptr,
+    ) -> Result<Self::Ptr, EvalErr<Self::Ptr>> {
+        Ok(ArcSExp::Pair(Arc::new(first), Arc::new(rest)))
     }
 
-    fn new_substr(&mut self, node: Self::Ptr, start: u32, end: u32) -> Self::Ptr {
-        let atom = match node {
+    fn new_substr(
+        &mut self,
+        node: Self::Ptr,
+        start: u32,
+        end: u32,
+    ) -> Result<Self::Ptr, EvalErr<Self::Ptr>> {
+        let atom = match &node {
             ArcSExp::Atom(a) => a,
-            _ => panic!("substr expected atom, got pair"),
+            _ => {
+                return err(node, "substr expected atom, got pair");
+            }
         };
         let atom_len = atom.end - atom.start;
         if start > atom_len {
-            panic!("substr start out of bounds");
+            return err(node, "substr start out of bounds");
         }
         if end > atom_len {
-            panic!("substr end out of bounds");
+            return err(node, "substr end out of bounds");
         }
         if end < start {
-            panic!("substr invalid bounds");
+            return err(node, "substr invalid bounds");
         }
-        ArcSExp::Atom(ArcAtomBuf {
+        Ok(ArcSExp::Atom(ArcAtomBuf {
             buf: atom.buf.clone(),
             start: atom.start,
             end: atom.end,
-        })
+        }))
     }
 
     fn atom<'a>(&'a self, node: &'a Self::Ptr) -> &'a [u8] {

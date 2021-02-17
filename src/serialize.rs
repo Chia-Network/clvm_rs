@@ -1,3 +1,4 @@
+use crate::reduction::EvalErr;
 use std::io::Cursor;
 use std::io::Read;
 use std::io::Write;
@@ -118,6 +119,12 @@ enum ParseOp {
     Cons,
 }
 
+impl<T> std::convert::From<EvalErr<T>> for std::io::Error {
+    fn from(v: EvalErr<T>) -> std::io::Error {
+        Error::new(ErrorKind::Other, v.1)
+    }
+}
+
 pub fn node_from_stream<T: Allocator>(
     allocator: &mut T,
     f: &mut dyn Read,
@@ -143,19 +150,19 @@ pub fn node_from_stream<T: Allocator>(
                 } else if b[0] == 0x80 {
                     values.push(allocator.null());
                 } else if b[0] <= MAX_SINGLE_BYTE {
-                    values.push(allocator.new_atom(&b));
+                    values.push(allocator.new_atom(&b)?);
                 } else {
                     let blob_size = decode_size(f, b[0])?;
                     let mut blob: Vec<u8> = vec![0; blob_size as usize];
                     f.read_exact(&mut blob)?;
-                    values.push(allocator.new_atom(&blob));
+                    values.push(allocator.new_atom(&blob)?);
                 }
             }
             ParseOp::Cons => {
                 // cons
                 let v2 = values.pop();
                 let v1 = values.pop();
-                values.push(allocator.new_pair(v1.unwrap(), v2.unwrap()));
+                values.push(allocator.new_pair(v1.unwrap(), v2.unwrap())?);
             }
         }
     }
