@@ -229,7 +229,7 @@ pub fn op_unknown<A: Allocator>(
 fn test_op_unknown<A: Allocator>(buf: &[u8], a: &mut A, n: A::Ptr) -> Response<A::Ptr> {
     use crate::allocator::SExp;
 
-    let buf = a.new_atom(buf);
+    let buf = a.new_atom(buf)?;
     let abuf = match a.sexp(&buf) {
         SExp::Atom(abuf) => abuf,
         _ => panic!("shouldn't happen"),
@@ -305,7 +305,7 @@ pub fn op_sha256<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
         hasher.input(blob);
     }
     cost += byte_count / SHA256_COST_PER_BYTE_DIVIDER;
-    Ok(Reduction(cost, a.new_atom(&hasher.result())))
+    Ok(Reduction(cost, a.new_atom(&hasher.result())?))
 }
 
 pub fn op_add<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
@@ -319,7 +319,7 @@ pub fn op_add<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
         byte_count += blob.len() as u32;
         total += v;
     }
-    let total = ptr_from_number(a, &total);
+    let total = ptr_from_number(a, &total)?;
     cost += byte_count / ARITH_COST_PER_LIMB_DIVIDER;
     Ok(Reduction(cost, total))
 }
@@ -341,7 +341,7 @@ pub fn op_subtract<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
         };
         is_first = false;
     }
-    let total = ptr_from_number(a, &total);
+    let total = ptr_from_number(a, &total)?;
     cost += byte_count / ARITH_COST_PER_LIMB_DIVIDER;
     Ok(Reduction(cost, total))
 }
@@ -369,7 +369,7 @@ pub fn op_multiply<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
 
         l0 = limbs_for_int(&total);
     }
-    let total = ptr_from_number(a, &total);
+    let total = ptr_from_number(a, &total)?;
     Ok(Reduction(cost, total))
 }
 
@@ -390,7 +390,7 @@ pub fn op_div<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
         } else {
             q
         };
-        let q1 = ptr_from_number(a, &q);
+        let q1 = ptr_from_number(a, &q)?;
         Ok(Reduction(cost, q1))
     }
 }
@@ -415,9 +415,9 @@ pub fn op_divmod<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
         } else {
             (q, r)
         };
-        let q1 = ptr_from_number(a, &q);
-        let r1 = ptr_from_number(a, &r);
-        let r: T::Ptr = a.new_pair(q1, r1);
+        let q1 = ptr_from_number(a, &q)?;
+        let r1 = ptr_from_number(a, &r)?;
+        let r: T::Ptr = a.new_pair(q1, r1)?;
         Ok(Reduction(cost, r))
     }
 }
@@ -458,7 +458,7 @@ pub fn op_strlen<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let v0 = atom(&a0, "strlen")?;
     let size: u32 = v0.len() as u32;
     let size_num: Number = size.into();
-    let size_node = ptr_from_number(a, &size_num);
+    let size_node = ptr_from_number(a, &size_num)?;
     let cost: u32 = STRLEN_BASE_COST + size / STRLEN_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, size_node))
 }
@@ -482,7 +482,7 @@ pub fn op_substr<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
         args.err("invalid indices for substr")
     } else {
         let atom_node = a0.node;
-        let r = a.new_substr(atom_node, i1, i2);
+        let r = a.new_substr(atom_node, i1, i2)?;
         let cost = 1;
         Ok(Reduction(cost, r))
     }
@@ -504,7 +504,7 @@ pub fn op_concat<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
         v.extend_from_slice(blob);
     }
     cost += (total_size as u32) / CONCAT_COST_PER_BYTE_DIVIDER;
-    let r: T::Ptr = a.new_atom(&v);
+    let r: T::Ptr = a.new_atom(&v)?;
 
     Ok(Reduction(cost, r))
 }
@@ -523,7 +523,7 @@ pub fn op_ash<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let a1 = s1.unwrap();
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
     let l1 = limbs_for_int(&v);
-    let r = ptr_from_number(a, &v);
+    let r = ptr_from_number(a, &v)?;
     let cost = SHIFT_BASE_COST + (l0 + l1) / SHIFT_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, r))
 }
@@ -543,7 +543,7 @@ pub fn op_lsh<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let i0: Number = i0.into();
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
     let l1 = limbs_for_int(&v);
-    let r = ptr_from_number(a, &v);
+    let r = ptr_from_number(a, &v)?;
     let cost = SHIFT_BASE_COST + (l0 + l1) / SHIFT_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, r))
 }
@@ -566,7 +566,7 @@ fn binop_reduction<T: Allocator>(
         cost += LOG_COST_PER_ARG;
     }
     cost += arg_size / LOG_COST_PER_LIMB_DIVIDER;
-    let total = ptr_from_number(a, &total);
+    let total = ptr_from_number(a, &total)?;
     Ok(Reduction(cost, total))
 }
 
@@ -605,7 +605,7 @@ pub fn op_lognot<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let mut n: Number = number_from_u8(&v0);
     n = !n;
     let cost: u32 = LOGNOT_BASE_COST + (v0.len() as u32) / LOGNOT_COST_PER_BYTE_DIVIDER;
-    let r = ptr_from_number(a, &n);
+    let r = ptr_from_number(a, &n)?;
     Ok(Reduction(cost, r))
 }
 
@@ -700,7 +700,7 @@ pub fn op_pubkey_for_exp<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::
     let point: G1Projective = G1Affine::generator() * exp;
     let point: G1Affine = point.into();
 
-    Ok(Reduction(cost, a.new_atom(&point.to_compressed())))
+    Ok(Reduction(cost, a.new_atom(&point.to_compressed())?))
 }
 
 pub fn op_point_add<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
@@ -728,5 +728,5 @@ pub fn op_point_add<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> 
         }
     }
     let total: G1Affine = total.into();
-    Ok(Reduction(cost, a.new_atom(&total.to_compressed())))
+    Ok(Reduction(cost, a.new_atom(&total.to_compressed())?))
 }

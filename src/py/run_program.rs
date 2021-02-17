@@ -35,7 +35,7 @@ impl<A: Allocator> OperatorHandler<A> for OperatorHandlerWithMode<A> {
         }
         if self.strict {
             let buf = op.to_vec();
-            let op_arg = allocator.new_atom(&buf);
+            let op_arg = allocator.new_atom(&buf)?;
             err(op_arg, "unimplemented operator")
         } else {
             op_unknown(allocator, o, argument_list.clone())

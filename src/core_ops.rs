@@ -29,7 +29,7 @@ pub fn op_cons<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let a2 = args.rest()?.first()?;
     let n1 = a1.node;
     let n2 = a2.node;
-    let r = a.new_pair(n1, n2);
+    let r = a.new_pair(n1, n2)?;
     Ok(Reduction(CONS_COST, r))
 }
 
