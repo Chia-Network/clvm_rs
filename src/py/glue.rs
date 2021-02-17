@@ -9,6 +9,7 @@ use super::py_node::PyNode;
 use super::to_py_node::ToPyNode;
 
 use crate::allocator::Allocator;
+use crate::cost::Cost;
 use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction};
 use crate::run_program::{run_program, PostEval, PreEval};
@@ -55,10 +56,10 @@ pub fn _py_run_program<'p, 'a, 'n, A, N>(
     args: &'n N,
     quote_kw: u8,
     apply_kw: u8,
-    max_cost: u32,
+    max_cost: Cost,
     op_lookup: Box<GenericNativeOpLookup<A, N>>,
     pre_eval: PyObject,
-) -> PyResult<(u32, N)>
+) -> PyResult<(Cost, N)>
 where
     A: 'static + Allocator + ToPyNode<N>,
     N: 'static + PyClass + IntoPy<PyObject> + Clone,

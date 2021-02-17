@@ -8,6 +8,7 @@ use std::ops::BitXorAssign;
 use lazy_static::lazy_static;
 
 use crate::allocator::Allocator;
+use crate::cost::Cost;
 use crate::err_utils::u8_err;
 use crate::node::Node;
 use crate::number::{number_from_u8, ptr_from_number, Number};
@@ -17,59 +18,59 @@ use crate::serialize::node_to_bytes;
 
 use sha2::{Digest, Sha256};
 
-const ARITH_BASE_COST: u32 = 4;
-const ARITH_COST_PER_ARG: u32 = 8;
-const ARITH_COST_PER_LIMB_DIVIDER: u32 = 64;
+const ARITH_BASE_COST: Cost = 4;
+const ARITH_COST_PER_ARG: Cost = 8;
+const ARITH_COST_PER_LIMB_DIVIDER: Cost = 64;
 
-const LOG_BASE_COST: u32 = 6;
-const LOG_COST_PER_ARG: u32 = 8;
-const LOG_COST_PER_LIMB_DIVIDER: u32 = 64;
+const LOG_BASE_COST: Cost = 6;
+const LOG_COST_PER_ARG: Cost = 8;
+const LOG_COST_PER_LIMB_DIVIDER: Cost = 64;
 
-const LOGNOT_BASE_COST: u32 = 12;
-const LOGNOT_COST_PER_BYTE_DIVIDER: u32 = 512;
+const LOGNOT_BASE_COST: Cost = 12;
+const LOGNOT_COST_PER_BYTE_DIVIDER: Cost = 512;
 
-const MUL_BASE_COST: u32 = 2;
-const MUL_COST_PER_OP: u32 = 18;
-const MUL_LINEAR_COST_PER_BYTE_DIVIDER: u32 = 64;
-const MUL_SQUARE_COST_PER_BYTE_DIVIDER: u32 = 44500;
+const MUL_BASE_COST: Cost = 2;
+const MUL_COST_PER_OP: Cost = 18;
+const MUL_LINEAR_COST_PER_BYTE_DIVIDER: Cost = 64;
+const MUL_SQUARE_COST_PER_BYTE_DIVIDER: Cost = 44500;
 
-const GR_BASE_COST: u32 = 19;
-const GR_COST_PER_LIMB_DIVIDER: u32 = 64;
+const GR_BASE_COST: Cost = 19;
+const GR_COST_PER_LIMB_DIVIDER: Cost = 64;
 
-const CMP_BASE_COST: u32 = 16;
-const CMP_COST_PER_LIMB_DIVIDER: u32 = 64;
+const CMP_BASE_COST: Cost = 16;
+const CMP_COST_PER_LIMB_DIVIDER: Cost = 64;
 
-const STRLEN_BASE_COST: u32 = 18;
-const STRLEN_COST_PER_BYTE_DIVIDER: u32 = 4096;
+const STRLEN_BASE_COST: Cost = 18;
+const STRLEN_COST_PER_BYTE_DIVIDER: Cost = 4096;
 
-const CONCAT_BASE_COST: u32 = 4;
-const CONCAT_COST_PER_ARG: u32 = 8;
-const CONCAT_COST_PER_BYTE_DIVIDER: u32 = 830;
+const CONCAT_BASE_COST: Cost = 4;
+const CONCAT_COST_PER_ARG: Cost = 8;
+const CONCAT_COST_PER_BYTE_DIVIDER: Cost = 830;
 
-const DIVMOD_BASE_COST: u32 = 29;
-const DIVMOD_COST_PER_LIMB_DIVIDER: u32 = 64;
+const DIVMOD_BASE_COST: Cost = 29;
+const DIVMOD_COST_PER_LIMB_DIVIDER: Cost = 64;
 
-const DIV_BASE_COST: u32 = 29;
-const DIV_COST_PER_LIMB_DIVIDER: u32 = 64;
+const DIV_BASE_COST: Cost = 29;
+const DIV_COST_PER_LIMB_DIVIDER: Cost = 64;
 
-const SHA256_BASE_COST: u32 = 3;
-const SHA256_COST_PER_ARG: u32 = 8;
-const SHA256_COST_PER_BYTE_DIVIDER: u32 = 64;
+const SHA256_BASE_COST: Cost = 3;
+const SHA256_COST_PER_ARG: Cost = 8;
+const SHA256_COST_PER_BYTE_DIVIDER: Cost = 64;
 
-const SHIFT_BASE_COST: u32 = 21;
-const SHIFT_COST_PER_BYTE_DIVIDER: u32 = 256;
+const SHIFT_BASE_COST: Cost = 21;
+const SHIFT_COST_PER_BYTE_DIVIDER: Cost = 256;
 
-const BOOL_BASE_COST: u32 = 1;
-const BOOL_COST_PER_ARG: u32 = 8;
+const BOOL_BASE_COST: Cost = 1;
+const BOOL_COST_PER_ARG: Cost = 8;
 
-const POINT_ADD_BASE_COST: u32 = 213;
-const POINT_ADD_COST_PER_ARG: u32 = 358;
+const POINT_ADD_BASE_COST: Cost = 213;
+const POINT_ADD_COST_PER_ARG: Cost = 358;
 
-const PUBKEY_BASE_COST: u32 = 394;
-const PUBKEY_COST_PER_BYTE_DIVIDER: u32 = 4;
+const PUBKEY_BASE_COST: Cost = 394;
+const PUBKEY_COST_PER_BYTE_DIVIDER: Cost = 4;
 
-fn limbs_for_int(v: &Number) -> u32 {
-    ((v.bits() + 7) >> 3) as u32
+fn limbs_for_int(v: &Number) -> usize {
+    ((v.bits() + 7) / 8) as usize
 }
 
 fn u32_from_u8(mut buf: &[u8]) -> Option<u32> {
@@ -212,17 +213,9 @@ pub fn op_unknown<A: Allocator>(
 
     assert!(cost > 0);
 
-    if cost > u32::MAX.into() {
-        return u8_err(allocator, &o, "invalid operator");
-    }
-
     cost *= cost_multiplier + 1;
 
-    if cost > u32::MAX.into() {
-        return u8_err(allocator, &o, "invalid operator");
-    }
-
-    Ok(Reduction(cost as u32, allocator.null()))
+    Ok(Reduction(cost as Cost, allocator.null()))
 }
 
 #[cfg(test)]
@@ -295,45 +288,45 @@ fn test_lenient_mode_last_bits() {
 }
 
 pub fn op_sha256<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
-    let mut cost: u32 = SHA256_BASE_COST;
-    let mut byte_count: u32 = 0;
+    let mut cost = SHA256_BASE_COST;
+    let mut byte_count: usize = 0;
     let mut hasher = Sha256::new();
     for arg in Node::new(a, input) {
         cost += SHA256_COST_PER_ARG;
         let blob = atom(&arg, "sha256")?;
-        byte_count += blob.len() as u32;
+        byte_count += blob.len();
         hasher.input(blob);
     }
-    cost += byte_count / SHA256_COST_PER_BYTE_DIVIDER;
+    cost += byte_count as Cost / SHA256_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, a.new_atom(&hasher.result())?))
 }
 
 pub fn op_add<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
-    let mut cost: u32 = ARITH_BASE_COST;
-    let mut byte_count: u32 = 0;
+    let mut cost = ARITH_BASE_COST;
+    let mut byte_count: usize = 0;
     let mut total: Number = 0.into();
     for arg in Node::new(a, input) {
         cost += ARITH_COST_PER_ARG;
         let blob = int_atom(&arg, "+")?;
         let v: Number = number_from_u8(&blob);
-        byte_count += blob.len() as u32;
+        byte_count += blob.len();
         total += v;
     }
     let total = ptr_from_number(a, &total)?;
-    cost += byte_count / ARITH_COST_PER_LIMB_DIVIDER;
+    cost += byte_count as Cost / ARITH_COST_PER_LIMB_DIVIDER;
     Ok(Reduction(cost, total))
 }
 
 pub fn op_subtract<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
-    let mut cost: u32 = ARITH_BASE_COST;
-    let mut byte_count: u32 = 0;
+    let mut cost = ARITH_BASE_COST;
+    let mut byte_count: usize = 0;
     let mut total: Number = 0.into();
     let mut is_first = true;
     for arg in Node::new(a, input) {
         cost += ARITH_COST_PER_ARG;
         let blob = int_atom(&arg, "-")?;
         let v: Number = number_from_u8(&blob);
-        byte_count += blob.len() as u32;
+        byte_count += blob.len();
         if is_first {
             total += v;
         } else {
@@ -342,30 +335,30 @@ pub fn op_subtract<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
         is_first = false;
     }
     let total = ptr_from_number(a, &total)?;
-    cost += byte_count / ARITH_COST_PER_LIMB_DIVIDER;
+    cost += byte_count as Cost / ARITH_COST_PER_LIMB_DIVIDER;
     Ok(Reduction(cost, total))
 }
 
 pub fn op_multiply<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
-    let mut cost: u32 = MUL_BASE_COST;
+    let mut cost: Cost = MUL_BASE_COST;
     let mut first_iter: bool = true;
     let mut total: Number = 1.into();
-    let mut l0: u32 = 0;
+    let mut l0: usize = 0;
     for arg in Node::new(a, input) {
         let blob = int_atom(&arg, "*")?;
         if first_iter {
-            l0 = blob.len() as u32;
+            l0 = blob.len();
             total = number_from_u8(&blob);
             first_iter = false;
             continue;
         }
-        let l1 = blob.len() as u32;
+        let l1 = blob.len();
 
         total *= number_from_u8(&blob);
         cost += MUL_COST_PER_OP;
 
-        cost += (l0 + l1) / MUL_LINEAR_COST_PER_BYTE_DIVIDER;
-        cost += (l0 * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
+        cost += (l0 + l1) as Cost / MUL_LINEAR_COST_PER_BYTE_DIVIDER;
+        cost += (l0 * l1) as Cost / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
 
         l0 = limbs_for_int(&total);
     }
@@ -376,7 +369,7 @@ pub fn op_multiply<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
 pub fn op_div<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let args = Node::new(a, input);
     let (a0, l0, a1, l1) = two_ints(&args, "/")?;
-    let cost = DIV_BASE_COST + (l0 + l1) / DIV_COST_PER_LIMB_DIVIDER;
+    let cost = DIV_BASE_COST + ((l0 + l1) as Cost) / DIV_COST_PER_LIMB_DIVIDER;
     if a1.sign() == Sign::NoSign {
         args.first()?.err("div with 0")
     } else {
@@ -398,7 +391,7 @@ pub fn op_div<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
 pub fn op_divmod<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let args = Node::new(a, input);
     let (a0, l0, a1, l1) = two_ints(&args, "divmod")?;
-    let cost = DIVMOD_BASE_COST + (l0 + l1) / DIVMOD_COST_PER_LIMB_DIVIDER;
+    let cost = DIVMOD_BASE_COST + ((l0 + l1) as Cost) / DIVMOD_COST_PER_LIMB_DIVIDER;
     if a1.sign() == Sign::NoSign {
         args.first()?.err("divmod with 0")
     } else {
@@ -429,7 +422,7 @@ pub fn op_gr<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let a1 = args.rest()?.first()?;
     let v0 = int_atom(&a0, ">")?;
     let v1 = int_atom(&a1, ">")?;
-    let cost = GR_BASE_COST + (v0.len() + v1.len()) as u32 / GR_COST_PER_LIMB_DIVIDER;
+    let cost = GR_BASE_COST + (v0.len() + v1.len()) as Cost / GR_COST_PER_LIMB_DIVIDER;
     Ok(Reduction(
         cost,
         if number_from_u8(v0) > number_from_u8(v1) {
@@ -447,7 +440,7 @@ pub fn op_gr_bytes<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let a1 = args.rest()?.first()?;
     let v0 = atom(&a0, ">s")?;
     let v1 = atom(&a1, ">s")?;
-    let cost = CMP_BASE_COST + (v0.len() + v1.len()) as u32 / CMP_COST_PER_LIMB_DIVIDER;
+    let cost = CMP_BASE_COST + (v0.len() + v1.len()) as Cost / CMP_COST_PER_LIMB_DIVIDER;
     Ok(Reduction(cost, if v0 > v1 { a.one() } else { a.null() }))
 }
 
@@ -456,10 +449,10 @@ pub fn op_strlen<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     check_arg_count(&args, 1, "strlen")?;
     let a0 = args.first()?;
     let v0 = atom(&a0, "strlen")?;
-    let size: u32 = v0.len() as u32;
+    let size = v0.len();
     let size_num: Number = size.into();
     let size_node = ptr_from_number(a, &size_num)?;
-    let cost: u32 = STRLEN_BASE_COST + size / STRLEN_COST_PER_BYTE_DIVIDER;
+    let cost = STRLEN_BASE_COST + size as Cost / STRLEN_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, size_node))
 }
 
@@ -477,20 +470,20 @@ pub fn op_substr<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
         Ok(v) => v,
         _ => return args.err("invalid indices for substr"),
     };
-    let size = s0.len() as u32;
-    if i2 > size || i2 < i1 {
+    let size = s0.len();
+    if i2 as usize > size || i2 < i1 {
         args.err("invalid indices for substr")
     } else {
         let atom_node = a0.node;
         let r = a.new_substr(atom_node, i1, i2)?;
-        let cost = 1;
+        let cost: Cost = 1;
         Ok(Reduction(cost, r))
     }
 }
 
 pub fn op_concat<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let args = Node::new(a, input);
-    let mut cost: u32 = CONCAT_BASE_COST;
+    let mut cost = CONCAT_BASE_COST;
     let mut total_size: usize = 0;
     for arg in &args {
         cost += CONCAT_COST_PER_ARG;
@@ -503,7 +496,7 @@ pub fn op_concat<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
         let blob = arg.atom().unwrap();
         v.extend_from_slice(blob);
     }
-    cost += (total_size as u32) / CONCAT_COST_PER_BYTE_DIVIDER;
+    cost += (total_size as Cost) / CONCAT_COST_PER_BYTE_DIVIDER;
     let r: T::Ptr = a.new_atom(&v)?;
 
     Ok(Reduction(cost, r))
@@ -524,7 +517,7 @@ pub fn op_ash<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
     let l1 = limbs_for_int(&v);
     let r = ptr_from_number(a, &v)?;
-    let cost = SHIFT_BASE_COST + (l0 + l1) / SHIFT_COST_PER_BYTE_DIVIDER;
+    let cost = SHIFT_BASE_COST + ((l0 + l1) as Cost) / SHIFT_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, r))
 }
 
@@ -544,7 +537,7 @@ pub fn op_lsh<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
     let l1 = limbs_for_int(&v);
     let r = ptr_from_number(a, &v)?;
-    let cost = SHIFT_BASE_COST + (l0 + l1) / SHIFT_COST_PER_BYTE_DIVIDER;
+    let cost = SHIFT_BASE_COST + ((l0 + l1) as Cost) / SHIFT_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, r))
 }
 
@@ -556,16 +549,16 @@ fn binop_reduction<T: Allocator>(
     op_f: fn(&mut Number, &Number) -> (),
 ) -> Response<T::Ptr> {
     let mut total = initial_value;
-    let mut arg_size = 0;
+    let mut arg_size: usize = 0;
     let mut cost = LOG_BASE_COST;
     for arg in Node::new(a, input) {
         let blob = int_atom(&arg, op_name)?;
         let n0 = number_from_u8(blob);
         op_f(&mut total, &n0);
-        arg_size += blob.len() as u32;
+        arg_size += blob.len();
         cost += LOG_COST_PER_ARG;
     }
-    cost += arg_size / LOG_COST_PER_LIMB_DIVIDER;
+    cost += arg_size as Cost / LOG_COST_PER_LIMB_DIVIDER;
     let total = ptr_from_number(a, &total)?;
     Ok(Reduction(cost, total))
 }
@@ -604,7 +597,7 @@ pub fn op_lognot<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let v0 = int_atom(&a0, "lognot")?;
     let mut n: Number = number_from_u8(&v0);
     n = !n;
-    let cost: u32 = LOGNOT_BASE_COST + (v0.len() as u32) / LOGNOT_COST_PER_BYTE_DIVIDER;
+    let cost = LOGNOT_BASE_COST + (v0.len() as Cost) / LOGNOT_COST_PER_BYTE_DIVIDER;
     let r = ptr_from_number(a, &n)?;
     Ok(Reduction(cost, r))
 }
@@ -613,13 +606,13 @@ pub fn op_not<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let args = Node::new(a, input);
     check_arg_count(&args, 1, "not")?;
     let r: T::Ptr = args.from_bool(!args.first()?.as_bool()).node;
-    let cost: u32 = BOOL_BASE_COST + BOOL_COST_PER_ARG;
+    let cost = BOOL_BASE_COST + BOOL_COST_PER_ARG;
     Ok(Reduction(cost, r))
 }
 
 pub fn op_any<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let args = Node::new(a, input);
-    let mut cost: u32 = BOOL_BASE_COST;
+    let mut cost = BOOL_BASE_COST;
     let mut is_any = false;
     for arg in &args {
         cost += BOOL_COST_PER_ARG;
@@ -631,7 +624,7 @@ pub fn op_any<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
 
 pub fn op_all<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let args = Node::new(a, input);
-    let mut cost: u32 = BOOL_BASE_COST;
+    let mut cost = BOOL_BASE_COST;
     let mut is_all = true;
     for arg in &args {
         cost += BOOL_COST_PER_ARG;
@@ -647,7 +640,7 @@ pub fn op_softfork<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
         Some((p1, _)) => {
             let n: Number = number_from_u8(int_atom(&p1, "softfork")?);
             if n.sign() == Sign::Plus {
-                let cost: u32 = TryFrom::try_from(&n).unwrap_or(u32::max_value());
+                let cost: Cost = TryFrom::try_from(&n).unwrap_or(Cost::max_value());
                 Ok(Reduction(cost, args.null().node))
             } else {
                 args.err("cost must be > 0")
@@ -695,7 +688,7 @@ pub fn op_pubkey_for_exp<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::
 
     let v0 = int_atom(&a0, "pubkey_for_exp")?;
     let exp: Number = mod_group_order(number_from_u8(&v0));
-    let cost: u32 = PUBKEY_BASE_COST + (v0.len() as u32) / PUBKEY_COST_PER_BYTE_DIVIDER;
+    let cost = PUBKEY_BASE_COST + (v0.len() as Cost) / PUBKEY_COST_PER_BYTE_DIVIDER;
     let exp: Scalar = number_to_scalar(exp);
     let point: G1Projective = G1Affine::generator() * exp;
     let point: G1Affine = point.into();
@@ -705,7 +698,7 @@ pub fn op_pubkey_for_exp<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::
 
 pub fn op_point_add<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let args = Node::new(a, input);
-    let mut cost: u32 = POINT_ADD_BASE_COST;
+    let mut cost = POINT_ADD_BASE_COST;
     let mut total: G1Projective = G1Projective::identity();
     for arg in &args {
         let blob = atom(&arg, "point_add")?;

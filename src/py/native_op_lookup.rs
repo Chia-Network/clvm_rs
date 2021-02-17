@@ -6,6 +6,7 @@ use pyo3::types::{PyString, PyTuple};
 use pyo3::PyClass;
 
 use crate::allocator::Allocator;
+use crate::cost::Cost;
 use crate::reduction::{EvalErr, Reduction, Response};
 use crate::run_program::OperatorHandler;
 
@@ -124,7 +125,7 @@ where
                     unwrap_or_eval_err(pair.get_item(1).extract(), argument_list, "expected node")?;
 
                 let node: <A as Allocator>::Ptr = py_node.into();
-                Ok(Reduction(i0, node))
+                Ok(Reduction(i0 as Cost, node))
             }
         }
     })

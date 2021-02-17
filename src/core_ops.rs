@@ -1,15 +1,16 @@
 use crate::allocator::Allocator;
+use crate::cost::Cost;
 use crate::node::Node;
 use crate::op_utils::{atom, check_arg_count};
 use crate::reduction::{Reduction, Response};
 
-const FIRST_COST: u32 = 8;
-const IF_COST: u32 = 31;
-const CONS_COST: u32 = 18;
-const REST_COST: u32 = 20;
-const LISTP_COST: u32 = 5;
-const CMP_BASE_COST: u32 = 16;
-const CMP_COST_PER_LIMB_DIVIDER: u32 = 64;
+const FIRST_COST: Cost = 8;
+const IF_COST: Cost = 31;
+const CONS_COST: Cost = 18;
+const REST_COST: Cost = 20;
+const LISTP_COST: Cost = 5;
+const CMP_BASE_COST: Cost = 16;
+const CMP_COST_PER_LIMB_DIVIDER: Cost = 64;
 
 pub fn op_if<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let args = Node::new(a, input);
@@ -66,6 +67,6 @@ pub fn op_eq<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
     let a1 = args.rest()?.first()?;
     let s0 = atom(&a0, "=")?;
     let s1 = atom(&a1, "=")?;
-    let cost: u32 = CMP_BASE_COST + (s0.len() as u32 + s1.len() as u32) / CMP_COST_PER_LIMB_DIVIDER;
+    let cost = CMP_BASE_COST + (s0.len() as Cost + s1.len() as Cost) / CMP_COST_PER_LIMB_DIVIDER;
     Ok(Reduction(cost, if s0 == s1 { a.one() } else { a.null() }))
 }

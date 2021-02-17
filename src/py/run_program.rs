@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::allocator::Allocator;
+use crate::cost::Cost;
 use crate::err_utils::err;
 use crate::int_allocator::IntAllocator;
 use crate::more_ops::op_unknown;
@@ -50,9 +51,9 @@ pub fn serialize_and_run_program(
     args: &[u8],
     quote_kw: u8,
     apply_kw: u8,
-    max_cost: u32,
+    max_cost: Cost,
     flags: u32,
-) -> PyResult<(u32, Py<PyBytes>)> {
+) -> PyResult<(Cost, Py<PyBytes>)> {
     let mut opcode_lookup_by_name = HashMap::<String, Vec<u8>>::new();
     for (v, s) in [
         (4, "op_if"),
@@ -113,9 +114,9 @@ pub fn deserialize_and_run_program(
     quote_kw: u8,
     apply_kw: u8,
     opcode_lookup_by_name: HashMap<String, Vec<u8>>,
-    max_cost: u32,
+    max_cost: Cost,
     flags: u32,
-) -> PyResult<(u32, Py<PyBytes>)> {
+) -> PyResult<(Cost, Py<PyBytes>)> {
     let mut allocator = IntAllocator::new();
     let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
     let strict: bool = (flags & STRICT_MODE) != 0;
