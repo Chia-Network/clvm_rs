@@ -13,6 +13,7 @@ use super::run_program::{
     __pyo3_get_function_deserialize_and_run_program, __pyo3_get_function_serialize_and_run_program,
     STRICT_MODE,
 };
+use crate::cost::Cost;
 
 type AllocatorT<'a> = ArcAllocator;
 type NodeClass = PyNode;
@@ -62,10 +63,10 @@ fn py_run_program(
     args: &NodeClass,
     quote_kw: u8,
     apply_kw: u8,
-    max_cost: u32,
+    max_cost: Cost,
     op_lookup: Py<NativeOpLookup>,
     pre_eval: PyObject,
-) -> PyResult<(u32, NodeClass)> {
+) -> PyResult<(Cost, NodeClass)> {
     let mut allocator = allocator_for_py(py);
     let op_lookup: &PyCell<NativeOpLookup> = op_lookup.as_ref(py);
     let op_lookup: PyRef<NativeOpLookup> = op_lookup.borrow();

@@ -61,24 +61,19 @@ pub fn atom<'a, T: Allocator>(
 pub fn two_ints<T: Allocator>(
     args: &Node<T>,
     op_name: &str,
-) -> Result<(Number, u32, Number, u32), EvalErr<T::Ptr>> {
+) -> Result<(Number, usize, Number, usize), EvalErr<T::Ptr>> {
     check_arg_count(&args, 2, op_name)?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
     let n0 = int_atom(&a0, op_name)?;
     let n1 = int_atom(&a1, op_name)?;
-    Ok((
-        number_from_u8(n0),
-        n0.len() as u32,
-        number_from_u8(n1),
-        n1.len() as u32,
-    ))
+    Ok((number_from_u8(n0), n0.len(), number_from_u8(n1), n1.len()))
 }
 
 pub fn uint_int<T: Allocator>(
     args: &Node<T>,
     op_name: &str,
-) -> Result<(BigUint, u32, Number, u32), EvalErr<T::Ptr>> {
+) -> Result<(BigUint, usize, Number, usize), EvalErr<T::Ptr>> {
     check_arg_count(&args, 2, op_name)?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
@@ -86,9 +81,9 @@ pub fn uint_int<T: Allocator>(
     let v1 = int_atom(&a1, op_name)?;
     Ok((
         BigUint::from_bytes_be(v0),
-        v0.len() as u32,
+        v0.len(),
         number_from_u8(v1),
-        v1.len() as u32,
+        v1.len(),
     ))
 }
 

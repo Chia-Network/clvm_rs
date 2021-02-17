@@ -1,14 +1,15 @@
 use crate::allocator::{Allocator, SExp};
+use crate::cost::Cost;
 use crate::err_utils::err;
 use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction, Response};
 
 use crate::number::{ptr_from_number, Number};
 
-const QUOTE_COST: u32 = 1;
-const TRAVERSE_COST_PER_ZERO_BYTE: u32 = 1;
-const TRAVERSE_COST_PER_BIT: u32 = 1;
-const APPLY_COST: u32 = 1;
+const QUOTE_COST: Cost = 1;
+const TRAVERSE_COST_PER_ZERO_BYTE: Cost = 1;
+const TRAVERSE_COST_PER_BIT: Cost = 1;
+const APPLY_COST: Cost = 1;
 
 pub trait OperatorHandler<T: Allocator> {
     fn op(
@@ -98,8 +99,8 @@ fn traverse_path<T: Allocator>(
     // find first non-zero byte
     let first_bit_byte_index = first_non_zero(node_index);
 
-    let mut cost: u32 =
-        (first_bit_byte_index as u32) * TRAVERSE_COST_PER_ZERO_BYTE + TRAVERSE_COST_PER_BIT;
+    let mut cost: Cost =
+        (first_bit_byte_index as Cost) * TRAVERSE_COST_PER_ZERO_BYTE + TRAVERSE_COST_PER_BIT;
 
     if first_bit_byte_index >= node_index.len() {
         return Ok(Reduction(cost, allocator.null()));
@@ -152,7 +153,7 @@ impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
         }
     }
 
-    fn swap_op(&mut self) -> Result<u32, EvalErr<T::Ptr>> {
+    fn swap_op(&mut self) -> Result<Cost, EvalErr<T::Ptr>> {
         /* Swap the top two operands. */
         let v2 = self.pop()?;
         let v1 = self.pop()?;
@@ -161,7 +162,7 @@ impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
         Ok(0)
     }
 
-    fn cons_op(&mut self) -> Result<u32, EvalErr<T::Ptr>> {
+    fn cons_op(&mut self) -> Result<Cost, EvalErr<T::Ptr>> {
         /* Join the top two operands. */
         let v1 = self.pop()?;
         let v2 = self.pop()?;
@@ -181,7 +182,7 @@ where
         operator_node: &T::Ptr,
         operand_list: &T::Ptr,
         args: &T::Ptr,
-    ) -> Result<u32, EvalErr<T::Ptr>> {
+    ) -> Result<Cost, EvalErr<T::Ptr>> {
         let op_atom = self.allocator.buf(&op_buf);
         // special case check for quote
         if op_atom.len() == 1 && op_atom[0] == self.quote_kw {
@@ -212,7 +213,7 @@ where
         }
     }
 
-    fn eval_pair(&mut self, program: &T::Ptr, args: &T::Ptr) -> Result<u32, EvalErr<T::Ptr>> {
+    fn eval_pair(&mut self, program: &T::Ptr, args: &T::Ptr) -> Result<Cost, EvalErr<T::Ptr>> {
         // put a bunch of ops on op_stack
         let (op_node, op_list) = match self.allocator.sexp(program) {
             // the program is just a bitfield path through the args tree
@@ -241,7 +242,7 @@ where
         self.eval_op_atom(op_atom, &op_node, &op_list, args)
     }
 
-    fn eval_op(&mut self) -> Result<u32, EvalErr<T::Ptr>> {
+    fn eval_op(&mut self) -> Result<Cost, EvalErr<T::Ptr>> {
         /*
         Pop the top value and treat it as a (program, args) pair, and manipulate
         the op & value stack to evaluate all the arguments and apply the operator.
@@ -265,7 +266,7 @@ where
         }
     }
 
-    fn apply_op(&mut self) -> Result<u32, EvalErr<T::Ptr>> {
+    fn apply_op(&mut self) -> Result<Cost, EvalErr<T::Ptr>> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
         let opa = match self.allocator.sexp(&operator) {
@@ -311,12 +312,12 @@ where
         &mut self,
         program: &T::Ptr,
         args: &T::Ptr,
-        max_cost: u32,
+        max_cost: Cost,
     ) -> Response<T::Ptr> {
         self.val_stack = vec![self.allocator.new_pair(program.clone(), args.clone())?];
         self.op_stack = vec![Operation::Eval];
 
-        let mut cost: u32 = 0;
+        let mut cost: Cost = 0;
 
         loop {
             let top = self.op_stack.pop();
@@ -333,7 +334,7 @@ where
                     let f = self.posteval_stack.pop().unwrap();
                     let peek: Option<&T::Ptr> = self.val_stack.last();
                     f(peek);
-                    0_u32
+                    0
                 }
             };
             if cost > max_cost && max_cost > 0 {
@@ -355,7 +356,7 @@ pub fn run_program<T: Allocator>(
     args: &T::Ptr,
     quote_kw: u8,
     apply_kw: u8,
-    max_cost: u32,
+    max_cost: Cost,
     operator_lookup: Box<dyn OperatorHandler<T>>,
     pre_eval: Option<PreEval<T>>,
 ) -> Response<T::Ptr>
