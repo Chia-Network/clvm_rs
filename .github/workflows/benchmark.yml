@@ -78,3 +78,46 @@ jobs:
         . ./activate
         python benchmark/run-benchmark.py
 
+  max-cost-checks:
+    name: Cost checks
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+
+    - uses: actions/setup-python@v2
+      name: Install Python 3.9
+      with:
+        python-version: 3.9
+
+    - name: Update pip
+      run: |
+          python -m pip install --upgrade pip
+
+    - name: Set up rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+
+    - name: Install dependencies
+      run: |
+        python -m pip install maturin
+
+    - name: Build
+      run: |
+        python -m venv venv
+        ln -s venv/bin/activate
+        . ./activate
+        git clone https://github.com/Chia-Network/clvm_tools.git --branch=develop --single-branch
+        python -m pip install ./clvm_tools
+        maturin develop --release
+
+    - name: Run cost checks
+      run: |
+        . ./activate
+        cd tests
+        ./generate-programs.py
+        ./run-programs.py
+
