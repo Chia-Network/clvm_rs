@@ -142,7 +142,6 @@ fn augment_cost_errors<P: Clone>(
         return r;
     }
     let e = r.unwrap_err();
-    println!("error: {}", e.1);
     if &e.1 != "cost exceeded" {
         Err(e)
     } else {
@@ -329,16 +328,17 @@ where
         &mut self,
         program: &T::Ptr,
         args: &T::Ptr,
-        mut max_cost: Cost,
+        max_cost: Cost,
     ) -> Response<T::Ptr> {
         self.val_stack = vec![self.allocator.new_pair(program.clone(), args.clone())?];
         self.op_stack = vec![Operation::Eval];
 
-        if max_cost == 0 {
-            max_cost = Cost::MAX;
-        }
+        // max_cost is always in effect, and necessary to prevent wrap-around of
+        // the cost integer.
+        let max_cost = if max_cost == 0 { Cost::MAX } else { max_cost };
+
         let max_cost_number: Number = max_cost.into();
-        let max_cost_ptr = ptr_from_number(self.allocator, &max_cost_number);
+        let max_cost_ptr = ptr_from_number(self.allocator, &max_cost_number)?;
 
         let mut cost: Cost = 0;
 
@@ -349,7 +349,9 @@ where
                 None => break,
             };
             cost += match op {
-                Operation::Apply => self.apply_op(max_cost - cost)?,
+                Operation::Apply => {
+                    augment_cost_errors(self.apply_op(max_cost - cost), &max_cost_ptr)?
+                }
                 Operation::Cons => self.cons_op()?,
                 Operation::Eval => augment_cost_errors(self.eval_op(), &max_cost_ptr)?,
                 Operation::Swap => self.swap_op()?,
