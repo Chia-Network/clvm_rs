@@ -17,6 +17,7 @@ pub trait OperatorHandler<T: Allocator> {
         allocator: &mut T,
         op: <T as Allocator>::AtomBuf,
         args: &<T as Allocator>::Ptr,
+        max_cost: Cost,
     ) -> Response<<T as Allocator>::Ptr>;
 }
 
@@ -131,6 +132,22 @@ fn traverse_path<T: Allocator>(
         cost += TRAVERSE_COST_PER_BIT;
     }
     Ok(Reduction(cost, arg_list))
+}
+
+fn augment_cost_errors<P: Clone>(
+    r: Result<Cost, EvalErr<P>>,
+    max_cost: &P,
+) -> Result<Cost, EvalErr<P>> {
+    if r.is_ok() {
+        return r;
+    }
+    let e = r.unwrap_err();
+    println!("error: {}", e.1);
+    if &e.1 != "cost exceeded" {
+        Err(e)
+    } else {
+        Err(EvalErr(max_cost.clone(), e.1))
+    }
 }
 
 impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
@@ -266,7 +283,7 @@ where
         }
     }
 
-    fn apply_op(&mut self) -> Result<Cost, EvalErr<T::Ptr>> {
+    fn apply_op(&mut self, max_cost: Cost) -> Result<Cost, EvalErr<T::Ptr>> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
         let opa = match self.allocator.sexp(&operator) {
@@ -301,7 +318,7 @@ where
         } else {
             let r = self
                 .operator_lookup
-                .op(self.allocator, opa, &operand_list)?;
+                .op(self.allocator, opa, &operand_list, max_cost)?;
             self.push(r.1);
             Ok(r.0)
         }
@@ -312,10 +329,16 @@ where
         &mut self,
         program: &T::Ptr,
         args: &T::Ptr,
-        max_cost: Cost,
+        mut max_cost: Cost,
     ) -> Response<T::Ptr> {
         self.val_stack = vec![self.allocator.new_pair(program.clone(), args.clone())?];
         self.op_stack = vec![Operation::Eval];
+
+        if max_cost == 0 {
+            max_cost = Cost::MAX;
+        }
+        let max_cost_number: Number = max_cost.into();
+        let max_cost_ptr = ptr_from_number(self.allocator, &max_cost_number);
 
         let mut cost: Cost = 0;
 
@@ -326,9 +349,9 @@ where
                 None => break,
             };
             cost += match op {
-                Operation::Apply => self.apply_op()?,
+                Operation::Apply => self.apply_op(max_cost - cost)?,
                 Operation::Cons => self.cons_op()?,
-                Operation::Eval => self.eval_op()?,
+                Operation::Eval => augment_cost_errors(self.eval_op(), &max_cost_ptr)?,
                 Operation::Swap => self.swap_op()?,
                 Operation::PostEval => {
                     let f = self.posteval_stack.pop().unwrap();
@@ -337,14 +360,10 @@ where
                     0
                 }
             };
-            if cost > max_cost && max_cost > 0 {
-                let max_cost: Number = max_cost.into();
-                let ptr = ptr_from_number(self.allocator, &max_cost)?;
-                let n: Node<T> = Node::new(self.allocator, ptr);
-                return n.err("cost exceeded");
+            if cost > max_cost {
+                return Err(EvalErr(max_cost_ptr, "cost exceeded".into()));
             }
         }
-
         Ok(Reduction(cost, self.pop()?))
     }
 }

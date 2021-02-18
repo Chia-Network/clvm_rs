@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::allocator::Allocator;
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
+use crate::cost::Cost;
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_concat, op_div, op_divmod, op_gr, op_gr_bytes, op_logand,
     op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add, op_pubkey_for_exp,
@@ -9,7 +10,7 @@ use crate::more_ops::{
 };
 use crate::reduction::Response;
 
-type OpFn<T> = fn(&mut T, <T as Allocator>::Ptr) -> Response<<T as Allocator>::Ptr>;
+type OpFn<T> = fn(&mut T, <T as Allocator>::Ptr, Cost) -> Response<<T as Allocator>::Ptr>;
 
 pub type FLookup<T> = [Option<OpFn<T>>; 256];
 

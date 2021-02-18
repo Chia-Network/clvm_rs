@@ -27,11 +27,12 @@ impl<A: Allocator> OperatorHandler<A> for OperatorHandlerWithMode<A> {
         allocator: &mut A,
         o: <A as Allocator>::AtomBuf,
         argument_list: &A::Ptr,
+        max_cost: Cost,
     ) -> Response<<A as Allocator>::Ptr> {
         let op = &allocator.buf(&o);
         if op.len() == 1 {
             if let Some(f) = self.f_lookup[op[0] as usize] {
-                return f(allocator, argument_list.clone());
+                return f(allocator, argument_list.clone(), max_cost);
             }
         }
         if self.strict {
@@ -39,7 +40,7 @@ impl<A: Allocator> OperatorHandler<A> for OperatorHandlerWithMode<A> {
             let op_arg = allocator.new_atom(&buf)?;
             err(op_arg, "unimplemented operator")
         } else {
-            op_unknown(allocator, o, argument_list.clone())
+            op_unknown(allocator, o, argument_list.clone(), max_cost)
         }
     }
 }
