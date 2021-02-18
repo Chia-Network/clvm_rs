@@ -464,6 +464,7 @@ pub fn op_strlen<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
 }
 
 pub fn op_substr<T: Allocator>(a: &mut T, input: T::Ptr) -> Response<T::Ptr> {
+    println!("substr");
     let args = Node::new(a, input);
     check_arg_count(&args, 3, "substr")?;
     let a0 = args.first()?;
