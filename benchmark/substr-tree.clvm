@@ -9,4 +9,4 @@
 ;    (split string)
 ;)
 
-((c (q (c 2 (c 2 (c 5 (q))))) (c (q (c (i (> (strlen 5) (q . 1)) (q 5 ((c 2 (c 2 (c (substr 5 (q) (/ (strlen 5) (q . 2))) (q))))) ((c 2 (c 2 (c (substr 5 (/ (strlen 5) (q . 2)) (strlen 5)) (q)))))) (q . 5)) 1)) 1)))
+((c (q (c 2 (c 2 (c 5 (q))))) (c (q (c (i (> (strlen 5) (q . 1)) (q 4 ((c 2 (c 2 (c (substr 5 (q) (/ (strlen 5) (q . 2))) (q))))) ((c 2 (c 2 (c (substr 5 (/ (strlen 5) (q . 2)) (strlen 5)) (q)))))) (q . 5)) 1)) 1)))
