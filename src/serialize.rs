@@ -14,6 +14,10 @@ fn bad_encoding() -> std::io::Error {
     Error::new(ErrorKind::InvalidInput, "bad encoding")
 }
 
+fn internal_error() -> std::io::Error {
+    Error::new(ErrorKind::InvalidInput, "internal error")
+}
+
 fn encode_size(f: &mut dyn Write, size: u64) -> std::io::Result<()> {
     if size < 0x40 {
         f.write_all(&[(0x80 | size) as u8])?;
@@ -41,7 +45,7 @@ fn encode_size(f: &mut dyn Write, size: u64) -> std::io::Result<()> {
             ((size) & 0xff) as u8,
         ])?;
     } else {
-        panic!("atom size exceeded maximum {}", size);
+        return Err(Error::new(ErrorKind::InvalidData, "atom too big"));
     }
     Ok(())
 }
@@ -82,7 +86,10 @@ fn decode_size(f: &mut dyn Read, initial_b: u8) -> std::io::Result<u64> {
     // this function decodes the length prefix for an atom. Atoms whose value
     // fit in 7 bits don't have a length-prefix, so those should never be passed
     // to this function.
-    assert!((initial_b & 0x80) != 0);
+    debug_assert!((initial_b & 0x80) != 0);
+    if (initial_b & 0x80) == 0 {
+        return Err(internal_error());
+    }
 
     let mut bit_count = 0;
     let mut bit_mask: u8 = 0x80;
@@ -208,14 +215,10 @@ fn test_encode_size() {
     let mut buf = Vec::<u8>::new();
     assert!(encode_size(&mut buf, 0x3ffffffff).is_ok());
     assert_eq!(buf, vec![0b11111011, 0xff, 0xff, 0xff, 0xff]);
-}
 
-#[test]
-#[should_panic]
-fn test_encode_panic() {
     // this is too large
     let mut buf = Vec::<u8>::new();
-    assert!(encode_size(&mut buf, 0x400000000).is_ok());
+    assert!(!encode_size(&mut buf, 0x400000000).is_ok());
 }
 
 #[test]

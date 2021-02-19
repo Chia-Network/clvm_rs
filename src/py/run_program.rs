@@ -123,8 +123,8 @@ pub fn deserialize_and_run_program(
     let strict: bool = (flags & STRICT_MODE) != 0;
     let f: Box<dyn OperatorHandler<IntAllocator>> =
         Box::new(OperatorHandlerWithMode { f_lookup, strict });
-    let program: i32 = node_from_bytes(&mut allocator, program).unwrap();
-    let args: i32 = node_from_bytes(&mut allocator, args).unwrap();
+    let program = node_from_bytes(&mut allocator, program)?;
+    let args = node_from_bytes(&mut allocator, args)?;
 
     let r = run_program(
         &mut allocator,
@@ -138,12 +138,12 @@ pub fn deserialize_and_run_program(
     );
     match r {
         Ok(reduction) => {
-            let node_as_blob = node_to_bytes(&Node::new(&allocator, reduction.1)).unwrap();
+            let node_as_blob = node_to_bytes(&Node::new(&allocator, reduction.1))?;
             let node_as_bytes: Py<PyBytes> = PyBytes::new(py, &node_as_blob).into();
             Ok((reduction.0, node_as_bytes))
         }
         Err(eval_err) => {
-            let node_as_blob = node_to_bytes(&Node::new(&allocator, eval_err.0)).unwrap();
+            let node_as_blob = node_to_bytes(&Node::new(&allocator, eval_err.0))?;
             let msg = eval_err.1;
             let ctx: &PyDict = PyDict::new(py);
             ctx.set_item("msg", msg)?;
