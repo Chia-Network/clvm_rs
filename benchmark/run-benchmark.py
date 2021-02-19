@@ -167,6 +167,12 @@ if len(procs) > 0:
 
 test_runs = {}
 
+native_opcode_names_by_opcode = dict(
+    ("op_%s" % OP_REWRITE.get(k, k), op)
+    for op, k in KEYWORD_FROM_ATOM.items()
+    if k not in "qa."
+)
+
 print('benchmarking...')
 for n in range(5):
     if "-v" in sys.argv:
@@ -187,13 +193,8 @@ for n in range(5):
                 print(fn)
             program_data = bytes.fromhex(open(fn, 'r').read())
             env_data = bytes.fromhex(open(env_fn, 'r').read())
-            time_start = time.perf_counter()
 
-            native_opcode_names_by_opcode = dict(
-                ("op_%s" % OP_REWRITE.get(k, k), op)
-                for op, k in KEYWORD_FROM_ATOM.items()
-                if k not in "qa."
-            )
+            time_start = time.perf_counter()
             cost, result = deserialize_and_run_program(
                 program_data,
                 env_data,
@@ -203,8 +204,8 @@ for n in range(5):
                 max_cost,
                 flags,
             )
-
             time_end = time.perf_counter()
+
             output = ["run_program: %f" % (time_end - time_start)]
 
         counters = {}
