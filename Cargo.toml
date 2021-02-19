@@ -10,6 +10,9 @@ edition = "2018"
 name = "clvm_rs"
 crate-type = ["cdylib"]
 
+[profile.release]
+lto = true
+
 [dependencies.pyo3]
 version = "0.13.0"
 
