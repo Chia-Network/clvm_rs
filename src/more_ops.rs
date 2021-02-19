@@ -207,7 +207,7 @@ pub fn op_unknown<A: Allocator>(
             }
             cost + total_size / CONCAT_COST_PER_BYTE_DIVIDER as u64
         }
-        _ => panic!(),
+        _ => 1,
     };
 
     assert!(cost > 0);
