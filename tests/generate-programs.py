@@ -128,5 +128,5 @@ softfork_wrap('programs/softfork-2.clvm', '0x00ffffff45')
 serialized_atom_overflow('programs/large-atom-1.hex', 0xffffffff)
 serialized_atom_overflow('programs/large-atom-2.hex', 0x3ffffffff)
 serialized_atom_overflow('programs/large-atom-3.hex', 0xffffffffff)
-serialized_atom_overflow('programs/large-atom-4.hex', 0xfffffffffff)
+serialized_atom_overflow('programs/large-atom-4.hex', 0x1ffffffffff)
 
