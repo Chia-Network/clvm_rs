@@ -134,7 +134,7 @@ impl<T> std::convert::From<EvalErr<T>> for std::io::Error {
 
 pub fn node_from_stream<T: Allocator>(
     allocator: &mut T,
-    f: &mut dyn Read,
+    f: &mut Cursor<&[u8]>,
 ) -> std::io::Result<T::Ptr> {
     let mut values: Vec<T::Ptr> = Vec::new();
     let mut ops = vec![ParseOp::SExp];
@@ -160,6 +160,9 @@ pub fn node_from_stream<T: Allocator>(
                     values.push(allocator.new_atom(&b)?);
                 } else {
                     let blob_size = decode_size(f, b[0])?;
+                    if (f.get_ref().len() as u64) < blob_size {
+                        return Err(bad_encoding());
+                    }
                     let mut blob: Vec<u8> = vec![0; blob_size as usize];
                     f.read_exact(&mut blob)?;
                     values.push(allocator.new_atom(&blob)?);
