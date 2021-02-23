@@ -1,4 +1,5 @@
 use crate::allocator::{Allocator, SExp};
+use crate::cost::MAX_ATOM_SIZE;
 use crate::err_utils::err;
 use crate::reduction::EvalErr;
 
@@ -59,6 +60,9 @@ impl Allocator for IntAllocator {
     type AtomBuf = IntAtomBuf;
 
     fn new_atom(&mut self, v: &[u8]) -> Result<Self::Ptr, EvalErr<Self::Ptr>> {
+        if v.len() > MAX_ATOM_SIZE {
+            return err(self.null(), "exceeded atom size limit");
+        }
         let start = self.u8_vec.len() as u32;
         if ((u32::MAX - start) as usize) < v.len() {
             return err(self.null(), "out of memory");

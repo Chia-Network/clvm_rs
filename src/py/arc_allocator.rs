@@ -1,4 +1,5 @@
 use crate::allocator::{Allocator, SExp};
+use crate::cost::MAX_ATOM_SIZE;
 use crate::err_utils::err;
 use crate::reduction::EvalErr;
 use std::sync::Arc;
@@ -53,6 +54,9 @@ impl Allocator for ArcAllocator {
     type AtomBuf = ArcAtomBuf;
 
     fn new_atom(&mut self, v: &[u8]) -> Result<Self::Ptr, EvalErr<Self::Ptr>> {
+        if v.len() > MAX_ATOM_SIZE {
+            return err(self.null(), "exceeded atom size limit");
+        }
         Ok(ArcSExp::Atom(ArcAtomBuf {
             buf: Arc::new(v.into()),
             start: 0,
