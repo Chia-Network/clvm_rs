@@ -12,7 +12,7 @@ use crate::cost::{check_cost, Cost};
 use crate::err_utils::{err, u8_err};
 use crate::node::Node;
 use crate::number::{number_from_u8, ptr_from_number, Number};
-use crate::op_utils::{atom, check_arg_count, int_atom, two_ints, uint_int};
+use crate::op_utils::{atom, check_arg_count, i32_atom, int_atom, two_ints, u32_from_u8};
 use crate::reduction::{Reduction, Response};
 use crate::serialize::node_to_bytes;
 
@@ -73,53 +73,6 @@ fn limbs_for_int(v: &Number) -> usize {
     ((v.bits() + 7) / 8) as usize
 }
 
-fn u32_from_u8(mut buf: &[u8]) -> Option<u32> {
-    // skip leading zeroes
-    while !buf.is_empty() && buf[0] == 0 {
-        buf = &buf[1..];
-    }
-
-    if buf.is_empty() {
-        return Some(0);
-    }
-
-    // too many bytes for u32
-    if buf.len() > 4 {
-        return None;
-    }
-
-    let mut ret: u32 = 0;
-    for b in buf {
-        ret <<= 8;
-        ret |= *b as u32;
-    }
-    Some(ret)
-}
-
-#[test]
-fn test_u32_from_u8() {
-    assert_eq!(u32_from_u8(&[]), Some(0));
-    assert_eq!(u32_from_u8(&[0xcc]), Some(0xcc));
-    assert_eq!(u32_from_u8(&[0xcc, 0x55]), Some(0xcc55));
-    assert_eq!(u32_from_u8(&[0xcc, 0x55, 0x88]), Some(0xcc5588));
-    assert_eq!(u32_from_u8(&[0xcc, 0x55, 0x88, 0xf3]), Some(0xcc5588f3));
-
-    // leading zeros are stripped
-    assert_eq!(u32_from_u8(&[0x00]), Some(0));
-    assert_eq!(u32_from_u8(&[0x00, 0x00]), Some(0));
-    assert_eq!(u32_from_u8(&[0x00, 0xcc, 0x55, 0x88]), Some(0xcc5588));
-    assert_eq!(u32_from_u8(&[0x00, 0x00, 0xcc, 0x55, 0x88]), Some(0xcc5588));
-    assert_eq!(
-        u32_from_u8(&[0x00, 0xcc, 0x55, 0x88, 0xf3]),
-        Some(0xcc5588f3)
-    );
-
-    // overflow
-    assert_eq!(u32_from_u8(&[0x01, 0xcc, 0x55, 0x88, 0xf3]), None);
-    assert_eq!(u32_from_u8(&[0x01, 0x00, 0x00, 0x00, 0x00]), None);
-    assert_eq!(u32_from_u8(&[0x7d, 0xcc, 0x55, 0x88, 0xf3]), None);
-}
-
 pub fn op_unknown<A: Allocator>(
     allocator: &mut A,
     o: A::AtomBuf,
@@ -132,15 +85,15 @@ pub fn op_unknown<A: Allocator>(
     // like this:
 
     // byte index (reverse):
-    // n | .... | 1          | 0          |
-    // --+- - --+------------+------------+
-    // n | .... |            |XX | XXXXXX |
-    // --+- - --+------------+---+--------+
-    // ^                      ^   ^
-    // |                      |   + 6 bits ignored when computing cost
-    // cost_multiplier        |
-    //                        + 2 bits
-    //                          cost_function
+    // | 4 | 3 | 2 | 1 | 0          |
+    // +---+---+---+---+------------+
+    // | multiplier    |XX | XXXXXX |
+    // +---+---+---+---+---+--------+
+    //  ^               ^    ^
+    //  |               |    + 6 bits ignored when computing cost
+    // cost_multiplier  |
+    //                  + 2 bits
+    //                    cost_function
 
     // 1 is always added to the multiplier before using it to multiply the cost, this
     // is since cost may not be 0.
@@ -217,9 +170,13 @@ pub fn op_unknown<A: Allocator>(
 
     assert!(cost > 0);
 
+    check_cost(allocator, cost, max_cost)?;
     cost *= cost_multiplier + 1;
-
-    Ok(Reduction(cost as Cost, allocator.null()))
+    if cost > u32::MAX as u64 {
+        u8_err(allocator, &o, "invalid operator")
+    } else {
+        Ok(Reduction(cost as Cost, allocator.null()))
+    }
 }
 
 #[cfg(test)]
@@ -469,21 +426,16 @@ pub fn op_substr<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Res
     check_arg_count(&args, 3, "substr")?;
     let a0 = args.first()?;
     let s0 = atom(&a0, "substr")?;
-    let (n1, _, n2, _) = two_ints(&args.rest()?, "substr")?;
-    let i1 = match u32::try_from(n1) {
-        Ok(v) => v,
-        _ => return args.err("invalid indices for substr"),
-    };
-    let i2 = match u32::try_from(n2) {
-        Ok(v) => v,
-        _ => return args.err("invalid indices for substr"),
-    };
+    let rest = args.rest()?;
+    let i1 = i32_atom(&rest.first()?, "substr")?;
+    let rest = rest.rest()?;
+    let i2 = i32_atom(&rest.first()?, "substr")?;
     let size = s0.len();
-    if i2 as usize > size || i2 < i1 {
+    if i2 < 0 || i1 < 0 || i2 as usize > size || i2 < i1 {
         args.err("invalid indices for substr")
     } else {
         let atom_node = a0.node;
-        let r = a.new_substr(atom_node, i1, i2)?;
+        let r = a.new_substr(atom_node, i1 as u32, i2 as u32)?;
         let cost: Cost = 1;
         Ok(Reduction(cost, r))
     }
@@ -513,16 +465,17 @@ pub fn op_concat<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Resp
 
 pub fn op_ash<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
     let args = Node::new(a, input);
-    let (i0, l0, i1, _) = two_ints(&args, "ash")?;
-    let s1 = i64::try_from(&i1);
-    if match s1 {
-        Err(_) => true,
-        Ok(v) => v.abs() > 65535,
-    } {
+    check_arg_count(&args, 2, "ash")?;
+    let a0 = args.first()?;
+    let b0 = int_atom(&a0, "ash")?;
+    let i0 = number_from_u8(b0);
+    let l0 = b0.len();
+    let rest = args.rest()?;
+    let a1 = i32_atom(&rest.first()?, "ash")?;
+    if a1.abs() > 65535 {
         return args.rest()?.first()?.err("shift too large");
     }
 
-    let a1 = s1.unwrap();
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
     let l1 = limbs_for_int(&v);
     let r = ptr_from_number(a, &v)?;
@@ -532,18 +485,21 @@ pub fn op_ash<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respon
 
 pub fn op_lsh<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
     let args = Node::new(a, input);
-    let (i0, l0, i1, _) = uint_int(&args, "lsh")?;
-    let s1 = i64::try_from(&i1);
-    if match s1 {
-        Err(_) => true,
-        Ok(v) => v.abs() > 65535,
-    } {
+    check_arg_count(&args, 2, "lsh")?;
+    let a0 = args.first()?;
+    let b0 = int_atom(&a0, "lsh")?;
+    let i0 = BigUint::from_bytes_be(b0);
+    let l0 = b0.len();
+    let rest = args.rest()?;
+    let a1 = i32_atom(&rest.first()?, "lsh")?;
+    if a1.abs() > 65535 {
         return args.rest()?.first()?.err("shift too large");
     }
 
-    let a1 = s1.unwrap();
     let i0: Number = i0.into();
+
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
+
     let l1 = limbs_for_int(&v);
     let r = ptr_from_number(a, &v)?;
     let cost = SHIFT_BASE_COST + ((l0 + l1) as Cost) / SHIFT_COST_PER_BYTE_DIVIDER;
