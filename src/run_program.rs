@@ -296,20 +296,11 @@ where
             let operand_list = Node::new(self.allocator, operand_list);
             if operand_list.arg_count_is(2) {
                 let new_operator = operand_list.first()?;
-                let new_op_node = new_operator.node.clone();
-                let new_op_list = operand_list.rest()?.first()?.node;
-                match new_operator.sexp() {
-                    SExp::Pair(_, _) => {
-                        let new_pair = self.allocator.new_pair(new_op_node, new_op_list)?;
-                        self.push(new_pair);
-                        self.op_stack.push(Operation::Eval);
-                    }
-                    SExp::Atom(_) => {
-                        self.push(new_op_node);
-                        self.push(new_op_list);
-                        self.op_stack.push(Operation::Apply);
-                    }
-                };
+                let new_program = new_operator.node;
+                let new_args = operand_list.rest()?.first()?.node;
+                let new_pair = self.allocator.new_pair(new_program, new_args)?;
+                self.push(new_pair);
+                self.op_stack.push(Operation::Eval);
                 Ok(APPLY_COST)
             } else {
                 operand_list.err("apply requires exactly 2 parameters")
