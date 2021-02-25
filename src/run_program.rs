@@ -245,12 +245,7 @@ where
 
         let op_atom = match self.allocator.sexp(&op_node) {
             SExp::Pair(_, _) => {
-                // the operator is also a list, so we need two evals here
-                let p = self.allocator.new_pair(op_node, args.clone())?;
-                self.push(p);
-                self.op_stack.push(Operation::Eval);
-                self.op_stack.push(Operation::Eval);
-                return Ok(1);
+                return Node::new(self.allocator, program.clone()).err("(()) eval disabled")
             }
             SExp::Atom(op_atom) => op_atom,
         };
