@@ -16,9 +16,9 @@ def many_args(filename, op, num):
 ;)
 ''' % op)
 
-        f.write('((c (q (c 6 (c 2 (c ((c 4 (c 2 (c 5 (q))))) (q))))) (c (q ((c (i 5 (q 23 ((c 4 (c 2 (c (- 5 (q . 1)) (q))))) (q . 0x00ffff)) (q 1 . -128)) 1)) %s' % op)
+        f.write('(a (q 2 6 (c 2 (c (a 4 (c 2 (c 5 (q)))) (q)))) (c (q (a (i 5 (q 23 (a 4 (c 2 (c (- 5 (q . 1)) (q)))) (q . 0x00ffff)) (q 1 . -128)) 1) %s' % op)
         f.write(' 5' * num)
-        f.write(') 1)))')
+        f.write(') 1))')
 
     with open(filename[:-4] + 'env', 'w+') as f:
         f.write('(200)')
@@ -32,7 +32,7 @@ def many_args_point(filename, op, num):
 ;    (raise (logxor n 0xb3b8ac537f4fd6bde9b26221d49b54b17a506be147347dae5d081c0a6572b611d8484e338f3432971a9823976c6a232b))
 ;)
 ''' % op)
-        f.write('((c (q (c 2 (c 2 (c (logxor (q . 0xb3b8ac537f4fd6bde9b26221d49b54b17a506be147347dae5d081c0a6572b611d8484e338f3432971a9823976c6a232b)) (q))))) (c (q %s' % op)
+        f.write('(a (q 2 2 (c 2 (c (logxor 5 (q . 0xb3b8ac537f4fd6bde9b26221d49b54b17a506be147347dae5d081c0a6572b611d8484e338f3432971a9823976c6a232b)) (q)))) (c (q %s' % op)
         f.write(' 5' * num)
         f.write(') 1)))')
 
@@ -49,7 +49,7 @@ def softfork_wrap(filename, val):
 ;    (recurse n)
 ;)
 
-((c (q (c 2 (c 2 (c 5 (q))))) (c (q (c (i (= (q) 5) (q 1 . 42) (q (c 2 (c 2 (c (+ (- 5 (q . 1)) (softfork (q . %s))) (q)))))) 1)) 1)))
+(a (q 2 2 (c 2 (c 5 (q)))) (c (q 2 (i (= (q) 5) (q 1 . 42) (q 2 2 (c 2 (c (+ (- 5 (q . 1)) (softfork (q . %s))) (q))))) 1) 1))
 ''' % (val, val))
 
     with open(filename[:-4] + 'env', 'w+') as f:
