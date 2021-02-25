@@ -62,27 +62,26 @@ def p2_delegated_or_hidden_puzzle():
     # src/wallet/puzzles/p2_delegated_puzzle_or_hidden_puzzle.clvm
     # parameters:
     # (synthetic_public_key original_public_key delegated_puzzle solution)
-    program = '((c (q . ((c (i 11 (q . ((c (i (= 5 (point_add 11 ' \
-        '(pubkey_for_exp (sha256 11 ((c 6 (c 2 (c 23 (q . ()))))))))) ' \
-        '(q . ((c 23 47))) (q . (x))) 1))) (q . (c (c 4 (c 5 (c ((c 6 (c 2 ' \
-        '(c 23 (q . ()))))) (q . ())))) ((c 23 47))))) 1))) (c (q . (57 (c (i (l 5) ' \
-        '(q . (sha256 (q . 2) ((c 6 (c 2 (c 9 (q . ()))))) ((c 6 (c 2 (c 13 ' \
-        '(q . ()))))))) (q . (sha256 (q . 1) 5))) 1))) 1)))'
 
-    return '((c (q . %s) (c (q . %s) 1)))' % (program, random_key())
+    return '(a (q 2 (q 2 (i 11 (q 2 (i (= 5 (point_add 11 ' \
+        '(pubkey_for_exp (sha256 11 (a 6 (c 2 (c 23 ()))))))) ' \
+        '(q 2 23 47) (q 8)) 1) (q 4 (c 4 (c 5 (c (a 6 (c 2 ' \
+        '(c 23 ()))) ()))) (a 23 47))) 1) (c (q 50 2 (i (l 5) ' \
+        '(q 11 (q . 2) (a 6 (c 2 (c 9 ()))) (a 6 (c 2 (c 13 ())))) ' \
+        '(q 11 (q . 1) 5)) 1) 1)) (c (q . %s) 1))' % random_key()
 
 def transaction(puzzle):
-    return '(%s (%s (() (q . ((51 %s %s))) ())))' \
-        % (random_key(), puzzle(), random_key(), random_key(6))
+    return '(%s (%s (() (q (51 %s %s)) ())))' \
+        % (random_key(), puzzle(), random_key(), random_key(3))
 
 def generate_block(filename, puzzle):
     if "-v" in sys.argv:
         print("generating %s" % filename)
     with open(filename, 'w+') as f:
-        f.write('(q . (')
+        f.write('(q ')
         for i in range(1000):
             f.write(transaction(puzzle))
-        f.write('))')
+        f.write(')')
 
 def generate_list(filename, size):
     if "-v" in sys.argv:
