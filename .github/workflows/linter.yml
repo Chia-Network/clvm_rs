@@ -51,5 +51,17 @@ jobs:
         uses: github/super-linter@v3.15.1
         env:
           VALIDATE_ALL_CODEBASE: true
-          DEFAULT_BRANCH: master
+          DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VALIDATE_ALL_CODEBASE: true
+          LINTER_RULES_PATH: .github/linters
+          PYTHON_BLACK_CONFIG_FILE: .python-black
+          VALIDATE_BASH: true
+          VALIDATE_MARKDOWN: true
+          VALIDATE_HTML: true
+          VALIDATE_PYTHON_BLACK: true
+          VALIDATE_PYTHON_FLAKE8: true
+          VALIDATE_PYTHON_ISORT: true
+          VALIDATE_RUST_2015: true
+          VALIDATE_RUST_2018: true
+          VALIDATE_YAML: true
