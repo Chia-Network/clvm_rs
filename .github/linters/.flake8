@@ -1,4 +1,7 @@
 [flake8]
 max-line-length = 120
-exclude = ./typings/**/*
+exclude =
+    ./typings/**/*
+    # chialisp long lines
+    tests/generate-programs.py
 ignore = E203,W503

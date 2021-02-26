@@ -23,11 +23,11 @@
 #          substr.hex mean: 0.121002 (+/- 0.038429)    0.141937 0.159431 0.092551 0.101701 0.109389
 #        sum-tree.hex mean: 0.706867 (+/- 0.044276)    0.749527 0.662591 0.699655 0.718693 0.703870
 #      TOTAL: 33.736263 s
-#UNCERTAINTY: 0.534874 s
+# UNCERTAINTY: 0.534874 s
 
-import os
 import sys
-from colorama import init, Fore, Style
+
+from colorama import Fore, init
 
 init()
 
@@ -37,26 +37,26 @@ if len(sys.argv) < 3:
 
 run = [{}, {}]
 for i in range(2):
-    raw = open(sys.argv[i + 1], 'r').read().split('\n')
-    raw = raw[raw.index("benchmarking...")+1:]
+    raw = open(sys.argv[i + 1], "r").read().split("\n")
+    raw = raw[raw.index("benchmarking...") + 1 :]
     tests = {}
-    for l in raw:
-        l = l.strip().split()
-        if len(l) == 0:
+    for lines in raw:
+        lines = lines.strip().split()
+        if len(lines) == 0:
             continue
-        if l[0] == "TOTAL:":
-            run[i]["total"] = float(l[1])
+        if lines[0] == "TOTAL:":
+            run[i]["total"] = float(lines[1])
             continue
-        if l[0] == "UNCERTAINTY:":
-            run[i]["diff"] = float(l[1])
+        if lines[0] == "UNCERTAINTY:":
+            run[i]["diff"] = float(lines[1])
             continue
-        name = l[0]
-        if l[1] != "mean:" or l[3] != "(+/-":
+        name = lines[0]
+        if lines[1] != "mean:" or lines[3] != "(+/-":
             print("unexpected input")
             sys.exit(1)
-        time = float(l[2])
-        diff = float(l[4][:-1])
-        tests[name] = { "time": time, "diff": diff }
+        time = float(lines[2])
+        diff = float(lines[4][:-1])
+        tests[name] = {"time": time, "diff": diff}
         run[i]["tests"] = tests
 
 for name, t0 in run[0]["tests"].items():
@@ -67,14 +67,20 @@ for name, t0 in run[0]["tests"].items():
     t0diff = t0["diff"]
     if abs(t1time - t0time) < t0diff or abs(t1time - t0time) < t1diff:
         # inconclusive
-        print("%20s mean: %f (%+f) %+.2f %% (within uncertainty)" % (name, t1time, t1time - t0time, (t1time - t0time) / t0time * 100.0))
+        print(
+            "%20s mean: %f (%+f) %+.2f %% (within uncertainty)"
+            % (name, t1time, t1time - t0time, (t1time - t0time) / t0time * 100.0)
+        )
     else:
         if t0time > t1time:
-            print(Fore.GREEN, end='')
+            print(Fore.GREEN, end="")
         else:
-            print(Fore.RED, end='')
-        print("%20s mean: %f (%+f) %+.2f %%" % (name, t1time, t1time - t0time, (t1time - t0time) / t0time * 100.0))
-    print(Fore.RESET, end='')
+            print(Fore.RED, end="")
+        print(
+            "%20s mean: %f (%+f) %+.2f %%"
+            % (name, t1time, t1time - t0time, (t1time - t0time) / t0time * 100.0)
+        )
+    print(Fore.RESET, end="")
 
 tot0 = run[0]["total"]
 tot1 = run[1]["total"]
@@ -82,11 +88,16 @@ tot0diff = run[0]["diff"]
 tot1diff = run[1]["diff"]
 
 if abs(tot0 - tot1) < tot0diff or abs(tot0 - tot1) < tot1diff:
-    print("TOTAL: %f (%+f) %+.2f %% (within uncertainty)" % (tot1, tot1 - tot0, (tot1 - tot0) / tot0 * 100.0))
+    print(
+        "TOTAL: %f (%+f) %+.2f %% (within uncertainty)"
+        % (tot1, tot1 - tot0, (tot1 - tot0) / tot0 * 100.0)
+    )
 else:
     if tot0 > tot1:
-        print(Fore.GREEN, end='')
+        print(Fore.GREEN, end="")
     else:
-        print(Fore.RED, end='')
-    print("TOTAL: %f (%+f) %+.2f %%" % (tot1, tot1 - tot0, (tot1 - tot0) / tot0 * 100.0))
-    print(Fore.RESET, end='')
+        print(Fore.RED, end="")
+    print(
+        "TOTAL: %f (%+f) %+.2f %%" % (tot1, tot1 - tot0, (tot1 - tot0) / tot0 * 100.0)
+    )
+    print(Fore.RESET, end="")
