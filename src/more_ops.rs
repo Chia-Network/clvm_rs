@@ -1,6 +1,4 @@
 use bls12_381::{G1Affine, G1Projective, Scalar};
-use num_bigint::{BigUint, Sign};
-use std::convert::TryFrom;
 use std::ops::BitAndAssign;
 use std::ops::BitOrAssign;
 use std::ops::BitXorAssign;
@@ -11,7 +9,10 @@ use crate::allocator::Allocator;
 use crate::cost::{check_cost, Cost};
 use crate::err_utils::{err, u8_err};
 use crate::node::Node;
-use crate::number::{number_from_u8, ptr_from_number, Number};
+use crate::number::{
+    number_from_signed_u8, number_from_unsigned_u8, number_to_unsigned_u8, ones_complement,
+    ptr_from_number, Number, Sign,
+};
 use crate::op_utils::{atom, check_arg_count, i32_atom, int_atom, two_ints, u32_from_u8};
 use crate::reduction::{Reduction, Response};
 use crate::serialize::node_to_bytes;
@@ -70,7 +71,7 @@ const PUBKEY_BASE_COST: Cost = 394;
 const PUBKEY_COST_PER_BYTE_DIVIDER: Cost = 4;
 
 fn limbs_for_int(v: &Number) -> usize {
-    ((v.bits() + 7) / 8) as usize
+    ((v.bit_length() + 7) / 8) as usize
 }
 
 pub fn op_unknown<A: Allocator>(
@@ -271,7 +272,7 @@ pub fn op_add<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Respons
         cost += ARITH_COST_PER_ARG;
         check_cost(a, cost, max_cost)?;
         let blob = int_atom(&arg, "+")?;
-        let v: Number = number_from_u8(&blob);
+        let v: Number = number_from_signed_u8(&blob);
         byte_count += blob.len();
         total += v;
     }
@@ -289,7 +290,7 @@ pub fn op_subtract<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Re
         cost += ARITH_COST_PER_ARG;
         check_cost(a, cost, max_cost)?;
         let blob = int_atom(&arg, "-")?;
-        let v: Number = number_from_u8(&blob);
+        let v: Number = number_from_signed_u8(&blob);
         byte_count += blob.len();
         if is_first {
             total += v;
@@ -313,13 +314,13 @@ pub fn op_multiply<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Re
         let blob = int_atom(&arg, "*")?;
         if first_iter {
             l0 = blob.len();
-            total = number_from_u8(&blob);
+            total = number_from_signed_u8(&blob);
             first_iter = false;
             continue;
         }
         let l1 = blob.len();
 
-        total *= number_from_u8(&blob);
+        total *= number_from_signed_u8(&blob);
         cost += MUL_COST_PER_OP;
 
         cost += (l0 + l1) as Cost / MUL_LINEAR_COST_PER_BYTE_DIVIDER;
@@ -335,7 +336,7 @@ pub fn op_div<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respon
     let args = Node::new(a, input);
     let (a0, l0, a1, l1) = two_ints(&args, "/")?;
     let cost = DIV_BASE_COST + ((l0 + l1) as Cost) / DIV_COST_PER_LIMB_DIVIDER;
-    if a1.sign() == Sign::NoSign {
+    if a1.sign() == Sign::Zero {
         args.first()?.err("div with 0")
     } else {
         let q = &a0 / &a1;
@@ -343,7 +344,7 @@ pub fn op_div<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respon
 
         // rust rounds division towards zero, but we want division to round
         // toward negative infinity.
-        let q = if q.sign() == Sign::Minus && r.sign() != Sign::NoSign {
+        let q = if q.sign() == Sign::Negative && r.sign() != Sign::Zero {
             q - 1
         } else {
             q
@@ -357,18 +358,18 @@ pub fn op_divmod<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Res
     let args = Node::new(a, input);
     let (a0, l0, a1, l1) = two_ints(&args, "divmod")?;
     let cost = DIVMOD_BASE_COST + ((l0 + l1) as Cost) / DIVMOD_COST_PER_LIMB_DIVIDER;
-    if a1.sign() == Sign::NoSign {
+    if a1.sign() == Sign::Zero {
         args.first()?.err("divmod with 0")
     } else {
         let q = &a0 / &a1;
         let r = &a0 - &a1 * &q;
 
         let signed_quotient =
-            (a0.sign() == Sign::Minus || a1.sign() == Sign::Minus) && a0.sign() != a1.sign();
+            (a0.sign() == Sign::Negative || a1.sign() == Sign::Negative) && a0.sign() != a1.sign();
 
         // rust rounds division towards zero, but we want division to round
         // toward negative infinity.
-        let (q, r) = if signed_quotient && r.sign() != Sign::NoSign {
+        let (q, r) = if signed_quotient && r.sign() != Sign::Zero {
             (q - 1, r + &a1)
         } else {
             (q, r)
@@ -390,7 +391,7 @@ pub fn op_gr<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respons
     let cost = GR_BASE_COST + (v0.len() + v1.len()) as Cost / GR_COST_PER_LIMB_DIVIDER;
     Ok(Reduction(
         cost,
-        if number_from_u8(v0) > number_from_u8(v1) {
+        if number_from_signed_u8(v0) > number_from_signed_u8(v1) {
             a.one()
         } else {
             a.null()
@@ -415,7 +416,7 @@ pub fn op_strlen<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Res
     let a0 = args.first()?;
     let v0 = atom(&a0, "strlen")?;
     let size = v0.len();
-    let size_num: Number = size.into();
+    let size_num: Number = (size as u64).into();
     let size_node = ptr_from_number(a, &size_num)?;
     let cost = STRLEN_BASE_COST + size as Cost / STRLEN_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, size_node))
@@ -468,7 +469,7 @@ pub fn op_ash<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respon
     check_arg_count(&args, 2, "ash")?;
     let a0 = args.first()?;
     let b0 = int_atom(&a0, "ash")?;
-    let i0 = number_from_u8(b0);
+    let i0 = number_from_signed_u8(b0);
     let l0 = b0.len();
     let rest = args.rest()?;
     let a1 = i32_atom(&rest.first()?, "ash")?;
@@ -476,7 +477,11 @@ pub fn op_ash<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respon
         return args.rest()?.first()?.err("shift too large");
     }
 
-    let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
+    let v: Number = if a1 > 0 {
+        i0 << a1 as usize
+    } else {
+        i0 >> (-a1) as usize
+    };
     let l1 = limbs_for_int(&v);
     let r = ptr_from_number(a, &v)?;
     let cost = SHIFT_BASE_COST + ((l0 + l1) as Cost) / SHIFT_COST_PER_BYTE_DIVIDER;
@@ -488,7 +493,6 @@ pub fn op_lsh<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respon
     check_arg_count(&args, 2, "lsh")?;
     let a0 = args.first()?;
     let b0 = int_atom(&a0, "lsh")?;
-    let i0 = BigUint::from_bytes_be(b0);
     let l0 = b0.len();
     let rest = args.rest()?;
     let a1 = i32_atom(&rest.first()?, "lsh")?;
@@ -496,9 +500,12 @@ pub fn op_lsh<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respon
         return args.rest()?.first()?.err("shift too large");
     }
 
-    let i0: Number = i0.into();
-
-    let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
+    let i0 = number_from_unsigned_u8(b0);
+    let v: Number = if a1 > 0 {
+        i0 << a1 as usize
+    } else {
+        i0 >> (-a1) as usize
+    };
 
     let l1 = limbs_for_int(&v);
     let r = ptr_from_number(a, &v)?;
@@ -519,7 +526,7 @@ fn binop_reduction<T: Allocator>(
     let mut cost = LOG_BASE_COST;
     for arg in Node::new(a, input) {
         let blob = int_atom(&arg, op_name)?;
-        let n0 = number_from_u8(blob);
+        let n0 = number_from_signed_u8(blob);
         op_f(&mut total, &n0);
         arg_size += blob.len();
         cost += LOG_COST_PER_ARG;
@@ -562,8 +569,7 @@ pub fn op_lognot<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Res
     check_arg_count(&args, 1, "lognot")?;
     let a0 = args.first()?;
     let v0 = int_atom(&a0, "lognot")?;
-    let mut n: Number = number_from_u8(&v0);
-    n = !n;
+    let n: Number = ones_complement(number_from_signed_u8(&v0));
     let cost = LOGNOT_BASE_COST + (v0.len() as Cost) / LOGNOT_COST_PER_BYTE_DIVIDER;
     let r = ptr_from_number(a, &n)?;
     Ok(Reduction(cost, r))
@@ -607,12 +613,12 @@ pub fn op_softfork<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Re
     let args = Node::new(a, input);
     match args.pair() {
         Some((p1, _)) => {
-            let n: Number = number_from_u8(int_atom(&p1, "softfork")?);
-            if n.sign() == Sign::Plus {
+            let n: Number = number_from_signed_u8(int_atom(&p1, "softfork")?);
+            if n.sign() == Sign::Positive {
                 if n > Number::from(max_cost) {
                     return err(a.null(), "cost exceeded");
                 }
-                let cost: Cost = TryFrom::try_from(&n).unwrap();
+                let cost = Option::<Cost>::from(&n).unwrap();
                 Ok(Reduction(cost, args.null().node))
             } else {
                 args.err("cost must be > 0")
@@ -624,9 +630,8 @@ pub fn op_softfork<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Re
 
 lazy_static! {
     static ref GROUP_ORDER: Number = {
-        let order_as_hex = b"73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000001";
-        let n = BigUint::parse_bytes(order_as_hex, 16).unwrap();
-        n.into()
+        let order_as_hex = "73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000001";
+        Number::from_str_radix(order_as_hex, 16).unwrap()
     };
 }
 
@@ -634,7 +639,7 @@ fn mod_group_order(n: Number) -> Number {
     let order = GROUP_ORDER.clone();
     let divisor: Number = &n / &order;
     let remainder: Number = &n - &divisor * &order;
-    if remainder.sign() == Sign::Minus {
+    if remainder.sign() == Sign::Negative {
         order + remainder
     } else {
         remainder
@@ -642,11 +647,14 @@ fn mod_group_order(n: Number) -> Number {
 }
 
 fn number_to_scalar(n: Number) -> Scalar {
-    let (sign, as_u8): (Sign, Vec<u8>) = n.to_bytes_le();
+    let sign = n.sign();
+    let mut as_u8 = number_to_unsigned_u8(&n);
+    // Scalar expects little-endian
+    as_u8.reverse();
     let mut scalar_array: [u8; 32] = [0; 32];
     scalar_array[..as_u8.len()].clone_from_slice(&as_u8[..]);
     let exp: Scalar = Scalar::from_bytes(&scalar_array).unwrap();
-    if sign == Sign::Minus {
+    if sign == Sign::Negative {
         exp.neg()
     } else {
         exp
@@ -663,7 +671,7 @@ pub fn op_pubkey_for_exp<T: Allocator>(
     let a0 = args.first()?;
 
     let v0 = int_atom(&a0, "pubkey_for_exp")?;
-    let exp: Number = mod_group_order(number_from_u8(&v0));
+    let exp: Number = mod_group_order(number_from_signed_u8(&v0));
     let cost = PUBKEY_BASE_COST + (v0.len() as Cost) / PUBKEY_COST_PER_BYTE_DIVIDER;
     let exp: Scalar = number_to_scalar(exp);
     let point: G1Projective = G1Affine::generator() * exp;
