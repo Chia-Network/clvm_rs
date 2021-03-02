@@ -22,7 +22,12 @@ default = ["extension-module"]
 
 [dependencies]
 hex = "0.4.2"
-sha2 = "0.8.0"
 lazy_static = "1.4.0"
 num-bigint = "0.3.1"
 bls12_381 = "0.4.0"
+
+[target.'cfg(windows)'.dependencies]
+sha2 = "0.8.0"
+
+[target.'cfg(unix)'.dependencies]
+openssl = "0.10.32"

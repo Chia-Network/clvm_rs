@@ -70,6 +70,7 @@ jobs:
             curl -L https://sh.rustup.rs > rustup.rs && \
             chmod +x rustup.rs && \
             ./rustup.rs -y && \
+            yum -y install openssl-devel && \
             export PATH=$HOME/.cargo/bin:$PATH && \
             rm -rf venv && \
             PY_VERSION=${{ matrix.python }}
