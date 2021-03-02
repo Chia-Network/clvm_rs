@@ -118,10 +118,7 @@ fn test_u32_from_u8() {
 }
 
 pub fn i32_from_u8(buf: &[u8]) -> Option<i32> {
-    match u32_from_u8_impl(buf, true) {
-        Some(v) => Some(v as i32),
-        None => None,
-    }
+    u32_from_u8_impl(buf, true).map(|v| v as i32)
 }
 
 #[test]
