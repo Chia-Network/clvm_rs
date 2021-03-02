@@ -30,4 +30,4 @@ bls12_381 = "0.4.0"
 sha2 = "0.8.0"
 
 [target.'cfg(unix)'.dependencies]
-openssl = "0.10.32"
+openssl = { version = "0.10.32", features = ["vendored"] }
