@@ -16,7 +16,11 @@ use crate::op_utils::{atom, check_arg_count, i32_atom, int_atom, two_ints, u32_f
 use crate::reduction::{Reduction, Response};
 use crate::serialize::node_to_bytes;
 
+#[cfg(windows)]
 use sha2::{Digest, Sha256};
+
+#[cfg(unix)]
+use openssl::sha;
 
 const ARITH_BASE_COST: Cost = 4;
 const ARITH_COST_PER_ARG: Cost = 8;
@@ -248,6 +252,7 @@ fn test_lenient_mode_last_bits() {
     assert_eq!(test_op_unknown(&buf, &mut a, null), Ok(Reduction(61, null)));
 }
 
+#[cfg(windows)]
 pub fn op_sha256<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
     let mut cost = SHA256_BASE_COST;
     let mut byte_count: usize = 0;
@@ -261,6 +266,22 @@ pub fn op_sha256<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Resp
     }
     cost += byte_count as Cost / SHA256_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, a.new_atom(&hasher.result())?))
+}
+
+#[cfg(unix)]
+pub fn op_sha256<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
+    let mut cost = SHA256_BASE_COST;
+    let mut byte_count: usize = 0;
+    let mut hasher = sha::Sha256::new();
+    for arg in Node::new(a, input) {
+        cost += SHA256_COST_PER_ARG;
+        check_cost(a, cost, max_cost)?;
+        let blob = atom(&arg, "sha256")?;
+        byte_count += blob.len();
+        hasher.update(blob);
+    }
+    cost += byte_count as Cost / SHA256_COST_PER_BYTE_DIVIDER;
+    Ok(Reduction(cost, a.new_atom(&hasher.finish())?))
 }
 
 pub fn op_add<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
