@@ -244,8 +244,17 @@ where
         };
 
         let op_atom = match self.allocator.sexp(&op_node) {
-            SExp::Pair(_, _) => {
-                return Node::new(self.allocator, program.clone()).err("(()) eval disabled")
+            SExp::Pair(new_operator, must_be_nil) => {
+                if let SExp::Atom(_) = self.allocator.sexp(&new_operator) {
+                    if Node::new(self.allocator, must_be_nil).nullp() {
+                        self.push(new_operator);
+                        self.push(op_list);
+                        self.op_stack.push(Operation::Apply);
+                        return Ok(APPLY_COST);
+                    }
+                }
+                return Node::new(self.allocator, program.clone())
+                    .err("in ((X)...) syntax X must be lone atom");
             }
             SExp::Atom(op_atom) => op_atom,
         };
