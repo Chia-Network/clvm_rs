@@ -1,9 +1,12 @@
-use std::{borrow::Borrow, cell::Cell};
+use std::borrow::Borrow;
+use std::cell::{Cell, Ref, RefCell};
 
 use pyo3::{exceptions::PyBufferError, prelude::*};
 //use pyo3::prelude::{PyObject, PyResult, Python};
+use pyo3::ffi::Py_None;
 use pyo3::types::PyBytes;
 use pyo3::types::PyTuple;
+use pyo3::AsPyPointer;
 
 use crate::allocator::{Allocator, SExp};
 use crate::int_allocator::{IntAllocator, IntAtomBuf};
@@ -77,7 +80,7 @@ struct PyView {
 }
 
 impl PyView {
-    fn py_bytes<'p>(&'p self, py: Python<'p>) -> Option<&PyBytes> {
+    fn py_bytes<'p>(&'p self, py: Python<'p>) -> Option<&'p PyBytes> {
         // this glue returns a &[u8] if self.atom has PyBytes behind it
         let r: Option<&PyBytes> = self.atom.extract(py).ok();
         r
@@ -100,7 +103,7 @@ pub struct PyIntNode {
     // rust view
     native_view: Cell<Option<<IntAllocator as Allocator>::Ptr>>,
     // python view
-    py_view: Option<PyView>,
+    py_view: RefCell<Option<PyView>>,
 }
 
 impl PyIntNode {
@@ -136,7 +139,8 @@ impl PyIntNode {
                 None => break,
                 Some(t) => {
                     if t.native_view.get().is_none() {
-                        let py_view = self.py_view.as_ref().unwrap();
+                        let py_view = self.py_view.borrow();
+                        let py_view = py_view.as_ref().unwrap();
                         match py_view.py_bytes(py) {
                             Some(blob) => {
                                 let new_ptr = allocator.new_atom(blob.as_bytes()).unwrap();
@@ -144,6 +148,7 @@ impl PyIntNode {
                             }
                             None => {
                                 let (p1, p2) = py_view.py_pair(py).unwrap();
+                                // TODO: finish this
                             }
                         }
                     }
@@ -153,17 +158,51 @@ impl PyIntNode {
         self.native_view.get().unwrap()
     }
 
-    fn ensure_python_view(&self, py: Python) -> PyResult<&PyView> {
-        if self.py_view.is_none() {}
-        Ok(self.py_view.as_ref().unwrap())
+    fn ensure_python_view<'p>(&'p mut self, py: Python<'p>) -> PyResult<Ref<'p, Option<PyView>>> {
+        if self.py_view.borrow().is_none() {
+            let mut allocator: &mut IntAllocator = &mut self.allocator_mut(py)?.arena;
+            let mut to_cast: Vec<&PyIntNode> = vec![self];
+            loop {
+                let t = to_cast.pop();
+                match t {
+                    None => break,
+                    Some(t) => {
+                        if t.py_view.borrow().is_some() {
+                            continue;
+                        }
+                        let ptr = t.native_view.get().unwrap();
+                        match allocator.sexp(&ptr) {
+                            SExp::Atom(a) => {
+                                let as_u8: &[u8] = allocator.buf(&a);
+                                let py_bytes = PyBytes::new(py, as_u8);
+                                let py_object: PyObject = py_bytes.to_object(py);
+                                let py_view = PyView {
+                                    atom: py_object,
+                                    pair: ().to_object(py),
+                                };
+                                t.py_view.replace(Some(py_view));
+                            }
+                            SExp::Pair(p1, p2) => {
+                                let r1 = allocator.sexp(&p1);
+                                let r2 = allocator.sexp(&p2);
+                                // TODO: finish this
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(self.py_view.borrow())
     }
 }
 
 #[pymethods]
 impl PyIntNode {
     #[getter(pair)]
-    pub fn pair<'p>(&'p self, py: Python<'p>) -> PyResult<&'p PyObject> {
-        Ok(&self.ensure_python_view(py)?.pair)
+    pub fn pair<'p>(&'p mut self, py: Python<'p>) -> PyResult<PyObject> {
+        let t: Ref<'p, Option<PyView>> = self.ensure_python_view(py)?;
+        let t1 = &t.as_ref().unwrap().pair;
+        Ok(t1.clone())
 
         /*
         let allocator = self.allocator(py)?;
@@ -188,8 +227,10 @@ impl PyIntNode {
     */
 
     #[getter(atom)]
-    pub fn atom<'p>(&'p self, py: Python<'p>) -> PyResult<&'p PyObject> {
-        Ok(&self.ensure_python_view(py)?.atom)
+    pub fn atom<'p>(&'p mut self, py: Python<'p>) -> PyResult<PyObject> {
+        let t: Ref<'p, Option<PyView>> = self.ensure_python_view(py)?;
+        let t1 = &t.as_ref().unwrap().atom;
+        Ok(t1.clone())
 
         /*
         let allocator = self.allocator(py)?;
