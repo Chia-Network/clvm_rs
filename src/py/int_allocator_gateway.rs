@@ -85,44 +85,42 @@ impl PyIntNode {
         allocator: &mut IntAllocator,
         py: Python<'p>,
     ) -> () {
-        {
-            loop {
-                let t: Option<PyObject> = to_cast.pop();
-                match t {
-                    None => break,
-                    Some(t0) => {
-                        let t0_5 : &PyAny = t0.extract(py).unwrap();
-                        let t1: &PyCell<Self> = t0_5.downcast().unwrap();
-                        let t2: PyRef<Self> = t1.borrow();
-                        if t2.native_view.get().is_none() {
-                            let py_view_ref: Ref<Option<PyView>> = t2.py_view.borrow();
-                            let py_view = py_view_ref.as_ref().unwrap();
-                            match py_view.py_bytes(py) {
-                                Some(blob) => {
-                                    let new_ptr = allocator.new_atom(blob.as_bytes()).unwrap();
-                                    t2.native_view.set(Some(new_ptr));
-                                }
-                                None => {
-                                    let (p1, p2) = py_view.py_pair(py).unwrap();
-                                    // check if both p1 and p2 have native views
-                                    // if so build and cache native view for t
-                                    let r1: Option<<IntAllocator as Allocator>::Ptr> =
-                                        p1.borrow().native_view.get();
-                                    let r2: Option<<IntAllocator as Allocator>::Ptr> =
-                                        p2.borrow().native_view.get();
-                                    if r1.is_some() && r2.is_some() {
-                                        let s1 = r1.unwrap();
-                                        let s2 = r2.unwrap();
-                                        let ptr = allocator.new_pair(s1, s2).unwrap();
-                                        t2.native_view.set(Some(ptr));
-                                    } else {
-                                        // otherwise, push t, push p1, push p2 back on stack to be processed
-                                        //
-                                        // UGH, these objects are type `PyCell<PyIntNode>` not &PyIntNode, what do I do
-                                        //
-                                        to_cast.push(p1.to_object(py));
-                                        to_cast.push(p2.to_object(py));
-                                    }
+        loop {
+            let t: Option<PyObject> = to_cast.pop();
+            match t {
+                None => break,
+                Some(t0) => {
+                    let t0_5: &PyAny = t0.extract(py).unwrap();
+                    let t1: &PyCell<Self> = t0_5.downcast().unwrap();
+                    let t2: PyRef<Self> = t1.borrow();
+                    if t2.native_view.get().is_none() {
+                        let py_view_ref: Ref<Option<PyView>> = t2.py_view.borrow();
+                        let py_view = py_view_ref.as_ref().unwrap();
+                        match py_view.py_bytes(py) {
+                            Some(blob) => {
+                                let new_ptr = allocator.new_atom(blob.as_bytes()).unwrap();
+                                t2.native_view.set(Some(new_ptr));
+                            }
+                            None => {
+                                let (p1, p2) = py_view.py_pair(py).unwrap();
+                                // check if both p1 and p2 have native views
+                                // if so build and cache native view for t
+                                let r1: Option<<IntAllocator as Allocator>::Ptr> =
+                                    p1.borrow().native_view.get();
+                                let r2: Option<<IntAllocator as Allocator>::Ptr> =
+                                    p2.borrow().native_view.get();
+                                if r1.is_some() && r2.is_some() {
+                                    let s1 = r1.unwrap();
+                                    let s2 = r2.unwrap();
+                                    let ptr = allocator.new_pair(s1, s2).unwrap();
+                                    t2.native_view.set(Some(ptr));
+                                } else {
+                                    // otherwise, push t, push p1, push p2 back on stack to be processed
+                                    //
+                                    // UGH, these objects are type `PyCell<PyIntNode>` not &PyIntNode, what do I do
+                                    //
+                                    to_cast.push(p1.to_object(py));
+                                    to_cast.push(p2.to_object(py));
                                 }
                             }
                         }
@@ -133,9 +131,9 @@ impl PyIntNode {
     }
 
     fn ensure_python_view<'p>(
-        slf: &PyRef<'p, Self>,
+        mut to_cast: Vec<PyObject>,
+        allocator: &mut IntAllocator,
         py: Python<'p>,
-        //) -> PyResult<Ref<'p, Option<PyView>>> {
     ) -> PyResult<()> {
         /*
         if slf.py_view.borrow().is_none() {
@@ -208,11 +206,14 @@ impl PyIntNode {
 #[pymethods]
 impl PyIntNode {
     #[getter(pair)]
-    pub fn pair<'p>(slf: PyRef<'p, Self>, py: Python<'p>) -> PyResult<PyObject> {
-        Self::ensure_python_view(&slf, py)?;
-        let t: Ref<Option<PyView>> = slf.py_view.borrow();
-        let t1 = &t.as_ref().unwrap().pair;
-        Ok(t1.clone())
+    pub fn pair<'p>(slf: &'p PyCell<Self>, py: Python<'p>) -> PyResult<PyObject> {
+        let t0: PyRef<PyIntNode> = slf.borrow();
+        let mut t1: PyRefMut<PyIntAllocator> = t0.allocator_mut(py)?;
+        let allocator: &mut IntAllocator = &mut t1.arena;
+        Self::ensure_python_view(vec![slf.to_object(py)], allocator, py)?;
+        let t2: Ref<Option<PyView>> = t0.py_view.borrow();
+        let t3 = &t2.as_ref().unwrap().pair;
+        Ok(t3.clone())
 
         /*
         let allocator = self.allocator(py)?;
@@ -235,14 +236,15 @@ impl PyIntNode {
         }
     }
     */
-
     #[getter(atom)]
-    pub fn atom<'p>(slf: PyRef<'p, Self>, py: Python<'p>) -> PyResult<PyObject> {
-        Self::ensure_python_view(&slf, py)?;
-        let t: Ref<Option<PyView>> = slf.py_view.borrow();
-        let t1 = &t.as_ref().unwrap().atom;
-        Ok(t1.clone())
-
+    pub fn atom<'p>(slf: &'p PyCell<Self>, py: Python<'p>) -> PyResult<PyObject> {
+        let t0: PyRef<PyIntNode> = slf.borrow();
+        let mut t1: PyRefMut<PyIntAllocator> = t0.allocator_mut(py)?;
+        let allocator: &mut IntAllocator = &mut t1.arena;
+        Self::ensure_python_view(vec![slf.to_object(py)], allocator, py)?;
+        let t2: Ref<Option<PyView>> = t0.py_view.borrow();
+        let t3 = &t2.as_ref().unwrap().atom;
+        Ok(t3.clone())
         /*
         let allocator = self.allocator(py)?;
         let allocator: &IntAllocator = &allocator.arena;
