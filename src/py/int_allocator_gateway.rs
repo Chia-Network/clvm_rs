@@ -1,24 +1,18 @@
 use std::cell::{Cell, Ref, RefCell};
 
-use pyo3::{exceptions::PyBufferError, prelude::*};
-//use pyo3::prelude::{PyObject, PyResult, Python};
-use pyo3::ffi::Py_None;
+use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::types::PyTuple;
-use pyo3::AsPyPointer;
 
 use crate::allocator::{Allocator, SExp};
-use crate::int_allocator::{IntAllocator, IntAtomBuf};
-use crate::reduction::EvalErr;
-
-use super::gateway::PythonGateway;
+use crate::int_allocator::IntAllocator;
 
 #[pyclass(subclass, unsendable)]
 pub struct PyIntAllocator {
-    arena: IntAllocator,
+    pub arena: IntAllocator,
 }
 
-struct PyView {
+pub struct PyView {
     atom: PyObject,
     pair: PyObject,
 }
@@ -43,11 +37,11 @@ impl PyView {
 
 #[pyclass(subclass, unsendable)]
 pub struct PyIntNode {
-    arena: PyObject, // &PyCell<PyIntAllocator>
+    pub arena: PyObject, // &PyCell<PyIntAllocator>
     // rust view
-    native_view: Cell<Option<<IntAllocator as Allocator>::Ptr>>,
+    pub native_view: Cell<Option<<IntAllocator as Allocator>::Ptr>>,
     // python view
-    py_view: RefCell<Option<PyView>>,
+    pub py_view: RefCell<Option<PyView>>,
 }
 
 impl PyIntNode {
@@ -80,11 +74,7 @@ impl PyIntNode {
         }
     }
 
-    fn ensure_native_view<'p>(
-        mut to_cast: Vec<PyObject>,
-        allocator: &mut IntAllocator,
-        py: Python<'p>,
-    ) -> () {
+    fn ensure_native_view(mut to_cast: Vec<PyObject>, allocator: &mut IntAllocator, py: Python) {
         loop {
             let t: Option<PyObject> = to_cast.pop();
             match t {
@@ -109,9 +99,7 @@ impl PyIntNode {
                                     p1.borrow().native_view.get();
                                 let r2: Option<<IntAllocator as Allocator>::Ptr> =
                                     p2.borrow().native_view.get();
-                                if r1.is_some() && r2.is_some() {
-                                    let s1 = r1.unwrap();
-                                    let s2 = r2.unwrap();
+                                if let (Some(s1), Some(s2)) = (r1, r2) {
                                     let ptr = allocator.new_pair(s1, s2).unwrap();
                                     t2.native_view.set(Some(ptr));
                                 } else {
@@ -130,10 +118,10 @@ impl PyIntNode {
         }
     }
 
-    fn ensure_python_view<'p>(
+    fn ensure_python_view(
         mut to_cast: Vec<PyObject>,
         allocator: &mut IntAllocator,
-        py: Python<'p>,
+        py: Python,
     ) -> PyResult<()> {
         loop {
             let t = to_cast.pop();
@@ -202,6 +190,11 @@ impl PyIntNode {
 
 #[pymethods]
 impl PyIntNode {
+    #[getter(arena)]
+    pub fn get_arena(&self) -> PyObject {
+        self.arena.clone()
+    }
+
     #[getter(pair)]
     pub fn pair<'p>(slf: &'p PyCell<Self>, py: Python<'p>) -> PyResult<PyObject> {
         let t0: PyRef<PyIntNode> = slf.borrow();
@@ -256,4 +249,5 @@ impl PyIntNode {
         }
         */
     }
+
 }

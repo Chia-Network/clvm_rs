@@ -7,6 +7,7 @@ use pyo3::PyObject;
 
 use super::arc_allocator::ArcAllocator;
 use super::glue::{_py_run_program, _serialize_from_bytes, _serialize_to_bytes};
+use super::int_allocator_gateway::{PyIntAllocator, PyIntNode};
 use super::native_op_lookup::GenericNativeOpLookup;
 use super::py_node::PyNode;
 use super::run_program::{
@@ -129,6 +130,9 @@ fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add_class::<PyNode>()?;
     m.add_class::<NativeOpLookup>()?;
+
+    m.add_class::<PyIntNode>()?;
+    m.add_class::<PyIntAllocator>()?;
 
     m.add_function(wrap_pyfunction!(raise_eval_error, m)?)?;
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;

@@ -1,3 +1,4 @@
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
 use crate::allocator::Allocator;
@@ -7,6 +8,7 @@ use crate::int_allocator::IntAllocator;
 use crate::more_ops::op_unknown;
 use crate::node::Node;
 use crate::py::f_table::{f_lookup_for_hashmap, FLookup};
+use crate::py::int_allocator_gateway::{PyIntAllocator, PyIntNode};
 use crate::reduction::Response;
 use crate::run_program::{run_program, OperatorHandler};
 use crate::serialize::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
@@ -56,7 +58,7 @@ pub fn deserialize_and_run_program(
     opcode_lookup_by_name: HashMap<String, Vec<u8>>,
     max_cost: Cost,
     flags: u32,
-) -> PyResult<(Cost, Py<PyBytes>)> {
+) -> PyResult<(Cost, PyObject)> {
     let mut allocator = IntAllocator::new();
     let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
     let strict: bool = (flags & STRICT_MODE) != 0;
@@ -79,9 +81,16 @@ pub fn deserialize_and_run_program(
     });
     match r {
         Ok(reduction) => {
-            let node_as_blob = node_to_bytes(&Node::new(&allocator, reduction.1))?;
-            let node_as_bytes: Py<PyBytes> = PyBytes::new(py, &node_as_blob).into();
-            Ok((reduction.0, node_as_bytes))
+            let py_int_allocator = PyCell::new(py, PyIntAllocator { arena: allocator })?;
+            let py_int_node = PyCell::new(
+                py,
+                PyIntNode {
+                    arena: py_int_allocator.to_object(py),
+                    py_view: RefCell::new(None),
+                    native_view: Cell::new(Some(reduction.1)),
+                },
+            )?;
+            Ok((reduction.0, py_int_node.to_object(py)))
         }
         Err(eval_err) => {
             let node_as_blob = node_to_bytes(&Node::new(&allocator, eval_err.0))?;
