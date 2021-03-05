@@ -135,70 +135,67 @@ impl PyIntNode {
         allocator: &mut IntAllocator,
         py: Python<'p>,
     ) -> PyResult<()> {
-        /*
-        if slf.py_view.borrow().is_none() {
-            let allocator: &'p IntAllocator = &slf.allocator(py).unwrap().arena;
-            let mut to_cast: Vec<PyRef<PyIntNode>> = vec![slf];
-            loop {
-                let t = to_cast.pop();
-                match t {
-                    None => break,
-                    Some(t) => {
-                        if t.py_view.borrow().is_some() {
-                            continue;
+        loop {
+            let t = to_cast.pop();
+            match t {
+                None => break,
+                Some(t0) => {
+                    let t1: &PyAny = t0.extract(py).unwrap();
+                    let t2: &PyCell<Self> = t1.downcast().unwrap();
+                    let t3: PyRef<Self> = t2.borrow();
+
+                    if t3.py_view.borrow().is_some() {
+                        continue;
+                    }
+                    let ptr = t3.native_view.get().unwrap();
+                    match allocator.sexp(&ptr) {
+                        SExp::Atom(a) => {
+                            let as_u8: &[u8] = allocator.buf(&a);
+                            let py_bytes = PyBytes::new(py, as_u8);
+                            let py_object: PyObject = py_bytes.to_object(py);
+                            let py_view = PyView {
+                                atom: py_object,
+                                pair: ().to_object(py),
+                            };
+                            t3.py_view.replace(Some(py_view));
                         }
-                        let ptr = t.native_view.get().unwrap();
-                        match allocator.sexp(&ptr) {
-                            SExp::Atom(a) => {
-                                let as_u8: &[u8] = allocator.buf(&a);
-                                let py_bytes = PyBytes::new(py, as_u8);
-                                let py_object: PyObject = py_bytes.to_object(py);
-                                let py_view = PyView {
-                                    atom: py_object,
-                                    pair: ().to_object(py),
-                                };
-                                t.py_view.replace(Some(py_view));
-                            }
-                            SExp::Pair(p1, p2) => {
-                                // create new n1, n2 child nodes of t
-                                let arena = t.arena.clone();
-                                let native_view = Cell::new(Some(p1));
-                                let py_view = RefCell::new(None);
-                                let n1 = PyCell::new(
-                                    py,
-                                    PyIntNode {
-                                        arena,
-                                        native_view,
-                                        py_view,
-                                    },
-                                )?;
-                                let arena = t.arena.clone();
-                                let native_view = Cell::new(Some(p2));
-                                let py_view = RefCell::new(None);
-                                let n2 = PyCell::new(
-                                    py,
-                                    PyIntNode {
-                                        arena,
-                                        native_view,
-                                        py_view,
-                                    },
-                                )?;
-                                let py_object = PyTuple::new(py, [n1, n2]);
-                                let py_view = PyView {
-                                    pair: py_object,
-                                    atom: ().to_object(py),
-                                };
-                                t.py_view.replace(Some(py_view));
-                                to_cast.push(n1.borrow());
-                                to_cast.push(n2.borrow());
-                            }
+                        SExp::Pair(p1, p2) => {
+                            // create new n1, n2 child nodes of t
+                            let arena = t3.arena.clone();
+                            let native_view = Cell::new(Some(p1));
+                            let py_view = RefCell::new(None);
+                            let n1 = PyCell::new(
+                                py,
+                                PyIntNode {
+                                    arena,
+                                    native_view,
+                                    py_view,
+                                },
+                            )?;
+                            let arena = t3.arena.clone();
+                            let native_view = Cell::new(Some(p2));
+                            let py_view = RefCell::new(None);
+                            let n2 = PyCell::new(
+                                py,
+                                PyIntNode {
+                                    arena,
+                                    native_view,
+                                    py_view,
+                                },
+                            )?;
+                            let py_object = PyTuple::new(py, &[n1, n2]);
+                            let py_view = PyView {
+                                pair: py_object.to_object(py),
+                                atom: ().to_object(py),
+                            };
+                            t3.py_view.replace(Some(py_view));
+                            to_cast.push(n1.to_object(py));
+                            to_cast.push(n2.to_object(py));
                         }
                     }
                 }
             }
         }
-        //Ok(slf.py_view.borrow())
-        */
         Ok(())
     }
 }
