@@ -18,7 +18,7 @@ use pyo3::types::{PyBytes, PyDict};
 
 pub const STRICT_MODE: u32 = 1;
 
-struct OperatorHandlerWithMode<A: Allocator> {
+pub struct OperatorHandlerWithMode<A: Allocator> {
     f_lookup: FLookup<A>,
     strict: bool,
 }
