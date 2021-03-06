@@ -119,7 +119,11 @@ impl PyIntNode {
     }
     */
 
-    fn ensure_native_view(mut to_cast: Vec<PyObject>, allocator: &mut IntAllocator, py: Python) {
+    pub fn ensure_native_view(
+        mut to_cast: Vec<PyObject>,
+        allocator: &mut IntAllocator,
+        py: Python,
+    ) {
         loop {
             let t: Option<PyObject> = to_cast.pop();
             match t {
@@ -160,7 +164,7 @@ impl PyIntNode {
         }
     }
 
-    fn ensure_python_view(
+    pub fn ensure_python_view(
         mut to_cast: Vec<PyObject>,
         allocator: &mut IntAllocator,
         py: Python,
