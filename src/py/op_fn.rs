@@ -1,8 +1,12 @@
 use std::collections::HashMap;
 
 use pyo3::prelude::pyclass;
+use pyo3::types::PyString;
+use pyo3::types::PyTuple;
 use pyo3::PyCell;
+use pyo3::PyErr;
 use pyo3::PyObject;
+use pyo3::PyResult;
 use pyo3::Python;
 use pyo3::ToPyObject;
 
@@ -61,7 +65,6 @@ impl PyOperatorHandler {
         args: &<IntAllocator as Allocator>::Ptr,
         max_cost: Cost,
     ) -> Response<<IntAllocator as Allocator>::Ptr> {
-
         Python::with_gil(|py| {
             let op = allocator.buf(&op_buf).to_object(py);
             let py_int_node: &PyCell<PyIntNode> =
@@ -70,39 +73,51 @@ impl PyOperatorHandler {
             // this hack ensures we have python representations in all children
             PyIntNode::ensure_python_view(vec![py_int_node.to_object(py)], allocator, py).unwrap();
             let r1 = obj.call1(py, (op, py_int_node));
-            /*
+
             match r1 {
                 Err(pyerr) => {
-                    let eval_err: PyResult<EvalErr<<A as Allocator>::Ptr>> =
-                        eval_err_for_pyerr(py, &pyerr);
-                    let r: EvalErr<<A as Allocator>::Ptr> =
-                        unwrap_or_eval_err(eval_err, argument_list, "unexpected exception")?;
+                    let eval_err: PyResult<EvalErr<i32>> = eval_err_for_pyerr(py, &pyerr);
+                    let r: EvalErr<i32> =
+                        unwrap_or_eval_err(eval_err, args, "unexpected exception")?;
                     Err(r)
                 }
                 Ok(o) => {
-                    let pair: &PyTuple =
-                        unwrap_or_eval_err(o.extract(py), argument_list, "expected tuple")?;
+                    let pair: &PyTuple = unwrap_or_eval_err(o.extract(py), args, "expected tuple")?;
 
-                    let i0: u32 = unwrap_or_eval_err(
-                        pair.get_item(0).extract(),
-                        argument_list,
-                        "expected u32",
-                    )?;
+                    let i0: u32 =
+                        unwrap_or_eval_err(pair.get_item(0).extract(), args, "expected u32")?;
 
-                    let py_node: N = unwrap_or_eval_err(
-                        pair.get_item(1).extract(),
-                        argument_list,
-                        "expected node",
-                    )?;
+                    let py_node: &PyCell<PyIntNode> =
+                        unwrap_or_eval_err(pair.get_item(1).extract(), args, "expected node")?;
 
-                    let node: <A as Allocator>::Ptr = py_node.into();
+                    let node: i32 = PyIntNode::ptr(py_node, Some(py));
                     Ok(Reduction(i0 as Cost, node))
                 }
             }
-            */
-            Ok(Reduction(0, 0))
         })
     }
 }
 
 //fn(&mut T, <T as Allocator>::Ptr, Cost) -> Response<<T as Allocator>::Ptr>;
+
+/// turn a `PyErr` into an `EvalErr<P>` if at all possible
+/// otherwise, return a `PyErr`
+
+fn eval_err_for_pyerr<'p>(py: Python<'p>, pyerr: &PyErr) -> PyResult<EvalErr<i32>> {
+    let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
+    let arg0: &PyString = args.get_item(0).extract()?;
+    let sexp: &PyCell<PyIntNode> = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
+    let node: i32 = PyIntNode::ptr(&sexp, Some(py));
+    let s: String = arg0.to_str()?.to_string();
+    Ok(EvalErr(node, s))
+}
+
+fn unwrap_or_eval_err<T, P>(obj: PyResult<T>, err_node: &P, msg: &str) -> Result<T, EvalErr<P>>
+where
+    P: Clone,
+{
+    match obj {
+        Err(_py_err) => Err(EvalErr(err_node.clone(), msg.to_string())),
+        Ok(o) => Ok(o),
+    }
+}
