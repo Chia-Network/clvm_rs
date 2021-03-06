@@ -3,6 +3,7 @@ use std::cell::{Cell, Ref, RefCell};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::types::PyTuple;
+use pyo3::types::PyType;
 
 use crate::allocator::{Allocator, SExp};
 use crate::int_allocator::IntAllocator;
@@ -18,6 +19,12 @@ pub struct PyView {
 }
 
 impl PyView {
+    pub fn new(atom: &PyObject, pair: &PyObject) -> Self {
+        let atom = atom.clone();
+        let pair = pair.clone();
+        PyView { atom, pair }
+    }
+
     fn py_bytes<'p>(&'p self, py: Python<'p>) -> Option<&'p PyBytes> {
         // this glue returns a &[u8] if self.atom has PyBytes behind it
         let r: Option<&PyBytes> = self.atom.extract(py).ok();
@@ -45,6 +52,29 @@ pub struct PyIntNode {
 }
 
 impl PyIntNode {
+    pub fn new(arena: PyObject, native_view: Option<i32>, py_view: Option<PyView>) -> Self {
+        let native_view = Cell::new(native_view);
+        let py_view = RefCell::new(py_view);
+        Self {
+            arena,
+            native_view,
+            py_view,
+        }
+    }
+
+    pub fn from_ptr<'p>(
+        py: Python<'p>,
+        allocator: IntAllocator,
+        ptr: <IntAllocator as Allocator>::Ptr,
+    ) -> PyResult<&'p PyCell<Self>> {
+        let py_int_allocator = PyCell::new(py, PyIntAllocator { arena: allocator })?;
+        let py_int_node = PyCell::new(
+            py,
+            PyIntNode::new(py_int_allocator.to_object(py), Some(ptr), None),
+        );
+        py_int_node
+    }
+
     fn allocator<'p>(&'p self, py: Python<'p>) -> PyResult<PyRef<'p, PyIntAllocator>> {
         let allocator: &PyCell<PyIntAllocator> = self.arena.extract(py)?;
         Ok(allocator.try_borrow()?)
@@ -55,7 +85,7 @@ impl PyIntNode {
         Ok(allocator.try_borrow_mut()?)
     }
 
-    fn ptr(slf: &PyCell<Self>, py: Option<Python>) -> <IntAllocator as Allocator>::Ptr {
+    pub fn ptr(slf: &PyCell<Self>, py: Option<Python>) -> <IntAllocator as Allocator>::Ptr {
         if let Some(r) = slf.borrow().native_view.get() {
             r
         } else {
@@ -73,6 +103,21 @@ impl PyIntNode {
             }
         }
     }
+
+    /*
+    pub fn get_py_view<'p>(slf: &'p PyCell<Self>, py: Python<'p>) -> PyResult<Ref<'p, Option<PyView>>> {
+        let t0: PyRef<PyIntNode> = slf.borrow();
+        {
+            let t1: Ref<Option<PyView>> = t0.py_view.borrow();
+            if t1.is_none() {
+                let mut t2: PyRefMut<PyIntAllocator> = t0.allocator_mut(py)?;
+                let allocator: &mut IntAllocator = &mut t2.arena;
+                Self::ensure_python_view(vec![slf.to_object(py)], allocator, py)?;
+            }
+        }
+        Ok(t0.py_view.borrow())
+    }
+    */
 
     fn ensure_native_view(mut to_cast: Vec<PyObject>, allocator: &mut IntAllocator, py: Python) {
         loop {
@@ -104,9 +149,6 @@ impl PyIntNode {
                                     t2.native_view.set(Some(ptr));
                                 } else {
                                     // otherwise, push t, push p1, push p2 back on stack to be processed
-                                    //
-                                    // UGH, these objects are type `PyCell<PyIntNode>` not &PyIntNode, what do I do
-                                    //
                                     to_cast.push(p1.to_object(py));
                                     to_cast.push(p2.to_object(py));
                                 }
@@ -190,6 +232,27 @@ impl PyIntNode {
 
 #[pymethods]
 impl PyIntNode {
+    #[classmethod]
+    fn new_atom(cls: &PyType, py: Python, atom: &PyBytes) -> PyResult<Self> {
+        let none: PyObject = py.eval("None", None, None)?.to_object(py);
+        let py_view = Some(PyView::new(&atom.to_object(py), &none));
+        Ok(PyIntNode::new(none, None, py_view))
+    }
+
+    #[classmethod]
+    fn new_pair(
+        cls: &PyType,
+        py: Python,
+        p1: &PyCell<PyIntNode>,
+        p2: &PyCell<PyIntNode>,
+    ) -> PyResult<Self> {
+        let pair: &PyTuple = PyTuple::new(py, &[p1, p2]);
+        let none: PyObject = py.eval("None", None, None)?.to_object(py);
+        // TODO: ensure `pair` is a tuple of two `PyIntNode`
+        let py_view = Some(PyView::new(&none, &pair.to_object(py)));
+        Ok(PyIntNode::new(none, None, py_view))
+    }
+
     #[getter(arena)]
     pub fn get_arena(&self) -> PyObject {
         self.arena.clone()
@@ -249,5 +312,4 @@ impl PyIntNode {
         }
         */
     }
-
 }
