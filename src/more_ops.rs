@@ -462,6 +462,24 @@ pub fn op_substr<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Res
     }
 }
 
+pub fn op_substr_r<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+    let args = Node::new(a, input);
+    check_arg_count(&args, 2, "substr_r")?;
+    let a0 = args.first()?;
+    let s0 = atom(&a0, "substr")?;
+    let rest = args.rest()?;
+    let i1 = i32_atom(&rest.first()?, "substr")?;
+    let size = s0.len();
+    if i1 < 0 || i1 as usize > size {
+        args.err("invalid indices for substr_r")
+    } else {
+        let atom_node = a0.node;
+        let r = a.new_substr(atom_node, i1 as u32, size as u32)?;
+        let cost: Cost = 1;
+        Ok(Reduction(cost, r))
+    }
+}
+
 pub fn op_concat<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
     let args = Node::new(a, input);
     let mut cost = CONCAT_BASE_COST;

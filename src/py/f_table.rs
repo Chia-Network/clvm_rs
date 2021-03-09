@@ -6,7 +6,7 @@ use crate::cost::Cost;
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_concat, op_div, op_divmod, op_gr, op_gr_bytes, op_logand,
     op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add, op_pubkey_for_exp,
-    op_sha256, op_softfork, op_strlen, op_substr, op_subtract,
+    op_sha256, op_softfork, op_strlen, op_substr, op_substr_r, op_subtract,
 };
 use crate::reduction::Response;
 
@@ -15,7 +15,7 @@ type OpFn<T> = fn(&mut T, <T as Allocator>::Ptr, Cost) -> Response<<T as Allocat
 pub type FLookup<T> = [Option<OpFn<T>>; 256];
 
 pub fn opcode_by_name<T: Allocator>(name: &str) -> Option<OpFn<T>> {
-    let opcode_lookup: [(OpFn<T>, &str); 30] = [
+    let opcode_lookup: [(OpFn<T>, &str); 31] = [
         (op_if, "op_if"),
         (op_cons, "op_cons"),
         (op_first, "op_first"),
@@ -29,6 +29,7 @@ pub fn opcode_by_name<T: Allocator>(name: &str) -> Option<OpFn<T>> {
         (op_multiply, "op_multiply"),
         (op_divmod, "op_divmod"),
         (op_substr, "op_substr"),
+        (op_substr_r, "op_substr_r"),
         (op_strlen, "op_strlen"),
         (op_point_add, "op_point_add"),
         (op_pubkey_for_exp, "op_pubkey_for_exp"),
