@@ -466,9 +466,9 @@ pub fn op_substr_r<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> R
     let args = Node::new(a, input);
     check_arg_count(&args, 2, "substr_r")?;
     let a0 = args.first()?;
-    let s0 = atom(&a0, "substr")?;
+    let s0 = atom(&a0, "substr_r")?;
     let rest = args.rest()?;
-    let i1 = i32_atom(&rest.first()?, "substr")?;
+    let i1 = i32_atom(&rest.first()?, "substr_r")?;
     let size = s0.len();
     if i1 < 0 || i1 as usize > size {
         args.err("invalid indices for substr_r")
