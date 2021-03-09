@@ -11,6 +11,7 @@ use super::native_view::NativeView;
 use super::py_int_allocator::PyIntAllocator;
 use super::py_view::PyView;
 
+#[derive(Clone)]
 enum View {
     Python(PyView),
     Native(NativeView),
@@ -29,14 +30,15 @@ impl PyNaNode {
             .to_object(py);
 
         let node = PyNaNode {
-            node: view,
+            node: view.clone(),
             int_arena_cache,
         };
-        if let View::Native(native_view) = view {
-            node.add_to_arena_cache(py, &native_view.arena, native_view.ptr)?;
-        }
 
         let r = PyCell::new(py, node)?;
+        if let View::Native(native_view) = view {
+            r.borrow()
+                .add_to_arena_cache(py, &native_view.arena, native_view.ptr)?;
+        }
         Ok(r)
     }
 
@@ -92,36 +94,37 @@ impl PyNaNode {
                 _ => (),
             }
         }
-        Self::ensure_native_view_cached(slf, py, arena, allocator)?;
+        Self::ensure_native_view_cached(slf.borrow_mut(), py, arena, allocator)?;
         Ok(slf.try_borrow()?.check_cache(py, arena)?.unwrap())
     }
 
-    pub fn ensure_native_view_cached(
-        slf: &PyCell<Self>,
-        py: Python,
+    pub fn ensure_native_view_cached<'p>(
+        slf: PyRefMut<Self>,
+        py: Python<'p>,
         arena: &PyObject,
         allocator: &mut IntAllocator,
     ) -> PyResult<()> {
-        let mut to_cast: Vec<&PyCell<Self>> = vec![slf];
+        let mut to_cast: Vec<PyRefMut<Self>> = vec![slf];
         Ok(loop {
-            let t: Option<&PyCell<Self>> = to_cast.pop();
+            let t: Option<PyRefMut<Self>> = to_cast.pop();
             match t {
                 None => break,
-                Some(py_cell) => {
-                    let transfer: Option<(&PyCell<Self>, &PyCell<Self>)> = py_cell
-                        .try_borrow_mut()?
-                        .add_to_native_cache(py, arena, allocator)?;
+                Some(mut node_ref) => {
+                    let transfer: Option<(&'p PyCell<Self>, &'p PyCell<Self>)> =
+                        node_ref.add_to_native_cache(py, arena, allocator)?;
                     if let Some((p0, p1)) = transfer {
-                        to_cast.push(p0);
-                        to_cast.push(p1);
+                        to_cast.push(p0.borrow_mut());
+                        to_cast.push(p1.borrow_mut());
                     }
                 }
             }
         })
     }
 
+    /// This instance has a corresponding rep in some `IntAllocator`
+    /// Notate this in the cache.
     fn add_to_native_cache<'p>(
-        &'p mut self,
+        &mut self,
         py: Python<'p>,
         arena: &PyObject,
         allocator: &mut IntAllocator,
@@ -139,10 +142,11 @@ impl PyNaNode {
                         ptr
                     }
                     PyView::Pair(pair) => {
-                        let pair: &PyTuple = pair.extract(py)?;
+                        let pair: &'p PyAny = pair.into_ref(py);
+                        let pair: &'p PyTuple = pair.extract()?;
 
-                        let p0: &PyCell<PyNaNode> = pair.get_item(0).extract()?;
-                        let p1: &PyCell<PyNaNode> = pair.get_item(1).extract()?;
+                        let p0: &'p PyCell<PyNaNode> = pair.get_item(0).extract()?;
+                        let p1: &'p PyCell<PyNaNode> = pair.get_item(1).extract()?;
                         let ptr_0 = p0.borrow().check_cache(py, arena)?;
                         let ptr_1 = p1.borrow().check_cache(py, arena)?;
                         if let (Some(ptr_0), Some(ptr_1)) = (ptr_0, ptr_1) {
@@ -159,34 +163,33 @@ impl PyNaNode {
         Ok(None)
     }
 
+    /// If this instance is using `NativeView`, replace it with an equivalent `PythonView`
+    /// so it can be use from python.
     pub fn ensure_python_view<'p>(
-        &'p mut self,
+        &mut self,
         py: Python<'p>,
         borrowed_arena: Option<(&PyObject, &mut IntAllocator)>,
-    ) -> PyResult<&'p PyView> {
+    ) -> PyResult<PyView> {
         // if using `NativeView`, swap it out for `PythonView`
-        match &self.node {
-            View::Python(py_view) => Ok(py_view),
+        match self.node.clone() {
+            View::Python(py_view) => Ok(py_view.clone()),
             View::Native(native_view) => {
-                let (arena, allocator) = {
-                    if {
-                        if let Some((arena, allocator)) = borrowed_arena {
-                            // WARNING: this check may not actually work
-                            // TODO: research & fix
-                            arena == &native_view.arena
-                        } else {
-                            false
-                        }
-                    } {
-                        borrowed_arena.unwrap()
-                    } else {
-                        let py_int_allocator: PyRef<PyIntAllocator> =
-                            native_view.arena.extract(py)?;
-                        let allocator = &mut py_int_allocator.arena;
-                        (&native_view.arena, allocator)
+                let mut py_int_allocator: PyRefMut<PyIntAllocator> = native_view.arena.extract(py)?;
+                let mut allocator_to_use: &mut IntAllocator = &mut py_int_allocator.arena;
+
+                if let Some((arena, allocator)) = borrowed_arena {
+                    // WARNING: this check may not actually work
+                    // TODO: research & fix
+                    if arena == &native_view.arena {
+                        allocator_to_use = allocator;
                     }
                 };
-                self.ensure_py_view_for_ptr_allocator(py, arena, allocator, native_view.ptr)
+                self.ensure_py_view_for_ptr_allocator(
+                    py,
+                    &native_view.arena,
+                    allocator_to_use,
+                    native_view.ptr,
+                )
             }
         }
     }
@@ -197,7 +200,7 @@ impl PyNaNode {
         arena: &PyObject,
         allocator: &mut IntAllocator,
         ptr: <IntAllocator as Allocator>::Ptr,
-    ) -> PyResult<&PyView> {
+    ) -> PyResult<PyView> {
         // create a PyView and put it in self
         let py_view = match allocator.sexp(&ptr) {
             SExp::Atom(a) => {
@@ -212,9 +215,10 @@ impl PyNaNode {
             }
         };
         self.add_to_arena_cache(py, arena, ptr)?;
+        let r = py_view.clone();
         let view = View::Python(py_view);
         self.node = view;
-        Ok(&py_view)
+        Ok(r)
     }
 }
 
@@ -243,7 +247,7 @@ impl PyNaNode {
     pub fn atom<'p>(slf: &'p PyCell<Self>, py: Python<'p>) -> PyResult<&'p PyAny> {
         let py_view = slf.try_borrow_mut()?.ensure_python_view(py, None)?;
         match py_view {
-            PyView::Atom(obj) => Ok(obj.as_ref(py)),
+            PyView::Atom(obj) => Ok(obj.into_ref(py)),
             _ => Ok(py.eval("None", None, None)?.extract()?),
         }
     }
@@ -252,7 +256,7 @@ impl PyNaNode {
     pub fn pair<'p>(slf: &'p PyCell<Self>, py: Python<'p>) -> PyResult<&'p PyAny> {
         let py_view = slf.try_borrow_mut()?.ensure_python_view(py, None)?;
         match py_view {
-            PyView::Pair(obj) => Ok(obj.as_ref(py)),
+            PyView::Pair(obj) => Ok(obj.into_ref(py)),
             _ => Ok(py.eval("None", None, None)?.extract()?),
         }
     }
