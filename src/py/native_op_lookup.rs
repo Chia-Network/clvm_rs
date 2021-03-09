@@ -14,6 +14,9 @@ use super::f_table::{f_lookup_for_hashmap, FLookup};
 
 use super::to_py_node::ToPyNode;
 
+/// turn a `PyErr` into an `EvalErr<P>` if at all possible
+/// otherwise, return a `PyErr`
+
 fn eval_err_for_pyerr<'s, 'p: 's, 'e: 's, P, N>(
     py: Python<'p>,
     pyerr: &'e PyErr,

@@ -5,20 +5,23 @@ use pyo3::types::{PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
-use super::arc_allocator::ArcAllocator;
-use super::glue::{_py_run_program, _serialize_from_bytes, _serialize_to_bytes};
+use super::glue::{_serialize_from_bytes, _serialize_to_bytes};
 use super::int_allocator_gateway::{PyIntAllocator, PyIntNode};
 use super::native_op_lookup::GenericNativeOpLookup;
-use super::py_node::PyNode;
 use super::run_program::{
-    __pyo3_get_function_deserialize_and_run_program,
-    __pyo3_get_function_serialized_length, STRICT_MODE,
+    __pyo3_get_function_deserialize_and_run_program, __pyo3_get_function_serialized_length,
+    STRICT_MODE,
 };
-use crate::cost::Cost;
+use crate::int_allocator::IntAllocator;
+use crate::py::f_table::{f_lookup_for_hashmap, FLookup};
+use crate::py::run_program::OperatorHandlerWithMode;
+use crate::run_program::OperatorHandler;
+use crate::{allocator, cost::Cost};
 
-type AllocatorT<'a> = ArcAllocator;
-type NodeClass = PyNode;
+type AllocatorT<'a> = IntAllocator;
+type NodeClass = PyIntNode;
 
+/*
 #[pyclass]
 pub struct NativeOpLookup {
     nol: usize, // Box<GenericNativeOpLookup<AllocatorT>>,
@@ -43,46 +46,51 @@ impl Drop for NativeOpLookup {
 }
 
 impl NativeOpLookup {
-    fn new_from_gnol(gnol: Box<GenericNativeOpLookup<AllocatorT, PyNode>>) -> Self {
-        Self {
+    fn new_from_gnol(gnol: Box<GenericNativeOpLookup<AllocatorT, PyIntNode>>) -> Self {
+        NativeOpLookup {
             nol: Box::into_raw(gnol) as usize,
         }
     }
 }
 
 impl NativeOpLookup {
-    fn gnol<'a, 'p>(&self, _py: Python<'p>) -> &'a GenericNativeOpLookup<AllocatorT<'p>, PyNode> {
+    fn gnol<'a, 'p>(
+        &self,
+        _py: Python<'p>,
+    ) -> &'a GenericNativeOpLookup<AllocatorT<'p>, PyIntNode> {
         unsafe { &*(self.nol as *const GenericNativeOpLookup<AllocatorT, NodeClass>) }
     }
 }
+*/
 
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 fn py_run_program(
     py: Python,
-    program: &NodeClass,
-    args: &NodeClass,
+    program: &PyCell<NodeClass>,
+    args: &PyCell<NodeClass>,
     quote_kw: u8,
     apply_kw: u8,
     max_cost: Cost,
-    op_lookup: Py<NativeOpLookup>,
-    pre_eval: PyObject,
-) -> PyResult<(Cost, NodeClass)> {
-    let mut allocator = allocator_for_py(py);
-    let op_lookup: &PyCell<NativeOpLookup> = op_lookup.as_ref(py);
-    let op_lookup: PyRef<NativeOpLookup> = op_lookup.borrow();
-    let op_lookup: Box<GenericNativeOpLookup<AllocatorT, NodeClass>> =
-        Box::new(op_lookup.gnol(py).to_owned());
+    opcode_lookup_by_name: HashMap<String, Vec<u8>>,
+    py_callback: PyObject,
+    //op_lookup: Py<NativeOpLookup>,
+    //pre_eval: PyObject,
+) -> PyResult<(Cost, PyObject)> {
+    //let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
+    //let strict: bool = false;
+    //let f: Box<dyn OperatorHandler<IntAllocator>> =
+    //   Box::new(OperatorHandlerWithMode { f_lookup, strict });
+
     _py_run_program(
         py,
-        &mut allocator,
         program,
         args,
         quote_kw,
         apply_kw,
         max_cost,
-        op_lookup,
-        pre_eval,
+        opcode_lookup_by_name,
+        py_callback,
     )
 }
 
@@ -106,36 +114,91 @@ const fn allocator_for_py(_py: Python) -> AllocatorT {
     AllocatorT::new()
 }
 
+/*
 #[pyfunction]
-fn serialize_from_bytes(py: Python, blob: &[u8]) -> NodeClass {
+fn serialize_from_bytes(py: Python, blob: &[u8]) -> PyIntNode {
     let mut allocator = allocator_for_py(py);
-    _serialize_from_bytes(&mut allocator, blob)
+
+    let v = _serialize_from_bytes(&mut allocator, blob);
+    PyIntNode {}
 }
 
 #[pyfunction]
 fn serialize_to_bytes(py: Python, sexp: &PyAny) -> PyResult<PyObject> {
     let allocator = allocator_for_py(py);
     _serialize_to_bytes::<AllocatorT, NodeClass>(&allocator, py, sexp)
-}
+}*/
 
 /// This module is a python module implemented in Rust.
 #[pymodule]
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_run_program, m)?)?;
-    m.add_function(wrap_pyfunction!(serialize_from_bytes, m)?)?;
-    m.add_function(wrap_pyfunction!(serialize_to_bytes, m)?)?;
+    //m.add_function(wrap_pyfunction!(serialize_from_bytes, m)?)?;
+    //m.add_function(wrap_pyfunction!(serialize_to_bytes, m)?)?;
 
     m.add_function(wrap_pyfunction!(deserialize_and_run_program, m)?)?;
     m.add("STRICT_MODE", STRICT_MODE)?;
 
-    m.add_class::<PyNode>()?;
-    m.add_class::<NativeOpLookup>()?;
+    //m.add_class::<PyNode>()?;
+    // m.add_class::<NativeOpLookup>()?;
 
     m.add_class::<PyIntNode>()?;
     m.add_class::<PyIntAllocator>()?;
 
-    m.add_function(wrap_pyfunction!(raise_eval_error, m)?)?;
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
 
     Ok(())
+}
+
+use crate::py::op_fn::PyOperatorHandler;
+use crate::reduction::{EvalErr, Reduction};
+
+#[allow(clippy::too_many_arguments)]
+pub fn _py_run_program(
+    py: Python,
+    program: &PyCell<PyIntNode>,
+    args: &PyCell<PyIntNode>,
+    quote_kw: u8,
+    apply_kw: u8,
+    max_cost: Cost,
+    opcode_lookup_by_name: HashMap<String, Vec<u8>>,
+    py_callback: PyObject,
+) -> PyResult<(Cost, PyObject)> {
+    let mut allocator = IntAllocator::new();
+    let arena = PyCell::new(py, PyIntAllocator { arena: allocator })?;
+    let mut b = arena.borrow_mut();
+    let mut allocator: &mut IntAllocator = &mut b.arena;
+
+    println!("1");
+    let program = PyIntNode::ptr(program, Some(py), arena.to_object(py), &mut allocator);
+    println!("2");
+    let args = PyIntNode::ptr(args, Some(py), arena.to_object(py), &mut allocator);
+    println!("3");
+
+    let op_lookup = Box::new(PyOperatorHandler::new(
+        opcode_lookup_by_name,
+        arena.to_object(py),
+        py_callback,
+    ));
+
+    let r: Result<Reduction<i32>, EvalErr<i32>> = crate::run_program::run_program(
+        allocator, &program, &args, quote_kw, apply_kw, max_cost, op_lookup, None,
+    );
+
+    match r {
+        Ok(reduction) => {
+            let r = PyIntNode::from_ptr(py, arena.to_object(py), reduction.1)?;
+            Ok((reduction.0, r.to_object(py)))
+        }
+        Err(eval_err) => {
+            let node: PyObject = eval_err.0.to_object(py);
+            let s: String = eval_err.1;
+            let s1: &str = &s;
+            let msg: &PyString = PyString::new(py, s1);
+            match raise_eval_error(py, &msg, node) {
+                Err(x) => Err(x),
+                _ => panic!(),
+            }
+        }
+    }
 }
