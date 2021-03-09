@@ -4,6 +4,7 @@ use pyo3::types::{PyBytes, PyTuple};
 
 use super::py_na_node::PyNaNode;
 
+#[derive(Clone)]
 pub enum PyView {
     Atom(PyObject),
     Pair(PyObject),
