@@ -22,56 +22,56 @@ use sha2::{Digest, Sha256};
 #[cfg(unix)]
 use openssl::sha;
 
-const ARITH_BASE_COST: Cost = 4;
-const ARITH_COST_PER_ARG: Cost = 8;
-const ARITH_COST_PER_LIMB_DIVIDER: Cost = 64;
+const ARITH_BASE_COST: Cost = 1;
+const ARITH_COST_PER_ARG: Cost = 3;
+const ARITH_COST_PER_LIMB_DIVIDER: Cost = 32;
 
-const LOG_BASE_COST: Cost = 6;
-const LOG_COST_PER_ARG: Cost = 8;
-const LOG_COST_PER_LIMB_DIVIDER: Cost = 64;
+const LOG_BASE_COST: Cost = 1;
+const LOG_COST_PER_ARG: Cost = 3;
+const LOG_COST_PER_LIMB_DIVIDER: Cost = 32;
 
-const LOGNOT_BASE_COST: Cost = 12;
-const LOGNOT_COST_PER_BYTE_DIVIDER: Cost = 512;
+const LOGNOT_BASE_COST: Cost = 3;
+const LOGNOT_COST_PER_BYTE_DIVIDER: Cost = 32;
 
-const MUL_BASE_COST: Cost = 2;
-const MUL_COST_PER_OP: Cost = 18;
-const MUL_LINEAR_COST_PER_BYTE_DIVIDER: Cost = 64;
-const MUL_SQUARE_COST_PER_BYTE_DIVIDER: Cost = 44500;
+const MUL_BASE_COST: Cost = 1;
+const MUL_COST_PER_OP: Cost = 8;
+const MUL_LINEAR_COST_PER_BYTE_DIVIDER: Cost = 16;
+const MUL_SQUARE_COST_PER_BYTE_DIVIDER: Cost = 16384;
 
-const GR_BASE_COST: Cost = 19;
-const GR_COST_PER_LIMB_DIVIDER: Cost = 64;
+const GR_BASE_COST: Cost = 5;
+const GR_COST_PER_LIMB_DIVIDER: Cost = 32;
 
-const CMP_BASE_COST: Cost = 16;
+const CMP_BASE_COST: Cost = 2;
 const CMP_COST_PER_LIMB_DIVIDER: Cost = 64;
 
-const STRLEN_BASE_COST: Cost = 18;
-const STRLEN_COST_PER_BYTE_DIVIDER: Cost = 4096;
+const STRLEN_BASE_COST: Cost = 2;
+const STRLEN_COST_PER_BYTE_DIVIDER: Cost = 128;
 
-const CONCAT_BASE_COST: Cost = 4;
-const CONCAT_COST_PER_ARG: Cost = 8;
-const CONCAT_COST_PER_BYTE_DIVIDER: Cost = 830;
+const CONCAT_BASE_COST: Cost = 1;
+const CONCAT_COST_PER_ARG: Cost = 1;
+const CONCAT_COST_PER_BYTE_DIVIDER: Cost = 32;
 
-const DIVMOD_BASE_COST: Cost = 29;
-const DIVMOD_COST_PER_LIMB_DIVIDER: Cost = 64;
+const DIVMOD_BASE_COST: Cost = 11;
+const DIVMOD_COST_PER_LIMB_DIVIDER: Cost = 16;
 
-const DIV_BASE_COST: Cost = 29;
-const DIV_COST_PER_LIMB_DIVIDER: Cost = 64;
+const DIV_BASE_COST: Cost = 9;
+const DIV_COST_PER_LIMB_DIVIDER: Cost = 32;
 
-const SHA256_BASE_COST: Cost = 3;
-const SHA256_COST_PER_ARG: Cost = 8;
+const SHA256_BASE_COST: Cost = 2;
+const SHA256_COST_PER_ARG: Cost = 1;
 const SHA256_COST_PER_BYTE_DIVIDER: Cost = 64;
 
-const SHIFT_BASE_COST: Cost = 21;
-const SHIFT_COST_PER_BYTE_DIVIDER: Cost = 256;
+const SHIFT_BASE_COST: Cost = 4;
+const SHIFT_COST_PER_BYTE_DIVIDER: Cost = 32;
 
 const BOOL_BASE_COST: Cost = 1;
-const BOOL_COST_PER_ARG: Cost = 8;
+const BOOL_COST_PER_ARG: Cost = 3;
 
-const POINT_ADD_BASE_COST: Cost = 213;
-const POINT_ADD_COST_PER_ARG: Cost = 358;
+const POINT_ADD_BASE_COST: Cost = 316;
+const POINT_ADD_COST_PER_ARG: Cost = 4200;
 
-const PUBKEY_BASE_COST: Cost = 394;
-const PUBKEY_COST_PER_BYTE_DIVIDER: Cost = 4;
+const PUBKEY_BASE_COST: Cost = 4194;
+const PUBKEY_COST_PER_BYTE_DIVIDER: Cost = 8;
 
 fn limbs_for_int(v: &Number) -> usize {
     ((v.bits() + 7) / 8) as usize
@@ -222,7 +222,7 @@ fn test_unknown_op_reserved() {
 
     // a single ff is not sufficient to be treated as a reserved opcode
     let buf = vec![0xff];
-    assert_eq!(test_op_unknown(&buf, &mut a, null), Ok(Reduction(4, null)));
+    assert_eq!(test_op_unknown(&buf, &mut a, null), Ok(Reduction(1, null)));
 
     // leading zeros count, so this is not considered an ffff-prefix
     let buf = vec![0x00, 0xff, 0xff, 0x00, 0x00];
@@ -594,7 +594,7 @@ pub fn op_not<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respon
     let args = Node::new(a, input);
     check_arg_count(&args, 1, "not")?;
     let r: T::Ptr = args.from_bool(!args.first()?.as_bool()).node;
-    let cost = BOOL_BASE_COST + BOOL_COST_PER_ARG;
+    let cost = BOOL_BASE_COST;
     Ok(Reduction(cost, r))
 }
 
