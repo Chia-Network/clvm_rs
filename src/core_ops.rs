@@ -4,12 +4,12 @@ use crate::node::Node;
 use crate::op_utils::{atom, check_arg_count};
 use crate::reduction::{Reduction, Response};
 
-const FIRST_COST: Cost = 8;
-const IF_COST: Cost = 31;
-const CONS_COST: Cost = 18;
-const REST_COST: Cost = 20;
-const LISTP_COST: Cost = 5;
-const CMP_BASE_COST: Cost = 16;
+const FIRST_COST: Cost = 1;
+const IF_COST: Cost = 1;
+const CONS_COST: Cost = 3;
+const REST_COST: Cost = 1;
+const LISTP_COST: Cost = 1;
+const CMP_BASE_COST: Cost = 2;
 const CMP_COST_PER_LIMB_DIVIDER: Cost = 64;
 
 pub fn op_if<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
