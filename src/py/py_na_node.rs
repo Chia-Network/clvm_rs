@@ -26,7 +26,7 @@ pub struct PyNaNode {
 impl PyNaNode {
     fn new(py: Python, view: View) -> PyResult<&PyCell<Self>> {
         let int_arena_cache = py
-            .eval("import weakref; weakref.WeakKeyDictionary()", None, None)?
+            .eval("__import__('weakref').WeakKeyDictionary()", None, None)?
             .to_object(py);
 
         let node = PyNaNode {
@@ -174,7 +174,8 @@ impl PyNaNode {
         match self.node.clone() {
             View::Python(py_view) => Ok(py_view.clone()),
             View::Native(native_view) => {
-                let mut py_int_allocator: PyRefMut<PyIntAllocator> = native_view.arena.extract(py)?;
+                let mut py_int_allocator: PyRefMut<PyIntAllocator> =
+                    native_view.arena.extract(py)?;
                 let mut allocator_to_use: &mut IntAllocator = &mut py_int_allocator.arena;
 
                 if let Some((arena, allocator)) = borrowed_arena {
@@ -259,5 +260,10 @@ impl PyNaNode {
             PyView::Pair(obj) => Ok(obj.into_ref(py)),
             _ => Ok(py.eval("None", None, None)?.extract()?),
         }
+    }
+
+    #[getter(cache)]
+    fn cache<'p>(&'p self, py: Python<'p>) -> PyResult<&'p PyAny> {
+        self.int_arena_cache.extract(py)
     }
 }

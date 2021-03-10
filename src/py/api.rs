@@ -6,20 +6,20 @@ use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
 use super::glue::{_serialize_from_bytes, _serialize_to_bytes};
-use super::int_allocator_gateway::{PyIntAllocator, PyIntNode};
+//use super::int_allocator_gateway::{PyIntAllocator, PyIntNode};
 use super::native_op_lookup::GenericNativeOpLookup;
-use super::run_program::{
-    __pyo3_get_function_deserialize_and_run_program, __pyo3_get_function_serialized_length,
-    STRICT_MODE,
-};
+use super::py_int_allocator::PyIntAllocator;
+use super::py_na_node::PyNaNode;
+
+//use super::run_program::{__pyo3_get_function_deserialize_and_run_program, STRICT_MODE};
 use crate::int_allocator::IntAllocator;
 use crate::py::f_table::{f_lookup_for_hashmap, FLookup};
-use crate::py::run_program::OperatorHandlerWithMode;
+//use crate::py::run_program::OperatorHandlerWithMode;
 use crate::run_program::OperatorHandler;
 use crate::{allocator, cost::Cost};
 
 type AllocatorT<'a> = IntAllocator;
-type NodeClass = PyIntNode;
+//type NodeClass = PyIntNode;
 
 /*
 #[pyclass]
@@ -63,6 +63,7 @@ impl NativeOpLookup {
 }
 */
 
+/*
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 fn py_run_program(
@@ -93,6 +94,7 @@ fn py_run_program(
         py_callback,
     )
 }
+*/
 
 #[pyfunction]
 fn raise_eval_error(py: Python, msg: &PyString, sexp: PyObject) -> PyResult<PyObject> {
@@ -132,27 +134,31 @@ fn serialize_to_bytes(py: Python, sexp: &PyAny) -> PyResult<PyObject> {
 /// This module is a python module implemented in Rust.
 #[pymodule]
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(py_run_program, m)?)?;
+    //m.add_function(wrap_pyfunction!(py_run_program, m)?)?;
     //m.add_function(wrap_pyfunction!(serialize_from_bytes, m)?)?;
     //m.add_function(wrap_pyfunction!(serialize_to_bytes, m)?)?;
 
-    m.add_function(wrap_pyfunction!(deserialize_and_run_program, m)?)?;
-    m.add("STRICT_MODE", STRICT_MODE)?;
+    //m.add_function(wrap_pyfunction!(deserialize_and_run_program, m)?)?;
+    //m.add("STRICT_MODE", STRICT_MODE)?;
 
     //m.add_class::<PyNode>()?;
     // m.add_class::<NativeOpLookup>()?;
 
-    m.add_class::<PyIntNode>()?;
+    //m.add_class::<PyIntNode>()?;
     m.add_class::<PyIntAllocator>()?;
 
-    m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
+    //m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
+    m.add_class::<PyNaNode>()?;
+
+    //m.add_function(wrap_pyfunction!(raise_eval_error, m)?)?;
 
     Ok(())
 }
 
-use crate::py::op_fn::PyOperatorHandler;
+//use crate::py::op_fn::PyOperatorHandler;
 use crate::reduction::{EvalErr, Reduction};
 
+/*
 #[allow(clippy::too_many_arguments)]
 pub fn _py_run_program(
     py: Python,
@@ -202,3 +208,4 @@ pub fn _py_run_program(
         }
     }
 }
+*/

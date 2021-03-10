@@ -1,4 +1,4 @@
-use pyo3::prelude::*;
+use pyo3::{PyObject, PyResult, Python, ToPyObject};
 use pyo3::pycell::PyCell;
 use pyo3::types::{PyBytes, PyTuple};
 

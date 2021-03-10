@@ -2,7 +2,7 @@ pub mod api;
 pub mod arc_allocator;
 pub mod f_table;
 pub mod glue;
-pub mod int_allocator_gateway;
+//pub mod int_allocator_gateway;
 pub mod native_op_lookup;
 pub mod native_view;
 pub mod op_fn;
