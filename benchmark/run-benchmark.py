@@ -165,6 +165,7 @@ if len(procs) > 0:
     print("")
 
 test_runs = {}
+test_costs = {}
 
 native_opcode_names_by_opcode = dict(
     ("op_%s" % OP_REWRITE.get(k, k), op)
@@ -224,6 +225,7 @@ for n in range(5):
         if fn in test_runs:
             test_runs[fn].append(counters['run_program'])
         else:
+            test_costs[fn] = cost
             test_runs[fn] = [counters['run_program']]
 
 sum_time = 0.0
@@ -245,6 +247,7 @@ for n, vals in sorted(test_runs.items()):
     print(Fore.MAGENTA, end='')
     for v in vals:
         print(' %s' % v, end='')
+    print(Fore.YELLOW + ' %10d' % test_costs[n], end='')
     print(Fore.RESET)
 
 print(Fore.GREEN + '      TOTAL:' + Style.RESET_ALL + ' %f s' % sum_time)
