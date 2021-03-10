@@ -1,10 +1,7 @@
-use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyTuple};
+use pyo3::prelude::PyObject;
 
 use crate::allocator::Allocator;
 use crate::int_allocator::IntAllocator;
-
-use super::py_int_allocator::PyIntAllocator;
 
 #[derive(Clone)]
 pub struct NativeView {
