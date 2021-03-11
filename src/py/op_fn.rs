@@ -1,4 +1,3 @@
-/*
 use std::cell::RefCell;
 use std::collections::HashMap;
 
@@ -16,11 +15,9 @@ use crate::allocator::Allocator;
 use crate::cost::Cost;
 use crate::int_allocator::IntAllocator;
 use crate::py::f_table::{f_lookup_for_hashmap, FLookup};
-use crate::py::int_allocator_gateway::PyIntNode;
+use crate::py::py_na_node::PyNaNode;
 use crate::reduction::{EvalErr, Reduction, Response};
 use crate::run_program::OperatorHandler;
-
-use super::py_node;
 
 pub struct PyOperatorHandler {
     native_lookup: FLookup<IntAllocator>,
@@ -48,6 +45,7 @@ impl PyOperatorHandler {
 }
 
 impl PyOperatorHandler {
+    /*
     fn invoke_py_obj(
         &self,
         obj: PyObject,
@@ -76,10 +74,10 @@ impl PyOperatorHandler {
                     let i0: u32 =
                         unwrap_or_eval_err(pair.get_item(0).extract(), args, "expected u32")?;
 
-                    let py_node: &PyCell<PyIntNode> =
+                    let py_node: &PyCell<PyNaNode> =
                         unwrap_or_eval_err(pair.get_item(1).extract(), args, "expected node")?;
 
-                    let node: i32 = PyIntNode::ptr(py_node, Some(py), arena.clone(), allocator);
+                    let node: i32 = PyNaNode::ptr(py_node, Some(py), arena.clone(), allocator);
                     Ok(Reduction(i0 as Cost, node))
                 }
             }
@@ -92,16 +90,17 @@ impl PyOperatorHandler {
         match cache.get(&args) {
             Some(obj) => obj.clone(),
             None => {
-                let py_int_node: &PyCell<PyIntNode> =
-                    PyCell::new(py, PyIntNode::new(self.arena.clone(), Some(args), None)).unwrap();
+                let py_int_node: &PyCell<PyNaNode> =
+                    PyCell::new(py, PyNaNode::new(self.arena.clone(), Some(args), None)).unwrap();
                 // this hack ensures we have python representations in all children
-                PyIntNode::ensure_python_view(vec![py_int_node.to_object(py)], allocator, py);
+                PyNaNode::ensure_python_view(vec![py_int_node.to_object(py)], allocator, py);
                 let obj: PyObject = py_int_node.to_object(py);
                 cache.insert(args, obj.clone());
                 obj
             }
         }
     }
+    */
 }
 
 impl OperatorHandler<IntAllocator> for PyOperatorHandler {
@@ -119,6 +118,10 @@ impl OperatorHandler<IntAllocator> for PyOperatorHandler {
             }
         }
 
+        // HACK TODO remove me
+        Err(EvalErr(0, "unknown op".to_string()))
+
+        /*
         self.invoke_py_obj(
             self.py_callable.clone(),
             self.arena.clone(),
@@ -127,6 +130,7 @@ impl OperatorHandler<IntAllocator> for PyOperatorHandler {
             args,
             max_cost,
         )
+        */
     }
 }
 
@@ -135,13 +139,14 @@ impl OperatorHandler<IntAllocator> for PyOperatorHandler {
 fn eval_err_for_pyerr<'p>(
     py: Python<'p>,
     pyerr: &PyErr,
+    cache: PyObject,
     arena: PyObject,
     allocator: &mut IntAllocator,
 ) -> PyResult<EvalErr<i32>> {
     let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
     let arg0: &PyString = args.get_item(0).extract()?;
-    let sexp: &PyCell<PyIntNode> = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
-    let node: i32 = PyIntNode::ptr(&sexp, Some(py), arena, allocator);
+    let sexp: &PyCell<PyNaNode> = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
+    let node: i32 = PyNaNode::ptr(&sexp, py, &cache, &arena, allocator)?;
     let s: String = arg0.to_str()?.to_string();
     Ok(EvalErr(node, s))
 }
@@ -155,4 +160,3 @@ where
         Ok(o) => Ok(o),
     }
 }
-*/

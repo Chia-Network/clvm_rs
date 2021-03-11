@@ -9,13 +9,14 @@ use super::glue::{_serialize_from_bytes, _serialize_to_bytes};
 //use super::int_allocator_gateway::{PyIntAllocator, PyIntNode};
 use super::native_op_lookup::GenericNativeOpLookup;
 use super::py_int_allocator::PyIntAllocator;
-use super::py_na_node::PyNaNode;
+use super::py_na_node::{new_cache, PyNaNode};
 
 //use super::run_program::{__pyo3_get_function_deserialize_and_run_program, STRICT_MODE};
 use crate::int_allocator::IntAllocator;
 use crate::py::f_table::{f_lookup_for_hashmap, FLookup};
 //use crate::py::run_program::OperatorHandlerWithMode;
 use crate::run_program::OperatorHandler;
+use crate::serialize::{node_from_bytes, node_to_bytes};
 use crate::{allocator, cost::Cost};
 
 type AllocatorT<'a> = IntAllocator;
@@ -116,26 +117,30 @@ const fn allocator_for_py(_py: Python) -> AllocatorT {
     AllocatorT::new()
 }
 
-/*
 #[pyfunction]
-fn serialize_from_bytes(py: Python, blob: &[u8]) -> PyIntNode {
-    let mut allocator = allocator_for_py(py);
-
-    let v = _serialize_from_bytes(&mut allocator, blob);
-    PyIntNode {}
+fn serialize_from_bytes<'p>(py: Python<'p>, blob: &[u8]) -> PyResult<&'p PyCell<PyNaNode>> {
+    let mut py_int_allocator = PyCell::new(py, PyIntAllocator::default())?;
+    let allocator: &mut IntAllocator = &mut py_int_allocator.borrow_mut().arena;
+    let ptr = node_from_bytes(allocator, blob)?;
+    PyNaNode::from_ptr(py, &py_int_allocator.to_object(py), ptr)
 }
 
+/*
 #[pyfunction]
-fn serialize_to_bytes(py: Python, sexp: &PyAny) -> PyResult<PyObject> {
-    let allocator = allocator_for_py(py);
-    _serialize_to_bytes::<AllocatorT, NodeClass>(&allocator, py, sexp)
-}*/
+fn serialize_to_bytes(py: Python, sexp: &mut PyNaNode) -> PyResult<PyObject> {
+    sexp.clear_native_view();
+    let mut py_int_allocator: PyIntAllocator = sexp.arena.export(py)?;
+    let allocator: &mut IntAllocator = &mut py_int_allocator.borrow_mut().arena;
+
+    Ok(node_to_bytes(sexp))
+}
+*/
 
 /// This module is a python module implemented in Rust.
 #[pymodule]
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
-    //m.add_function(wrap_pyfunction!(py_run_program, m)?)?;
-    //m.add_function(wrap_pyfunction!(serialize_from_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(py_run_program, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_from_bytes, m)?)?;
     //m.add_function(wrap_pyfunction!(serialize_to_bytes, m)?)?;
 
     //m.add_function(wrap_pyfunction!(deserialize_and_run_program, m)?)?;
@@ -155,30 +160,36 @@ fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-//use crate::py::op_fn::PyOperatorHandler;
+use crate::py::op_fn::PyOperatorHandler;
 use crate::reduction::{EvalErr, Reduction};
 
-/*
+#[pyfunction]
 #[allow(clippy::too_many_arguments)]
-pub fn _py_run_program(
+pub fn py_run_program(
     py: Python,
-    program: &PyCell<PyIntNode>,
-    args: &PyCell<PyIntNode>,
+    program: &PyCell<PyNaNode>,
+    args: &PyCell<PyNaNode>,
     quote_kw: u8,
     apply_kw: u8,
     max_cost: Cost,
     opcode_lookup_by_name: HashMap<String, Vec<u8>>,
     py_callback: PyObject,
 ) -> PyResult<(Cost, PyObject)> {
-    let mut allocator = IntAllocator::new();
-    let arena = PyCell::new(py, PyIntAllocator { arena: allocator })?;
-    let mut b = arena.borrow_mut();
-    let mut allocator: &mut IntAllocator = &mut b.arena;
+    let cache = new_cache(py)?;
+    let arena = PyCell::new(
+        py,
+        PyIntAllocator {
+            arena: IntAllocator::new(),
+        },
+    )?;
+    let mut arena_ref = arena.borrow_mut();
+    let mut allocator: &mut IntAllocator = &mut arena_ref.arena;
 
+    let arena_as_obj = arena.to_object(py);
     println!("1");
-    let program = PyIntNode::ptr(program, Some(py), arena.to_object(py), &mut allocator);
+    let program = PyNaNode::ptr(program, py, &cache, &arena_as_obj, allocator)?;
     println!("2");
-    let args = PyIntNode::ptr(args, Some(py), arena.to_object(py), &mut allocator);
+    let args = PyNaNode::ptr(args, py, &cache, &arena_as_obj, allocator)?;
     println!("3");
 
     let op_lookup = Box::new(PyOperatorHandler::new(
@@ -193,7 +204,7 @@ pub fn _py_run_program(
 
     match r {
         Ok(reduction) => {
-            let r = PyIntNode::from_ptr(py, arena.to_object(py), reduction.1)?;
+            let r = PyNaNode::from_ptr(py, &arena.to_object(py), reduction.1)?;
             Ok((reduction.0, r.to_object(py)))
         }
         Err(eval_err) => {
@@ -208,4 +219,3 @@ pub fn _py_run_program(
         }
     }
 }
-*/

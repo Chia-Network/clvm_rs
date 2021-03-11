@@ -1,6 +1,6 @@
-use pyo3::{PyObject, PyResult, Python, ToPyObject};
 use pyo3::pycell::PyCell;
 use pyo3::types::{PyBytes, PyTuple};
+use pyo3::{PyObject, PyResult, Python, ToPyObject};
 
 use super::py_na_node::PyNaNode;
 
