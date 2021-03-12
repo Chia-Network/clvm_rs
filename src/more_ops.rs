@@ -134,7 +134,11 @@ pub fn op_unknown<A: Allocator>(
                 cost += ARITH_COST_PER_ARG as u64;
                 let blob = int_atom(&arg, "unknown op")?;
                 byte_count += blob.len() as u64;
-                check_cost(allocator, cost, max_cost)?;
+                check_cost(
+                    allocator,
+                    cost + byte_count as Cost / ARITH_COST_PER_LIMB_DIVIDER,
+                    max_cost,
+                )?;
             }
             cost + byte_count / ARITH_COST_PER_LIMB_DIVIDER as u64
         }
@@ -165,7 +169,11 @@ pub fn op_unknown<A: Allocator>(
                 cost += CONCAT_COST_PER_ARG as u64;
                 let blob = atom(&arg, "unknown op")?;
                 total_size += blob.len() as u64;
-                check_cost(allocator, cost, max_cost)?;
+                check_cost(
+                    allocator,
+                    cost + total_size as Cost / CONCAT_COST_PER_BYTE_DIVIDER,
+                    max_cost,
+                )?;
             }
             cost + total_size / CONCAT_COST_PER_BYTE_DIVIDER as u64
         }
@@ -259,7 +267,11 @@ pub fn op_sha256<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Resp
     let mut hasher = Sha256::new();
     for arg in Node::new(a, input) {
         cost += SHA256_COST_PER_ARG;
-        check_cost(a, cost, max_cost)?;
+        check_cost(
+            a,
+            cost + byte_count as Cost / SHA256_COST_PER_BYTE_DIVIDER,
+            max_cost,
+        )?;
         let blob = atom(&arg, "sha256")?;
         byte_count += blob.len();
         hasher.input(blob);
@@ -275,7 +287,11 @@ pub fn op_sha256<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Resp
     let mut hasher = sha::Sha256::new();
     for arg in Node::new(a, input) {
         cost += SHA256_COST_PER_ARG;
-        check_cost(a, cost, max_cost)?;
+        check_cost(
+            a,
+            cost + byte_count as Cost / SHA256_COST_PER_BYTE_DIVIDER,
+            max_cost,
+        )?;
         let blob = atom(&arg, "sha256")?;
         byte_count += blob.len();
         hasher.update(blob);
@@ -290,7 +306,11 @@ pub fn op_add<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Respons
     let mut total: Number = 0.into();
     for arg in Node::new(a, input) {
         cost += ARITH_COST_PER_ARG;
-        check_cost(a, cost, max_cost)?;
+        check_cost(
+            a,
+            cost + byte_count as Cost / ARITH_COST_PER_LIMB_DIVIDER,
+            max_cost,
+        )?;
         let blob = int_atom(&arg, "+")?;
         let v: Number = number_from_u8(&blob);
         byte_count += blob.len();
@@ -308,7 +328,11 @@ pub fn op_subtract<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Re
     let mut is_first = true;
     for arg in Node::new(a, input) {
         cost += ARITH_COST_PER_ARG;
-        check_cost(a, cost, max_cost)?;
+        check_cost(
+            a,
+            cost + byte_count as Cost / ARITH_COST_PER_LIMB_DIVIDER,
+            max_cost,
+        )?;
         let blob = int_atom(&arg, "-")?;
         let v: Number = number_from_u8(&blob);
         byte_count += blob.len();
@@ -468,17 +492,23 @@ pub fn op_concat<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Resp
     let mut total_size: usize = 0;
     for arg in &args {
         cost += CONCAT_COST_PER_ARG;
-        check_cost(a, cost, max_cost)?;
+        check_cost(
+            a,
+            cost + total_size as Cost / CONCAT_COST_PER_BYTE_DIVIDER,
+            max_cost,
+        )?;
         let blob = atom(&arg, "concat")?;
         total_size += blob.len();
     }
+
+    cost += total_size as Cost / CONCAT_COST_PER_BYTE_DIVIDER;
+    check_cost(a, cost, max_cost)?;
     let mut v: Vec<u8> = Vec::with_capacity(total_size);
 
     for arg in args {
         let blob = arg.atom().unwrap();
         v.extend_from_slice(blob);
     }
-    cost += (total_size as Cost) / CONCAT_COST_PER_BYTE_DIVIDER;
     let r: T::Ptr = a.new_atom(&v)?;
 
     Ok(Reduction(cost, r))
@@ -544,7 +574,11 @@ fn binop_reduction<T: Allocator>(
         op_f(&mut total, &n0);
         arg_size += blob.len();
         cost += LOG_COST_PER_ARG;
-        check_cost(a, cost, max_cost)?;
+        check_cost(
+            a,
+            cost + arg_size as Cost / LOG_COST_PER_LIMB_DIVIDER,
+            max_cost,
+        )?;
     }
     cost += arg_size as Cost / LOG_COST_PER_LIMB_DIVIDER;
     let total = ptr_from_number(a, &total)?;
