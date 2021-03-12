@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyString};
+use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
@@ -125,23 +125,43 @@ fn serialize_from_bytes<'p>(py: Python<'p>, blob: &[u8]) -> PyResult<&'p PyCell<
     PyNaNode::from_ptr(py, &py_int_allocator.to_object(py), ptr)
 }
 
-/*
-#[pyfunction]
-fn serialize_to_bytes(py: Python, sexp: &mut PyNaNode) -> PyResult<PyObject> {
-    sexp.clear_native_view();
-    let mut py_int_allocator: PyIntAllocator = sexp.arena.export(py)?;
-    let allocator: &mut IntAllocator = &mut py_int_allocator.borrow_mut().arena;
+use crate::node::Node;
 
-    Ok(node_to_bytes(sexp))
+#[pyfunction]
+fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyCell<PyNaNode>) -> PyResult<&'p PyBytes> {
+    println!("s2b 1");
+    PyNaNode::clear_native_view(sexp, py);
+
+    println!("s2b 2");
+    let mut py_int_allocator_cell = PyCell::new(py, PyIntAllocator::default())?;
+    println!("s2b 3");
+    let mut py_int_allocator: &mut PyIntAllocator = &mut py_int_allocator_cell.borrow_mut();
+    println!("s2b 4");
+    let allocator: &mut IntAllocator = &mut py_int_allocator.arena;
+    println!("s2b 5");
+
+    let ptr = PyNaNode::ptr(
+        sexp,
+        py,
+        &new_cache(py)?,
+        &py_int_allocator_cell.to_object(py),
+        allocator,
+    )?;
+    println!("s2b 6");
+
+    let node = Node::new(allocator, ptr);
+    println!("s2b 7");
+    let s: Vec<u8> = node_to_bytes(&node)?;
+    println!("s2b 8");
+    Ok(PyBytes::new(py, &s))
 }
-*/
 
 /// This module is a python module implemented in Rust.
 #[pymodule]
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_run_program, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_from_bytes, m)?)?;
-    //m.add_function(wrap_pyfunction!(serialize_to_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_to_bytes, m)?)?;
 
     //m.add_function(wrap_pyfunction!(deserialize_and_run_program, m)?)?;
     //m.add("STRICT_MODE", STRICT_MODE)?;
@@ -187,6 +207,7 @@ pub fn py_run_program(
 
     let arena_as_obj = arena.to_object(py);
     println!("1");
+    PyNaNode::clear_native_view(program, py);
     let program = PyNaNode::ptr(program, py, &cache, &arena_as_obj, allocator)?;
     println!("2");
     let args = PyNaNode::ptr(args, py, &cache, &arena_as_obj, allocator)?;
