@@ -17,7 +17,7 @@ enum View {
     Native(NativeView),
 }
 
-#[pyclass(weakref)]
+#[pyclass(weakref, subclass)]
 pub struct PyNaNode {
     py_view: Option<PyView>,
     native_view: Option<NativeView>,
@@ -75,8 +75,26 @@ impl PyNaNode {
         )
     }
 
-    pub fn clear_native_view(&mut self) {
-        self.native_view = None;
+    pub fn clear_native_view(slf: &PyCell<Self>, py: Python) -> PyResult<()> {
+        let mut items = vec![slf.to_object(py)];
+        loop {
+            let t = items.pop();
+            if let Some(obj) = t {
+                let mut node: PyRefMut<Self> = obj.extract(py)?;
+                node.populate_python_view(py)?;
+                assert!(node.py_view.is_some());
+                node.native_view = None;
+                if let Some(PyView::Pair(tuple)) = &node.py_view {
+                    let (p0, p1): (PyObject, PyObject) = tuple.extract(py)?;
+                    //let (p0, p1): (&PyCell<Self>, &PyCell<Self>) = tuple.extract(py)?;
+                    items.push(p0);
+                    items.push(p1);
+                }
+            } else {
+                break;
+            }
+        }
+        Ok(())
     }
 
     pub fn add_to_cache(slf: &PyCell<Self>, py: Python, cache: &PyObject) -> PyResult<()> {
@@ -226,6 +244,8 @@ impl PyNaNode {
                 println!("ppv 5");
                 self.py_view = Some(Self::py_view_for_native_view(py, native_view)?);
                 println!("ppv 6");
+            } else {
+                panic!("missing native AND python view");
             }
         }
         println!("ppv 40");
@@ -260,6 +280,24 @@ impl PyNaNode {
 
 #[pymethods]
 impl PyNaNode {
+    #[new]
+    fn new_obj<'p>(py: Python<'p>, obj: &PyAny) -> PyResult<Self> {
+        Ok(if let Ok(tuple) = obj.extract() {
+            let py_view = PyView::new_pair(py, tuple)?;
+            Self {
+                py_view: Some(py_view),
+                native_view: None,
+            }
+        } else {
+            let py_bytes: &PyBytes = obj.extract()?;
+            let py_view = PyView::new_atom(py, py_bytes);
+            Self {
+                py_view: Some(py_view),
+                native_view: None,
+            }
+        })
+    }
+
     #[classmethod]
     fn new_atom<'p>(cls: &PyType, py: Python<'p>, atom: &PyBytes) -> PyResult<&'p PyCell<Self>> {
         let py_view = PyView::new_atom(py, atom);
@@ -274,6 +312,12 @@ impl PyNaNode {
         p2: &PyCell<PyNaNode>,
     ) -> PyResult<&'p PyCell<Self>> {
         let tuple = PyTuple::new(py, &[p1, p2]);
+        let py_view = PyView::new_pair(py, tuple)?;
+        Self::new(py, Some(py_view), None)
+    }
+
+    #[classmethod]
+    fn new_tuple<'p>(cls: &PyType, py: Python<'p>, tuple: &PyTuple) -> PyResult<&'p PyCell<Self>> {
         let py_view = PyView::new_pair(py, tuple)?;
         Self::new(py, Some(py_view), None)
     }
