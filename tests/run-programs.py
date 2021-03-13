@@ -4,6 +4,7 @@ import subprocess
 import glob
 import time
 import sys
+import platform
 from clvm_rs import deserialize_and_run_program, STRICT_MODE
 from clvm import KEYWORD_FROM_ATOM, KEYWORD_TO_ATOM
 from clvm.operators import OP_REWRITE
@@ -57,47 +58,54 @@ for hexname in glob.glob('programs/*.hex'):
 
     hexenv = hexname[:-3] + 'envhex'
 
-    if '--brun' in sys.argv:
-        command = ['brun', '-m', '40000000', '-c', '--backend=rust', '--quiet', '--time', '--hex', hexname, hexenv]
-        print(' '.join(command))
-        start = time.perf_counter()
-        subprocess.run(command)
-        end = time.perf_counter()
-    else:
-        program_data = bytes.fromhex(open(hexname, 'r').read())
-        env_data = bytes.fromhex(open(hexenv, 'r').read())
+    command = ['brun', '-m', '40000000', '-c', '--backend=rust', '--quiet', '--time', '--hex', hexname, hexenv]
 
-        print(f'{hexname} - ', end='')
-        if len(program_data) == 0:
-            print('  failed to compile')
-            continue
+    # prepend the size command, to measure RSS
+    if platform.system() == 'Darwin':
+        command = ['/usr/bin/time', '-l'] + command;
+    if platform.system() == 'Linux':
+        command = ['/usr/bin/time'] + command;
 
-        start = time.perf_counter()
-        try:
-            max_cost = 40000000
+    print(' '.join(command))
+    start = time.perf_counter()
+    proc = subprocess.run(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    output = proc.stderr.decode('UTF-8')
+    output += proc.stdout.decode('UTF-8')
+    end = time.perf_counter()
 
-            cost, result = deserialize_and_run_program(
-                program_data,
-                env_data,
-                KEYWORD_TO_ATOM["q"][0],
-                KEYWORD_TO_ATOM["a"][0],
-                native_opcode_names_by_opcode,
-                max_cost,
-                0,
-            )
-            end = time.perf_counter()
-            print('{0:.2f}s'.format(end - start))
+    if 'FAIL: cost exceeded' not in output:
+        ret += 1
+        print(Fore.RED + '\nTEST FAILURE: expected cost to be exceeded\n' + Style.RESET_ALL)
 
+    print(Fore.YELLOW + ('  Runtime: %0.2f s' % (end - start)) + Style.RESET_ALL)
+
+    # parse RSS (MacOS and Linux only)
+    size = None
+    if platform.system() == 'Darwin':
+        for l in output.split('\n'):
+            if 'maximum resident set size' not in l:
+                continue
+            val, key = l.strip().split('  ', 1)
+            if key == 'maximum resident set size':
+                size = int(val) / 1024 / 1024
+    if platform.system() == 'Linux':
+        # example output:
+        # 10.49user 0.32system 0:10.84elapsed 99%CPU (0avgtext+0avgdata 189920maxresident)k
+        for l in output.split('\n'):
+            if 'maxresident)k' not in l:
+                continue
+            size = int(l.split('maxresident)k')[0].split(' ')[-1]) / 1024
+    if size != None:
+        print(Fore.YELLOW + ('  Resident Size: %d MiB' % size) + Style.RESET_ALL)
+
+        # TODO: tune costs to lower this a bit
+        if size > 1250:
             ret += 1
-            print(Fore.RED + '\nTEST FAILURE: expected to exceed cost' + Style.RESET_ALL)
-
-        except EvalError as e:
-            end = time.perf_counter()
-            print('{0:.2f}s'.format(end - start))
-            print(e)
+            print(Fore.RED + '\nTEST FAILURE: Max memory use exceeded\n' + Style.RESET_ALL)
 
     # cost 40000000 roughly corresponds to 4 seconds
-    if end - start > 4.8:
+    # TODO: tune costs to lower the peak for recursive-div
+    if end - start > 9:
         ret += 1
         print(Fore.RED + '\nTEST FAILURE: Time exceeded: %f\n' % (end - start) + Style.RESET_ALL)
 
