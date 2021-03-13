@@ -161,9 +161,7 @@ fn node_to_hex(node: &Node) -> String {
 fn do_test_run_program(input_as_hex: &str, expected_as_hex: &str) -> () {
     let mut a = IntAllocator::new();
     let n = node_from_hex(&a, input_as_hex);
-    println!("n = {:?}", n);
     let r = do_run_program(&n, &null);
-    println!("r = {:?}", r);
     assert_eq!(node_to_hex(&r), expected_as_hex);
 }
 

@@ -129,16 +129,11 @@ use crate::node::Node;
 
 #[pyfunction]
 fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyCell<PyNaNode>) -> PyResult<&'p PyBytes> {
-    println!("s2b 1");
     PyNaNode::clear_native_view(sexp, py);
 
-    println!("s2b 2");
     let mut py_int_allocator_cell = PyCell::new(py, PyIntAllocator::default())?;
-    println!("s2b 3");
     let mut py_int_allocator: &mut PyIntAllocator = &mut py_int_allocator_cell.borrow_mut();
-    println!("s2b 4");
     let allocator: &mut IntAllocator = &mut py_int_allocator.arena;
-    println!("s2b 5");
 
     let ptr = PyNaNode::ptr(
         sexp,
@@ -147,12 +142,9 @@ fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyCell<PyNaNode>) -> PyResult<&
         &py_int_allocator_cell.to_object(py),
         allocator,
     )?;
-    println!("s2b 6");
 
     let node = Node::new(allocator, ptr);
-    println!("s2b 7");
     let s: Vec<u8> = node_to_bytes(&node)?;
-    println!("s2b 8");
     Ok(PyBytes::new(py, &s))
 }
 
@@ -206,12 +198,9 @@ pub fn py_run_program(
     let mut allocator: &mut IntAllocator = &mut arena_ref.arena;
 
     let arena_as_obj = arena.to_object(py);
-    println!("1");
     PyNaNode::clear_native_view(program, py);
     let program = PyNaNode::ptr(program, py, &cache, &arena_as_obj, allocator)?;
-    println!("2");
     let args = PyNaNode::ptr(args, py, &cache, &arena_as_obj, allocator)?;
-    println!("3");
 
     let op_lookup = Box::new(PyOperatorHandler::new(
         opcode_lookup_by_name,
