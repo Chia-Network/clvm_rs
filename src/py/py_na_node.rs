@@ -52,12 +52,8 @@ fn from_cache(
     cache: &PyObject,
     ptr: <IntAllocator as Allocator>::Ptr,
 ) -> PyResult<Option<PyObject>> {
-    println!("cc 0");
     let locals = [("cache", cache.clone()), ("key", ptr.to_object(py))].into_py_dict(py);
-    println!("cc 1 {}", locals);
-    let r = py.eval("cache.get(key)", None, Some(locals))?.extract();
-    println!("cc 2");
-    r
+    py.eval("cache.get(key)", None, Some(locals))?.extract()
 }
 
 impl PyNaNode {
@@ -122,9 +118,7 @@ impl PyNaNode {
     ) -> PyResult<<IntAllocator as Allocator>::Ptr> {
         // check if we need to clear the native view
         // if arena doesn't match, clear native view
-        println!("ptr 4");
         Self::populate_native_view(slf, py, cache, arena, allocator)?;
-        println!("ptr exiting 1");
         if let Some(native_view) = &slf.borrow().native_view {
             Ok(native_view.ptr)
         } else {
@@ -141,22 +135,17 @@ impl PyNaNode {
     ) -> PyResult<()> {
         let mut to_cast: Vec<PyObject> = vec![slf.to_object(py)];
         Ok(loop {
-            println!("pnv vec size {}", to_cast.len());
             let t: Option<PyObject> = to_cast.pop();
             match t {
                 None => break,
                 Some(node_ref) => {
-                    println!("envc 1");
                     let t1: &PyCell<Self> = node_ref.extract(py)?;
                     let transfer: Option<(PyObject, PyObject)> =
                         Self::add_to_native_cache(t1, py, arena, cache, allocator)?;
                     if let Some((p0, p1)) = transfer {
                         to_cast.push(node_ref);
-                        println!("p0 borrow");
                         to_cast.push(p0.to_object(py));
-                        println!("p1 borrow");
                         to_cast.push(p1.to_object(py));
-                        println!("p1 borrowed");
                     }
                 }
             }
@@ -178,26 +167,18 @@ impl PyNaNode {
         let mut slf = slf_cell.borrow_mut();
         let slf: &mut PyNaNode = &mut slf;
         if slf.native_view.is_none() {
-            println!("atnc 1");
             let py_view = slf.populate_python_view(py)?;
-            println!("atnc 1.5");
             let new_ptr = {
                 match py_view {
                     PyView::Atom(obj) => {
-                        println!("atnc 2");
                         let blob: &[u8] = obj.extract(py).unwrap();
                         let ptr = allocator.new_atom(blob).unwrap();
-                        println!("atnc 3 {}", ptr);
                         add_to_cache(py, cache, ptr, slf_cell);
                         ptr
                     }
                     PyView::Pair(pair) => {
-                        println!("atnc 13");
                         let pair: &'p PyAny = pair.clone().into_ref(py);
                         let pair: &'p PyTuple = pair.extract()?;
-
-                        println!("atnc 15");
-
                         let p0: &'p PyCell<PyNaNode> = pair.get_item(0).extract()?;
                         let p1: &'p PyCell<PyNaNode> = pair.get_item(1).extract()?;
                         let ptr_0 = match &p0.borrow().native_view {
@@ -208,14 +189,11 @@ impl PyNaNode {
                             Some(native_view) => Some(native_view.ptr),
                             None => None,
                         };
-                        println!("atnc 17 {:?} {:?}", ptr_0, ptr_1);
                         if let (Some(ptr_0), Some(ptr_1)) = (ptr_0, ptr_1) {
                             let ptr = allocator.new_pair(ptr_0, ptr_1).unwrap();
-                            println!("atnc 18 {}", ptr);
                             add_to_cache(py, cache, ptr, slf_cell);
                             ptr
                         } else {
-                            println!("atnc 19");
                             return Ok(Some((p0.to_object(py), p1.to_object(py))));
                         }
                     }
@@ -232,28 +210,20 @@ impl PyNaNode {
     /// so it can be use from python.
     pub fn populate_python_view<'p>(&mut self, py: Python<'p>) -> PyResult<&PyView> {
         // if using `NativeView`, swap it out for `PythonView`
-        println!("ppv 1");
         if self.py_view.is_none() {
-            println!("ppv 2");
             if let Some(native_view) = &self.native_view {
-                println!("ppv 3");
                 //let mut py_int_allocator: PyRefMut<PyIntAllocator> =
                 // native_view.arena.extract(py)?;
-                println!("ppv 4");
                 //let mut allocator_to_use: &mut IntAllocator = &mut py_int_allocator.arena;
-                println!("ppv 5");
                 self.py_view = Some(Self::py_view_for_native_view(py, native_view)?);
-                println!("ppv 6");
             } else {
                 panic!("missing native AND python view");
             }
         }
-        println!("ppv 40");
         match &self.py_view {
             Some(py_view) => return Ok(&py_view),
             None => (),
         };
-        println!("ppv 41");
         py_raise(py, "no pyview available")?
     }
 
@@ -324,11 +294,8 @@ impl PyNaNode {
 
     #[getter(atom)]
     pub fn atom<'p>(slf: &'p PyCell<Self>, py: Python<'p>) -> PyResult<PyObject> {
-        println!("atom1");
         let mut slf = slf.try_borrow_mut()?;
-        println!("atom2");
         let py_view: &PyView = slf.populate_python_view(py)?;
-        println!("atom3");
         match py_view {
             PyView::Atom(obj) => Ok(obj.clone()),
             _ => Ok(py.eval("None", None, None)?.extract()?),
