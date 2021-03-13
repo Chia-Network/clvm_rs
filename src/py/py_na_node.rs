@@ -344,6 +344,46 @@ impl PyNaNode {
             _ => Ok(py.eval("None", None, None)?.extract()?),
         }
     }
+
+    #[getter(native)]
+    pub fn native<'p>(slf: &'p PyCell<Self>, py: Python<'p>) -> PyResult<&'p PyAny> {
+        match &slf.borrow().native_view {
+            Some(native_view) => {
+                let locals = [
+                    ("a", native_view.arena.clone()),
+                    ("b", native_view.ptr.into_py(py)),
+                ]
+                .into_py_dict(py);
+                py.eval("(a, b)", None, Some(locals))
+            }
+            None => py.eval("None", None, None),
+        }
+    }
+
+    #[getter(python)]
+    pub fn python<'p>(slf: &'p PyCell<Self>, py: Python<'p>) -> PyResult<PyObject> {
+        Ok(match &slf.borrow().py_view {
+            Some(PyView::Atom(atom)) => ("Atom", atom).to_object(py),
+            Some(PyView::Pair(pair)) => ("Pair", pair).to_object(py),
+            _ => py.eval("None", None, None)?.to_object(py),
+        })
+    }
+
+    pub fn ensure_python(slf: &PyCell<Self>, py: Python) -> PyResult<()> {
+        Self::populate_python_view(&mut slf.borrow_mut(), py)?;
+        Ok(())
+    }
+
+    pub fn ensure_native(
+        slf: &PyCell<Self>,
+        py: Python,
+        cache: PyObject,
+        arena: PyObject,
+    ) -> PyResult<()> {
+        let py_int_allocator: &PyCell<PyIntAllocator> = arena.extract(py)?;
+        let mut allocator: &mut IntAllocator = &mut py_int_allocator.borrow_mut().arena;
+        Self::populate_native_view(slf, py, &cache, &arena, allocator)
+    }
 }
 
 fn py_raise<T>(py: Python, msg: &str) -> PyResult<T> {
