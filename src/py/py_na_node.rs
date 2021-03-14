@@ -10,8 +10,8 @@ use super::py_view::PyView;
 
 #[pyclass(weakref, subclass)]
 pub struct PyNaNode {
-    py_view: Option<PyView>,
-    native_view: Option<NativeView>,
+    pub py_view: Option<PyView>,
+    pub native_view: Option<NativeView>,
     //int_arena_cache: PyObject, // WeakKeyDict[PyIntAllocator, int]
 }
 
@@ -207,7 +207,16 @@ impl PyNaNode {
                 //let mut py_int_allocator: PyRefMut<PyIntAllocator> =
                 // native_view.arena.extract(py)?;
                 //let mut allocator_to_use: &mut IntAllocator = &mut py_int_allocator.arena;
-                self.py_view = Some(Self::py_view_for_native_view(py, native_view)?);
+                let mut py_int_allocator: PyRefMut<PyIntAllocator> =
+                    native_view.arena.extract(py)?;
+                let allocator: &mut IntAllocator = &mut py_int_allocator.arena;
+
+                self.py_view = Some(Self::py_view_for_allocator_ptr(
+                    py,
+                    &native_view.arena,
+                    allocator,
+                    &native_view.ptr,
+                )?);
             } else {
                 panic!("missing native AND python view");
             }
@@ -219,20 +228,22 @@ impl PyNaNode {
         py_raise(py, "no pyview available")?
     }
 
-    fn py_view_for_native_view(py: Python, native_view: &NativeView) -> PyResult<PyView> {
-        let mut py_int_allocator: PyRefMut<PyIntAllocator> = native_view.arena.extract(py)?;
-        let allocator: &mut IntAllocator = &mut py_int_allocator.arena;
-
+    pub fn py_view_for_allocator_ptr(
+        py: Python,
+        arena: &PyObject,
+        allocator: &mut IntAllocator,
+        ptr: &<IntAllocator as Allocator>::Ptr,
+    ) -> PyResult<PyView> {
         // create a PyView and return it
-        let py_view = match allocator.sexp(&native_view.ptr) {
+        let py_view = match allocator.sexp(ptr) {
             SExp::Atom(a) => {
                 let blob = allocator.buf(&a);
                 let py_bytes = PyBytes::new(py, blob);
                 PyView::new_atom(py, py_bytes)
             }
             SExp::Pair(ptr_1, ptr_2) => {
-                let p1 = Self::from_ptr(py, &native_view.arena, ptr_1)?;
-                let p2 = Self::from_ptr(py, &native_view.arena, ptr_2)?;
+                let p1 = Self::from_ptr(py, arena, ptr_1)?;
+                let p2 = Self::from_ptr(py, arena, ptr_2)?;
                 PyView::new_pair(py, PyTuple::new(py, &[p1, p2]))?
             }
         };

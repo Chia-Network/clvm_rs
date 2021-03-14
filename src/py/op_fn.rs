@@ -1,11 +1,13 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+use pyo3::types::PyBytes;
 use pyo3::types::PyString;
 use pyo3::types::PyTuple;
 use pyo3::PyCell;
 use pyo3::PyErr;
 use pyo3::PyObject;
+use pyo3::PyRefMut;
 use pyo3::PyResult;
 use pyo3::Python;
 use pyo3::ToPyObject;
@@ -54,13 +56,23 @@ impl PyOperatorHandler {
         max_cost: Cost,
     ) -> Response<<IntAllocator as Allocator>::Ptr> {
         Python::with_gil(|py| {
-            let op: &[u8] = allocator.buf(&op_buf);
+            let op: &PyBytes = PyBytes::new(py, allocator.buf(&op_buf));
             let r = self.uncache(py, args);
             let py_int_node = unwrap_or_eval_err(r, args, "can't uncache")?;
+            let mut py_na_node: PyRefMut<PyNaNode> =
+                unwrap_or_eval_err(py_int_node.extract(py), args, "can't convert")?;
+            if py_na_node.py_view.is_none() {
+                py_na_node.py_view = Some(unwrap_or_eval_err(
+                    PyNaNode::py_view_for_allocator_ptr(py, &arena, allocator, args),
+                    args,
+                    "can't generate pyview",
+                )?);
+            }
+            drop(py_na_node);
             // TODO: implement a `populate_python_view` that accepts the borrowed `allocator` above
             //  since the existing one will try to re-borrow it and fail
             // py_int_node.populate_python_view(py);
-            let r1 = obj.call1(py, (op, py_int_node));
+            let r1 = obj.call1(py, (op, py_int_node.clone()));
 
             match r1 {
                 Err(pyerr) => {
