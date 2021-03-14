@@ -1,13 +1,13 @@
-use std::cell::{Cell, Ref, RefCell};
+
 
 use pyo3::basic::CompareOp;
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
-use pyo3::types::PyTuple;
-use pyo3::types::PyType;
+
+
+
 use pyo3::PyObjectProtocol;
 
-use crate::allocator::{Allocator, SExp};
+
 use crate::int_allocator::IntAllocator;
 
 #[pyclass(subclass, unsendable)]
@@ -32,7 +32,7 @@ impl Default for PyIntAllocator {
 
 #[pyproto]
 impl PyObjectProtocol for PyIntAllocator {
-    fn __richcmp__(&self, other: PyRef<PyIntAllocator>, op: CompareOp) -> i8 {
+    fn __richcmp__(&self, other: PyRef<PyIntAllocator>, _op: CompareOp) -> i8 {
         let t1 = self.id();
         let t2 = other.id();
         if t1 < t2 {

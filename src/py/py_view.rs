@@ -19,8 +19,8 @@ impl PyView {
         if pair.len() != 2 {
             py.eval("raise ValueError('new_pair requires 2-tuple')", None, None)?;
         }
-        let p0: &PyCell<PyNaNode> = pair.get_item(0).extract()?;
-        let p1: &PyCell<PyNaNode> = pair.get_item(1).extract()?;
+        let _p0: &PyCell<PyNaNode> = pair.get_item(0).extract()?;
+        let _p1: &PyCell<PyNaNode> = pair.get_item(1).extract()?;
 
         Ok(PyView::Pair(pair.to_object(py)))
     }
