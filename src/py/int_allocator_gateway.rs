@@ -238,7 +238,7 @@ impl PyIntNode {
 impl PyIntNode {
     #[classmethod]
     fn new_atom(cls: &PyType, py: Python, atom: &PyBytes) -> PyResult<Self> {
-        let none: PyObject = py.eval("None", None, None)?.to_object(py);
+        let none: PyObject = py.None();
         let py_view = Some(PyView::new(&atom.to_object(py), &none));
         Ok(PyIntNode::new(none, None, py_view))
     }
@@ -251,7 +251,7 @@ impl PyIntNode {
         p2: &PyCell<PyIntNode>,
     ) -> PyResult<Self> {
         let pair: &PyTuple = PyTuple::new(py, &[p1, p2]);
-        let none: PyObject = py.eval("None", None, None)?.to_object(py);
+        let none: PyObject = py.None();
         // TODO: ensure `pair` is a tuple of two `PyIntNode`
         let py_view = Some(PyView::new(&none, &pair.to_object(py)));
         Ok(PyIntNode::new(none, None, py_view))

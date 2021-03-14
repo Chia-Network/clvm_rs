@@ -290,7 +290,7 @@ impl PyNaNode {
         let py_view: &PyView = slf.populate_python_view(py)?;
         match py_view {
             PyView::Atom(obj) => Ok(obj.clone()),
-            _ => Ok(py.eval("None", None, None)?.extract()?),
+            _ => Ok(py.None()),
         }
     }
 
@@ -300,23 +300,23 @@ impl PyNaNode {
         let py_view = slf.populate_python_view(py)?;
         match py_view {
             PyView::Pair(obj) => Ok(obj.clone()),
-            _ => Ok(py.eval("None", None, None)?.extract()?),
+            _ => Ok(py.None()),
         }
     }
 
     #[getter(native)]
-    pub fn native<'p>(slf: &'p PyCell<Self>, py: Python<'p>) -> PyResult<&'p PyAny> {
-        match &slf.borrow().native_view {
+    pub fn native<'p>(slf: &'p PyCell<Self>, py: Python<'p>) -> PyResult<PyObject> {
+        Ok(match &slf.borrow().native_view {
             Some(native_view) => {
                 let locals = [
                     ("a", native_view.arena.clone()),
                     ("b", native_view.ptr.into_py(py)),
                 ]
                 .into_py_dict(py);
-                py.eval("(a, b)", None, Some(locals))
+                py.eval("(a, b)", None, Some(locals))?.to_object(py)
             }
-            None => py.eval("None", None, None),
-        }
+            None => py.None(),
+        })
     }
 
     #[getter(python)]
@@ -324,7 +324,7 @@ impl PyNaNode {
         Ok(match &slf.borrow().py_view {
             Some(PyView::Atom(atom)) => ("Atom", atom).to_object(py),
             Some(PyView::Pair(pair)) => ("Pair", pair).to_object(py),
-            _ => py.eval("None", None, None)?.to_object(py),
+            _ => py.None(),
         })
     }
 
