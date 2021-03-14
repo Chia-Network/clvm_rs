@@ -119,7 +119,7 @@ const fn allocator_for_py(_py: Python) -> AllocatorT {
 
 #[pyfunction]
 fn serialize_from_bytes<'p>(py: Python<'p>, blob: &[u8]) -> PyResult<&'p PyCell<PyNaNode>> {
-    let mut py_int_allocator = PyCell::new(py, PyIntAllocator::default())?;
+    let py_int_allocator = PyCell::new(py, PyIntAllocator::default())?;
     let allocator: &mut IntAllocator = &mut py_int_allocator.borrow_mut().arena;
     let ptr = node_from_bytes(allocator, blob)?;
     PyNaNode::from_ptr(py, &py_int_allocator.to_object(py), ptr)
@@ -131,8 +131,8 @@ use crate::node::Node;
 fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyCell<PyNaNode>) -> PyResult<&'p PyBytes> {
     PyNaNode::clear_native_view(sexp, py);
 
-    let mut py_int_allocator_cell = PyCell::new(py, PyIntAllocator::default())?;
-    let mut py_int_allocator: &mut PyIntAllocator = &mut py_int_allocator_cell.borrow_mut();
+    let py_int_allocator_cell = PyCell::new(py, PyIntAllocator::default())?;
+    let py_int_allocator: &mut PyIntAllocator = &mut py_int_allocator_cell.borrow_mut();
     let allocator: &mut IntAllocator = &mut py_int_allocator.arena;
 
     let ptr = PyNaNode::ptr(
@@ -195,7 +195,7 @@ pub fn py_run_program(
         },
     )?;
     let mut arena_ref = arena.borrow_mut();
-    let mut allocator: &mut IntAllocator = &mut arena_ref.arena;
+    let allocator: &mut IntAllocator = &mut arena_ref.arena;
 
     let arena_as_obj = arena.to_object(py);
     PyNaNode::clear_native_view(program, py);

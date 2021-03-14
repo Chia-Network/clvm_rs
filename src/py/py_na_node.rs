@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::cell::{Ref, RefCell};
+
 
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBytes, PyTuple, PyType};
@@ -229,7 +229,7 @@ impl PyNaNode {
 
     fn py_view_for_native_view(py: Python, native_view: &NativeView) -> PyResult<PyView> {
         let mut py_int_allocator: PyRefMut<PyIntAllocator> = native_view.arena.extract(py)?;
-        let mut allocator: &mut IntAllocator = &mut py_int_allocator.arena;
+        let allocator: &mut IntAllocator = &mut py_int_allocator.arena;
 
         // create a PyView and return it
         let py_view = match allocator.sexp(&native_view.ptr) {
@@ -269,14 +269,14 @@ impl PyNaNode {
     }
 
     #[classmethod]
-    fn new_atom<'p>(cls: &PyType, py: Python<'p>, atom: &PyBytes) -> PyResult<&'p PyCell<Self>> {
+    fn new_atom<'p>(_cls: &PyType, py: Python<'p>, atom: &PyBytes) -> PyResult<&'p PyCell<Self>> {
         let py_view = PyView::new_atom(py, atom);
         Self::new(py, Some(py_view), None)
     }
 
     #[classmethod]
     fn new_pair<'p>(
-        cls: &PyType,
+        _cls: &PyType,
         py: Python<'p>,
         p1: &PyCell<PyNaNode>,
         p2: &PyCell<PyNaNode>,
@@ -287,7 +287,7 @@ impl PyNaNode {
     }
 
     #[classmethod]
-    fn new_tuple<'p>(cls: &PyType, py: Python<'p>, tuple: &PyTuple) -> PyResult<&'p PyCell<Self>> {
+    fn new_tuple<'p>(_cls: &PyType, py: Python<'p>, tuple: &PyTuple) -> PyResult<&'p PyCell<Self>> {
         let py_view = PyView::new_pair(py, tuple)?;
         Self::new(py, Some(py_view), None)
     }
@@ -348,7 +348,7 @@ impl PyNaNode {
         arena: PyObject,
     ) -> PyResult<()> {
         let py_int_allocator: &PyCell<PyIntAllocator> = arena.extract(py)?;
-        let mut allocator: &mut IntAllocator = &mut py_int_allocator.borrow_mut().arena;
+        let allocator: &mut IntAllocator = &mut py_int_allocator.borrow_mut().arena;
         Self::populate_native_view(slf, py, &cache, &arena, allocator)
     }
 }

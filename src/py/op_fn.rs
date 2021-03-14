@@ -9,14 +9,14 @@ use pyo3::PyErr;
 use pyo3::PyObject;
 use pyo3::PyResult;
 use pyo3::Python;
-use pyo3::ToPyObject;
+
 
 use crate::allocator::Allocator;
 use crate::cost::Cost;
 use crate::int_allocator::IntAllocator;
 use crate::py::f_table::{f_lookup_for_hashmap, FLookup};
 use crate::py::py_na_node::PyNaNode;
-use crate::reduction::{EvalErr, Reduction, Response};
+use crate::reduction::{EvalErr, Response};
 use crate::run_program::OperatorHandler;
 
 pub struct PyOperatorHandler {
