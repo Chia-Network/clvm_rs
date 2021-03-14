@@ -1,6 +1,3 @@
-use std::borrow::Borrow;
-
-
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBytes, PyTuple, PyType};
 
@@ -10,12 +7,6 @@ use crate::int_allocator::IntAllocator;
 use super::native_view::NativeView;
 use super::py_int_allocator::PyIntAllocator;
 use super::py_view::PyView;
-
-#[derive(Clone)]
-enum View {
-    Python(PyView),
-    Native(NativeView),
-}
 
 #[pyclass(weakref, subclass)]
 pub struct PyNaNode {
@@ -134,7 +125,7 @@ impl PyNaNode {
         allocator: &mut IntAllocator,
     ) -> PyResult<()> {
         let mut to_cast: Vec<PyObject> = vec![slf.to_object(py)];
-        Ok(loop {
+        loop {
             let t: Option<PyObject> = to_cast.pop();
             match t {
                 None => break,
@@ -149,7 +140,8 @@ impl PyNaNode {
                     }
                 }
             }
-        })
+        }
+        Ok(())
     }
 
     /// This instance has a corresponding rep in some `IntAllocator`
@@ -173,7 +165,7 @@ impl PyNaNode {
                     PyView::Atom(obj) => {
                         let blob: &[u8] = obj.extract(py).unwrap();
                         let ptr = allocator.new_atom(blob).unwrap();
-                        add_to_cache(py, cache, ptr, slf_cell);
+                        add_to_cache(py, cache, ptr, slf_cell)?;
                         ptr
                     }
                     PyView::Pair(pair) => {
@@ -191,7 +183,7 @@ impl PyNaNode {
                         };
                         if let (Some(ptr_0), Some(ptr_1)) = (ptr_0, ptr_1) {
                             let ptr = allocator.new_pair(ptr_0, ptr_1).unwrap();
-                            add_to_cache(py, cache, ptr, slf_cell);
+                            add_to_cache(py, cache, ptr, slf_cell)?;
                             ptr
                         } else {
                             return Ok(Some((p0.to_object(py), p1.to_object(py))));
@@ -251,7 +243,7 @@ impl PyNaNode {
 #[pymethods]
 impl PyNaNode {
     #[new]
-    fn new_obj<'p>(py: Python<'p>, obj: &PyAny) -> PyResult<Self> {
+    fn new_obj(py: Python, obj: &PyAny) -> PyResult<Self> {
         Ok(if let Ok(tuple) = obj.extract() {
             let py_view = PyView::new_pair(py, tuple)?;
             Self {

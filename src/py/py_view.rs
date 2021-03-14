@@ -24,27 +24,4 @@ impl PyView {
 
         Ok(PyView::Pair(pair.to_object(py)))
     }
-
-    fn atom<'p>(&'p self, py: Python<'p>) -> Option<&'p PyBytes> {
-        match self {
-            PyView::Atom(obj) => Some(obj.extract(py).unwrap()),
-            _ => None,
-        }
-    }
-
-    fn pair<'p>(&'p self, py: Python<'p>) -> PyResult<Option<&'p PyTuple>> {
-        match self {
-            PyView::Pair(obj) => Ok(Some(obj.extract(py)?)),
-            _ => Ok(None),
-        }
-    }
-
-    /*
-    fn pair_as_cells(&self, py: Python) -> PyResult<Option<(&PyCell<PyNode>, &PyCell<PyNode>)>> {
-        let pair = self.pair(py)?;
-        let p0: &'p PyCell<PyNode> = pair.get_item(0).extract()?;
-        let p1: &'p PyCell<PyNode> = pair.get_item(1).extract()?;
-        Ok((p0, p1))
-    }
-    */
 }
