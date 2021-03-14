@@ -8,31 +8,32 @@ use pyo3::PyErr;
 use pyo3::PyObject;
 use pyo3::PyResult;
 use pyo3::Python;
+use pyo3::ToPyObject;
 
 use crate::allocator::Allocator;
 use crate::cost::Cost;
 use crate::int_allocator::IntAllocator;
 use crate::py::f_table::{f_lookup_for_hashmap, FLookup};
-use crate::py::py_na_node::PyNaNode;
-use crate::reduction::{EvalErr, Response};
+use crate::py::py_na_node::{add_to_cache, from_cache, PyNaNode};
+use crate::reduction::{EvalErr, Reduction, Response};
 use crate::run_program::OperatorHandler;
 
 pub struct PyOperatorHandler {
     native_lookup: FLookup<IntAllocator>,
     arena: PyObject,
     py_callable: PyObject,
-    cache: RefCell<HashMap<i32, PyObject>>,
+    cache: PyObject,
 }
 
 impl PyOperatorHandler {
     pub fn new(
         opcode_lookup_by_name: HashMap<String, Vec<u8>>,
         arena: PyObject,
+        cache: PyObject,
         py_callable: PyObject,
     ) -> Self {
         let native_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
 
-        let cache = RefCell::new(HashMap::new());
         PyOperatorHandler {
             native_lookup,
             arena,
@@ -43,8 +44,7 @@ impl PyOperatorHandler {
 }
 
 impl PyOperatorHandler {
-    /*
-    fn invoke_py_obj(
+    pub fn invoke_py_obj(
         &self,
         obj: PyObject,
         arena: PyObject,
@@ -54,14 +54,23 @@ impl PyOperatorHandler {
         max_cost: Cost,
     ) -> Response<<IntAllocator as Allocator>::Ptr> {
         Python::with_gil(|py| {
-            let op = allocator.buf(&op_buf).to_object(py);
-            let py_int_node = self.uncache(py, allocator, args);
+            let op: &[u8] = allocator.buf(&op_buf);
+            let r = self.uncache(py, args);
+            let py_int_node = unwrap_or_eval_err(r, args, "can't uncache")?;
+            // TODO: implement a `populate_python_view` that accepts the borrowed `allocator` above
+            //  since the existing one will try to re-borrow it and fail
+            // py_int_node.populate_python_view(py);
             let r1 = obj.call1(py, (op, py_int_node));
 
             match r1 {
                 Err(pyerr) => {
-                    let eval_err: PyResult<EvalErr<i32>> =
-                        eval_err_for_pyerr(py, &pyerr, arena.clone(), allocator);
+                    let eval_err: PyResult<EvalErr<i32>> = eval_err_for_pyerr(
+                        py,
+                        &pyerr,
+                        self.cache.clone(),
+                        arena.clone(),
+                        allocator,
+                    );
                     let r: EvalErr<i32> =
                         unwrap_or_eval_err(eval_err, args, "unexpected exception")?;
                     Err(r)
@@ -75,30 +84,21 @@ impl PyOperatorHandler {
                     let py_node: &PyCell<PyNaNode> =
                         unwrap_or_eval_err(pair.get_item(1).extract(), args, "expected node")?;
 
-                    let node: i32 = PyNaNode::ptr(py_node, Some(py), arena.clone(), allocator);
+                    let r = PyNaNode::ptr(py_node, py, &self.cache, &self.arena, allocator);
+                    let node: i32 = unwrap_or_eval_err(r, args, "can't find in int allocator")?;
                     Ok(Reduction(i0 as Cost, node))
                 }
             }
         })
     }
 
-    fn uncache(&self, py: Python, allocator: &mut IntAllocator, args: &i32) -> PyObject {
+    fn uncache<'p>(&'p self, py: Python<'p>, args: &i32) -> PyResult<PyObject> {
         let args = args.clone();
-        let mut cache = self.cache.borrow_mut();
-        match cache.get(&args) {
-            Some(obj) => obj.clone(),
-            None => {
-                let py_int_node: &PyCell<PyNaNode> =
-                    PyCell::new(py, PyNaNode::new(self.arena.clone(), Some(args), None)).unwrap();
-                // this hack ensures we have python representations in all children
-                PyNaNode::ensure_python_view(vec![py_int_node.to_object(py)], allocator, py);
-                let obj: PyObject = py_int_node.to_object(py);
-                cache.insert(args, obj.clone());
-                obj
-            }
-        }
+        Ok(match from_cache(py, &self.cache, args)? {
+            Some(obj) => obj,
+            None => PyNaNode::from_ptr(py, &self.arena, args.clone())?.to_object(py),
+        })
     }
-    */
 }
 
 impl OperatorHandler<IntAllocator> for PyOperatorHandler {
@@ -116,10 +116,6 @@ impl OperatorHandler<IntAllocator> for PyOperatorHandler {
             }
         }
 
-        // HACK TODO remove me
-        Err(EvalErr(0, "unknown op".to_string()))
-
-        /*
         self.invoke_py_obj(
             self.py_callable.clone(),
             self.arena.clone(),
@@ -128,7 +124,6 @@ impl OperatorHandler<IntAllocator> for PyOperatorHandler {
             args,
             max_cost,
         )
-        */
     }
 }
 

@@ -21,7 +21,7 @@ pub fn new_cache(py: Python) -> PyResult<PyObject> {
         .to_object(py))
 }
 
-fn add_to_cache(
+pub fn add_to_cache(
     py: Python,
     cache: &PyObject,
     ptr: <IntAllocator as Allocator>::Ptr,
@@ -38,7 +38,7 @@ fn add_to_cache(
     Ok(py.run("cache[key] = value", None, Some(locals))?)
 }
 
-fn from_cache(
+pub fn from_cache(
     py: Python,
     cache: &PyObject,
     ptr: <IntAllocator as Allocator>::Ptr,
