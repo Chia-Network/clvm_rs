@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use pyo3::prelude::pyclass;
 use pyo3::types::PyString;
 use pyo3::types::PyTuple;
 use pyo3::PyCell;
@@ -9,7 +8,6 @@ use pyo3::PyErr;
 use pyo3::PyObject;
 use pyo3::PyResult;
 use pyo3::Python;
-
 
 use crate::allocator::Allocator;
 use crate::cost::Cost;
@@ -114,7 +112,7 @@ impl OperatorHandler<IntAllocator> for PyOperatorHandler {
         let op = allocator.buf(&op_buf);
         if op.len() == 1 {
             if let Some(f) = self.native_lookup[op[0] as usize] {
-                return f(allocator, args.clone(), max_cost);
+                return f(allocator, *args, max_cost);
             }
         }
 

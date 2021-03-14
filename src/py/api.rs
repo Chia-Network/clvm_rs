@@ -5,19 +5,18 @@ use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
-use super::glue::{_serialize_from_bytes, _serialize_to_bytes};
 //use super::int_allocator_gateway::{PyIntAllocator, PyIntNode};
-use super::native_op_lookup::GenericNativeOpLookup;
+
 use super::py_int_allocator::PyIntAllocator;
 use super::py_na_node::{new_cache, PyNaNode};
 
 //use super::run_program::{__pyo3_get_function_deserialize_and_run_program, STRICT_MODE};
 use crate::int_allocator::IntAllocator;
-use crate::py::f_table::{f_lookup_for_hashmap, FLookup};
+
 //use crate::py::run_program::OperatorHandlerWithMode;
-use crate::run_program::OperatorHandler;
+
+use crate::cost::Cost;
 use crate::serialize::{node_from_bytes, node_to_bytes};
-use crate::{allocator, cost::Cost};
 
 type AllocatorT<'a> = IntAllocator;
 //type NodeClass = PyIntNode;
@@ -129,7 +128,7 @@ use crate::node::Node;
 
 #[pyfunction]
 fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyCell<PyNaNode>) -> PyResult<&'p PyBytes> {
-    PyNaNode::clear_native_view(sexp, py);
+    PyNaNode::clear_native_view(sexp, py)?;
 
     let py_int_allocator_cell = PyCell::new(py, PyIntAllocator::default())?;
     let py_int_allocator: &mut PyIntAllocator = &mut py_int_allocator_cell.borrow_mut();
@@ -198,7 +197,7 @@ pub fn py_run_program(
     let allocator: &mut IntAllocator = &mut arena_ref.arena;
 
     let arena_as_obj = arena.to_object(py);
-    PyNaNode::clear_native_view(program, py);
+    PyNaNode::clear_native_view(program, py)?;
     let program = PyNaNode::ptr(program, py, &cache, &arena_as_obj, allocator)?;
     let args = PyNaNode::ptr(args, py, &cache, &arena_as_obj, allocator)?;
 
