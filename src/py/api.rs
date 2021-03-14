@@ -204,6 +204,7 @@ pub fn py_run_program(
     let op_lookup = Box::new(PyOperatorHandler::new(
         opcode_lookup_by_name,
         arena.to_object(py),
+        cache,
         py_callback,
     ));
 
