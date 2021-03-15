@@ -41,7 +41,7 @@ pub fn add_to_cache(
 pub fn from_cache(
     py: Python,
     cache: &PyObject,
-    ptr: <IntAllocator as Allocator>::Ptr,
+    ptr: &<IntAllocator as Allocator>::Ptr,
 ) -> PyResult<Option<PyObject>> {
     let locals = [("cache", cache.clone()), ("key", ptr.to_object(py))].into_py_dict(py);
     py.eval("cache.get(key)", None, Some(locals))?.extract()
