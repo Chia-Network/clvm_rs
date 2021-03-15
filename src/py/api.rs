@@ -218,7 +218,7 @@ pub fn py_run_program(
             Ok((reduction.0, r.to_object(py)))
         }
         Err(eval_err) => {
-            let node: PyObject = eval_err.0.to_object(py);
+            let node: PyObject = PyNaNode::from_ptr(py, &arena_as_obj, eval_err.0)?.to_object(py);
             let s: String = eval_err.1;
             let s1: &str = &s;
             let msg: &PyString = PyString::new(py, s1);
