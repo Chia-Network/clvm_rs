@@ -57,23 +57,9 @@ impl PyOperatorHandler {
     ) -> Response<<IntAllocator as Allocator>::Ptr> {
         Python::with_gil(|py| {
             let op: &PyBytes = PyBytes::new(py, allocator.buf(&op_buf));
-            let r = self.uncache(py, args);
+            let r = self.uncache(py, allocator, args);
             let py_int_node = unwrap_or_eval_err(r, args, "can't uncache")?;
-            let mut py_na_node: PyRefMut<PyNaNode> =
-                unwrap_or_eval_err(py_int_node.extract(py), args, "can't convert")?;
-            if py_na_node.py_view.is_none() {
-                py_na_node.py_view = Some(unwrap_or_eval_err(
-                    PyNaNode::py_view_for_allocator_ptr(py, &arena, allocator, args),
-                    args,
-                    "can't generate pyview",
-                )?);
-            }
-            drop(py_na_node);
-            // TODO: implement a `populate_python_view` that accepts the borrowed `allocator` above
-            //  since the existing one will try to re-borrow it and fail
-            // py_int_node.populate_python_view(py);
             let r1 = obj.call1(py, (op, py_int_node.clone()));
-
             match r1 {
                 Err(pyerr) => {
                     let eval_err: PyResult<EvalErr<i32>> = eval_err_for_pyerr(
@@ -104,12 +90,27 @@ impl PyOperatorHandler {
         })
     }
 
-    fn uncache<'p>(&'p self, py: Python<'p>, args: &i32) -> PyResult<PyObject> {
-        let args = args.clone();
-        Ok(match from_cache(py, &self.cache, args)? {
+    fn uncache<'p>(
+        &'p self,
+        py: Python<'p>,
+        allocator: &mut IntAllocator,
+        args: &i32,
+    ) -> PyResult<PyObject> {
+        let obj = match from_cache(py, &self.cache, args)? {
             Some(obj) => obj,
             None => PyNaNode::from_ptr(py, &self.arena, args.clone())?.to_object(py),
-        })
+        };
+        let mut py_na_node: PyRefMut<PyNaNode> = obj.extract(py)?;
+        if py_na_node.py_view.is_none() {
+            py_na_node.py_view = Some(PyNaNode::py_view_for_allocator_ptr(
+                py, &self.arena, allocator, args,
+            )?);
+        }
+        drop(py_na_node);
+        // TODO: implement a `populate_python_view` that accepts the borrowed `allocator` above
+        //  since the existing one will try to re-borrow it and fail
+        // py_int_node.populate_python_view(py);
+        Ok(obj)
     }
 }
 
