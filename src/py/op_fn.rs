@@ -96,20 +96,13 @@ impl PyOperatorHandler {
         allocator: &mut IntAllocator,
         args: &i32,
     ) -> PyResult<PyObject> {
-        let obj = match from_cache(py, &self.cache, args)? {
-            Some(obj) => obj,
-            None => PyNaNode::from_ptr(py, &self.arena, args.clone())?.to_object(py),
-        };
-        let mut py_na_node: PyRefMut<PyNaNode> = obj.extract(py)?;
-        if py_na_node.py_view.is_none() {
-            py_na_node.py_view = Some(PyNaNode::py_view_for_allocator_ptr(
-                py, &self.arena, allocator, args,
-            )?);
-        }
-        drop(py_na_node);
-        // TODO: implement a `populate_python_view` that accepts the borrowed `allocator` above
-        //  since the existing one will try to re-borrow it and fail
-        // py_int_node.populate_python_view(py);
+        let obj = PyNaNode::populate_python_view_with_allocator(
+            py,
+            &self.cache,
+            &self.arena,
+            allocator,
+            args,
+        )?;
         Ok(obj)
     }
 }
