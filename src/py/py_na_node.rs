@@ -47,6 +47,27 @@ pub fn from_cache(
     py.eval("cache.get(key)", None, Some(locals))?.extract()
 }
 
+pub fn apply_to_tree<T, F>(mut node: T, mut apply: F) -> PyResult<()>
+where
+    F: FnMut(T) -> PyResult<Option<(T, T)>>,
+    T: Clone,
+{
+    let mut items = vec![node];
+    loop {
+        let t = items.pop();
+        if let Some(obj) = t {
+            if let Some((p0, p1)) = apply(obj.clone())? {
+                items.push(obj);
+                items.push(p0);
+                items.push(p1);
+            }
+        } else {
+            break;
+        }
+    }
+    Ok(())
+}
+
 impl PyNaNode {
     fn new(
         py: Python,
@@ -63,25 +84,23 @@ impl PyNaNode {
     }
 
     pub fn clear_native_view(slf: &PyCell<Self>, py: Python) -> PyResult<()> {
-        let mut items = vec![slf.to_object(py)];
-        loop {
-            let t = items.pop();
-            if let Some(obj) = t {
-                let mut node: PyRefMut<Self> = obj.extract(py)?;
-                node.populate_python_view(py)?;
-                assert!(node.py_view.is_some());
-                node.native_view = None;
-                if let Some(PyView::Pair(tuple)) = &node.py_view {
-                    let (p0, p1): (PyObject, PyObject) = tuple.extract(py)?;
-                    //let (p0, p1): (&PyCell<Self>, &PyCell<Self>) = tuple.extract(py)?;
-                    items.push(p0);
-                    items.push(p1);
+        apply_to_tree(slf.to_object(py), move |obj: PyObject| {
+            let mut node: PyRefMut<Self> = obj.extract(py)?;
+            node.populate_python_view(py)?;
+            assert!(node.py_view.is_some());
+            Ok(if let Some(PyView::Pair(tuple)) = &node.py_view {
+                let (p0, p1): (PyObject, PyObject) = tuple.extract(py)?;
+                if node.native_view.is_some() {
+                    node.native_view = None;
+                    Some((p0, p1))
+                } else {
+                    None
                 }
             } else {
-                break;
-            }
-        }
-        Ok(())
+                node.native_view = None;
+                None
+            })
+        })
     }
 
     pub fn add_to_cache(slf: &PyCell<Self>, py: Python, cache: &PyObject) -> PyResult<()> {
@@ -124,24 +143,10 @@ impl PyNaNode {
         arena: &PyObject,
         allocator: &mut IntAllocator,
     ) -> PyResult<()> {
-        let mut to_cast: Vec<PyObject> = vec![slf.to_object(py)];
-        loop {
-            let t: Option<PyObject> = to_cast.pop();
-            match t {
-                None => break,
-                Some(node_ref) => {
-                    let t1: &PyCell<Self> = node_ref.extract(py)?;
-                    let transfer: Option<(PyObject, PyObject)> =
-                        Self::add_to_native_cache(t1, py, arena, cache, allocator)?;
-                    if let Some((p0, p1)) = transfer {
-                        to_cast.push(node_ref);
-                        to_cast.push(p0.to_object(py));
-                        to_cast.push(p1.to_object(py));
-                    }
-                }
-            }
-        }
-        Ok(())
+        apply_to_tree(slf.to_object(py), move |node_ref: PyObject| {
+            let t1: &PyCell<Self> = node_ref.extract(py)?;
+            Self::add_to_native_cache(t1, py, arena, cache, allocator)
+        })
     }
 
     /// This instance has a corresponding rep in some `IntAllocator`
@@ -198,15 +203,11 @@ impl PyNaNode {
         }
     }
 
-    /// If this instance is using `NativeView`, replace it with an equivalent `PythonView`
+    /// If this instance has no `PythonView`, calculate it using the `NativeView`
     /// so it can be use from python.
     pub fn populate_python_view<'p>(&mut self, py: Python<'p>) -> PyResult<&PyView> {
-        // if using `NativeView`, swap it out for `PythonView`
         if self.py_view.is_none() {
             if let Some(native_view) = &self.native_view {
-                //let mut py_int_allocator: PyRefMut<PyIntAllocator> =
-                // native_view.arena.extract(py)?;
-                //let mut allocator_to_use: &mut IntAllocator = &mut py_int_allocator.arena;
                 let mut py_int_allocator: PyRefMut<PyIntAllocator> =
                     native_view.arena.extract(py)?;
                 let allocator: &mut IntAllocator = &mut py_int_allocator.arena;
@@ -226,6 +227,62 @@ impl PyNaNode {
             None => (),
         };
         py_raise(py, "no pyview available")?
+    }
+
+    /// If this instance has no `PythonView`, calculate it using the `NativeView`
+    /// so it can be use from python.
+    pub fn populate_python_view_with_allocator<'p>(
+        py: Python<'p>,
+        cache: &PyObject,
+        arena: &PyObject,
+        allocator: &mut IntAllocator,
+        ptr: &i32,
+    ) -> PyResult<PyObject> {
+        apply_to_tree(ptr.clone(), move |ptr| {
+            if from_cache(py, cache, &ptr)?.is_none() {
+                match allocator.sexp(&ptr) {
+                    SExp::Atom(a) => {
+                        let blob = allocator.buf(&a);
+                        let py_bytes = PyBytes::new(py, blob);
+
+                        add_to_cache(
+                            py,
+                            cache,
+                            ptr,
+                            PyNaNode::new(py, Some(PyView::new_atom(py, py_bytes)), None)?,
+                        )?;
+                        Ok(None)
+                    }
+                    SExp::Pair(ptr_1, ptr_2) => {
+                        let c1 = from_cache(py, cache, &ptr_1)?;
+                        let c2 = from_cache(py, cache, &ptr_2)?;
+                        if let (Some(p1), Some(p2)) = (c1, c2) {
+                            add_to_cache(
+                                py,
+                                cache,
+                                ptr.clone(),
+                                PyNaNode::new(
+                                    py,
+                                    Some(PyView::new_pair(py, PyTuple::new(py, &[p1, p2]))?),
+                                    None,
+                                )?,
+                            )?;
+                            Ok(None)
+                        } else {
+                            Ok(Some((ptr_1, ptr_2)))
+                        }
+                    }
+                }
+            } else {
+                Ok(None)
+            }
+        })?;
+
+        if let Some(t) = from_cache(py, cache, &ptr)? {
+            Ok(t)
+        } else {
+            py_raise(py, "can't populate with py_view")
+        }
     }
 
     pub fn py_view_for_allocator_ptr(
