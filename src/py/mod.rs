@@ -8,6 +8,7 @@ pub mod native_view;
 pub mod op_fn;
 pub mod py_int_allocator;
 pub mod py_na_node;
+pub mod py_native_mapping;
 pub mod py_node;
 pub mod py_view;
 pub mod run_program;

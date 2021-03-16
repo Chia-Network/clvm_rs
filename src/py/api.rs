@@ -199,6 +199,7 @@ pub fn py_run_program(
     let arena_as_obj = arena.to_object(py);
     PyNaNode::clear_native_view(program, py)?;
     let program = PyNaNode::ptr(program, py, &cache, &arena_as_obj, allocator)?;
+    PyNaNode::clear_native_view(args, py)?;
     let args = PyNaNode::ptr(args, py, &cache, &arena_as_obj, allocator)?;
 
     let op_lookup = Box::new(PyOperatorHandler::new(

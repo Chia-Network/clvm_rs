@@ -69,7 +69,7 @@ where
 }
 
 impl PyNaNode {
-    fn new(
+    pub fn new(
         py: Python,
         py_view: Option<PyView>,
         native_view: Option<NativeView>,
