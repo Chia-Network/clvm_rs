@@ -203,11 +203,11 @@ pub fn py_run_program(
     let args = PyNaNode::ptr(args, py, &cache, &arena_as_obj, allocator)?;
 
     let op_lookup = Box::new(PyOperatorHandler::new(
+        py,
         opcode_lookup_by_name,
         arena.to_object(py),
-        cache,
         py_callback,
-    ));
+    )?);
 
     let r: Result<Reduction<i32>, EvalErr<i32>> = crate::run_program::run_program(
         allocator, &program, &args, quote_kw, apply_kw, max_cost, op_lookup, None,

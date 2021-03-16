@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBytes, PyTuple, PyType};
 
@@ -12,6 +14,7 @@ use super::py_view::PyView;
 pub struct PyNaNode {
     pub py_view: Option<PyView>,
     pub native_view: Option<NativeView>,
+    pub int_cache: Cell<Option<i32>>,
     //int_arena_cache: PyObject, // WeakKeyDict[PyIntAllocator, int]
 }
 
@@ -74,11 +77,13 @@ impl PyNaNode {
         py_view: Option<PyView>,
         native_view: Option<NativeView>,
     ) -> PyResult<&PyCell<Self>> {
+        let int_cache = Cell::new(None);
         PyCell::new(
             py,
             PyNaNode {
                 py_view,
                 native_view,
+                int_cache,
             },
         )
     }
@@ -317,6 +322,7 @@ impl PyNaNode {
             Self {
                 py_view: Some(py_view),
                 native_view: None,
+                int_cache: Cell::new(None),
             }
         } else {
             let py_bytes: &PyBytes = obj.extract()?;
@@ -324,6 +330,7 @@ impl PyNaNode {
             Self {
                 py_view: Some(py_view),
                 native_view: None,
+                int_cache: Cell::new(None),
             }
         })
     }

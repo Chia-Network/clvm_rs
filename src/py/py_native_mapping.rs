@@ -12,22 +12,16 @@ use super::py_view::PyView;
 use super::py_na_node::PyNaNode;
 
 pub struct PyNativeMapping {
-    py_to_native: PyObject,
     native_to_py: PyObject,
 }
 
 impl PyNativeMapping {
-    fn new(py: Python) -> PyResult<Self> {
-        let py_to_native = py
-            .eval("__import__('weakref').WeakKeyDictionary()", None, None)?
-            .to_object(py);
+    pub fn new(py: Python) -> PyResult<Self> {
         let native_to_py = py
-            .eval("__import__('weakref').WeakValueDictionary()", None, None)?
+            //.eval("__import__('weakref').WeakValueDictionary()", None, None)?
+            .eval("dict()", None, None)?
             .to_object(py);
-        Ok(Self {
-            py_to_native,
-            native_to_py,
-        })
+        Ok(Self { native_to_py })
     }
 
     fn add(
@@ -36,19 +30,17 @@ impl PyNativeMapping {
         obj: &PyCell<PyNaNode>,
         ptr: &<IntAllocator as Allocator>::Ptr,
     ) -> PyResult<()> {
+        obj.borrow().int_cache.set(Some(ptr.clone()));
+
         let locals = [
-            ("py_to_native", self.py_to_native.clone()),
             ("native_to_py", self.native_to_py.clone()),
             ("obj", obj.to_object(py)),
             ("ptr", ptr.to_object(py)),
         ]
         .into_py_dict(py);
 
-        Ok(py.run(
-            "py_to_native[obj] = ptr; native_to_py[ptr] = obj",
-            None,
-            Some(locals),
-        )?)
+        let r = py.run("native_to_py[ptr] = obj", None, Some(locals));
+        r
     }
 
     // py to native methods
@@ -58,12 +50,18 @@ impl PyNativeMapping {
         py: Python<'p>,
         obj: &PyCell<PyNaNode>,
     ) -> PyResult<<IntAllocator as Allocator>::Ptr> {
+        let ptr: Option<i32> = obj.borrow().int_cache.get();
         let locals = [
-            ("cache", self.py_to_native.clone()),
-            ("key", obj.to_object(py)),
+            ("cache", self.native_to_py.clone()),
+            ("key", ptr.to_object(py)),
         ]
         .into_py_dict(py);
-        py.eval("cache[key]", None, Some(locals))?.extract()
+        let obj1: &PyCell<PyNaNode> = py.eval("cache[key]", None, Some(locals))?.extract()?;
+        if obj1.to_object(py) == obj.to_object(py) {
+            Ok(ptr.unwrap())
+        } else {
+            py_raise(py, "not in native cache")
+        }
     }
 
     fn populate_native(
@@ -88,6 +86,7 @@ impl PyNativeMapping {
                     let blob: &[u8] = obj.extract(py).unwrap();
                     let ptr = allocator.new_atom(blob).unwrap();
                     self.add(py, node, &ptr)?;
+
                     Ok(None)
                 }
                 Some(PyView::Pair(pair)) => {
@@ -95,16 +94,10 @@ impl PyNativeMapping {
                     let pair: &PyTuple = pair.extract()?;
                     let p0: &PyCell<PyNaNode> = pair.get_item(0).extract()?;
                     let p1: &PyCell<PyNaNode> = pair.get_item(1).extract()?;
-                    let ptr_0 = match &p0.borrow().native_view {
-                        Some(native_view) => Some(native_view.ptr),
-                        None => None,
-                    };
-                    let ptr_1 = match &p1.borrow().native_view {
-                        Some(native_view) => Some(native_view.ptr),
-                        None => None,
-                    };
+                    let ptr_0 = &p0.borrow().int_cache.get();
+                    let ptr_1 = &p1.borrow().int_cache.get();
                     if let (Some(ptr_0), Some(ptr_1)) = (ptr_0, ptr_1) {
-                        let ptr = allocator.new_pair(ptr_0, ptr_1).unwrap();
+                        let ptr = allocator.new_pair(*ptr_0, *ptr_1).unwrap();
                         self.add(py, node, &ptr)?;
                         Ok(None)
                     } else {
@@ -115,7 +108,8 @@ impl PyNativeMapping {
             }
         })?;
 
-        self.from_py_to_native_cache(py, obj)
+        let r = self.from_py_to_native_cache(py, obj);
+        r
     }
 
     pub fn native_for_py(
