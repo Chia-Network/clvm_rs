@@ -6,7 +6,7 @@ use crate::int_allocator::IntAllocator;
 
 use super::py_view::PyView;
 
-use super::py_na_node::PyNaNode;
+use super::py_na_node::PyNode;
 
 pub fn new_mapping(py: Python) -> PyResult<PyObject> {
     Ok(py.eval("dict()", None, None)?.to_object(py))
@@ -15,7 +15,7 @@ pub fn new_mapping(py: Python) -> PyResult<PyObject> {
 pub fn add(
     py: Python,
     cache: &PyObject,
-    obj: &PyCell<PyNaNode>,
+    obj: &PyCell<PyNode>,
     ptr: &<IntAllocator as Allocator>::Ptr,
 ) -> PyResult<()> {
     let locals = [
@@ -33,7 +33,7 @@ pub fn add(
 fn from_py_to_native_cache<'p>(
     py: Python<'p>,
     cache: &PyObject,
-    obj: &PyCell<PyNaNode>,
+    obj: &PyCell<PyNode>,
 ) -> PyResult<<IntAllocator as Allocator>::Ptr> {
     let locals = [("cache", cache.clone()), ("key", obj.to_object(py))].into_py_dict(py);
     py.eval("cache.get(key)", None, Some(locals))?.extract()
@@ -42,11 +42,11 @@ fn from_py_to_native_cache<'p>(
 fn populate_native(
     py: Python,
     cache: &PyObject,
-    obj: &PyCell<PyNaNode>,
+    obj: &PyCell<PyNode>,
     allocator: &mut IntAllocator,
 ) -> PyResult<<IntAllocator as Allocator>::Ptr> {
     apply_to_tree(obj.to_object(py), move |obj| {
-        let node: &PyCell<PyNaNode> = obj.extract(py)?;
+        let node: &PyCell<PyNode> = obj.extract(py)?;
 
         // is it in cache yet?
         if from_py_to_native_cache(py, cache, node).is_ok() {
@@ -67,8 +67,8 @@ fn populate_native(
             Some(PyView::Pair(pair)) => {
                 let pair: &PyAny = pair.clone().into_ref(py);
                 let pair: &PyTuple = pair.extract()?;
-                let p0: &PyCell<PyNaNode> = pair.get_item(0).extract()?;
-                let p1: &PyCell<PyNaNode> = pair.get_item(1).extract()?;
+                let p0: &PyCell<PyNode> = pair.get_item(0).extract()?;
+                let p1: &PyCell<PyNode> = pair.get_item(1).extract()?;
                 let ptr_0: PyResult<i32> = from_py_to_native_cache(py, cache, p0);
                 let ptr_1: PyResult<i32> = from_py_to_native_cache(py, cache, p1);
                 if let (Ok(ptr_0), Ok(ptr_1)) = (ptr_0, ptr_1) {
@@ -89,7 +89,7 @@ fn populate_native(
 pub fn native_for_py(
     py: Python,
     cache: &PyObject,
-    obj: &PyCell<PyNaNode>,
+    obj: &PyCell<PyNode>,
     allocator: &mut IntAllocator,
 ) -> PyResult<<IntAllocator as Allocator>::Ptr> {
     from_py_to_native_cache(py, cache, obj)
@@ -102,7 +102,7 @@ fn from_native_to_py_cache<'p>(
     py: Python<'p>,
     cache: &PyObject,
     ptr: &<IntAllocator as Allocator>::Ptr,
-) -> PyResult<&'p PyCell<PyNaNode>> {
+) -> PyResult<&'p PyCell<PyNode>> {
     let locals = [("cache", cache.clone()), ("key", ptr.to_object(py))].into_py_dict(py);
     py.eval("cache[key]", None, Some(locals))?.extract()
 }
@@ -112,7 +112,7 @@ fn populate_python<'p>(
     cache: &PyObject,
     ptr: &<IntAllocator as Allocator>::Ptr,
     allocator: &mut IntAllocator,
-) -> PyResult<&'p PyCell<PyNaNode>> {
+) -> PyResult<&'p PyCell<PyNode>> {
     apply_to_tree(*ptr, move |ptr| {
         // is it in cache yet?
         if from_native_to_py_cache(py, cache, &ptr).is_ok() {
@@ -130,7 +130,7 @@ fn populate_python<'p>(
                 add(
                     py,
                     cache,
-                    PyNaNode::new(py, Some(PyView::new_atom(py, py_bytes)))?,
+                    PyNode::new(py, Some(PyView::new_atom(py, py_bytes)))?,
                     &ptr,
                 )?;
                 Ok(None)
@@ -153,11 +153,11 @@ fn populate_python<'p>(
 
                     // the children are in the cache, create new node & populate cache with it
                     Ok(tuple) => {
-                        let (p1, p2): (&PyCell<PyNaNode>, &PyCell<PyNaNode>) = tuple.extract()?;
+                        let (p1, p2): (&PyCell<PyNode>, &PyCell<PyNode>) = tuple.extract()?;
                         add(
                             py,
                             cache,
-                            PyNaNode::new(
+                            PyNode::new(
                                 py,
                                 Some(PyView::new_pair(py, PyTuple::new(py, &[p1, p2]))?),
                             )?,
@@ -178,7 +178,7 @@ pub fn py_for_native<'p>(
     cache: &PyObject,
     ptr: &<IntAllocator as Allocator>::Ptr,
     allocator: &mut IntAllocator,
-) -> PyResult<&'p PyCell<PyNaNode>> {
+) -> PyResult<&'p PyCell<PyNode>> {
     from_native_to_py_cache(py, cache, ptr)
         .or_else(|_err| Ok(populate_python(py, cache, ptr, allocator)?))
 }

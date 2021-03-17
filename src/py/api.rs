@@ -6,7 +6,7 @@ use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
 use super::py_int_allocator::PyIntAllocator;
-use super::py_na_node::PyNaNode;
+use super::py_na_node::PyNode;
 use super::py_native_mapping::{native_for_py, new_mapping, py_for_native};
 use super::run_program::{__pyo3_get_function_deserialize_and_run_program, STRICT_MODE};
 
@@ -32,7 +32,7 @@ fn raise_eval_error(py: Python, msg: &PyString, sexp: PyObject) -> PyResult<PyOb
 }
 
 #[pyfunction]
-fn serialize_from_bytes<'p>(py: Python<'p>, blob: &[u8]) -> PyResult<&'p PyCell<PyNaNode>> {
+fn serialize_from_bytes<'p>(py: Python<'p>, blob: &[u8]) -> PyResult<&'p PyCell<PyNode>> {
     let py_int_allocator = PyCell::new(py, PyIntAllocator::default())?;
     let allocator: &mut IntAllocator = &mut py_int_allocator.borrow_mut().arena;
     let cache = new_mapping(py)?;
@@ -43,7 +43,7 @@ fn serialize_from_bytes<'p>(py: Python<'p>, blob: &[u8]) -> PyResult<&'p PyCell<
 use crate::node::Node;
 
 #[pyfunction]
-fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyCell<PyNaNode>) -> PyResult<&'p PyBytes> {
+fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyCell<PyNode>) -> PyResult<&'p PyBytes> {
     let py_int_allocator_cell = PyCell::new(py, PyIntAllocator::default())?;
     let py_int_allocator: &mut PyIntAllocator = &mut py_int_allocator_cell.borrow_mut();
     let allocator: &mut IntAllocator = &mut py_int_allocator.arena;
@@ -74,7 +74,7 @@ fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyIntAllocator>()?;
 
     //m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
-    m.add_class::<PyNaNode>()?;
+    m.add_class::<PyNode>()?;
 
     //m.add_function(wrap_pyfunction!(raise_eval_error, m)?)?;
 
@@ -88,8 +88,8 @@ use crate::reduction::{EvalErr, Reduction};
 #[allow(clippy::too_many_arguments)]
 pub fn py_run_program(
     py: Python,
-    program: &PyCell<PyNaNode>,
-    args: &PyCell<PyNaNode>,
+    program: &PyCell<PyNode>,
+    args: &PyCell<PyNode>,
     quote_kw: u8,
     apply_kw: u8,
     max_cost: Cost,
