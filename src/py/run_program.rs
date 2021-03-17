@@ -1,5 +1,3 @@
-/*
-use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
 use crate::allocator::Allocator;
@@ -8,11 +6,12 @@ use crate::err_utils::err;
 use crate::int_allocator::IntAllocator;
 use crate::more_ops::op_unknown;
 use crate::node::Node;
-use crate::py::f_table::{f_lookup_for_hashmap, FLookup};
-use crate::py::py_int_allocator::{PyIntAllocator};
 use crate::reduction::Response;
 use crate::run_program::{run_program, OperatorHandler};
 use crate::serialize::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
+
+use super::f_table::{f_lookup_for_hashmap, FLookup};
+use super::py_native_mapping::{new_mapping, py_for_native};
 
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
@@ -67,6 +66,7 @@ pub fn deserialize_and_run_program(
         Box::new(OperatorHandlerWithMode { f_lookup, strict });
     let program = node_from_bytes(&mut allocator, program)?;
     let args = node_from_bytes(&mut allocator, args)?;
+    let cache = new_mapping(py)?;
 
     let r = py.allow_threads(|| {
         run_program(
@@ -81,18 +81,10 @@ pub fn deserialize_and_run_program(
         )
     });
     match r {
-        Ok(reduction) => {
-            let py_int_allocator = PyCell::new(py, PyIntAllocator { arena: allocator })?;
-            let py_int_node = PyCell::new(
-                py,
-                PyIntNode {
-                    arena: py_int_allocator.to_object(py),
-                    py_view: RefCell::new(None),
-                    native_view: Cell::new(Some(reduction.1)),
-                },
-            )?;
-            Ok((reduction.0, py_int_node.to_object(py)))
-        }
+        Ok(reduction) => Ok((
+            reduction.0,
+            py_for_native(py, &cache, &reduction.1, &mut allocator)?.to_object(py),
+        )),
         Err(eval_err) => {
             let node_as_blob = node_to_bytes(&Node::new(&allocator, eval_err.0))?;
             let msg = eval_err.1;
@@ -122,4 +114,3 @@ raise EvalError(msg, sexp)",
 pub fn serialized_length(program: &[u8]) -> PyResult<u64> {
     Ok(serialized_length_from_bytes(program)?)
 }
-*/

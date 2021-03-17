@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 
 use pyo3::types::PyBytes;
@@ -7,7 +6,6 @@ use pyo3::types::PyTuple;
 use pyo3::PyCell;
 use pyo3::PyErr;
 use pyo3::PyObject;
-use pyo3::PyRefMut;
 use pyo3::PyResult;
 use pyo3::Python;
 use pyo3::ToPyObject;
@@ -24,23 +22,19 @@ use super::py_native_mapping::{native_for_py, py_for_native};
 
 pub struct PyOperatorHandler {
     native_lookup: FLookup<IntAllocator>,
-    arena: PyObject,
     py_callable: PyObject,
     pub cache: PyObject,
 }
 
 impl PyOperatorHandler {
     pub fn new(
-        py: Python,
         opcode_lookup_by_name: HashMap<String, Vec<u8>>,
-        arena: PyObject,
         py_callable: PyObject,
         cache: PyObject,
     ) -> PyResult<Self> {
         let native_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
         Ok(PyOperatorHandler {
             native_lookup,
-            arena,
             py_callable,
             cache,
         })
@@ -51,7 +45,6 @@ impl PyOperatorHandler {
     pub fn invoke_py_obj(
         &self,
         obj: PyObject,
-        arena: PyObject,
         allocator: &mut IntAllocator,
         op_buf: <IntAllocator as Allocator>::AtomBuf,
         args: &<IntAllocator as Allocator>::Ptr,
@@ -64,16 +57,11 @@ impl PyOperatorHandler {
                 args,
                 "can't uncache",
             )?;
-            let r1 = obj.call1(py, (op, r.to_object(py)));
+            let r1 = obj.call1(py, (op, r.to_object(py), max_cost));
             match r1 {
                 Err(pyerr) => {
-                    let eval_err: PyResult<EvalErr<i32>> = eval_err_for_pyerr(
-                        py,
-                        &pyerr,
-                        self.cache.clone(),
-                        arena.clone(),
-                        allocator,
-                    );
+                    let eval_err: PyResult<EvalErr<i32>> =
+                        eval_err_for_pyerr(py, &pyerr, self.cache.clone(), allocator);
                     let r: EvalErr<i32> =
                         unwrap_or_eval_err(eval_err, args, "unexpected exception")?;
                     Err(r)
@@ -111,14 +99,7 @@ impl OperatorHandler<IntAllocator> for PyOperatorHandler {
             }
         }
 
-        self.invoke_py_obj(
-            self.py_callable.clone(),
-            self.arena.clone(),
-            allocator,
-            op_buf,
-            args,
-            max_cost,
-        )
+        self.invoke_py_obj(self.py_callable.clone(), allocator, op_buf, args, max_cost)
     }
 }
 
@@ -128,7 +109,6 @@ fn eval_err_for_pyerr<'p>(
     py: Python<'p>,
     pyerr: &PyErr,
     cache: PyObject,
-    arena: PyObject,
     allocator: &mut IntAllocator,
 ) -> PyResult<EvalErr<i32>> {
     let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
