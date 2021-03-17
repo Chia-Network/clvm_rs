@@ -1,45 +1,15 @@
 use pyo3::prelude::*;
-//use pyo3::pyclass::PyClassAlloc;`
-use pyo3::types::{IntoPyDict, PyBytes, PyTuple, PyType};
+use pyo3::types::{IntoPyDict, PyBytes, PyTuple};
 
 use crate::allocator::{Allocator, SExp};
 use crate::int_allocator::IntAllocator;
 
-use super::py_int_allocator::PyIntAllocator;
 use super::py_view::PyView;
 
 use super::py_na_node::PyNaNode;
 
-/*
-pub trait PyNativeMapping {
-    fn add(
-        &self,
-        py: Python,
-        obj: &PyCell<PyNaNode>,
-        ptr: &<IntAllocator as Allocator>::Ptr,
-    ) -> PyResult<()>;
-
-    fn native_for_py(
-        &self,
-        py: Python,
-        obj: &PyCell<PyNaNode>,
-        allocator: &mut IntAllocator,
-    ) -> PyResult<<IntAllocator as Allocator>::Ptr>;
-
-    fn py_for_native<'p>(
-        &'p self,
-        py: Python<'p>,
-        ptr: &<IntAllocator as Allocator>::Ptr,
-        allocator: &mut IntAllocator,
-    ) -> PyResult<&'p PyCell<PyNaNode>>;
-}
-*/
-
 pub fn new_mapping(py: Python) -> PyResult<PyObject> {
-    Ok(py
-        //.eval("__import__('weakref').WeakValueDictionary()", None, None)?
-        .eval("dict()", None, None)?
-        .to_object(py))
+    Ok(py.eval("dict()", None, None)?.to_object(py))
 }
 
 pub fn add(
@@ -48,8 +18,6 @@ pub fn add(
     obj: &PyCell<PyNaNode>,
     ptr: &<IntAllocator as Allocator>::Ptr,
 ) -> PyResult<()> {
-    //obj.borrow().int_cache.set(Some(ptr.clone()));
-
     let locals = [
         ("cache", cache.clone()),
         ("obj", obj.to_object(py)),
@@ -125,7 +93,7 @@ pub fn native_for_py(
     allocator: &mut IntAllocator,
 ) -> PyResult<<IntAllocator as Allocator>::Ptr> {
     from_py_to_native_cache(py, cache, obj)
-        .or_else(|err| populate_native(py, cache, obj, allocator))
+        .or_else(|_err| populate_native(py, cache, obj, allocator))
 }
 
 // native to py methods
@@ -145,7 +113,7 @@ fn populate_python<'p>(
     ptr: &<IntAllocator as Allocator>::Ptr,
     allocator: &mut IntAllocator,
 ) -> PyResult<&'p PyCell<PyNaNode>> {
-    apply_to_tree(ptr.clone(), move |ptr| {
+    apply_to_tree(*ptr, move |ptr| {
         // is it in cache yet?
         if from_native_to_py_cache(py, cache, &ptr).is_ok() {
             // yep, we're done
@@ -212,10 +180,10 @@ pub fn py_for_native<'p>(
     allocator: &mut IntAllocator,
 ) -> PyResult<&'p PyCell<PyNaNode>> {
     from_native_to_py_cache(py, cache, ptr)
-        .or_else(|err| Ok(populate_python(py, cache, ptr, allocator)?))
+        .or_else(|_err| Ok(populate_python(py, cache, ptr, allocator)?))
 }
 
-fn apply_to_tree<T, F>(mut node: T, mut apply: F) -> PyResult<()>
+fn apply_to_tree<T, F>(node: T, mut apply: F) -> PyResult<()>
 where
     F: FnMut(T) -> PyResult<Option<(T, T)>>,
     T: Clone,

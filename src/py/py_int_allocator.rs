@@ -1,7 +1,4 @@
-use pyo3::basic::CompareOp;
-use pyo3::prelude::*;
-
-use pyo3::PyObjectProtocol;
+use pyo3::prelude::pyclass;
 
 use crate::int_allocator::IntAllocator;
 
