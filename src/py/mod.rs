@@ -4,7 +4,7 @@ pub mod f_table;
 pub mod glue;
 //pub mod int_allocator_gateway;
 pub mod native_op_lookup;
-pub mod native_view;
+//pub mod native_view;
 pub mod op_fn;
 pub mod py_int_allocator;
 pub mod py_na_node;
