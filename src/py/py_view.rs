@@ -2,7 +2,7 @@ use pyo3::pycell::PyCell;
 use pyo3::types::{PyBytes, PyTuple};
 use pyo3::{PyObject, PyResult, Python, ToPyObject};
 
-use super::py_na_node::PyNaNode;
+use super::py_na_node::PyNode;
 
 #[derive(Clone)]
 pub enum PyView {
@@ -19,8 +19,8 @@ impl PyView {
         if pair.len() != 2 {
             py.eval("raise ValueError('new_pair requires 2-tuple')", None, None)?;
         }
-        let _p0: &PyCell<PyNaNode> = pair.get_item(0).extract()?;
-        let _p1: &PyCell<PyNaNode> = pair.get_item(1).extract()?;
+        let _p0: &PyCell<PyNode> = pair.get_item(0).extract()?;
+        let _p1: &PyCell<PyNode> = pair.get_item(1).extract()?;
 
         Ok(PyView::Pair(pair.to_object(py)))
     }

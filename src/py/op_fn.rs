@@ -17,7 +17,7 @@ use crate::reduction::{EvalErr, Reduction, Response};
 use crate::run_program::OperatorHandler;
 
 use super::f_table::{f_lookup_for_hashmap, FLookup};
-use super::py_na_node::PyNaNode;
+use super::py_na_node::PyNode;
 use super::py_native_mapping::{native_for_py, py_for_native};
 
 pub struct PyOperatorHandler {
@@ -72,7 +72,7 @@ impl PyOperatorHandler {
                     let i0: u32 =
                         unwrap_or_eval_err(pair.get_item(0).extract(), args, "expected u32")?;
 
-                    let py_node: &PyCell<PyNaNode> =
+                    let py_node: &PyCell<PyNode> =
                         unwrap_or_eval_err(pair.get_item(1).extract(), args, "expected node")?;
 
                     let r = native_for_py(py, &self.cache, py_node, allocator);
@@ -113,7 +113,7 @@ fn eval_err_for_pyerr<'p>(
 ) -> PyResult<EvalErr<i32>> {
     let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
     let arg0: &PyString = args.get_item(0).extract()?;
-    let sexp: &PyCell<PyNaNode> = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
+    let sexp: &PyCell<PyNode> = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
     let node: i32 = native_for_py(py, &cache, sexp, allocator)?;
     let s: String = arg0.to_str()?.to_string();
     Ok(EvalErr(node, s))
