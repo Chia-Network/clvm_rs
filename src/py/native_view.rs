@@ -1,3 +1,4 @@
+/*
 use pyo3::prelude::PyObject;
 
 use crate::allocator::Allocator;
@@ -14,3 +15,4 @@ impl NativeView {
         NativeView { arena, ptr }
     }
 }
+*/
