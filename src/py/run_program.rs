@@ -1,3 +1,4 @@
+use std::cell::RefMut;
 use std::collections::HashMap;
 
 use crate::allocator::Allocator;
@@ -11,7 +12,7 @@ use crate::run_program::{run_program, OperatorHandler};
 use crate::serialize::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
 
 use super::f_table::{f_lookup_for_hashmap, FLookup};
-use super::py_native_mapping::{new_mapping, py_for_native};
+use super::py_int_allocator::PyIntAllocator;
 
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
@@ -59,34 +60,27 @@ pub fn deserialize_and_run_program(
     max_cost: Cost,
     flags: u32,
 ) -> PyResult<(Cost, PyObject)> {
-    let mut allocator = IntAllocator::new();
+    let py_int_allocator = PyIntAllocator::new(py)?.borrow();
+    let mut allocator_refcell: RefMut<IntAllocator> = py_int_allocator.allocator();
+    let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
     let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
     let strict: bool = (flags & STRICT_MODE) != 0;
-    let f: Box<dyn OperatorHandler<IntAllocator> + Send> =
-        Box::new(OperatorHandlerWithMode { f_lookup, strict });
-    let program = node_from_bytes(&mut allocator, program)?;
-    let args = node_from_bytes(&mut allocator, args)?;
-    let cache = new_mapping(py)?;
+    let f = OperatorHandlerWithMode { f_lookup, strict };
+    let program = node_from_bytes(allocator, program)?;
+    let args = node_from_bytes(allocator, args)?;
 
-    let r = py.allow_threads(|| {
-        run_program(
-            &mut allocator,
-            &program,
-            &args,
-            quote_kw,
-            apply_kw,
-            max_cost,
-            f,
-            None,
-        )
-    });
+    let r = run_program(
+        allocator, &program, &args, quote_kw, apply_kw, max_cost, &f, None,
+    );
     match r {
         Ok(reduction) => Ok((
             reduction.0,
-            py_for_native(py, &cache, &reduction.1, &mut allocator)?.to_object(py),
+            py_int_allocator
+                .py_for_native(py, &reduction.1, allocator)?
+                .to_object(py),
         )),
         Err(eval_err) => {
-            let node_as_blob = node_to_bytes(&Node::new(&allocator, eval_err.0))?;
+            let node_as_blob = node_to_bytes(&Node::new(allocator, eval_err.0))?;
             let msg = eval_err.1;
             let ctx: &PyDict = PyDict::new(py);
             ctx.set_item("msg", msg)?;

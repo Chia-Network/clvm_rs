@@ -53,7 +53,7 @@ pub struct RunProgramContext<'a, T: Allocator> {
     allocator: &'a mut T,
     quote_kw: u8,
     apply_kw: u8,
-    operator_lookup: Box<dyn OperatorHandler<T>>,
+    operator_lookup: &'a dyn OperatorHandler<T>,
     pre_eval: Option<PreEval<T>>,
     posteval_stack: Vec<Box<PostEval<T>>>,
     val_stack: Vec<T::Ptr>,
@@ -161,7 +161,7 @@ impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
         allocator: &'a mut T,
         quote_kw: u8,
         apply_kw: u8,
-        operator_lookup: Box<dyn OperatorHandler<T>>,
+        operator_lookup: &'a dyn OperatorHandler<T>,
         pre_eval: Option<PreEval<T>>,
     ) -> Self {
         RunProgramContext {
@@ -195,10 +195,7 @@ impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
     }
 }
 
-impl<'a, T: Allocator> RunProgramContext<'a, T>
-where
-    <T as Allocator>::Ptr: 'static,
-{
+impl<'a, T: Allocator> RunProgramContext<'a, T> {
     fn eval_op_atom(
         &mut self,
         op_buf: &T::AtomBuf,
@@ -380,12 +377,9 @@ pub fn run_program<T: Allocator>(
     quote_kw: u8,
     apply_kw: u8,
     max_cost: Cost,
-    operator_lookup: Box<dyn OperatorHandler<T>>,
+    operator_lookup: &dyn OperatorHandler<T>,
     pre_eval: Option<PreEval<T>>,
-) -> Response<T::Ptr>
-where
-    <T as Allocator>::Ptr: 'static,
-{
+) -> Response<T::Ptr> {
     let mut rpc = RunProgramContext::new(allocator, quote_kw, apply_kw, operator_lookup, pre_eval);
     rpc.run_program(program, args, max_cost)
 }
