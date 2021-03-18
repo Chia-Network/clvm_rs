@@ -7,7 +7,7 @@ use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
 use super::py_int_allocator::PyIntAllocator;
-use super::py_na_node::PyNode;
+use super::py_node::PyNode;
 use super::run_program::{__pyo3_get_function_deserialize_and_run_program, STRICT_MODE};
 
 use crate::int_allocator::IntAllocator;
