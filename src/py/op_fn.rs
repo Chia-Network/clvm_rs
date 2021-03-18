@@ -18,7 +18,7 @@ use crate::run_program::OperatorHandler;
 
 use super::f_table::{f_lookup_for_hashmap, FLookup};
 use super::py_int_allocator::PyIntAllocator;
-use super::py_na_node::PyNode;
+use super::py_node::PyNode;
 
 pub struct PyOperatorHandler<'p> {
     native_lookup: FLookup<IntAllocator>,

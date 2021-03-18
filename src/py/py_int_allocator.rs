@@ -7,7 +7,7 @@ use pyo3::types::{IntoPyDict, PyBytes, PyTuple};
 use crate::allocator::{Allocator, SExp};
 use crate::int_allocator::IntAllocator;
 
-use super::py_na_node::PyNode;
+use super::py_node::PyNode;
 use super::py_view::PyView;
 
 #[pyclass(subclass, unsendable)]
