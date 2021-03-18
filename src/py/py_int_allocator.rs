@@ -76,14 +76,14 @@ impl PyIntAllocator {
             // it's not in the cache
 
             match &node.borrow().py_view {
-                Some(PyView::Atom(obj)) => {
+                PyView::Atom(obj) => {
                     let blob: &[u8] = obj.extract(py).unwrap();
                     let ptr = allocator.new_atom(blob).unwrap();
                     self.add(py, node, &ptr)?;
 
                     Ok(None)
                 }
-                Some(PyView::Pair(pair)) => {
+                PyView::Pair(pair) => {
                     let pair: &PyAny = pair.clone().into_ref(py);
                     let pair: &PyTuple = pair.extract()?;
                     let p0: &PyCell<PyNode> = pair.get_item(0).extract()?;
@@ -98,7 +98,6 @@ impl PyIntAllocator {
                         Ok(Some((p0.to_object(py), p1.to_object(py))))
                     }
                 }
-                _ => py_raise(py, "py view is None"),
             }
         })?;
 
@@ -148,7 +147,7 @@ impl PyIntAllocator {
                     let py_bytes = PyBytes::new(py, blob);
                     self.add(
                         py,
-                        PyNode::new(py, Some(PyView::new_atom(py, py_bytes)))?,
+                        PyNode::new(py, PyView::new_atom(py, py_bytes))?,
                         &ptr,
                     )?;
                     Ok(None)
@@ -177,7 +176,7 @@ impl PyIntAllocator {
                                 py,
                                 PyNode::new(
                                     py,
-                                    Some(PyView::new_pair(py, PyTuple::new(py, &[p1, p2]))?),
+                                    PyView::new_pair(py, PyTuple::new(py, &[p1, p2]))?,
                                 )?,
                                 &ptr,
                             )?;
@@ -221,11 +220,4 @@ where
         }
     }
     Ok(())
-}
-
-fn py_raise<T>(py: Python, msg: &str) -> PyResult<T> {
-    let locals = [("msg", msg.to_object(py))].into_py_dict(py);
-
-    py.run("raise RuntimeError(msg)", None, Some(locals))?;
-    panic!("we should never get here")
 }
