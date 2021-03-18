@@ -24,14 +24,14 @@ use openssl::sha;
 
 const ARITH_BASE_COST: Cost = 1;
 const ARITH_COST_PER_ARG: Cost = 3;
-const ARITH_COST_PER_LIMB_DIVIDER: Cost = 32;
+const ARITH_COST_PER_LIMB_DIVIDER: Cost = 16;
 
 const LOG_BASE_COST: Cost = 1;
 const LOG_COST_PER_ARG: Cost = 3;
-const LOG_COST_PER_LIMB_DIVIDER: Cost = 32;
+const LOG_COST_PER_LIMB_DIVIDER: Cost = 16;
 
 const LOGNOT_BASE_COST: Cost = 3;
-const LOGNOT_COST_PER_BYTE_DIVIDER: Cost = 32;
+const LOGNOT_COST_PER_BYTE_DIVIDER: Cost = 16;
 
 const MUL_BASE_COST: Cost = 1;
 const MUL_COST_PER_OP: Cost = 8;
@@ -49,28 +49,28 @@ const STRLEN_COST_PER_BYTE_DIVIDER: Cost = 128;
 
 const CONCAT_BASE_COST: Cost = 1;
 const CONCAT_COST_PER_ARG: Cost = 1;
-const CONCAT_COST_PER_BYTE_DIVIDER: Cost = 32;
+const CONCAT_COST_PER_BYTE_DIVIDER: Cost = 16;
 
 const DIVMOD_BASE_COST: Cost = 11;
 const DIVMOD_COST_PER_LIMB_DIVIDER: Cost = 16;
 
 const DIV_BASE_COST: Cost = 9;
-const DIV_COST_PER_LIMB_DIVIDER: Cost = 32;
+const DIV_COST_PER_LIMB_DIVIDER: Cost = 8;
 
 const SHA256_BASE_COST: Cost = 2;
-const SHA256_COST_PER_ARG: Cost = 1;
-const SHA256_COST_PER_BYTE_DIVIDER: Cost = 64;
+const SHA256_COST_PER_ARG: Cost = 2;
+const SHA256_COST_PER_BYTE_DIVIDER: Cost = 16;
 
 const SHIFT_BASE_COST: Cost = 4;
-const SHIFT_COST_PER_BYTE_DIVIDER: Cost = 32;
+const SHIFT_COST_PER_BYTE_DIVIDER: Cost = 16;
 
 const BOOL_BASE_COST: Cost = 1;
 const BOOL_COST_PER_ARG: Cost = 3;
 
 const POINT_ADD_BASE_COST: Cost = 316;
-const POINT_ADD_COST_PER_ARG: Cost = 4200;
+const POINT_ADD_COST_PER_ARG: Cost = 23000;
 
-const PUBKEY_BASE_COST: Cost = 4194;
+const PUBKEY_BASE_COST: Cost = 23000;
 const PUBKEY_COST_PER_BYTE_DIVIDER: Cost = 8;
 
 fn limbs_for_int(v: &Number) -> usize {

@@ -98,14 +98,12 @@ for hexname in glob.glob('programs/*.hex'):
     if size != None:
         print(Fore.YELLOW + ('  Resident Size: %d MiB' % size) + Style.RESET_ALL)
 
-        # TODO: tune costs to lower this a bit
-        if size > 1250:
+        if size > 700:
             ret += 1
             print(Fore.RED + '\nTEST FAILURE: Max memory use exceeded\n' + Style.RESET_ALL)
 
     # cost 40000000 roughly corresponds to 4 seconds
-    # TODO: tune costs to lower the peak for recursive-div
-    if end - start > 9:
+    if end - start > 5:
         ret += 1
         print(Fore.RED + '\nTEST FAILURE: Time exceeded: %f\n' % (end - start) + Style.RESET_ALL)
 
