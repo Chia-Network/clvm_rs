@@ -17,7 +17,7 @@ pub struct PyIntAllocator {
 }
 
 impl PyIntAllocator {
-    pub fn new<'p>(py: Python<'p>) -> PyResult<&'p PyCell<Self>> {
+    pub fn new(py: Python) -> PyResult<&PyCell<Self>> {
         Ok(PyCell::new(
             py,
             PyIntAllocator {
@@ -44,7 +44,7 @@ impl PyIntAllocator {
         ]
         .into_py_dict(py);
 
-        py.run("cache[ptr] = obj; cache[obj] = ptr", None, Some(locals))
+        py.run("cache[ptr] = obj; cache[id(obj)] = ptr", None, Some(locals))
     }
 
     // py to native methods
@@ -55,7 +55,7 @@ impl PyIntAllocator {
         obj: &PyCell<PyNode>,
     ) -> PyResult<<IntAllocator as Allocator>::Ptr> {
         let locals = [("cache", self.cache.clone()), ("key", obj.to_object(py))].into_py_dict(py);
-        py.eval("cache.get(key)", None, Some(locals))?.extract()
+        py.eval("cache.get(id(key))", None, Some(locals))?.extract()
     }
 
     fn populate_native(
