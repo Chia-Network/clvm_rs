@@ -68,9 +68,9 @@ const BOOL_BASE_COST: Cost = 1;
 const BOOL_COST_PER_ARG: Cost = 3;
 
 const POINT_ADD_BASE_COST: Cost = 316;
-const POINT_ADD_COST_PER_ARG: Cost = 23000;
+const POINT_ADD_COST_PER_ARG: Cost = 13600;
 
-const PUBKEY_BASE_COST: Cost = 23000;
+const PUBKEY_BASE_COST: Cost = 13600;
 const PUBKEY_COST_PER_BYTE_DIVIDER: Cost = 8;
 
 fn limbs_for_int(v: &Number) -> usize {
