@@ -7,6 +7,7 @@ use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
 use super::py_int_allocator::PyIntAllocator;
+use super::py_int_node::PyIntNode;
 use super::py_node::PyNode;
 use super::run_program::{__pyo3_get_function_deserialize_and_run_program, STRICT_MODE};
 
@@ -32,12 +33,23 @@ fn raise_eval_error(py: Python, msg: &PyString, sexp: PyObject) -> PyResult<PyOb
 }
 
 #[pyfunction]
-fn serialize_from_bytes<'p>(py: Python<'p>, blob: &[u8]) -> PyResult<&'p PyCell<PyNode>> {
-    let py_int_allocator = PyIntAllocator::new(py)?.borrow();
-    let mut allocator_refcell: RefMut<IntAllocator> = py_int_allocator.allocator();
-    let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
-    let ptr = node_from_bytes(allocator, blob)?;
-    py_int_allocator.py_for_native(py, &ptr, allocator)
+fn deserialize_from_bytes_for_allocator<'p>(
+    py: Python<'p>,
+    blob: &[u8],
+    py_int_allocator: &PyCell<PyIntAllocator>,
+) -> PyResult<PyIntNode> {
+    let ptr = {
+        let py_int_allocator: PyRef<PyIntAllocator> = py_int_allocator.borrow();
+        let allocator: &mut IntAllocator = &mut py_int_allocator.allocator() as &mut IntAllocator;
+        node_from_bytes(allocator, blob)?
+    };
+    Ok(PyIntNode::new(py, py_int_allocator, ptr))
+}
+
+#[pyfunction]
+fn deserialize_from_bytes(py: Python, blob: &[u8]) -> PyResult<PyIntNode> {
+    let py_int_allocator = PyIntAllocator::new(py)?;
+    deserialize_from_bytes_for_allocator(py, blob, &py_int_allocator)
 }
 
 use crate::node::Node;
@@ -59,7 +71,8 @@ fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyCell<PyNode>) -> PyResult<&'p
 #[pymodule]
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_run_program, m)?)?;
-    m.add_function(wrap_pyfunction!(serialize_from_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(deserialize_from_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(deserialize_from_bytes_for_allocator, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_to_bytes, m)?)?;
 
     m.add_function(wrap_pyfunction!(deserialize_and_run_program, m)?)?;
@@ -68,7 +81,7 @@ fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     //m.add_class::<PyNode>()?;
     // m.add_class::<NativeOpLookup>()?;
 
-    //m.add_class::<PyIntNode>()?;
+    m.add_class::<PyIntNode>()?;
     m.add_class::<PyIntAllocator>()?;
 
     //m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
