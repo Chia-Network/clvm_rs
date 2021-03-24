@@ -10,7 +10,7 @@ const CONS_COST: Cost = 3;
 const REST_COST: Cost = 1;
 const LISTP_COST: Cost = 1;
 const CMP_BASE_COST: Cost = 2;
-const CMP_COST_PER_LIMB_DIVIDER: Cost = 64;
+const CMP_COST_PER_BYTE_DIVIDER: Cost = 64;
 
 pub fn op_if<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
     let args = Node::new(a, input);
@@ -67,6 +67,6 @@ pub fn op_eq<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respons
     let a1 = args.rest()?.first()?;
     let s0 = atom(&a0, "=")?;
     let s1 = atom(&a1, "=")?;
-    let cost = CMP_BASE_COST + (s0.len() as Cost + s1.len() as Cost) / CMP_COST_PER_LIMB_DIVIDER;
+    let cost = CMP_BASE_COST + (s0.len() as Cost + s1.len() as Cost) / CMP_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, if s0 == s1 { a.one() } else { a.null() }))
 }

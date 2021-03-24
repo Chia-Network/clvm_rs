@@ -24,11 +24,11 @@ use openssl::sha;
 
 const ARITH_BASE_COST: Cost = 1;
 const ARITH_COST_PER_ARG: Cost = 3;
-const ARITH_COST_PER_LIMB_DIVIDER: Cost = 16;
+const ARITH_COST_PER_BYTE_DIVIDER: Cost = 16;
 
 const LOG_BASE_COST: Cost = 1;
 const LOG_COST_PER_ARG: Cost = 3;
-const LOG_COST_PER_LIMB_DIVIDER: Cost = 16;
+const LOG_COST_PER_BYTE_DIVIDER: Cost = 16;
 
 const LOGNOT_BASE_COST: Cost = 3;
 const LOGNOT_COST_PER_BYTE_DIVIDER: Cost = 16;
@@ -39,10 +39,10 @@ const MUL_LINEAR_COST_PER_BYTE_DIVIDER: Cost = 16;
 const MUL_SQUARE_COST_PER_BYTE_DIVIDER: Cost = 16384;
 
 const GR_BASE_COST: Cost = 5;
-const GR_COST_PER_LIMB_DIVIDER: Cost = 32;
+const GR_COST_PER_BYTE_DIVIDER: Cost = 32;
 
 const CMP_BASE_COST: Cost = 2;
-const CMP_COST_PER_LIMB_DIVIDER: Cost = 64;
+const CMP_COST_PER_BYTE_DIVIDER: Cost = 64;
 
 const STRLEN_BASE_COST: Cost = 2;
 const STRLEN_COST_PER_BYTE_DIVIDER: Cost = 128;
@@ -52,10 +52,10 @@ const CONCAT_COST_PER_ARG: Cost = 1;
 const CONCAT_COST_PER_BYTE_DIVIDER: Cost = 16;
 
 const DIVMOD_BASE_COST: Cost = 11;
-const DIVMOD_COST_PER_LIMB_DIVIDER: Cost = 16;
+const DIVMOD_COST_PER_BYTE_DIVIDER: Cost = 16;
 
 const DIV_BASE_COST: Cost = 9;
-const DIV_COST_PER_LIMB_DIVIDER: Cost = 8;
+const DIV_COST_PER_BYTE_DIVIDER: Cost = 8;
 
 const SHA256_BASE_COST: Cost = 2;
 const SHA256_COST_PER_ARG: Cost = 2;
@@ -136,11 +136,11 @@ pub fn op_unknown<A: Allocator>(
                 byte_count += blob.len() as u64;
                 check_cost(
                     allocator,
-                    cost + byte_count as Cost / ARITH_COST_PER_LIMB_DIVIDER,
+                    cost + byte_count as Cost / ARITH_COST_PER_BYTE_DIVIDER,
                     max_cost,
                 )?;
             }
-            cost + byte_count / ARITH_COST_PER_LIMB_DIVIDER as u64
+            cost + byte_count / ARITH_COST_PER_BYTE_DIVIDER as u64
         }
         2 => {
             let mut cost = MUL_BASE_COST as u64;
@@ -308,7 +308,7 @@ pub fn op_add<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Respons
         cost += ARITH_COST_PER_ARG;
         check_cost(
             a,
-            cost + byte_count as Cost / ARITH_COST_PER_LIMB_DIVIDER,
+            cost + byte_count as Cost / ARITH_COST_PER_BYTE_DIVIDER,
             max_cost,
         )?;
         let blob = int_atom(&arg, "+")?;
@@ -317,7 +317,7 @@ pub fn op_add<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Respons
         total += v;
     }
     let total = ptr_from_number(a, &total)?;
-    cost += byte_count as Cost / ARITH_COST_PER_LIMB_DIVIDER;
+    cost += byte_count as Cost / ARITH_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, total))
 }
 
@@ -330,7 +330,7 @@ pub fn op_subtract<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Re
         cost += ARITH_COST_PER_ARG;
         check_cost(
             a,
-            cost + byte_count as Cost / ARITH_COST_PER_LIMB_DIVIDER,
+            cost + byte_count as Cost / ARITH_COST_PER_BYTE_DIVIDER,
             max_cost,
         )?;
         let blob = int_atom(&arg, "-")?;
@@ -344,7 +344,7 @@ pub fn op_subtract<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Re
         is_first = false;
     }
     let total = ptr_from_number(a, &total)?;
-    cost += byte_count as Cost / ARITH_COST_PER_LIMB_DIVIDER;
+    cost += byte_count as Cost / ARITH_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, total))
 }
 
@@ -379,7 +379,7 @@ pub fn op_multiply<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Re
 pub fn op_div<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
     let args = Node::new(a, input);
     let (a0, l0, a1, l1) = two_ints(&args, "/")?;
-    let cost = DIV_BASE_COST + ((l0 + l1) as Cost) / DIV_COST_PER_LIMB_DIVIDER;
+    let cost = DIV_BASE_COST + ((l0 + l1) as Cost) / DIV_COST_PER_BYTE_DIVIDER;
     if a1.sign() == Sign::NoSign {
         args.first()?.err("div with 0")
     } else {
@@ -401,7 +401,7 @@ pub fn op_div<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respon
 pub fn op_divmod<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
     let args = Node::new(a, input);
     let (a0, l0, a1, l1) = two_ints(&args, "divmod")?;
-    let cost = DIVMOD_BASE_COST + ((l0 + l1) as Cost) / DIVMOD_COST_PER_LIMB_DIVIDER;
+    let cost = DIVMOD_BASE_COST + ((l0 + l1) as Cost) / DIVMOD_COST_PER_BYTE_DIVIDER;
     if a1.sign() == Sign::NoSign {
         args.first()?.err("divmod with 0")
     } else {
@@ -432,7 +432,7 @@ pub fn op_gr<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respons
     let a1 = args.rest()?.first()?;
     let v0 = int_atom(&a0, ">")?;
     let v1 = int_atom(&a1, ">")?;
-    let cost = GR_BASE_COST + (v0.len() + v1.len()) as Cost / GR_COST_PER_LIMB_DIVIDER;
+    let cost = GR_BASE_COST + (v0.len() + v1.len()) as Cost / GR_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(
         cost,
         if number_from_u8(v0) > number_from_u8(v1) {
@@ -450,7 +450,7 @@ pub fn op_gr_bytes<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> R
     let a1 = args.rest()?.first()?;
     let v0 = atom(&a0, ">s")?;
     let v1 = atom(&a1, ">s")?;
-    let cost = CMP_BASE_COST + (v0.len() + v1.len()) as Cost / CMP_COST_PER_LIMB_DIVIDER;
+    let cost = CMP_BASE_COST + (v0.len() + v1.len()) as Cost / CMP_COST_PER_BYTE_DIVIDER;
     Ok(Reduction(cost, if v0 > v1 { a.one() } else { a.null() }))
 }
 
@@ -576,11 +576,11 @@ fn binop_reduction<T: Allocator>(
         cost += LOG_COST_PER_ARG;
         check_cost(
             a,
-            cost + arg_size as Cost / LOG_COST_PER_LIMB_DIVIDER,
+            cost + arg_size as Cost / LOG_COST_PER_BYTE_DIVIDER,
             max_cost,
         )?;
     }
-    cost += arg_size as Cost / LOG_COST_PER_LIMB_DIVIDER;
+    cost += arg_size as Cost / LOG_COST_PER_BYTE_DIVIDER;
     let total = ptr_from_number(a, &total)?;
     Ok(Reduction(cost, total))
 }
