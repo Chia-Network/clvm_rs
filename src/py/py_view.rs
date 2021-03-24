@@ -4,7 +4,6 @@ use pyo3::{PyObject, PyResult, Python, ToPyObject};
 
 use super::py_node::PyNode;
 
-#[derive(Clone)]
 pub enum PyView {
     Atom(PyObject),
     Pair(PyObject),

@@ -145,11 +145,7 @@ impl PyIntAllocator {
                     // it's an atom, so we just populate cache directly
                     let blob = allocator.buf(&a);
                     let py_bytes = PyBytes::new(py, blob);
-                    self.add(
-                        py,
-                        PyNode::new(py, PyView::new_atom(py, py_bytes))?,
-                        &ptr,
-                    )?;
+                    self.add(py, PyNode::new(py, PyView::new_atom(py, py_bytes))?, &ptr)?;
                     Ok(None)
                 }
                 SExp::Pair(ptr_1, ptr_2) => {
