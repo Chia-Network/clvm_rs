@@ -10,7 +10,7 @@ use crate::more_ops::{
 };
 use crate::reduction::Response;
 
-type OpFn<T> = fn(&mut T, <T as Allocator>::Ptr, Cost) -> Response<<T as Allocator>::Ptr>;
+pub type OpFn<T> = fn(&mut T, <T as Allocator>::Ptr, Cost) -> Response<<T as Allocator>::Ptr>;
 
 pub type FLookup<T> = [Option<OpFn<T>>; 256];
 

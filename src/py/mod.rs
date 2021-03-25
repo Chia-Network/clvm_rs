@@ -1,5 +1,7 @@
 pub mod api;
+pub mod dialect;
 pub mod f_table;
+pub mod native_op;
 pub mod op_fn;
 pub mod py_int_allocator;
 pub mod py_int_node;

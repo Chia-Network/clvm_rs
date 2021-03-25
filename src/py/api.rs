@@ -6,6 +6,7 @@ use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
+use super::dialect::Dialect;
 use super::py_int_allocator::PyIntAllocator;
 use super::py_int_node::PyIntNode;
 use super::py_node::PyNode;
@@ -79,7 +80,7 @@ fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add("STRICT_MODE", STRICT_MODE)?;
 
     //m.add_class::<PyNode>()?;
-    // m.add_class::<NativeOpLookup>()?;
+    m.add_class::<Dialect>()?;
 
     m.add_class::<PyIntNode>()?;
     m.add_class::<PyIntAllocator>()?;
