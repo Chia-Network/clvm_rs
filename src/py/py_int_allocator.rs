@@ -18,13 +18,13 @@ pub struct PyIntAllocator {
 
 impl PyIntAllocator {
     pub fn new(py: Python) -> PyResult<&PyCell<Self>> {
-        Ok(PyCell::new(
+        PyCell::new(
             py,
             PyIntAllocator {
                 arena: RefCell::new(IntAllocator::default()),
                 cache: py.eval("dict()", None, None)?.to_object(py),
             },
-        )?)
+        )
     }
 
     pub fn allocator(&self) -> RefMut<IntAllocator> {
@@ -193,7 +193,7 @@ impl PyIntAllocator {
         allocator: &mut IntAllocator,
     ) -> PyResult<&'p PyCell<PyNode>> {
         self.from_native_to_py_cache(py, ptr)
-            .or_else(|_err| Ok(self.populate_python(py, ptr, allocator)?))
+            .or_else(|_err| self.populate_python(py, ptr, allocator))
     }
 }
 
