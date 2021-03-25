@@ -179,22 +179,20 @@ impl OperatorHandler<IntAllocator> for DialectRunningContext<'_> {
         let op = &allocator.buf(&o);
         if op.len() == 1 {
             if let Some(f) = self.dialect.u8_lookup[op[0] as usize] {
-                return f(allocator, argument_list.clone(), max_cost);
+                return f(allocator, *argument_list, max_cost);
             }
         }
         let op = op.to_owned();
         if let Some(op_fn) = self.dialect.native_u8_lookup.get(op) {
-            op_fn(allocator, argument_list.clone(), max_cost)
+            op_fn(allocator, *argument_list, max_cost)
         } else if let Some(op_fn) = self.dialect.python_u8_lookup.get(op) {
             self.invoke_py_obj(op_fn, allocator, o, argument_list, max_cost)
+        } else if self.dialect.strict {
+            let buf = op.to_vec();
+            let op_arg = allocator.new_atom(&buf)?;
+            err(op_arg, "unimplemented operator")
         } else {
-            if self.dialect.strict {
-                let buf = op.to_vec();
-                let op_arg = allocator.new_atom(&buf)?;
-                err(op_arg, "unimplemented operator")
-            } else {
-                op_unknown(allocator, o, argument_list.clone(), max_cost)
-            }
+            op_unknown(allocator, o, *argument_list, max_cost)
         }
     }
 }
