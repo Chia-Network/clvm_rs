@@ -19,7 +19,7 @@ use crate::run_program::OperatorHandler;
 use super::f_table::FLookup;
 use super::f_table::OpFn;
 use super::native_op::NativeOp;
-use super::py_int_allocator::PyIntAllocator;
+use super::py_arena::PyArena;
 use super::py_node::PyNode;
 
 #[pyclass]
@@ -75,18 +75,18 @@ impl Dialect {
         args: &PyCell<PyNode>,
         max_cost: Cost,
     ) -> PyResult<(Cost, PyObject)> {
-        let py_int_allocator = PyIntAllocator::new(py)?;
-        let py_int_allocator = &py_int_allocator.borrow() as &PyIntAllocator;
+        let arena = PyArena::new(py)?;
+        let arena = &arena.borrow() as &PyArena;
         let drc = DialectRunningContext {
             dialect: self,
-            py_int_allocator,
+            arena,
         };
 
-        let mut allocator_refcell: RefMut<IntAllocator> = py_int_allocator.allocator();
+        let mut allocator_refcell: RefMut<IntAllocator> = arena.allocator();
         let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
 
-        let program = py_int_allocator.native_for_py(py, program, allocator)?;
-        let args = py_int_allocator.native_for_py(py, args, allocator)?;
+        let program = arena.native_for_py(py, program, allocator)?;
+        let args = arena.native_for_py(py, args, allocator)?;
 
         let r: Result<Reduction<i32>, EvalErr<i32>> = crate::run_program::run_program(
             allocator,
@@ -101,11 +101,11 @@ impl Dialect {
 
         match r {
             Ok(reduction) => {
-                let r = py_int_allocator.py_for_native(py, &reduction.1, allocator)?;
+                let r = arena.py_for_native(py, &reduction.1, allocator)?;
                 Ok((reduction.0, r.to_object(py)))
             }
             Err(eval_err) => {
-                let node: PyObject = py_int_allocator
+                let node: PyObject = arena
                     .py_for_native(py, &eval_err.0, allocator)?
                     .to_object(py);
                 let s: String = eval_err.1;
@@ -122,7 +122,7 @@ impl Dialect {
 
 struct DialectRunningContext<'a> {
     dialect: &'a Dialect,
-    py_int_allocator: &'a PyIntAllocator,
+    arena: &'a PyArena,
 }
 
 impl DialectRunningContext<'_> {
@@ -137,7 +137,7 @@ impl DialectRunningContext<'_> {
         Python::with_gil(|py| {
             let op: &PyBytes = PyBytes::new(py, allocator.buf(&op_buf));
             let r = unwrap_or_eval_err(
-                self.py_int_allocator.py_for_native(py, args, allocator),
+                self.arena.py_for_native(py, args, allocator),
                 args,
                 "can't uncache",
             )?;
@@ -145,7 +145,7 @@ impl DialectRunningContext<'_> {
             match r1 {
                 Err(pyerr) => {
                     let eval_err: PyResult<EvalErr<i32>> =
-                        eval_err_for_pyerr(py, &pyerr, self.py_int_allocator, allocator);
+                        eval_err_for_pyerr(py, &pyerr, self.arena, allocator);
                     let r: EvalErr<i32> =
                         unwrap_or_eval_err(eval_err, args, "unexpected exception")?;
                     Err(r)
@@ -159,7 +159,7 @@ impl DialectRunningContext<'_> {
                     let py_node: &PyCell<PyNode> =
                         unwrap_or_eval_err(pair.get_item(1).extract(), args, "expected node")?;
 
-                    let r = self.py_int_allocator.native_for_py(py, py_node, allocator);
+                    let r = self.arena.native_for_py(py, py_node, allocator);
                     let node: i32 = unwrap_or_eval_err(r, args, "can't find in int allocator")?;
                     Ok(Reduction(i0 as Cost, node))
                 }
@@ -202,13 +202,13 @@ impl OperatorHandler<IntAllocator> for DialectRunningContext<'_> {
 fn eval_err_for_pyerr<'p>(
     py: Python<'p>,
     pyerr: &PyErr,
-    py_int_allocator: &'p PyIntAllocator,
+    arena: &'p PyArena,
     allocator: &mut IntAllocator,
 ) -> PyResult<EvalErr<i32>> {
     let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
     let arg0: &PyString = args.get_item(0).extract()?;
     let sexp: &PyCell<PyNode> = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
-    let node: i32 = py_int_allocator.native_for_py(py, sexp, allocator)?;
+    let node: i32 = arena.native_for_py(py, sexp, allocator)?;
     let s: String = arg0.to_str()?.to_string();
     Ok(EvalErr(node, s))
 }

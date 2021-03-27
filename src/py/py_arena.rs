@@ -11,16 +11,16 @@ use super::py_node::PyNode;
 use super::py_view::PyView;
 
 #[pyclass(subclass, unsendable)]
-pub struct PyIntAllocator {
+pub struct PyArena {
     arena: RefCell<IntAllocator>,
     cache: PyObject,
 }
 
-impl PyIntAllocator {
+impl PyArena {
     pub fn new(py: Python) -> PyResult<&PyCell<Self>> {
         PyCell::new(
             py,
-            PyIntAllocator {
+            PyArena {
                 arena: RefCell::new(IntAllocator::default()),
                 cache: py.eval("dict()", None, None)?.to_object(py),
             },

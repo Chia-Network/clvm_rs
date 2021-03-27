@@ -17,26 +17,26 @@ use crate::reduction::{EvalErr, Reduction, Response};
 use crate::run_program::OperatorHandler;
 
 use super::f_table::{f_lookup_for_hashmap, FLookup};
-use super::py_int_allocator::PyIntAllocator;
+use super::py_arena::PyArena;
 use super::py_node::PyNode;
 
 pub struct PyOperatorHandler<'p> {
     native_lookup: FLookup<IntAllocator>,
     py_callable: PyObject,
-    py_int_allocator: &'p PyIntAllocator,
+    arena: &'p PyArena,
 }
 
 impl<'p> PyOperatorHandler<'p> {
     pub fn new(
         opcode_lookup_by_name: HashMap<String, Vec<u8>>,
         py_callable: PyObject,
-        py_int_allocator: &'p PyIntAllocator,
+        arena: &'p PyArena,
     ) -> PyResult<Self> {
         let native_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
         Ok(PyOperatorHandler {
             native_lookup,
             py_callable,
-            py_int_allocator,
+            arena,
         })
     }
 
@@ -51,7 +51,7 @@ impl<'p> PyOperatorHandler<'p> {
         Python::with_gil(|py| {
             let op: &PyBytes = PyBytes::new(py, allocator.buf(&op_buf));
             let r = unwrap_or_eval_err(
-                self.py_int_allocator.py_for_native(py, args, allocator),
+                self.arena.py_for_native(py, args, allocator),
                 args,
                 "can't uncache",
             )?;
@@ -59,7 +59,7 @@ impl<'p> PyOperatorHandler<'p> {
             match r1 {
                 Err(pyerr) => {
                     let eval_err: PyResult<EvalErr<i32>> =
-                        eval_err_for_pyerr(py, &pyerr, self.py_int_allocator, allocator);
+                        eval_err_for_pyerr(py, &pyerr, self.arena, allocator);
                     let r: EvalErr<i32> =
                         unwrap_or_eval_err(eval_err, args, "unexpected exception")?;
                     Err(r)
@@ -73,7 +73,7 @@ impl<'p> PyOperatorHandler<'p> {
                     let py_node: &PyCell<PyNode> =
                         unwrap_or_eval_err(pair.get_item(1).extract(), args, "expected node")?;
 
-                    let r = self.py_int_allocator.native_for_py(py, py_node, allocator);
+                    let r = self.arena.native_for_py(py, py_node, allocator);
                     let node: i32 = unwrap_or_eval_err(r, args, "can't find in int allocator")?;
                     Ok(Reduction(i0 as Cost, node))
                 }
@@ -106,13 +106,13 @@ impl OperatorHandler<IntAllocator> for PyOperatorHandler<'_> {
 fn eval_err_for_pyerr<'p>(
     py: Python<'p>,
     pyerr: &PyErr,
-    py_int_allocator: &'p PyIntAllocator,
+    arena: &'p PyArena,
     allocator: &mut IntAllocator,
 ) -> PyResult<EvalErr<i32>> {
     let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
     let arg0: &PyString = args.get_item(0).extract()?;
     let sexp: &PyCell<PyNode> = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
-    let node: i32 = py_int_allocator.native_for_py(py, sexp, allocator)?;
+    let node: i32 = arena.native_for_py(py, sexp, allocator)?;
     let s: String = arg0.to_str()?.to_string();
     Ok(EvalErr(node, s))
 }
