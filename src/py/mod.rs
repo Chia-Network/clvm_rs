@@ -1,10 +1,10 @@
 pub mod api;
 pub mod dialect;
 pub mod f_table;
+pub mod native_clvm_object;
 pub mod native_op;
 pub mod op_fn;
-pub mod py_int_allocator;
-pub mod py_int_node;
+pub mod py_arena;
 pub mod py_node;
 pub mod py_view;
 pub mod run_program;

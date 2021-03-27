@@ -12,7 +12,7 @@ use crate::run_program::{run_program, OperatorHandler};
 use crate::serialize::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
 
 use super::f_table::{f_lookup_for_hashmap, FLookup};
-use super::py_int_allocator::PyIntAllocator;
+use super::py_arena::PyArena;
 
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
@@ -60,8 +60,8 @@ pub fn deserialize_and_run_program(
     max_cost: Cost,
     flags: u32,
 ) -> PyResult<(Cost, PyObject)> {
-    let py_int_allocator = PyIntAllocator::new(py)?.borrow();
-    let mut allocator_refcell: RefMut<IntAllocator> = py_int_allocator.allocator();
+    let arena = PyArena::new(py)?.borrow();
+    let mut allocator_refcell: RefMut<IntAllocator> = arena.allocator();
     let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
     let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
     let strict: bool = (flags & STRICT_MODE) != 0;
@@ -75,7 +75,7 @@ pub fn deserialize_and_run_program(
     match r {
         Ok(reduction) => Ok((
             reduction.0,
-            py_int_allocator
+            arena
                 .py_for_native(py, &reduction.1, allocator)?
                 .to_object(py),
         )),
