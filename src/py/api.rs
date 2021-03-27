@@ -6,10 +6,10 @@ use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
+use super::clvm_object::CLVMObject;
 use super::dialect::{Dialect, __pyo3_get_function_native_opcodes_dict};
-use super::native_clvm_object::NativeClvmObject;
+use super::native_clvm_object::NativeCLVMObject;
 use super::py_arena::PyArena;
-use super::py_node::PyNode;
 use super::run_program::{
     __pyo3_get_function_deserialize_and_run_program, __pyo3_get_function_serialized_length,
     STRICT_MODE,
@@ -41,17 +41,17 @@ fn deserialize_from_bytes_for_allocator<'p>(
     py: Python<'p>,
     blob: &[u8],
     arena: &PyCell<PyArena>,
-) -> PyResult<NativeClvmObject> {
+) -> PyResult<NativeCLVMObject> {
     let ptr = {
         let arena: PyRef<PyArena> = arena.borrow();
         let allocator: &mut IntAllocator = &mut arena.allocator() as &mut IntAllocator;
         node_from_bytes(allocator, blob)?
     };
-    Ok(NativeClvmObject::new(py, arena, ptr))
+    Ok(NativeCLVMObject::new(py, arena, ptr))
 }
 
 #[pyfunction]
-fn deserialize_from_bytes(py: Python, blob: &[u8]) -> PyResult<NativeClvmObject> {
+fn deserialize_from_bytes(py: Python, blob: &[u8]) -> PyResult<NativeCLVMObject> {
     let arena = PyArena::new(py)?;
     deserialize_from_bytes_for_allocator(py, blob, &arena)
 }
@@ -59,7 +59,7 @@ fn deserialize_from_bytes(py: Python, blob: &[u8]) -> PyResult<NativeClvmObject>
 use crate::node::Node;
 
 #[pyfunction]
-fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyCell<PyNode>) -> PyResult<&'p PyBytes> {
+fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyCell<CLVMObject>) -> PyResult<&'p PyBytes> {
     let arena = PyArena::new(py)?.borrow();
     let mut allocator_refcell: RefMut<IntAllocator> = arena.allocator();
     let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
@@ -75,8 +75,8 @@ fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyCell<PyNode>) -> PyResult<&'p
 #[pymodule]
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyArena>()?;
-    m.add_class::<NativeClvmObject>()?;
-    m.add_class::<PyNode>()?;
+    m.add_class::<NativeCLVMObject>()?;
+    m.add_class::<CLVMObject>()?;
 
     m.add_function(wrap_pyfunction!(py_run_program, m)?)?;
     m.add_function(wrap_pyfunction!(deserialize_from_bytes, m)?)?;
@@ -91,8 +91,6 @@ fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
 
-    m.add_class::<PyNode>()?;
-
     Ok(())
 }
 
@@ -103,8 +101,8 @@ use crate::reduction::{EvalErr, Reduction};
 #[allow(clippy::too_many_arguments)]
 pub fn py_run_program<'p>(
     py: Python<'p>,
-    program: &PyCell<PyNode>,
-    args: &PyCell<PyNode>,
+    program: &PyCell<CLVMObject>,
+    args: &PyCell<CLVMObject>,
     quote_kw: u8,
     apply_kw: u8,
     max_cost: Cost,

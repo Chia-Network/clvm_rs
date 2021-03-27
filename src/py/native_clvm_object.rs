@@ -10,16 +10,16 @@ use pyo3::ToPyObject;
 
 use crate::int_allocator::IntAllocator;
 
+use super::clvm_object::CLVMObject;
 use super::py_arena::PyArena;
-use super::py_node::PyNode;
 
 #[pyclass(weakref, subclass)]
-pub struct NativeClvmObject {
+pub struct NativeCLVMObject {
     arena: PyObject,
     ptr: i32,
 }
 
-impl NativeClvmObject {
+impl NativeCLVMObject {
     pub fn new(py: Python, arena: &PyCell<PyArena>, ptr: i32) -> Self {
         let arena = arena.to_object(py);
         Self { arena, ptr }
@@ -27,8 +27,8 @@ impl NativeClvmObject {
 }
 
 #[pymethods]
-impl NativeClvmObject {
-    fn clvm_object<'p>(&'p self, py: Python<'p>) -> PyResult<&'p PyCell<PyNode>> {
+impl NativeCLVMObject {
+    fn clvm_object<'p>(&'p self, py: Python<'p>) -> PyResult<&'p PyCell<CLVMObject>> {
         let arena: PyRef<PyArena> = self.arena.extract(py)?;
         let mut allocator: RefMut<IntAllocator> = arena.allocator();
         arena.py_for_native(py, &self.ptr, &mut allocator)

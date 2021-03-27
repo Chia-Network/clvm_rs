@@ -4,18 +4,18 @@ use pyo3::types::{PyBytes, PyTuple, PyType};
 use super::py_view::PyView;
 
 #[pyclass(weakref, subclass)]
-pub struct PyNode {
+pub struct CLVMObject {
     pub py_view: PyView,
 }
 
-impl PyNode {
+impl CLVMObject {
     pub fn new(py: Python, py_view: PyView) -> PyResult<&PyCell<Self>> {
-        PyCell::new(py, PyNode { py_view })
+        PyCell::new(py, CLVMObject { py_view })
     }
 }
 
 #[pymethods]
-impl PyNode {
+impl CLVMObject {
     #[new]
     fn new_obj(py: Python, obj: &PyAny) -> PyResult<Self> {
         Ok(if let Ok(tuple) = obj.extract() {
@@ -38,8 +38,8 @@ impl PyNode {
     fn new_pair<'p>(
         _cls: &PyType,
         py: Python<'p>,
-        p1: &PyCell<PyNode>,
-        p2: &PyCell<PyNode>,
+        p1: &PyCell<CLVMObject>,
+        p2: &PyCell<CLVMObject>,
     ) -> PyResult<&'p PyCell<Self>> {
         let tuple = PyTuple::new(py, &[p1, p2]);
         let py_view = PyView::new_pair(py, tuple)?;

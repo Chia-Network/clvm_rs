@@ -16,11 +16,11 @@ use crate::reduction::Reduction;
 use crate::reduction::Response;
 use crate::run_program::OperatorHandler;
 
+use super::clvm_object::CLVMObject;
 use super::f_table::FLookup;
 use super::f_table::OpFn;
 use super::native_op::NativeOp;
 use super::py_arena::PyArena;
-use super::py_node::PyNode;
 
 #[pyclass]
 pub struct Dialect {
@@ -71,8 +71,8 @@ impl Dialect {
     pub fn run_program<'p>(
         &self,
         py: Python<'p>,
-        program: &PyCell<PyNode>,
-        args: &PyCell<PyNode>,
+        program: &PyCell<CLVMObject>,
+        args: &PyCell<CLVMObject>,
         max_cost: Cost,
     ) -> PyResult<(Cost, PyObject)> {
         let arena = PyArena::new(py)?;
@@ -156,10 +156,10 @@ impl DialectRunningContext<'_> {
                     let i0: u32 =
                         unwrap_or_eval_err(pair.get_item(0).extract(), args, "expected u32")?;
 
-                    let py_node: &PyCell<PyNode> =
+                    let clvm_object: &PyCell<CLVMObject> =
                         unwrap_or_eval_err(pair.get_item(1).extract(), args, "expected node")?;
 
-                    let r = self.arena.native_for_py(py, py_node, allocator);
+                    let r = self.arena.native_for_py(py, clvm_object, allocator);
                     let node: i32 = unwrap_or_eval_err(r, args, "can't find in int allocator")?;
                     Ok(Reduction(i0 as Cost, node))
                 }
@@ -207,7 +207,7 @@ fn eval_err_for_pyerr<'p>(
 ) -> PyResult<EvalErr<i32>> {
     let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
     let arg0: &PyString = args.get_item(0).extract()?;
-    let sexp: &PyCell<PyNode> = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
+    let sexp: &PyCell<CLVMObject> = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
     let node: i32 = arena.native_for_py(py, sexp, allocator)?;
     let s: String = arg0.to_str()?.to_string();
     Ok(EvalErr(node, s))

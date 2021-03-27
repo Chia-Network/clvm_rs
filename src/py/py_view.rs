@@ -2,7 +2,7 @@ use pyo3::pycell::PyCell;
 use pyo3::types::{PyBytes, PyTuple};
 use pyo3::{PyObject, PyResult, Python, ToPyObject};
 
-use super::py_node::PyNode;
+use super::clvm_object::CLVMObject;
 
 pub enum PyView {
     Atom(PyObject),
@@ -18,8 +18,8 @@ impl PyView {
         if pair.len() != 2 {
             py.eval("raise ValueError('new_pair requires 2-tuple')", None, None)?;
         }
-        let _p0: &PyCell<PyNode> = pair.get_item(0).extract()?;
-        let _p1: &PyCell<PyNode> = pair.get_item(1).extract()?;
+        let _p0: &PyCell<CLVMObject> = pair.get_item(0).extract()?;
+        let _p1: &PyCell<CLVMObject> = pair.get_item(1).extract()?;
 
         Ok(PyView::Pair(pair.to_object(py)))
     }
