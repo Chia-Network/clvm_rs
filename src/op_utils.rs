@@ -6,33 +6,34 @@ use crate::reduction::EvalErr;
 
 pub fn check_arg_count<T: Allocator>(
     args: &Node<T>,
-    expected: i32,
+    expected: usize,
     name: &str,
 ) -> Result<(), EvalErr<T::Ptr>> {
-    let mut cnt = expected;
+    if arg_count(args, expected) != expected {
+        args.err(&format!(
+            "{} takes exactly {} argument{}",
+            name,
+            expected,
+            if expected == 1 { "" } else { "s" }
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+pub fn arg_count<T: Allocator>(args: &Node<T>, return_early_if_exceeds: usize) -> usize {
+    let mut count = 0;
     // It would be nice to have a trait that wouldn't require us to copy every
     // node
     let mut ptr = args.clone();
-    loop {
-        match ptr.pair() {
-            Some((_, next)) => {
-                ptr = next.clone();
-            }
-            _ => {
-                return if cnt == 0 {
-                    Ok(())
-                } else {
-                    args.err(&format!(
-                        "{} takes exactly {} argument{}",
-                        name,
-                        expected,
-                        if expected == 1 { "" } else { "s" }
-                    ))
-                }
-            }
-        }
-        cnt -= 1;
+    while let Some((_, next)) = ptr.pair() {
+        ptr = next.clone();
+        count += 1;
+        if count > return_early_if_exceeds {
+            break;
+        };
     }
+    count
 }
 
 pub fn int_atom<'a, T: Allocator>(
