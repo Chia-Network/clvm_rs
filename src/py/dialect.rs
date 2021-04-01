@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use pyo3::prelude::{pyclass, pyfunction, pymethods};
 
 use pyo3::types::{PyBytes, PyDict, PyString, PyTuple};
-use pyo3::{PyCell, PyErr, PyObject, PyRef, PyResult, Python, ToPyObject};
+use pyo3::{FromPyObject, PyCell, PyErr, PyObject, PyRef, PyResult, Python, ToPyObject};
 
 use crate::allocator::Allocator;
 use crate::cost::Cost;
@@ -22,6 +22,62 @@ use super::f_table::OpFn;
 use super::native_op::NativeOp;
 use super::py_arena::PyArena;
 
+pub type MultiOpFn<T> = fn(
+    &mut T,
+    <T as Allocator>::AtomBuf,
+    <T as Allocator>::Ptr,
+    Cost,
+) -> Response<<T as Allocator>::Ptr>;
+
+#[derive(Clone)]
+pub enum MultiOpFnE<T: Allocator> {
+    Python(PyObject),
+    Rust(
+        fn(
+            &mut T,
+            <T as Allocator>::AtomBuf,
+            <T as Allocator>::Ptr,
+            Cost,
+        ) -> Response<<T as Allocator>::Ptr>,
+    ),
+}
+
+impl<T: Allocator> MultiOpFnE<T> {
+    pub fn invoke(
+        &self,
+        allocator: &mut T,
+        o: <T as Allocator>::AtomBuf,
+        args: <T as Allocator>::Ptr,
+        max_cost: Cost,
+    ) -> Response<<T as Allocator>::Ptr> {
+        match self {
+            Self::Python(o) => {
+                panic!("oops")
+            }
+            Self::Rust(f) => f(allocator, o, args, max_cost),
+        }
+    }
+}
+
+impl<'source> FromPyObject<'source> for MultiOpFnE<IntAllocator> {
+    fn extract(obj: &'source pyo3::PyAny) -> std::result::Result<Self, PyErr> {
+        let v: PyResult<u32> = obj.extract();
+        if let Ok(v) = v {
+            Ok(Self::Rust(if v == 0 {
+                op_unknown
+            } else {
+                |_a, _b, op, _d| {
+                    //let buf = op.to_vec();
+                    //let op_arg = allocator.new_atom(&buf)?;
+                    err(op, "unimplemented operator")
+                }
+            }))
+        } else {
+            Ok(Self::Python(obj.into()))
+        }
+    }
+}
+
 #[pyclass]
 pub struct Dialect {
     quote_kw: u8,
@@ -29,7 +85,7 @@ pub struct Dialect {
     u8_lookup: FLookup<IntAllocator>,
     python_u8_lookup: HashMap<Vec<u8>, PyObject>,
     native_u8_lookup: HashMap<Vec<u8>, OpFn<IntAllocator>>,
-    strict: bool,
+    unknown_op_callback: MultiOpFnE<IntAllocator>,
 }
 
 #[pymethods]
@@ -40,7 +96,7 @@ impl Dialect {
         quote_kw: u8,
         apply_kw: u8,
         op_table: HashMap<Vec<u8>, PyObject>,
-        strict: bool,
+        unknown_op_callback: MultiOpFnE<IntAllocator>,
     ) -> PyResult<Self> {
         let mut u8_lookup = [None; 256];
         let mut python_u8_lookup = HashMap::new();
@@ -64,7 +120,7 @@ impl Dialect {
             u8_lookup,
             python_u8_lookup,
             native_u8_lookup,
-            strict,
+            unknown_op_callback,
         })
     }
 
@@ -187,12 +243,10 @@ impl OperatorHandler<IntAllocator> for DialectRunningContext<'_> {
             op_fn(allocator, *argument_list, max_cost)
         } else if let Some(op_fn) = self.dialect.python_u8_lookup.get(op) {
             self.invoke_py_obj(op_fn, allocator, o, argument_list, max_cost)
-        } else if self.dialect.strict {
-            let buf = op.to_vec();
-            let op_arg = allocator.new_atom(&buf)?;
-            err(op_arg, "unimplemented operator")
         } else {
-            op_unknown(allocator, o, *argument_list, max_cost)
+            self.dialect
+                .unknown_op_callback
+                .invoke(allocator, o, *argument_list, max_cost)
         }
     }
 }
