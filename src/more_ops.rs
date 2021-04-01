@@ -12,7 +12,9 @@ use crate::cost::{check_cost, Cost};
 use crate::err_utils::{err, u8_err};
 use crate::node::Node;
 use crate::number::{number_from_u8, ptr_from_number, Number};
-use crate::op_utils::{atom, check_arg_count, i32_atom, int_atom, two_ints, u32_from_u8};
+use crate::op_utils::{
+    arg_count, atom, check_arg_count, i32_atom, int_atom, two_ints, u32_from_u8,
+};
 use crate::reduction::{Reduction, Response};
 use crate::serialize::node_to_bytes;
 
@@ -468,14 +470,22 @@ pub fn op_strlen<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Res
 
 pub fn op_substr<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
     let args = Node::new(a, input);
-    check_arg_count(&args, 3, "substr")?;
+    let ac = arg_count(&args, 3);
+    if !(2..=3).contains(&ac) {
+        return args.err("substr takes exactly 2 or 3 arguments");
+    }
     let a0 = args.first()?;
     let s0 = atom(&a0, "substr")?;
+    let size = s0.len();
     let rest = args.rest()?;
     let i1 = i32_atom(&rest.first()?, "substr")?;
     let rest = rest.rest()?;
-    let i2 = i32_atom(&rest.first()?, "substr")?;
-    let size = s0.len();
+
+    let i2 = if ac == 3 {
+        i32_atom(&rest.first()?, "substr")?
+    } else {
+        size as i32
+    };
     if i2 < 0 || i1 < 0 || i2 as usize > size || i2 < i1 {
         args.err("invalid indices for substr")
     } else {
