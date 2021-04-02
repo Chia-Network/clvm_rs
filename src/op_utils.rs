@@ -36,6 +36,41 @@ pub fn arg_count<T: Allocator>(args: &Node<T>, return_early_if_exceeds: usize) -
     count
 }
 
+#[test]
+fn test_arg_count() {
+    use crate::int_allocator::IntAllocator;
+
+    let mut allocator = IntAllocator::new();
+    let null = allocator.null();
+    let ptr_0_args = null;
+    let ptr_1_args = allocator.new_pair(null, ptr_0_args).unwrap();
+    let ptr_2_args = allocator.new_pair(null, ptr_1_args).unwrap();
+    let ptr_3_args = allocator.new_pair(null, ptr_2_args).unwrap();
+
+    let count_0_args: Node<IntAllocator> = Node::new(&mut allocator, ptr_0_args);
+    assert_eq!(arg_count(&count_0_args, 0), 0);
+    assert_eq!(arg_count(&count_0_args, 1), 0);
+    assert_eq!(arg_count(&count_0_args, 2), 0);
+
+    let count_1_args: Node<IntAllocator> = Node::new(&mut allocator, ptr_1_args);
+    assert_eq!(arg_count(&count_1_args, 0), 1);
+    assert_eq!(arg_count(&count_1_args, 1), 1);
+    assert_eq!(arg_count(&count_1_args, 2), 1);
+
+    let count_2_args: Node<IntAllocator> = Node::new(&mut allocator, ptr_2_args);
+    assert_eq!(arg_count(&count_2_args, 0), 1);
+    assert_eq!(arg_count(&count_2_args, 1), 2);
+    assert_eq!(arg_count(&count_2_args, 2), 2);
+    assert_eq!(arg_count(&count_2_args, 3), 2);
+
+    let count_3_args: Node<IntAllocator> = Node::new(&mut allocator, ptr_3_args);
+    assert_eq!(arg_count(&count_3_args, 0), 1);
+    assert_eq!(arg_count(&count_3_args, 1), 2);
+    assert_eq!(arg_count(&count_3_args, 2), 3);
+    assert_eq!(arg_count(&count_3_args, 3), 3);
+    assert_eq!(arg_count(&count_3_args, 4), 3);
+}
+
 pub fn int_atom<'a, T: Allocator>(
     args: &'a Node<T>,
     op_name: &str,
