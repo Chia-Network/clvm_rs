@@ -39,11 +39,11 @@ jobs:
           quay.io/pypa/manylinux2014_aarch64 \
           bash -exc '\
             echo $PATH && \
-            curl -L https://sh.rustup.rs > rustup.rs && \
+            curl -L https://sh.rustup.rs > rustup-init.sh && \
+            sh rustup-init.sh -y && \
             yum -y install openssl-devel && \
-            chmod +x rustup.rs && \
-            ./rustup.rs -y && \
-            export PATH=$HOME/.cargo/bin:$PATH && \
+            source $HOME/.cargo/env && \
+            rustup target add aarch64-unknown-linux-musl && \
             rm -rf venv && \
             export PATH=/opt/python/cp39-cp39/bin/:$PATH && \
             export PATH=/opt/python/cp38-cp38/bin/:$PATH && \
@@ -52,7 +52,7 @@ jobs:
             if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
             . ./activate && \
             pip install maturin && \
-            maturin build --no-sdist --release --manylinux 2014 \
+            CC=gcc maturin build --no-sdist --release --manylinux 2014 \
           '
 
     - name: Upload artifacts
