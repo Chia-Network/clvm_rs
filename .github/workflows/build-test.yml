@@ -67,11 +67,11 @@ jobs:
           -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
           quay.io/pypa/manylinux2010_x86_64 \
           bash -exc '\
-            curl -L https://sh.rustup.rs > rustup.rs && \
-            chmod +x rustup.rs && \
-            ./rustup.rs -y && \
+            curl -L https://sh.rustup.rs > rustup-init.sh && \
+            sh rustup-init.sh -y && \
             yum -y install openssl-devel && \
-            export PATH=$HOME/.cargo/bin:$PATH && \
+            source $HOME/.cargo/env && \
+            rustup target add x86_64-unknown-linux-musl && \
             rm -rf venv && \
             PY_VERSION=${{ matrix.python }}
             PY_VERSION=${PY_VERSION/.} && \
@@ -84,8 +84,9 @@ jobs:
             /opt/python/cp38-cp38/bin/python -m venv venv && \
             if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
             . ./activate && \
+            pip install --upgrade pip && \
             pip install maturin && \
-            maturin build --no-sdist --release --manylinux 2010 \
+            CC=gcc maturin build --no-sdist --release --manylinux 2010 \
           '
 
     - name: Build Windows with maturin on Python ${{ matrix.python }}
