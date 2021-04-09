@@ -24,7 +24,7 @@ for fn in glob.glob('programs/large-atom-*.hex.invalid'):
 
     try:
         program_data = bytes.fromhex(open(fn, 'r').read())
-        max_cost = 40000000
+        max_cost = 10860255543
 
         cost, result = deserialize_and_run_program(
             program_data,
@@ -58,7 +58,7 @@ for hexname in glob.glob('programs/*.hex'):
 
     hexenv = hexname[:-3] + 'envhex'
 
-    command = ['brun', '-m', '40000000', '-c', '--backend=rust', '--quiet', '--time', '--hex', hexname, hexenv]
+    command = ['brun', '-m', '10860255543', '-c', '--backend=rust', '--quiet', '--time', '--hex', hexname, hexenv]
 
     # prepend the size command, to measure RSS
     if platform.system() == 'Darwin':
@@ -98,12 +98,12 @@ for hexname in glob.glob('programs/*.hex'):
     if size != None:
         print(Fore.YELLOW + ('  Resident Size: %d MiB' % size) + Style.RESET_ALL)
 
-        if size > 700:
+        if size > 2300:
             ret += 1
             print(Fore.RED + '\nTEST FAILURE: Max memory use exceeded\n' + Style.RESET_ALL)
 
-    # cost 40000000 roughly corresponds to 4 seconds
-    if end - start > 5:
+    # cost 10923314721 roughly corresponds to 11 seconds
+    if end - start > 11:
         ret += 1
         print(Fore.RED + '\nTEST FAILURE: Time exceeded: %f\n' % (end - start) + Style.RESET_ALL)
 
