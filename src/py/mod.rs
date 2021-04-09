@@ -1,8 +1,8 @@
 pub mod api;
+pub mod arena_object;
 pub mod clvm_object;
 pub mod dialect;
 pub mod f_table;
-pub mod native_clvm_object;
 pub mod native_op;
 pub mod op_fn;
 pub mod py_arena;

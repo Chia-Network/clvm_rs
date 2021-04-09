@@ -6,9 +6,9 @@ use pyo3::types::{PyBytes, PyDict, PyString};
 use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
+use super::arena_object::ArenaObject;
 use super::clvm_object::CLVMObject;
 use super::dialect::{Dialect, __pyo3_get_function_native_opcodes_dict};
-use super::native_clvm_object::NativeCLVMObject;
 use super::py_arena::PyArena;
 use super::run_program::{
     __pyo3_get_function_deserialize_and_run_program, __pyo3_get_function_serialized_length,
@@ -41,17 +41,17 @@ fn deserialize_from_bytes_for_allocator<'p>(
     py: Python<'p>,
     blob: &[u8],
     arena: &PyCell<PyArena>,
-) -> PyResult<NativeCLVMObject> {
+) -> PyResult<ArenaObject> {
     let ptr = {
         let arena: PyRef<PyArena> = arena.borrow();
         let allocator: &mut IntAllocator = &mut arena.allocator() as &mut IntAllocator;
         node_from_bytes(allocator, blob)?
     };
-    Ok(NativeCLVMObject::new(py, arena, ptr))
+    Ok(ArenaObject::new(py, arena, ptr))
 }
 
 #[pyfunction]
-fn deserialize_from_bytes(py: Python, blob: &[u8]) -> PyResult<NativeCLVMObject> {
+fn deserialize_from_bytes(py: Python, blob: &[u8]) -> PyResult<ArenaObject> {
     let arena = PyArena::new(py)?;
     deserialize_from_bytes_for_allocator(py, blob, &arena)
 }
@@ -75,7 +75,7 @@ fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyCell<CLVMObject>) -> PyResult
 #[pymodule]
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyArena>()?;
-    m.add_class::<NativeCLVMObject>()?;
+    m.add_class::<ArenaObject>()?;
     m.add_class::<CLVMObject>()?;
 
     m.add_function(wrap_pyfunction!(py_run_program, m)?)?;
