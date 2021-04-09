@@ -14,12 +14,12 @@ use super::clvm_object::CLVMObject;
 use super::py_arena::PyArena;
 
 #[pyclass(weakref, subclass)]
-pub struct NativeCLVMObject {
+pub struct ArenaObject {
     arena: PyObject,
     ptr: i32,
 }
 
-impl NativeCLVMObject {
+impl ArenaObject {
     pub fn new(py: Python, arena: &PyCell<PyArena>, ptr: i32) -> Self {
         let arena = arena.to_object(py);
         Self { arena, ptr }
@@ -27,7 +27,7 @@ impl NativeCLVMObject {
 }
 
 #[pymethods]
-impl NativeCLVMObject {
+impl ArenaObject {
     fn clvm_object<'p>(&'p self, py: Python<'p>) -> PyResult<&'p PyCell<CLVMObject>> {
         let arena: PyRef<PyArena> = self.arena.extract(py)?;
         let mut allocator: RefMut<IntAllocator> = arena.allocator();
