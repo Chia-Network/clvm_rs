@@ -38,7 +38,7 @@ def many_args(filename, op, num):
         f.write(') 1))')
 
     with open(filename[:-4] + 'env', 'w+') as f:
-        f.write('(200)')
+        f.write('(500)')
 
     if op.startswith('0x'):
         hexop = op[2:]
@@ -176,8 +176,8 @@ except:
 
 binary_recurse('programs/recursive-cat.clvm', 'concat', '"ABCDEF"', 29)
 binary_recurse('programs/recursive-mul.clvm', '*', '0x7ffffffffffffffffffffffffffffffffffffffffffff', 100)
-binary_recurse('programs/recursive-add.clvm', '+', '0x7ffffffffffffffffffffffffffffffffffffffffffff', 1000000)
-binary_recurse('programs/recursive-sub.clvm', '-', '0x7ffffffffffffffffffffffffffffffffffffffffffff', 1000000)
+binary_recurse('programs/recursive-add.clvm', '+', '0x7ffffffffffffffffffffffffffffffffffffffffffffffff', 5000000)
+binary_recurse('programs/recursive-sub.clvm', '-', '0x7ffffffffffffffffffffffffffffffffffffffffffffffff', 5000000)
 unary_recurse('programs/recursive-div.clvm', '/', 13, 1000000)
 unary_recurse('programs/recursive-lsh.clvm', 'lsh', 65535, 10000)
 unary_recurse('programs/recursive-ash.clvm', 'ash', 65535, 10000)
@@ -188,21 +188,21 @@ many_args('programs/args-add.clvm', '+', 10000)
 many_args('programs/args-sub.clvm', '-', 10000)
 many_args('programs/args-sha.clvm', 'sha256', 10000)
 many_args('programs/args-cat.clvm', 'concat', 10000)
-many_args('programs/args-any.clvm', 'any', 5000000)
-many_args('programs/args-all.clvm', 'all', 5000000)
+many_args('programs/args-any.clvm', 'any', 3000000)
+many_args('programs/args-all.clvm', 'all', 3000000)
 many_args('programs/args-and.clvm', 'logand', 10000)
 many_args('programs/args-or.clvm', 'logior', 10000)
 many_args('programs/args-xor.clvm', 'logxor', 10000)
 many_args_point('programs/args-point_add.clvm', 'point_add', 12000)
-many_args('programs/args-unknown-1.clvm', '0x7fffffff00', 3000)
+many_args('programs/args-unknown-1.clvm', '0x7fffffff00', 5000)
 many_args('programs/args-unknown-2.clvm', '0x7ff40', 3000)
 many_args('programs/args-unknown-3.clvm', '0x7ff80', 3000)
 many_args('programs/args-unknown-4.clvm', '0x7ffc0', 3000)
 unary_recurse('programs/args-unknown-5.clvm', '0x7ff00', '0xffffffffffffff', 3000000)
-unary_recurse('programs/args-unknown-6.clvm', '0x001', '0xfffffffffffff', 3000000)
-unary_recurse('programs/args-unknown-7.clvm', '0x041', '0xfffffffffffff', 3000000)
-unary_recurse('programs/args-unknown-8.clvm', '0x081', '0xfffffffffffff', 3000000)
-unary_recurse('programs/args-unknown-9.clvm', '0x0c1', '0xfffffffffffff', 3000000)
+unary_recurse('programs/args-unknown-6.clvm', '0x001', '0xfffffffffffff', 30000000)
+unary_recurse('programs/args-unknown-7.clvm', '0x041', '0xfffffffffffff', 30000000)
+unary_recurse('programs/args-unknown-8.clvm', '0x081', '0xfffffffffffff', 30000000)
+unary_recurse('programs/args-unknown-9.clvm', '0x0c1', '0xfffffffffffff', 30000000)
 recursive_cons('programs/recursive-cons.clvm', 10000000)
 
 # this program attempts to wrap around a 64 bit cost counter

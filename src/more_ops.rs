@@ -24,59 +24,85 @@ use sha2::{Digest, Sha256};
 #[cfg(unix)]
 use openssl::sha;
 
-const ARITH_BASE_COST: Cost = 1;
-const ARITH_COST_PER_ARG: Cost = 3;
-const ARITH_COST_PER_BYTE_DIVIDER: Cost = 16;
+// We ascribe some additional cost per byte for operations that allocate new atoms
+const MALLOC_COST_PER_BYTE: Cost = 10;
 
-const LOG_BASE_COST: Cost = 1;
-const LOG_COST_PER_ARG: Cost = 3;
-const LOG_COST_PER_BYTE_DIVIDER: Cost = 16;
+const ARITH_BASE_COST: Cost = 99;
+const ARITH_COST_PER_ARG: Cost = 320;
+const ARITH_COST_PER_BYTE: Cost = 3;
 
-const LOGNOT_BASE_COST: Cost = 3;
-const LOGNOT_COST_PER_BYTE_DIVIDER: Cost = 16;
+const LOG_BASE_COST: Cost = 100;
+const LOG_COST_PER_ARG: Cost = 264;
+const LOG_COST_PER_BYTE: Cost = 3;
 
-const MUL_BASE_COST: Cost = 1;
-const MUL_COST_PER_OP: Cost = 8;
-const MUL_LINEAR_COST_PER_BYTE_DIVIDER: Cost = 16;
-const MUL_SQUARE_COST_PER_BYTE_DIVIDER: Cost = 16384;
+const LOGNOT_BASE_COST: Cost = 331;
+const LOGNOT_COST_PER_BYTE: Cost = 3;
 
-const GR_BASE_COST: Cost = 5;
-const GR_COST_PER_BYTE_DIVIDER: Cost = 32;
+const MUL_BASE_COST: Cost = 92;
+const MUL_COST_PER_OP: Cost = 885;
+const MUL_LINEAR_COST_PER_BYTE: Cost = 6;
+const MUL_SQUARE_COST_PER_BYTE_DIVIDER: Cost = 128;
 
-const CMP_BASE_COST: Cost = 2;
-const CMP_COST_PER_BYTE_DIVIDER: Cost = 64;
+const GR_BASE_COST: Cost = 498;
+const GR_COST_PER_BYTE: Cost = 2;
 
-const STRLEN_BASE_COST: Cost = 2;
-const STRLEN_COST_PER_BYTE_DIVIDER: Cost = 128;
+const GRS_BASE_COST: Cost = 117;
+const GRS_COST_PER_BYTE: Cost = 1;
 
-const CONCAT_BASE_COST: Cost = 1;
-const CONCAT_COST_PER_ARG: Cost = 1;
-const CONCAT_COST_PER_BYTE_DIVIDER: Cost = 16;
+const STRLEN_BASE_COST: Cost = 173;
+const STRLEN_COST_PER_BYTE: Cost = 1;
 
-const DIVMOD_BASE_COST: Cost = 11;
-const DIVMOD_COST_PER_BYTE_DIVIDER: Cost = 16;
+const CONCAT_BASE_COST: Cost = 142;
+const CONCAT_COST_PER_ARG: Cost = 135;
+const CONCAT_COST_PER_BYTE: Cost = 3;
 
-const DIV_BASE_COST: Cost = 9;
-const DIV_COST_PER_BYTE_DIVIDER: Cost = 8;
+const DIVMOD_BASE_COST: Cost = 1116;
+const DIVMOD_COST_PER_BYTE: Cost = 6;
 
-const SHA256_BASE_COST: Cost = 2;
-const SHA256_COST_PER_ARG: Cost = 2;
-const SHA256_COST_PER_BYTE_DIVIDER: Cost = 16;
+const DIV_BASE_COST: Cost = 988;
+const DIV_COST_PER_BYTE: Cost = 4;
 
-const SHIFT_BASE_COST: Cost = 4;
-const SHIFT_COST_PER_BYTE_DIVIDER: Cost = 16;
+const SHA256_BASE_COST: Cost = 87;
+const SHA256_COST_PER_ARG: Cost = 134;
+const SHA256_COST_PER_BYTE: Cost = 2;
 
-const BOOL_BASE_COST: Cost = 1;
-const BOOL_COST_PER_ARG: Cost = 3;
+const ASHIFT_BASE_COST: Cost = 596;
+const ASHIFT_COST_PER_BYTE: Cost = 3;
 
-const POINT_ADD_BASE_COST: Cost = 316;
-const POINT_ADD_COST_PER_ARG: Cost = 13600;
+const LSHIFT_BASE_COST: Cost = 277;
+const LSHIFT_COST_PER_BYTE: Cost = 3;
 
-const PUBKEY_BASE_COST: Cost = 13600;
-const PUBKEY_COST_PER_BYTE_DIVIDER: Cost = 8;
+const BOOL_BASE_COST: Cost = 200;
+const BOOL_COST_PER_ARG: Cost = 300;
+
+// Raspberry PI 4 is about 7.679960 / 1.201742 = 6.39 times slower
+// in the point_add benchmark
+
+// increased from 31592 to better model Raspberry PI
+const POINT_ADD_BASE_COST: Cost = 101094;
+// increased from 419994 to better model Raspberry PI
+const POINT_ADD_COST_PER_ARG: Cost = 1343980;
+
+// Raspberry PI 4 is about 2.833543 / 0.447859 = 6.32686 times slower
+// in the pubkey benchmark
+
+// increased from 419535 to better model Raspberry PI
+const PUBKEY_BASE_COST: Cost = 1325730;
+// increased from 12 to closer model Raspberry PI
+const PUBKEY_COST_PER_BYTE: Cost = 38;
 
 fn limbs_for_int(v: &Number) -> usize {
     ((v.bits() + 7) / 8) as usize
+}
+
+fn new_atom_and_cost<T: Allocator>(a: &mut T, cost: Cost, buf: &[u8]) -> Response<T::Ptr> {
+    let c = buf.len() as Cost * MALLOC_COST_PER_BYTE;
+    Ok(Reduction(cost + c, a.new_atom(buf)?))
+}
+
+fn malloc_cost<T: Allocator>(a: &T, cost: Cost, ptr: T::Ptr) -> Reduction<T::Ptr> {
+    let c = a.atom(&ptr).len() as Cost * MALLOC_COST_PER_BYTE;
+    Reduction(cost + c, ptr)
 }
 
 pub fn op_unknown<A: Allocator>(
@@ -138,11 +164,11 @@ pub fn op_unknown<A: Allocator>(
                 byte_count += blob.len() as u64;
                 check_cost(
                     allocator,
-                    cost + byte_count as Cost / ARITH_COST_PER_BYTE_DIVIDER,
+                    cost + (byte_count as Cost * ARITH_COST_PER_BYTE),
                     max_cost,
                 )?;
             }
-            cost + byte_count / ARITH_COST_PER_BYTE_DIVIDER as u64
+            cost + (byte_count * ARITH_COST_PER_BYTE as u64)
         }
         2 => {
             let mut cost = MUL_BASE_COST as u64;
@@ -157,7 +183,7 @@ pub fn op_unknown<A: Allocator>(
                 }
                 let l1 = blob.len() as u64;
                 cost += MUL_COST_PER_OP as u64;
-                cost += (l0 + l1) / MUL_LINEAR_COST_PER_BYTE_DIVIDER as u64;
+                cost += (l0 + l1) * MUL_LINEAR_COST_PER_BYTE as u64;
                 cost += (l0 * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER as u64;
                 l0 += l1;
                 check_cost(allocator, cost, max_cost)?;
@@ -173,11 +199,11 @@ pub fn op_unknown<A: Allocator>(
                 total_size += blob.len() as u64;
                 check_cost(
                     allocator,
-                    cost + total_size as Cost / CONCAT_COST_PER_BYTE_DIVIDER,
+                    cost + total_size as Cost * CONCAT_COST_PER_BYTE,
                     max_cost,
                 )?;
             }
-            cost + total_size / CONCAT_COST_PER_BYTE_DIVIDER as u64
+            cost + total_size * CONCAT_COST_PER_BYTE as u64
         }
         _ => 1,
     };
@@ -232,7 +258,10 @@ fn test_unknown_op_reserved() {
 
     // a single ff is not sufficient to be treated as a reserved opcode
     let buf = vec![0xff];
-    assert_eq!(test_op_unknown(&buf, &mut a, null), Ok(Reduction(1, null)));
+    assert_eq!(
+        test_op_unknown(&buf, &mut a, null),
+        Ok(Reduction(142, null))
+    );
 
     // leading zeros count, so this is not considered an ffff-prefix
     let buf = vec![0x00, 0xff, 0xff, 0x00, 0x00];
@@ -271,15 +300,15 @@ pub fn op_sha256<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Resp
         cost += SHA256_COST_PER_ARG;
         check_cost(
             a,
-            cost + byte_count as Cost / SHA256_COST_PER_BYTE_DIVIDER,
+            cost + byte_count as Cost * SHA256_COST_PER_BYTE,
             max_cost,
         )?;
         let blob = atom(&arg, "sha256")?;
         byte_count += blob.len();
         hasher.input(blob);
     }
-    cost += byte_count as Cost / SHA256_COST_PER_BYTE_DIVIDER;
-    Ok(Reduction(cost, a.new_atom(&hasher.result())?))
+    cost += byte_count as Cost * SHA256_COST_PER_BYTE;
+    new_atom_and_cost(a, cost, &hasher.result())
 }
 
 #[cfg(unix)]
@@ -291,15 +320,15 @@ pub fn op_sha256<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Resp
         cost += SHA256_COST_PER_ARG;
         check_cost(
             a,
-            cost + byte_count as Cost / SHA256_COST_PER_BYTE_DIVIDER,
+            cost + byte_count as Cost * SHA256_COST_PER_BYTE,
             max_cost,
         )?;
         let blob = atom(&arg, "sha256")?;
         byte_count += blob.len();
         hasher.update(blob);
     }
-    cost += byte_count as Cost / SHA256_COST_PER_BYTE_DIVIDER;
-    Ok(Reduction(cost, a.new_atom(&hasher.finish())?))
+    cost += byte_count as Cost * SHA256_COST_PER_BYTE;
+    new_atom_and_cost(a, cost, &hasher.finish())
 }
 
 pub fn op_add<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
@@ -310,7 +339,7 @@ pub fn op_add<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Respons
         cost += ARITH_COST_PER_ARG;
         check_cost(
             a,
-            cost + byte_count as Cost / ARITH_COST_PER_BYTE_DIVIDER,
+            cost + (byte_count as Cost * ARITH_COST_PER_BYTE),
             max_cost,
         )?;
         let blob = int_atom(&arg, "+")?;
@@ -319,8 +348,8 @@ pub fn op_add<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Respons
         total += v;
     }
     let total = ptr_from_number(a, &total)?;
-    cost += byte_count as Cost / ARITH_COST_PER_BYTE_DIVIDER;
-    Ok(Reduction(cost, total))
+    cost += byte_count as Cost * ARITH_COST_PER_BYTE;
+    Ok(malloc_cost(a, cost, total))
 }
 
 pub fn op_subtract<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
@@ -330,11 +359,7 @@ pub fn op_subtract<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Re
     let mut is_first = true;
     for arg in Node::new(a, input) {
         cost += ARITH_COST_PER_ARG;
-        check_cost(
-            a,
-            cost + byte_count as Cost / ARITH_COST_PER_BYTE_DIVIDER,
-            max_cost,
-        )?;
+        check_cost(a, cost + byte_count as Cost * ARITH_COST_PER_BYTE, max_cost)?;
         let blob = int_atom(&arg, "-")?;
         let v: Number = number_from_u8(&blob);
         byte_count += blob.len();
@@ -346,8 +371,8 @@ pub fn op_subtract<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Re
         is_first = false;
     }
     let total = ptr_from_number(a, &total)?;
-    cost += byte_count as Cost / ARITH_COST_PER_BYTE_DIVIDER;
-    Ok(Reduction(cost, total))
+    cost += byte_count as Cost * ARITH_COST_PER_BYTE;
+    Ok(malloc_cost(a, cost, total))
 }
 
 pub fn op_multiply<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
@@ -369,19 +394,19 @@ pub fn op_multiply<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Re
         total *= number_from_u8(&blob);
         cost += MUL_COST_PER_OP;
 
-        cost += (l0 + l1) as Cost / MUL_LINEAR_COST_PER_BYTE_DIVIDER;
+        cost += (l0 + l1) as Cost * MUL_LINEAR_COST_PER_BYTE;
         cost += (l0 * l1) as Cost / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
 
         l0 = limbs_for_int(&total);
     }
     let total = ptr_from_number(a, &total)?;
-    Ok(Reduction(cost, total))
+    Ok(malloc_cost(a, cost, total))
 }
 
 pub fn op_div<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
     let args = Node::new(a, input);
     let (a0, l0, a1, l1) = two_ints(&args, "/")?;
-    let cost = DIV_BASE_COST + ((l0 + l1) as Cost) / DIV_COST_PER_BYTE_DIVIDER;
+    let cost = DIV_BASE_COST + ((l0 + l1) as Cost) * DIV_COST_PER_BYTE;
     if a1.sign() == Sign::NoSign {
         args.first()?.err("div with 0")
     } else {
@@ -396,14 +421,14 @@ pub fn op_div<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respon
             q
         };
         let q1 = ptr_from_number(a, &q)?;
-        Ok(Reduction(cost, q1))
+        Ok(malloc_cost(a, cost, q1))
     }
 }
 
 pub fn op_divmod<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
     let args = Node::new(a, input);
     let (a0, l0, a1, l1) = two_ints(&args, "divmod")?;
-    let cost = DIVMOD_BASE_COST + ((l0 + l1) as Cost) / DIVMOD_COST_PER_BYTE_DIVIDER;
+    let cost = DIVMOD_BASE_COST + ((l0 + l1) as Cost) * DIVMOD_COST_PER_BYTE;
     if a1.sign() == Sign::NoSign {
         args.first()?.err("divmod with 0")
     } else {
@@ -422,8 +447,10 @@ pub fn op_divmod<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Res
         };
         let q1 = ptr_from_number(a, &q)?;
         let r1 = ptr_from_number(a, &r)?;
+
+        let c = (a.atom(&q1).len() + a.atom(&r1).len()) as Cost * MALLOC_COST_PER_BYTE;
         let r: T::Ptr = a.new_pair(q1, r1)?;
-        Ok(Reduction(cost, r))
+        Ok(Reduction(cost + c, r))
     }
 }
 
@@ -434,7 +461,7 @@ pub fn op_gr<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respons
     let a1 = args.rest()?.first()?;
     let v0 = int_atom(&a0, ">")?;
     let v1 = int_atom(&a1, ">")?;
-    let cost = GR_BASE_COST + (v0.len() + v1.len()) as Cost / GR_COST_PER_BYTE_DIVIDER;
+    let cost = GR_BASE_COST + (v0.len() + v1.len()) as Cost * GR_COST_PER_BYTE;
     Ok(Reduction(
         cost,
         if number_from_u8(v0) > number_from_u8(v1) {
@@ -452,7 +479,7 @@ pub fn op_gr_bytes<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> R
     let a1 = args.rest()?.first()?;
     let v0 = atom(&a0, ">s")?;
     let v1 = atom(&a1, ">s")?;
-    let cost = CMP_BASE_COST + (v0.len() + v1.len()) as Cost / CMP_COST_PER_BYTE_DIVIDER;
+    let cost = GRS_BASE_COST + (v0.len() + v1.len()) as Cost * GRS_COST_PER_BYTE;
     Ok(Reduction(cost, if v0 > v1 { a.one() } else { a.null() }))
 }
 
@@ -464,8 +491,8 @@ pub fn op_strlen<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Res
     let size = v0.len();
     let size_num: Number = size.into();
     let size_node = ptr_from_number(a, &size_num)?;
-    let cost = STRLEN_BASE_COST + size as Cost / STRLEN_COST_PER_BYTE_DIVIDER;
-    Ok(Reduction(cost, size_node))
+    let cost = STRLEN_BASE_COST + size as Cost * STRLEN_COST_PER_BYTE;
+    Ok(malloc_cost(a, cost, size_node))
 }
 
 pub fn op_substr<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
@@ -504,14 +531,14 @@ pub fn op_concat<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Resp
         cost += CONCAT_COST_PER_ARG;
         check_cost(
             a,
-            cost + total_size as Cost / CONCAT_COST_PER_BYTE_DIVIDER,
+            cost + total_size as Cost * CONCAT_COST_PER_BYTE,
             max_cost,
         )?;
         let blob = atom(&arg, "concat")?;
         total_size += blob.len();
     }
 
-    cost += total_size as Cost / CONCAT_COST_PER_BYTE_DIVIDER;
+    cost += total_size as Cost * CONCAT_COST_PER_BYTE;
     check_cost(a, cost, max_cost)?;
     let mut v: Vec<u8> = Vec::with_capacity(total_size);
 
@@ -519,9 +546,8 @@ pub fn op_concat<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Resp
         let blob = arg.atom().unwrap();
         v.extend_from_slice(blob);
     }
-    let r: T::Ptr = a.new_atom(&v)?;
 
-    Ok(Reduction(cost, r))
+    new_atom_and_cost(a, cost, &v)
 }
 
 pub fn op_ash<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
@@ -540,8 +566,8 @@ pub fn op_ash<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respon
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
     let l1 = limbs_for_int(&v);
     let r = ptr_from_number(a, &v)?;
-    let cost = SHIFT_BASE_COST + ((l0 + l1) as Cost) / SHIFT_COST_PER_BYTE_DIVIDER;
-    Ok(Reduction(cost, r))
+    let cost = ASHIFT_BASE_COST + ((l0 + l1) as Cost) * ASHIFT_COST_PER_BYTE;
+    Ok(malloc_cost(a, cost, r))
 }
 
 pub fn op_lsh<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
@@ -563,8 +589,8 @@ pub fn op_lsh<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respon
 
     let l1 = limbs_for_int(&v);
     let r = ptr_from_number(a, &v)?;
-    let cost = SHIFT_BASE_COST + ((l0 + l1) as Cost) / SHIFT_COST_PER_BYTE_DIVIDER;
-    Ok(Reduction(cost, r))
+    let cost = LSHIFT_BASE_COST + ((l0 + l1) as Cost) * LSHIFT_COST_PER_BYTE;
+    Ok(malloc_cost(a, cost, r))
 }
 
 fn binop_reduction<T: Allocator>(
@@ -584,15 +610,11 @@ fn binop_reduction<T: Allocator>(
         op_f(&mut total, &n0);
         arg_size += blob.len();
         cost += LOG_COST_PER_ARG;
-        check_cost(
-            a,
-            cost + arg_size as Cost / LOG_COST_PER_BYTE_DIVIDER,
-            max_cost,
-        )?;
+        check_cost(a, cost + (arg_size as Cost * LOG_COST_PER_BYTE), max_cost)?;
     }
-    cost += arg_size as Cost / LOG_COST_PER_BYTE_DIVIDER;
+    cost += arg_size as Cost * LOG_COST_PER_BYTE;
     let total = ptr_from_number(a, &total)?;
-    Ok(Reduction(cost, total))
+    Ok(malloc_cost(a, cost, total))
 }
 
 fn logand_op<T: Allocator>(a: &mut Number, b: &Number) {
@@ -629,9 +651,9 @@ pub fn op_lognot<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Res
     let v0 = int_atom(&a0, "lognot")?;
     let mut n: Number = number_from_u8(&v0);
     n = !n;
-    let cost = LOGNOT_BASE_COST + (v0.len() as Cost) / LOGNOT_COST_PER_BYTE_DIVIDER;
+    let cost = LOGNOT_BASE_COST + ((v0.len() as Cost) * LOGNOT_COST_PER_BYTE);
     let r = ptr_from_number(a, &n)?;
-    Ok(Reduction(cost, r))
+    Ok(malloc_cost(a, cost, r))
 }
 
 pub fn op_not<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
@@ -729,12 +751,12 @@ pub fn op_pubkey_for_exp<T: Allocator>(
 
     let v0 = int_atom(&a0, "pubkey_for_exp")?;
     let exp: Number = mod_group_order(number_from_u8(&v0));
-    let cost = PUBKEY_BASE_COST + (v0.len() as Cost) / PUBKEY_COST_PER_BYTE_DIVIDER;
+    let cost = PUBKEY_BASE_COST + (v0.len() as Cost) * PUBKEY_COST_PER_BYTE;
     let exp: Scalar = number_to_scalar(exp);
     let point: G1Projective = G1Affine::generator() * exp;
     let point: G1Affine = point.into();
 
-    Ok(Reduction(cost, a.new_atom(&point.to_compressed())?))
+    new_atom_and_cost(a, cost, &point.to_compressed())
 }
 
 pub fn op_point_add<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
@@ -763,5 +785,5 @@ pub fn op_point_add<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> R
         }
     }
     let total: G1Affine = total.into();
-    Ok(Reduction(cost, a.new_atom(&total.to_compressed())?))
+    new_atom_and_cost(a, cost, &total.to_compressed())
 }

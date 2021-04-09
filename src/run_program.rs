@@ -6,10 +6,16 @@ use crate::reduction::{EvalErr, Reduction, Response};
 
 use crate::number::{ptr_from_number, Number};
 
-const QUOTE_COST: Cost = 1;
-const TRAVERSE_COST_PER_ZERO_BYTE: Cost = 1;
-const TRAVERSE_COST_PER_BIT: Cost = 1;
-const APPLY_COST: Cost = 1;
+// lowered from 46
+const QUOTE_COST: Cost = 20;
+// lowered from 138
+const APPLY_COST: Cost = 90;
+
+// lowered from measured 147 per bit. It doesn't seem to take this long in
+// practice
+const TRAVERSE_BASE_COST: Cost = 40;
+const TRAVERSE_COST_PER_ZERO_BYTE: Cost = 4;
+const TRAVERSE_COST_PER_BIT: Cost = 4;
 
 pub trait OperatorHandler<T: Allocator> {
     fn op(
@@ -100,8 +106,9 @@ fn traverse_path<T: Allocator>(
     // find first non-zero byte
     let first_bit_byte_index = first_non_zero(node_index);
 
-    let mut cost: Cost =
-        (first_bit_byte_index as Cost) * TRAVERSE_COST_PER_ZERO_BYTE + TRAVERSE_COST_PER_BIT;
+    let mut cost: Cost = TRAVERSE_BASE_COST
+        + (first_bit_byte_index as Cost) * TRAVERSE_COST_PER_ZERO_BYTE
+        + TRAVERSE_COST_PER_BIT;
 
     if first_bit_byte_index >= node_index.len() {
         return Ok(Reduction(cost, allocator.null()));
@@ -420,33 +427,36 @@ fn test_traverse_path() {
     let n1 = a.new_atom(&[0, 1, 2]).unwrap();
     let n2 = a.new_atom(&[4, 5, 6]).unwrap();
 
-    assert_eq!(traverse_path(&a, &[0], &n1).unwrap(), Reduction(2, nul));
-    assert_eq!(traverse_path(&a, &[0b1], &n1).unwrap(), Reduction(1, n1));
-    assert_eq!(traverse_path(&a, &[0b1], &n2).unwrap(), Reduction(1, n2));
+    assert_eq!(traverse_path(&a, &[0], &n1).unwrap(), Reduction(48, nul));
+    assert_eq!(traverse_path(&a, &[0b1], &n1).unwrap(), Reduction(44, n1));
+    assert_eq!(traverse_path(&a, &[0b1], &n2).unwrap(), Reduction(44, n2));
 
     // cost for leading zeros
     assert_eq!(
         traverse_path(&a, &[0, 0, 0, 0], &n1).unwrap(),
-        Reduction(5, nul)
+        Reduction(60, nul)
     );
 
     let n3 = a.new_pair(n1, n2).unwrap();
-    assert_eq!(traverse_path(&a, &[0b1], &n3).unwrap(), Reduction(1, n3));
-    assert_eq!(traverse_path(&a, &[0b10], &n3).unwrap(), Reduction(2, n1));
-    assert_eq!(traverse_path(&a, &[0b11], &n3).unwrap(), Reduction(2, n2));
-    assert_eq!(traverse_path(&a, &[0b11], &n3).unwrap(), Reduction(2, n2));
+    assert_eq!(traverse_path(&a, &[0b1], &n3).unwrap(), Reduction(44, n3));
+    assert_eq!(traverse_path(&a, &[0b10], &n3).unwrap(), Reduction(48, n1));
+    assert_eq!(traverse_path(&a, &[0b11], &n3).unwrap(), Reduction(48, n2));
+    assert_eq!(traverse_path(&a, &[0b11], &n3).unwrap(), Reduction(48, n2));
 
     let list = a.new_pair(n1, nul).unwrap();
     let list = a.new_pair(n2, list).unwrap();
 
-    assert_eq!(traverse_path(&a, &[0b10], &list).unwrap(), Reduction(2, n2));
+    assert_eq!(
+        traverse_path(&a, &[0b10], &list).unwrap(),
+        Reduction(48, n2)
+    );
     assert_eq!(
         traverse_path(&a, &[0b101], &list).unwrap(),
-        Reduction(3, n1)
+        Reduction(52, n1)
     );
     assert_eq!(
         traverse_path(&a, &[0b111], &list).unwrap(),
-        Reduction(3, nul)
+        Reduction(52, nul)
     );
 
     // errors
