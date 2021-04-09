@@ -1,16 +1,14 @@
 use std::cell::RefMut;
 use std::collections::HashMap;
 
-use pyo3::prelude::{pyclass, pyfunction, pymethods};
+use pyo3::prelude::{pyclass, pymethods};
 
 use pyo3::types::{PyBytes, PyDict, PyString, PyTuple};
 use pyo3::{FromPyObject, PyCell, PyErr, PyObject, PyRef, PyResult, Python, ToPyObject};
 
 use crate::allocator::Allocator;
 use crate::cost::Cost;
-use crate::err_utils::err;
 use crate::int_allocator::IntAllocator;
-use crate::more_ops::op_unknown;
 use crate::reduction::EvalErr;
 use crate::reduction::Reduction;
 use crate::reduction::Response;
@@ -22,6 +20,18 @@ use super::f_table::OpFn;
 use super::native_op::NativeOp;
 use super::py_arena::PyArena;
 
+#[pyclass]
+#[derive(Clone)]
+pub struct PyMultiOpFn {
+    op: MultiOpFn<IntAllocator>,
+}
+
+impl PyMultiOpFn {
+    pub fn new(op: MultiOpFn<IntAllocator>) -> Self {
+        Self { op }
+    }
+}
+
 pub type MultiOpFn<T> = fn(
     &mut T,
     <T as Allocator>::AtomBuf,
@@ -32,14 +42,7 @@ pub type MultiOpFn<T> = fn(
 #[derive(Clone)]
 pub enum MultiOpFnE<T: Allocator> {
     Python(PyObject),
-    Rust(
-        fn(
-            &mut T,
-            <T as Allocator>::AtomBuf,
-            <T as Allocator>::Ptr,
-            Cost,
-        ) -> Response<<T as Allocator>::Ptr>,
-    ),
+    Rust(MultiOpFn<T>),
 }
 
 impl<T: Allocator> MultiOpFnE<T> {
@@ -51,8 +54,8 @@ impl<T: Allocator> MultiOpFnE<T> {
         max_cost: Cost,
     ) -> Response<<T as Allocator>::Ptr> {
         match self {
-            Self::Python(o) => {
-                panic!("oops")
+            Self::Python(_o) => {
+                todo!()
             }
             Self::Rust(f) => f(allocator, o, args, max_cost),
         }
@@ -60,18 +63,10 @@ impl<T: Allocator> MultiOpFnE<T> {
 }
 
 impl<'source> FromPyObject<'source> for MultiOpFnE<IntAllocator> {
-    fn extract(obj: &'source pyo3::PyAny) -> std::result::Result<Self, PyErr> {
-        let v: PyResult<u32> = obj.extract();
+    fn extract(obj: &'source pyo3::PyAny) -> PyResult<Self> {
+        let v: PyResult<&PyCell<PyMultiOpFn>> = obj.extract();
         if let Ok(v) = v {
-            Ok(Self::Rust(if v == 0 {
-                op_unknown
-            } else {
-                |_a, _b, op, _d| {
-                    //let buf = op.to_vec();
-                    //let op_arg = allocator.new_atom(&buf)?;
-                    err(op, "unimplemented operator")
-                }
-            }))
+            Ok(Self::Rust(v.borrow().op))
         } else {
             Ok(Self::Python(obj.into()))
         }
@@ -290,48 +285,4 @@ fn raise_eval_error(py: Python, msg: &PyString, sexp: PyObject) -> PyResult<PyOb
         Err(x) => Err(x),
         Ok(_) => Ok(ctx.into()),
     }
-}
-
-use crate::core_ops::*;
-use crate::more_ops::*;
-
-#[pyfunction]
-pub fn native_opcodes_dict(py: Python) -> PyResult<PyObject> {
-    let opcode_lookup: [(OpFn<IntAllocator>, &str); 30] = [
-        (op_if, "op_if"),
-        (op_cons, "op_cons"),
-        (op_first, "op_first"),
-        (op_rest, "op_rest"),
-        (op_listp, "op_listp"),
-        (op_raise, "op_raise"),
-        (op_eq, "op_eq"),
-        (op_sha256, "op_sha256"),
-        (op_add, "op_add"),
-        (op_subtract, "op_subtract"),
-        (op_multiply, "op_multiply"),
-        (op_divmod, "op_divmod"),
-        (op_substr, "op_substr"),
-        (op_strlen, "op_strlen"),
-        (op_point_add, "op_point_add"),
-        (op_pubkey_for_exp, "op_pubkey_for_exp"),
-        (op_concat, "op_concat"),
-        (op_gr, "op_gr"),
-        (op_gr_bytes, "op_gr_bytes"),
-        (op_logand, "op_logand"),
-        (op_logior, "op_logior"),
-        (op_logxor, "op_logxor"),
-        (op_lognot, "op_lognot"),
-        (op_ash, "op_ash"),
-        (op_lsh, "op_lsh"),
-        (op_not, "op_not"),
-        (op_any, "op_any"),
-        (op_all, "op_all"),
-        (op_softfork, "op_softfork"),
-        (op_div, "op_div"),
-    ];
-    let r = PyDict::new(py);
-    for (f, name) in opcode_lookup.iter() {
-        r.set_item(name, PyCell::new(py, NativeOp::new(*f))?)?;
-    }
-    Ok(r.to_object(py))
 }

@@ -17,8 +17,6 @@ use super::py_arena::PyArena;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
 
-pub const STRICT_MODE: u32 = 1;
-
 pub struct OperatorHandlerWithMode<A: Allocator> {
     f_lookup: FLookup<A>,
     strict: bool,
@@ -64,14 +62,16 @@ pub fn deserialize_and_run_program(
     let mut allocator_refcell: RefMut<IntAllocator> = arena.allocator();
     let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
     let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
-    let strict: bool = (flags & STRICT_MODE) != 0;
+    let strict: bool = flags != 0;
     let f = OperatorHandlerWithMode { f_lookup, strict };
     let program = node_from_bytes(allocator, program)?;
     let args = node_from_bytes(allocator, args)?;
 
-    let r = run_program(
-        allocator, &program, &args, quote_kw, apply_kw, max_cost, &f, None,
-    );
+    let r = py.allow_threads(|| {
+        run_program(
+            allocator, &program, &args, quote_kw, apply_kw, max_cost, &f, None,
+        )
+    });
     match r {
         Ok(reduction) => Ok((
             reduction.0,
