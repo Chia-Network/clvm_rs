@@ -3,6 +3,22 @@
 import os
 from clvm import KEYWORD_TO_ATOM
 
+def recursive_cons(filename, num):
+    with open(filename, 'w+') as f:
+        f.write('''
+;(mod (N)
+;    (defun prepend (V N)
+;        (if N (c V (prepend V (- N 1) V)) ())
+;    )
+;    (prepend 1337 N)
+;)
+
+(a (q 2 2 (c 2 (c (q . 1337) (c 5 ())))) (c (q 2 (i 11 (q 4 5 (a 2 (c 2 (c 5 (c (- 11 (q . 1)) (c 5 ())))))) ()) 1) 1))
+''')
+
+    with open(filename[:-4] + 'env', 'w+') as f:
+        f.write('(%d)' % num)
+
 def many_args(filename, op, num):
     with open(filename + '-precompiled', 'w+') as f:
         f.write('''
@@ -187,6 +203,7 @@ unary_recurse('programs/args-unknown-6.clvm', '0x001', '0xfffffffffffff', 300000
 unary_recurse('programs/args-unknown-7.clvm', '0x041', '0xfffffffffffff', 3000000)
 unary_recurse('programs/args-unknown-8.clvm', '0x081', '0xfffffffffffff', 3000000)
 unary_recurse('programs/args-unknown-9.clvm', '0x0c1', '0xfffffffffffff', 3000000)
+recursive_cons('programs/recursive-cons.clvm', 10000000)
 
 # this program attempts to wrap around a 64 bit cost counter
 softfork_wrap('programs/softfork-1.clvm', '0x00ffffffffffffff45')
