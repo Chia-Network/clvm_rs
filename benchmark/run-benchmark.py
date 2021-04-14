@@ -247,7 +247,7 @@ for n, vals in sorted(test_runs.items()):
     print(Fore.MAGENTA, end='')
     for v in vals:
         print(' %s' % v, end='')
-    print(Fore.YELLOW + ' %10d' % test_costs[n], end='')
+    print(Fore.YELLOW + ' %13d' % test_costs[n], end='')
     print(Fore.RESET)
 
 print(Fore.GREEN + '      TOTAL:' + Style.RESET_ALL + ' %f s' % sum_time)
