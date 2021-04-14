@@ -121,21 +121,23 @@ pub fn deserialize_and_run_program(
     let mut allocator = IntAllocator::new();
     let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
     let strict: bool = (flags & STRICT_MODE) != 0;
-    let f: Box<dyn OperatorHandler<IntAllocator>> =
+    let f: Box<dyn OperatorHandler<IntAllocator> + Send> =
         Box::new(OperatorHandlerWithMode { f_lookup, strict });
     let program = node_from_bytes(&mut allocator, program)?;
     let args = node_from_bytes(&mut allocator, args)?;
 
-    let r = run_program(
-        &mut allocator,
-        &program,
-        &args,
-        quote_kw,
-        apply_kw,
-        max_cost,
-        f,
-        None,
-    );
+    let r = py.allow_threads(|| {
+        run_program(
+            &mut allocator,
+            &program,
+            &args,
+            quote_kw,
+            apply_kw,
+            max_cost,
+            f,
+            None,
+        )
+    });
     match r {
         Ok(reduction) => {
             let node_as_blob = node_to_bytes(&Node::new(&allocator, reduction.1))?;
