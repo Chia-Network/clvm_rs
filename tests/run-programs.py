@@ -24,7 +24,7 @@ for fn in glob.glob('programs/large-atom-*.hex.invalid'):
 
     try:
         program_data = bytes.fromhex(open(fn, 'r').read())
-        max_cost = 10860255543
+        max_cost = 11000000000
 
         cost, result = deserialize_and_run_program(
             program_data,
@@ -58,7 +58,7 @@ for hexname in glob.glob('programs/*.hex'):
 
     hexenv = hexname[:-3] + 'envhex'
 
-    command = ['brun', '-m', '10860255543', '-c', '--backend=rust', '--quiet', '--time', '--hex', hexname, hexenv]
+    command = ['brun', '-m', '11000000000', '-c', '--backend=rust', '--quiet', '--time', '--hex', hexname, hexenv]
 
     # prepend the size command, to measure RSS
     if platform.system() == 'Darwin':
