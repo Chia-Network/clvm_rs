@@ -6,7 +6,9 @@ use pyo3::types::{IntoPyDict, PyBytes, PyTuple};
 
 use crate::allocator::{Allocator, SExp};
 use crate::int_allocator::IntAllocator;
+use crate::serialize::node_from_bytes;
 
+use super::arena_object::ArenaObject;
 use super::clvm_object::CLVMObject;
 use super::py_view::PyView;
 
@@ -16,8 +18,28 @@ pub struct PyArena {
     cache: PyObject,
 }
 
+#[pymethods]
 impl PyArena {
-    pub fn new(py: Python) -> PyResult<&PyCell<Self>> {
+    #[new]
+    pub fn new(py: Python) -> PyResult<Self> {
+        Ok(PyArena {
+            arena: RefCell::new(IntAllocator::default()),
+            cache: py.eval("dict()", None, None)?.to_object(py),
+        })
+    }
+
+    pub fn deserialize(slf: &PyCell<PyArena>, py: Python, blob: &[u8]) -> PyResult<ArenaObject> {
+        let ptr = {
+            let borrowed_arena = slf.borrow();
+            let allocator: &mut IntAllocator = &mut borrowed_arena.allocator() as &mut IntAllocator;
+            node_from_bytes(allocator, blob)?
+        };
+        Ok(ArenaObject::new(py, slf, ptr))
+    }
+}
+
+impl PyArena {
+    pub fn new_cell(py: Python) -> PyResult<&PyCell<Self>> {
         PyCell::new(
             py,
             PyArena {

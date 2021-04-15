@@ -35,7 +35,13 @@ impl ArenaObject {
     }
 
     #[getter(arena)]
-    fn arena<'p>(&'p self, py: Python<'p>) -> PyResult<&'p PyCell<PyArena>> {
+    pub fn get_arena<'p>(&'p self, py: Python<'p>) -> PyResult<&'p PyCell<PyArena>> {
         self.arena.extract(py)
+    }
+}
+
+impl From<&ArenaObject> for i32 {
+    fn from(obj: &ArenaObject) -> Self {
+        obj.ptr
     }
 }
