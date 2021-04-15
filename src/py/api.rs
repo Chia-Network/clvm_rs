@@ -99,13 +99,13 @@ fn deserialize_from_bytes_for_allocator<'p>(
 
 #[pyfunction]
 fn deserialize_from_bytes(py: Python, blob: &[u8]) -> PyResult<ArenaObject> {
-    let arena = PyArena::new(py)?;
+    let arena = PyArena::new_cell(py)?;
     deserialize_from_bytes_for_allocator(py, blob, &arena)
 }
 
 #[pyfunction]
 fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyCell<CLVMObject>) -> PyResult<&'p PyBytes> {
-    let arena = PyArena::new(py)?.borrow();
+    let arena = PyArena::new_cell(py)?.borrow();
     let mut allocator_refcell: RefMut<IntAllocator> = arena.allocator();
     let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
 
@@ -157,7 +157,7 @@ pub fn py_run_program<'p>(
     opcode_lookup_by_name: HashMap<String, Vec<u8>>,
     py_callback: PyObject,
 ) -> PyResult<(Cost, PyObject)> {
-    let arena = PyArena::new(py)?.borrow();
+    let arena = PyArena::new_cell(py)?.borrow();
     let mut allocator_refcell: RefMut<IntAllocator> = arena.allocator();
     let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
 

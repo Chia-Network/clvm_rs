@@ -13,7 +13,9 @@ use crate::reduction::EvalErr;
 use crate::reduction::Reduction;
 use crate::reduction::Response;
 use crate::run_program::OperatorHandler;
+use crate::serialize::node_from_bytes;
 
+use super::arena_object::ArenaObject;
 use super::clvm_object::CLVMObject;
 use super::f_table::FLookup;
 use super::f_table::OpFn;
@@ -73,6 +75,12 @@ impl<'source> FromPyObject<'source> for MultiOpFnE<IntAllocator> {
     }
 }
 
+fn same_arena(arena1: &PyArena, arena2: &PyArena) -> bool {
+    let p1: *const PyArena = arena1 as *const PyArena;
+    let p2: *const PyArena = arena2 as *const PyArena;
+    p1 == p2
+}
+
 #[pyclass]
 pub struct Dialect {
     quote_kw: u8,
@@ -126,18 +134,77 @@ impl Dialect {
         args: &PyCell<CLVMObject>,
         max_cost: Cost,
     ) -> PyResult<(Cost, PyObject)> {
-        let arena = PyArena::new(py)?;
-        let arena = &arena.borrow() as &PyArena;
-        let drc = DialectRunningContext {
-            dialect: self,
-            arena,
-        };
+        let arena = PyArena::new_cell(py)?;
 
-        let mut allocator_refcell: RefMut<IntAllocator> = arena.allocator();
+        let (program, args) = {
+            let arena_ptr: &PyArena = &arena.borrow() as &PyArena;
+            let mut allocator_refcell: RefMut<IntAllocator> = arena_ptr.allocator();
+            let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
+
+            let program = arena_ptr.native_for_py(py, program, allocator)?;
+            let args = arena_ptr.native_for_py(py, args, allocator)?;
+            (program, args)
+        };
+        let (cost, r) = self.run_program_ptr(py, &arena, program, args, max_cost)?;
+
+        let arena_ptr: &PyArena = &arena.borrow() as &PyArena;
+        let mut allocator_refcell: RefMut<IntAllocator> = arena_ptr.allocator();
         let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
 
-        let program = arena.native_for_py(py, program, allocator)?;
-        let args = arena.native_for_py(py, args, allocator)?;
+        let r_ptr = &(&r).into();
+        let new_r = arena_ptr.py_for_native(py, r_ptr, allocator)?;
+        Ok((cost, new_r.into()))
+    }
+
+    pub fn run_program_arena<'p>(
+        &self,
+        py: Python<'p>,
+        program: &ArenaObject,
+        args: &ArenaObject,
+        max_cost: Cost,
+    ) -> PyResult<(Cost, ArenaObject)> {
+        let arena = program.get_arena(py)?;
+        if !same_arena(&arena.borrow(), &args.get_arena(py)?.borrow()) {
+            py.eval("raise ValueError('mismatched arenas')", None, None)?;
+        }
+        self.run_program_ptr(py, arena, program.into(), args.into(), max_cost)
+    }
+
+    pub fn deserialize_and_run_program<'p>(
+        &self,
+        py: Python<'p>,
+        program_blob: &[u8],
+        args_blob: &[u8],
+        max_cost: Cost,
+    ) -> PyResult<(Cost, ArenaObject)> {
+        let arena = PyArena::new_cell(py)?;
+        let arena_ptr: &PyArena = &arena.borrow() as &PyArena;
+        let mut allocator_refcell: RefMut<IntAllocator> = arena_ptr.allocator();
+        let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
+
+        let program = node_from_bytes(allocator, program_blob)?;
+        let args = node_from_bytes(allocator, args_blob)?;
+        self.run_program_ptr(py, &arena, program, args, max_cost)
+    }
+}
+
+impl Dialect {
+    pub fn run_program_ptr<'p>(
+        &self,
+        py: Python<'p>,
+        arena: &PyCell<PyArena>,
+        program: i32,
+        args: i32,
+        max_cost: Cost,
+    ) -> PyResult<(Cost, ArenaObject)> {
+        let borrowed_arena = arena.borrow();
+        let mut allocator_refcell: RefMut<IntAllocator> = borrowed_arena.allocator();
+        let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
+
+        let drc = DialectRunningContext {
+            dialect: self,
+            arena: &borrowed_arena,
+        };
 
         let r: Result<Reduction<i32>, EvalErr<i32>> = crate::run_program::run_program(
             allocator,
@@ -152,11 +219,12 @@ impl Dialect {
 
         match r {
             Ok(reduction) => {
-                let r = arena.py_for_native(py, &reduction.1, allocator)?;
-                Ok((reduction.0, r.to_object(py)))
+                let r = ArenaObject::new(py, arena, reduction.1);
+                Ok((reduction.0, r))
             }
             Err(eval_err) => {
                 let node: PyObject = arena
+                    .borrow()
                     .py_for_native(py, &eval_err.0, allocator)?
                     .to_object(py);
                 let s: String = eval_err.1;
