@@ -1,0 +1,77 @@
+
+name: Test Coverage
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    tags:
+        - '**'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+
+    - uses: actions/setup-python@v2
+      name: Install Python 3.9
+      with:
+        python-version: 3.9
+
+    - name: Update pip
+      run: |
+          python -m pip install --upgrade pip
+
+    - name: Set up rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        default: true
+        profile: minimal
+        components: llvm-tools-preview
+
+    - name: Install dependencies
+      run: |
+        python -m venv venv
+        ln -s venv/bin/activate
+        . ./activate
+
+        git clone https://github.com/Chia-Network/clvm_tools.git --branch=develop --single-branch
+        git clone https://github.com/Chia-Network/clvm.git --branch=develop --single-branch
+        python -m pip install ./clvm_tools
+        python -m pip install ./clvm
+        python -m pip install colorama
+        python -m pip install maturin
+        python -m pip install pytest
+
+        rustup target add x86_64-unknown-linux-musl
+        cargo install grcov
+        cargo install cargo-binutils
+
+    - name: Build
+      run: |
+        . ./activate
+        RUSTFLAGS="-Zinstrument-coverage" maturin develop
+
+    - name: Run tests
+      run: |
+        . ./activate
+        LLVM_PROFILE_FILE="pytest.profraw" pytest clvm/tests
+        LLVM_PROFILE_FILE="unittest.profraw" RUSTFLAGS="-Zinstrument-coverage" cargo test --no-default-features
+        grcov . -s . --binary-path ./venv/lib/python3.9/site-packages/ -t lcov --branch --ignore-not-existing -o lcov.info
+
+    - name: Coveralls
+      uses: coverallsapp/github-action@master
+      with:
+        path-to-lcov: ./lcov.info
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
