@@ -67,7 +67,7 @@ jobs:
         . ./activate
         LLVM_PROFILE_FILE="pytest.profraw" pytest clvm/tests
         LLVM_PROFILE_FILE="unittest.profraw" RUSTFLAGS="-Zinstrument-coverage" cargo test --no-default-features
-        grcov . -s . --binary-path ./venv/lib/python3.9/site-packages/ -t lcov --branch --ignore-not-existing -o lcov.info
+        grcov . -s . --binary-path ./venv/lib/python3.9/site-packages/ -t lcov --branch --ignore-not-existing -o lcov.info --keep-only src
 
     - name: Coveralls
       uses: coverallsapp/github-action@master
