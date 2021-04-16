@@ -1,5 +1,4 @@
 use crate::allocator::Allocator;
-use crate::node::Node;
 use crate::reduction::EvalErr;
 
 use num_bigint::BigInt;
@@ -20,13 +19,6 @@ pub fn ptr_from_number<T: Allocator>(
         slice = &slice[1..];
     }
     allocator.new_atom(&slice)
-}
-
-impl<T: Allocator> From<&Node<'_, T>> for Option<Number> {
-    fn from(item: &Node<T>) -> Self {
-        let v: &[u8] = &item.atom()?;
-        Some(number_from_u8(v))
-    }
 }
 
 pub fn number_from_u8(v: &[u8]) -> Number {

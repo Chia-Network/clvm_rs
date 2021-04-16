@@ -29,12 +29,6 @@ pub struct IntAllocator {
     atom_vec: Vec<IntAtomBuf>,
 }
 
-impl Default for IntAllocator {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl IntAllocator {
     pub fn new() -> Self {
         let mut r = IntAllocator {
