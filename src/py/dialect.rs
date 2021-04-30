@@ -178,12 +178,15 @@ impl Dialect {
         max_cost: Cost,
     ) -> PyResult<(Cost, ArenaObject)> {
         let arena = PyArena::new_cell(py)?;
-        let arena_ptr: &PyArena = &arena.borrow() as &PyArena;
-        let mut allocator_refcell: RefMut<IntAllocator> = arena_ptr.allocator();
-        let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
+        let (program, args) = {
+            let arena_ptr: &PyArena = &arena.borrow() as &PyArena;
+            let mut allocator_refcell: RefMut<IntAllocator> = arena_ptr.allocator();
+            let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
 
-        let program = node_from_bytes(allocator, program_blob)?;
-        let args = node_from_bytes(allocator, args_blob)?;
+            let program = node_from_bytes(allocator, program_blob)?;
+            let args = node_from_bytes(allocator, args_blob)?;
+            (program, args)
+        };
         self.run_program_ptr(py, &arena, program, args, max_cost)
     }
 }
