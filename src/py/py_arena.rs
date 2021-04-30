@@ -38,6 +38,11 @@ impl PyArena {
     }
 }
 
+fn py_view_for_obj(obj: &PyAny) -> PyResult<PyView> {
+    let node: &PyCell<CLVMObject> = obj.extract()?;
+    Ok(node.borrow().py_view.clone())
+}
+
 impl PyArena {
     pub fn new_cell(py: Python) -> PyResult<&PyCell<Self>> {
         PyCell::new(
@@ -56,7 +61,7 @@ impl PyArena {
     pub fn add(
         &self,
         py: Python,
-        obj: &PyCell<CLVMObject>,
+        obj: &PyAny,
         ptr: &<IntAllocator as Allocator>::Ptr,
     ) -> PyResult<()> {
         let locals = [
@@ -74,7 +79,7 @@ impl PyArena {
     fn from_py_to_native_cache<'p>(
         &self,
         py: Python<'p>,
-        obj: &PyCell<CLVMObject>,
+        obj: &PyAny,
     ) -> PyResult<<IntAllocator as Allocator>::Ptr> {
         let locals = [("cache", self.cache.clone()), ("key", obj.to_object(py))].into_py_dict(py);
         py.eval("cache.get(id(key))", None, Some(locals))?.extract()
@@ -83,41 +88,39 @@ impl PyArena {
     fn populate_native(
         &self,
         py: Python,
-        obj: &PyCell<CLVMObject>,
+        obj: &PyAny,
         allocator: &mut IntAllocator,
     ) -> PyResult<<IntAllocator as Allocator>::Ptr> {
-        apply_to_tree(obj.to_object(py), move |obj| {
-            let node: &PyCell<CLVMObject> = obj.extract(py)?;
-
+        apply_to_tree(obj, move |obj| {
             // is it in cache yet?
-            if self.from_py_to_native_cache(py, node).is_ok() {
+            if self.from_py_to_native_cache(py, obj).is_ok() {
                 // yep, we're done
                 return Ok(None);
             }
 
             // it's not in the cache
 
-            match &node.borrow().py_view {
-                PyView::Atom(obj) => {
-                    let blob: &[u8] = obj.extract(py).unwrap();
+            match py_view_for_obj(obj)? {
+                PyView::Atom(atom) => {
+                    let blob: &[u8] = atom.extract(py).unwrap();
                     let ptr = allocator.new_atom(blob).unwrap();
-                    self.add(py, node, &ptr)?;
+                    self.add(py, obj, &ptr)?;
 
                     Ok(None)
                 }
                 PyView::Pair(pair) => {
                     let pair: &PyAny = pair.clone().into_ref(py);
                     let pair: &PyTuple = pair.extract()?;
-                    let p0: &PyCell<CLVMObject> = pair.get_item(0).extract()?;
-                    let p1: &PyCell<CLVMObject> = pair.get_item(1).extract()?;
+                    let p0: &PyAny = pair.get_item(0);
+                    let p1: &PyAny = pair.get_item(1);
                     let ptr_0: PyResult<i32> = self.from_py_to_native_cache(py, p0);
                     let ptr_1: PyResult<i32> = self.from_py_to_native_cache(py, p1);
                     if let (Ok(ptr_0), Ok(ptr_1)) = (ptr_0, ptr_1) {
                         let ptr = allocator.new_pair(ptr_0, ptr_1).unwrap();
-                        self.add(py, node, &ptr)?;
+                        self.add(py, obj, &ptr)?;
                         Ok(None)
                     } else {
-                        Ok(Some((p0.to_object(py), p1.to_object(py))))
+                        Ok(Some((p0, p1)))
                     }
                 }
             }
@@ -129,7 +132,7 @@ impl PyArena {
     pub fn native_for_py(
         &self,
         py: Python,
-        obj: &PyCell<CLVMObject>,
+        obj: &PyAny,
         allocator: &mut IntAllocator,
     ) -> PyResult<<IntAllocator as Allocator>::Ptr> {
         self.from_py_to_native_cache(py, obj)
@@ -142,7 +145,7 @@ impl PyArena {
         &self,
         py: Python<'p>,
         ptr: &<IntAllocator as Allocator>::Ptr,
-    ) -> PyResult<&'p PyCell<CLVMObject>> {
+    ) -> PyResult<&'p PyAny> {
         let locals = [("cache", self.cache.clone()), ("key", ptr.to_object(py))].into_py_dict(py);
         py.eval("cache[key]", None, Some(locals))?.extract()
     }
@@ -152,7 +155,7 @@ impl PyArena {
         py: Python<'p>,
         ptr: &<IntAllocator as Allocator>::Ptr,
         allocator: &mut IntAllocator,
-    ) -> PyResult<&'p PyCell<CLVMObject>> {
+    ) -> PyResult<&'p PyAny> {
         apply_to_tree(*ptr, move |ptr| {
             // is it in cache yet?
             if self.from_native_to_py_cache(py, &ptr).is_ok() {
@@ -193,8 +196,7 @@ impl PyArena {
 
                         // the children are in the cache, create new node & populate cache with it
                         Ok(tuple) => {
-                            let (p1, p2): (&PyCell<CLVMObject>, &PyCell<CLVMObject>) =
-                                tuple.extract()?;
+                            let (p1, p2): (&PyAny, &PyAny) = tuple.extract()?;
                             self.add(
                                 py,
                                 CLVMObject::new(
@@ -218,7 +220,7 @@ impl PyArena {
         py: Python<'p>,
         ptr: &<IntAllocator as Allocator>::Ptr,
         allocator: &mut IntAllocator,
-    ) -> PyResult<&'p PyCell<CLVMObject>> {
+    ) -> PyResult<&'p PyAny> {
         self.from_native_to_py_cache(py, ptr)
             .or_else(|_err| self.populate_python(py, ptr, allocator))
     }
