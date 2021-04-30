@@ -4,6 +4,7 @@ use pyo3::{PyObject, PyResult, Python, ToPyObject};
 
 use super::clvm_object::CLVMObject;
 
+#[derive(Clone)]
 pub enum PyView {
     Atom(PyObject),
     Pair(PyObject),
