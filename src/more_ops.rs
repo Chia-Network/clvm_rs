@@ -243,7 +243,7 @@ fn test_unknown_op_reserved() {
     let buf = vec![0xff, 0xff, 0xff];
     assert!(!test_op_unknown(&buf, &mut a, null).is_ok());
 
-    let buf = vec![0xff, 0xff, '0' as u8];
+    let buf = vec![0xff, 0xff, b'0'];
     assert!(!test_op_unknown(&buf, &mut a, null).is_ok());
 
     let buf = vec![0xff, 0xff, 0];
@@ -343,7 +343,7 @@ pub fn op_add<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Respons
             max_cost,
         )?;
         let blob = int_atom(&arg, "+")?;
-        let v: Number = number_from_u8(&blob);
+        let v: Number = number_from_u8(blob);
         byte_count += blob.len();
         total += v;
     }
@@ -361,7 +361,7 @@ pub fn op_subtract<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Re
         cost += ARITH_COST_PER_ARG;
         check_cost(a, cost + byte_count as Cost * ARITH_COST_PER_BYTE, max_cost)?;
         let blob = int_atom(&arg, "-")?;
-        let v: Number = number_from_u8(&blob);
+        let v: Number = number_from_u8(blob);
         byte_count += blob.len();
         if is_first {
             total += v;
@@ -385,13 +385,13 @@ pub fn op_multiply<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Re
         let blob = int_atom(&arg, "*")?;
         if first_iter {
             l0 = blob.len();
-            total = number_from_u8(&blob);
+            total = number_from_u8(blob);
             first_iter = false;
             continue;
         }
         let l1 = blob.len();
 
-        total *= number_from_u8(&blob);
+        total *= number_from_u8(blob);
         cost += MUL_COST_PER_OP;
 
         cost += (l0 + l1) as Cost * MUL_LINEAR_COST_PER_BYTE;
@@ -649,7 +649,7 @@ pub fn op_lognot<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Res
     check_arg_count(&args, 1, "lognot")?;
     let a0 = args.first()?;
     let v0 = int_atom(&a0, "lognot")?;
-    let mut n: Number = number_from_u8(&v0);
+    let mut n: Number = number_from_u8(v0);
     n = !n;
     let cost = LOGNOT_BASE_COST + ((v0.len() as Cost) * LOGNOT_COST_PER_BYTE);
     let r = ptr_from_number(a, &n)?;
@@ -750,7 +750,7 @@ pub fn op_pubkey_for_exp<T: Allocator>(
     let a0 = args.first()?;
 
     let v0 = int_atom(&a0, "pubkey_for_exp")?;
-    let exp: Number = mod_group_order(number_from_u8(&v0));
+    let exp: Number = mod_group_order(number_from_u8(v0));
     let cost = PUBKEY_BASE_COST + (v0.len() as Cost) * PUBKEY_COST_PER_BYTE;
     let exp: Scalar = number_to_scalar(exp);
     let point: G1Projective = G1Affine::generator() * exp;

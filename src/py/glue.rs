@@ -101,7 +101,7 @@ where
             let s: String = eval_err.1;
             let s1: &str = &s;
             let msg: &PyString = PyString::new(py, s1);
-            match raise_eval_error(py, &msg, node) {
+            match raise_eval_error(py, msg, node) {
                 Err(x) => Err(x),
                 _ => panic!(),
             }

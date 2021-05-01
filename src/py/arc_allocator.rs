@@ -31,15 +31,15 @@ lazy_static! {
 impl Clone for ArcSExp {
     fn clone(&self) -> Self {
         match self {
-            ArcSExp::Atom(a) => ArcSExp::Atom(a.clone()),
-            ArcSExp::Pair(p1, p2) => ArcSExp::Pair(p1.clone(), p2.clone()),
+            ArcSExp::Atom(a) => Self::Atom(a.clone()),
+            ArcSExp::Pair(p1, p2) => Self::Pair(p1.clone(), p2.clone()),
         }
     }
 }
 
 impl ArcAllocator {
-    pub fn new() -> Self {
-        ArcAllocator {}
+    pub const fn new() -> Self {
+        Self {}
     }
 
     pub fn blob(&mut self, v: &str) -> Result<ArcSExp, EvalErr<ArcSExp>> {
@@ -112,8 +112,8 @@ impl Allocator for ArcAllocator {
         match node {
             ArcSExp::Atom(a) => SExp::Atom(a.clone()),
             ArcSExp::Pair(left, right) => {
-                let p1: &ArcSExp = &left;
-                let p2: &ArcSExp = &right;
+                let p1: &ArcSExp = left;
+                let p2: &ArcSExp = right;
                 SExp::Pair(p1.to_owned(), p2.to_owned())
             }
         }
