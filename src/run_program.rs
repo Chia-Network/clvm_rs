@@ -88,7 +88,7 @@ fn msb_mask(byte: u8) -> u8 {
 
 // return the index of the first non-zero byte in buf. If all bytes are 0, the
 // length (one past end) will be returned.
-fn first_non_zero(buf: &[u8]) -> usize {
+const fn first_non_zero(buf: &[u8]) -> usize {
     let mut c: usize = 0;
     while c < buf.len() && buf[c] == 0 {
         c += 1;
@@ -201,12 +201,12 @@ where
 {
     fn eval_op_atom(
         &mut self,
-        op_buf: T::AtomBuf,
+        op_buf: &T::AtomBuf,
         operator_node: &T::Ptr,
         operand_list: &T::Ptr,
         args: &T::Ptr,
     ) -> Result<Cost, EvalErr<T::Ptr>> {
-        let op_atom = self.allocator.buf(&op_buf);
+        let op_atom = self.allocator.buf(op_buf);
         // special case check for quote
         if op_atom.len() == 1 && op_atom[0] == self.quote_kw {
             self.push(operand_list.clone());
@@ -242,7 +242,7 @@ where
             // the program is just a bitfield path through the args tree
             SExp::Atom(path) => {
                 let r: Reduction<T::Ptr> =
-                    traverse_path(self.allocator, self.allocator.buf(&path), &args)?;
+                    traverse_path(self.allocator, self.allocator.buf(&path), args)?;
                 self.push(r.1);
                 return Ok(r.0);
             }
@@ -266,7 +266,7 @@ where
             SExp::Atom(op_atom) => op_atom,
         };
 
-        self.eval_op_atom(op_atom, &op_node, &op_list, args)
+        self.eval_op_atom(&op_atom, &op_node, &op_list, args)
     }
 
     fn eval_op(&mut self) -> Result<Cost, EvalErr<T::Ptr>> {
@@ -462,22 +462,22 @@ fn test_traverse_path() {
     // errors
     assert_eq!(
         traverse_path(&a, &[0b1011], &list).unwrap_err(),
-        EvalErr(nul.clone(), "path into atom".to_string())
+        EvalErr(nul, "path into atom".to_string())
     );
     assert_eq!(
         traverse_path(&a, &[0b1101], &list).unwrap_err(),
-        EvalErr(n1.clone(), "path into atom".to_string())
+        EvalErr(n1, "path into atom".to_string())
     );
     assert_eq!(
         traverse_path(&a, &[0b1001], &list).unwrap_err(),
-        EvalErr(n1.clone(), "path into atom".to_string())
+        EvalErr(n1, "path into atom".to_string())
     );
     assert_eq!(
         traverse_path(&a, &[0b1010], &list).unwrap_err(),
-        EvalErr(n2.clone(), "path into atom".to_string())
+        EvalErr(n2, "path into atom".to_string())
     );
     assert_eq!(
         traverse_path(&a, &[0b1110], &list).unwrap_err(),
-        EvalErr(n2.clone(), "path into atom".to_string())
+        EvalErr(n2, "path into atom".to_string())
     );
 }

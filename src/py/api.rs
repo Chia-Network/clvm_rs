@@ -27,7 +27,7 @@ pub struct NativeOpLookup {
 impl NativeOpLookup {
     #[new]
     fn new(opcode_lookup_by_name: HashMap<String, Vec<u8>>, unknown_op_callback: PyObject) -> Self {
-        NativeOpLookup::new_from_gnol(Box::new(GenericNativeOpLookup::new(
+        Self::new_from_gnol(Box::new(GenericNativeOpLookup::new(
             opcode_lookup_by_name,
             unknown_op_callback,
         )))
@@ -43,7 +43,7 @@ impl Drop for NativeOpLookup {
 
 impl NativeOpLookup {
     fn new_from_gnol(gnol: Box<GenericNativeOpLookup<AllocatorT, PyNode>>) -> Self {
-        NativeOpLookup {
+        Self {
             nol: Box::into_raw(gnol) as usize,
         }
     }
@@ -101,7 +101,7 @@ fn raise_eval_error(py: Python, msg: &PyString, sexp: PyObject) -> PyResult<PyOb
     }
 }
 
-fn allocator_for_py(_py: Python) -> AllocatorT {
+const fn allocator_for_py(_py: Python) -> AllocatorT {
     AllocatorT::new()
 }
 

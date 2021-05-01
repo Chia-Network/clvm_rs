@@ -47,23 +47,23 @@ fn test_arg_count() {
     let ptr_2_args = allocator.new_pair(null, ptr_1_args).unwrap();
     let ptr_3_args = allocator.new_pair(null, ptr_2_args).unwrap();
 
-    let count_0_args: Node<IntAllocator> = Node::new(&mut allocator, ptr_0_args);
+    let count_0_args: Node<IntAllocator> = Node::new(&allocator, ptr_0_args);
     assert_eq!(arg_count(&count_0_args, 0), 0);
     assert_eq!(arg_count(&count_0_args, 1), 0);
     assert_eq!(arg_count(&count_0_args, 2), 0);
 
-    let count_1_args: Node<IntAllocator> = Node::new(&mut allocator, ptr_1_args);
+    let count_1_args: Node<IntAllocator> = Node::new(&allocator, ptr_1_args);
     assert_eq!(arg_count(&count_1_args, 0), 1);
     assert_eq!(arg_count(&count_1_args, 1), 1);
     assert_eq!(arg_count(&count_1_args, 2), 1);
 
-    let count_2_args: Node<IntAllocator> = Node::new(&mut allocator, ptr_2_args);
+    let count_2_args: Node<IntAllocator> = Node::new(&allocator, ptr_2_args);
     assert_eq!(arg_count(&count_2_args, 0), 1);
     assert_eq!(arg_count(&count_2_args, 1), 2);
     assert_eq!(arg_count(&count_2_args, 2), 2);
     assert_eq!(arg_count(&count_2_args, 3), 2);
 
-    let count_3_args: Node<IntAllocator> = Node::new(&mut allocator, ptr_3_args);
+    let count_3_args: Node<IntAllocator> = Node::new(&allocator, ptr_3_args);
     assert_eq!(arg_count(&count_3_args, 0), 1);
     assert_eq!(arg_count(&count_3_args, 1), 2);
     assert_eq!(arg_count(&count_3_args, 2), 3);
@@ -96,7 +96,7 @@ pub fn two_ints<T: Allocator>(
     args: &Node<T>,
     op_name: &str,
 ) -> Result<(Number, usize, Number, usize), EvalErr<T::Ptr>> {
-    check_arg_count(&args, 2, op_name)?;
+    check_arg_count(args, 2, op_name)?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
     let n0 = int_atom(&a0, op_name)?;

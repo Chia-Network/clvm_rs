@@ -53,7 +53,7 @@ where
     ) -> Self {
         let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
 
-        GenericNativeOpLookup {
+        Self {
             py_callback: unknown_op_callback,
             f_lookup,
             phantom_data: PhantomData,
@@ -78,7 +78,7 @@ where
             &self.f_lookup,
             &self.py_callback,
             allocator,
-            op,
+            &op,
             argument_list,
             max_cost,
         )
@@ -89,7 +89,7 @@ fn eval_op<A, N>(
     f_lookup: &FLookup<A>,
     py_callback: &PyObject,
     allocator: &mut A,
-    o: <A as Allocator>::AtomBuf,
+    o: &<A as Allocator>::AtomBuf,
     argument_list: &<A as Allocator>::Ptr,
     max_cost: Cost,
 ) -> Response<<A as Allocator>::Ptr>
@@ -99,7 +99,7 @@ where
     N: PyClass + Clone,
     N: IntoPy<PyObject>,
 {
-    let op = allocator.buf(&o);
+    let op = allocator.buf(o);
     if op.len() == 1 {
         if let Some(f) = f_lookup[op[0] as usize] {
             return f(allocator, argument_list.clone(), max_cost);

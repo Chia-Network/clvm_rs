@@ -13,7 +13,7 @@ pub fn u8_err<A: Allocator, T>(
     o: &A::AtomBuf,
     msg: &str,
 ) -> Result<T, EvalErr<A::Ptr>> {
-    let op = allocator.buf(&o);
+    let op = allocator.buf(o);
     let buf = op.to_vec();
     err(allocator.new_atom(&buf)?, msg)
 }

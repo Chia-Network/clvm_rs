@@ -69,7 +69,7 @@ pub fn node_to_stream<T: Allocator>(node: &Node<T>, f: &mut dyn Write) -> std::i
                         f.write_all(&[atom0])?;
                     } else {
                         encode_size(f, size as u64)?;
-                        f.write_all(&atom)?;
+                        f.write_all(atom)?;
                     }
                 }
             }
@@ -112,7 +112,7 @@ fn decode_size(f: &mut dyn Read, initial_b: u8) -> std::io::Result<u64> {
     if size_blob.len() > 6 {
         return Err(bad_encoding());
     }
-    for b in size_blob.iter() {
+    for b in &size_blob {
         v <<= 8;
         v += *b as u64;
     }
@@ -128,8 +128,8 @@ enum ParseOp {
 }
 
 impl<T> std::convert::From<EvalErr<T>> for std::io::Error {
-    fn from(v: EvalErr<T>) -> std::io::Error {
-        Error::new(ErrorKind::Other, v.1)
+    fn from(v: EvalErr<T>) -> Self {
+        Self::new(ErrorKind::Other, v.1)
     }
 }
 

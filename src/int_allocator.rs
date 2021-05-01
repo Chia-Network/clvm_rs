@@ -37,7 +37,7 @@ impl Default for IntAllocator {
 
 impl IntAllocator {
     pub fn new() -> Self {
-        let mut r = IntAllocator {
+        let mut r = Self {
             u8_vec: Vec::new(),
             pair_vec: Vec::new(),
             atom_vec: Vec::new(),

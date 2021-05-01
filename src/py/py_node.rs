@@ -15,7 +15,7 @@ pub struct PyNode {
 }
 
 impl std::convert::From<EvalErr<ArcSExp>> for pyo3::PyErr {
-    fn from(v: EvalErr<ArcSExp>) -> pyo3::PyErr {
+    fn from(v: EvalErr<ArcSExp>) -> Self {
         PyValueError::new_err(v.0)
     }
 }
@@ -41,8 +41,8 @@ fn extract_tuple(allocator: &mut ArcAllocator, obj: &PyAny) -> PyResult<PyNode> 
     }
     let i0: &PyAny = v.get_item(0);
     let i1: &PyAny = v.get_item(1);
-    let left: PyRef<PyNode> = extract_node(&allocator, i0)?;
-    let right: PyRef<PyNode> = extract_node(&allocator, i1)?;
+    let left: PyRef<PyNode> = extract_node(allocator, i0)?;
+    let right: PyRef<PyNode> = extract_node(allocator, i1)?;
     let left: &PyNode = &left;
     let right: &PyNode = &right;
     let left: ArcSExp = left.into();
@@ -61,7 +61,7 @@ impl From<&ArcSExp> for PyNode {
 
 impl From<ArcSExp> for PyNode {
     fn from(item: ArcSExp) -> Self {
-        PyNode::new(item)
+        Self::new(item)
     }
 }
 
@@ -76,7 +76,7 @@ impl ToPyObject for ArcSExp {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         let pynode: PyNode = self.into();
         let pynode: &PyCell<PyNode> = PyCell::new(py, pynode).unwrap();
-        let pa: &PyAny = &pynode;
+        let pa: &PyAny = pynode;
         pa.to_object(py)
     }
 }
@@ -86,7 +86,7 @@ impl PyNode {
     #[new]
     pub fn py_new(obj: &PyAny) -> PyResult<Self> {
         let mut allocator = ArcAllocator::new();
-        let node: PyNode = {
+        let node: Self = {
             let n = extract_atom(&mut allocator, obj);
             if let Ok(r) = n {
                 r
@@ -104,8 +104,8 @@ impl PyNode {
                 {
                     let mut borrowed_pair = self.pyobj.borrow_mut();
                     if borrowed_pair.is_none() {
-                        let r1 = PyCell::new(py, PyNode::new(p1))?;
-                        let r2 = PyCell::new(py, PyNode::new(p2))?;
+                        let r1 = PyCell::new(py, Self::new(p1))?;
+                        let r2 = PyCell::new(py, Self::new(p2))?;
                         let v: &PyTuple = PyTuple::new(py, &[r1, r2]);
                         let v: PyObject = v.into();
                         *borrowed_pair = Some(v);
@@ -117,7 +117,7 @@ impl PyNode {
         }
     }
 
-    pub fn _pair(&self) -> Option<(PyNode, PyNode)> {
+    pub fn _pair(&self) -> Option<(Self, Self)> {
         match ArcAllocator::new().sexp(&self.node) {
             SExp::Pair(p1, p2) => Some((p1.into(), p2.into())),
             _ => None,
@@ -145,12 +145,12 @@ impl PyNode {
 }
 
 impl PyNode {
-    pub fn new(node: ArcSExp) -> Self {
-        PyNode::new_cached(node, None)
+    pub const fn new(node: ArcSExp) -> Self {
+        Self::new_cached(node, None)
     }
 
-    pub fn new_cached(node: ArcSExp, py_val: Option<PyObject>) -> Self {
-        PyNode {
+    pub const fn new_cached(node: ArcSExp, py_val: Option<PyObject>) -> Self {
+        Self {
             node,
             pyobj: RefCell::new(py_val),
         }
