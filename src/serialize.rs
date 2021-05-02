@@ -1,8 +1,9 @@
 use crate::reduction::EvalErr;
 use std::io::Cursor;
 use std::io::Read;
+use std::io::Seek;
 use std::io::Write;
-use std::io::{Error, ErrorKind};
+use std::io::{Error, ErrorKind, SeekFrom};
 
 use crate::allocator::{Allocator, SExp};
 use crate::node::Node;
@@ -190,6 +191,84 @@ pub fn node_to_bytes<T: Allocator>(node: &Node<T>) -> std::io::Result<Vec<u8>> {
     node_to_stream(node, &mut buffer)?;
     let vec = buffer.into_inner();
     Ok(vec)
+}
+
+pub fn serialized_length_from_bytes(b: &[u8]) -> std::io::Result<u64> {
+    let mut f = Cursor::new(b);
+    let mut ops = vec![ParseOp::SExp];
+    let mut b = [0; 1];
+    loop {
+        let op = ops.pop();
+        if op.is_none() {
+            break;
+        }
+        match op.unwrap() {
+            ParseOp::SExp => {
+                f.read_exact(&mut b)?;
+                if b[0] == CONS_BOX_MARKER {
+                    // since all we're doing is to determing the length of the
+                    // serialized buffer, we don't need to do anything about
+                    // "cons". So we skip pushing it to lower the pressure on
+                    // the op stack
+                    //ops.push(ParseOp::Cons);
+                    ops.push(ParseOp::SExp);
+                    ops.push(ParseOp::SExp);
+                } else if b[0] == 0x80 || b[0] <= MAX_SINGLE_BYTE {
+                    // This one byte we just read was the whole atom.
+                    // or the
+                    // special case of NIL
+                } else {
+                    let blob_size = decode_size(&mut f, b[0])?;
+                    f.seek(SeekFrom::Current(blob_size as i64))?;
+                    if (f.get_ref().len() as u64) < f.position() {
+                        return Err(bad_encoding());
+                    }
+                }
+            }
+            ParseOp::Cons => {
+                // cons. No need to construct any structure here. Just keep
+                // going
+            }
+        }
+    }
+    Ok(f.position())
+}
+
+#[test]
+fn test_serialized_length_from_bytes() {
+    assert_eq!(
+        serialized_length_from_bytes(&[0x7f, 0x00, 0x00, 0x00]).unwrap(),
+        1
+    );
+    assert_eq!(
+        serialized_length_from_bytes(&[0x80, 0x00, 0x00, 0x00]).unwrap(),
+        1
+    );
+    assert_eq!(
+        serialized_length_from_bytes(&[0xff, 0x00, 0x00, 0x00]).unwrap(),
+        3
+    );
+    assert_eq!(
+        serialized_length_from_bytes(&[0xff, 0x01, 0xff, 0x80, 0x80, 0x00]).unwrap(),
+        5
+    );
+
+    let e = serialized_length_from_bytes(&[0x8f, 0xff]).unwrap_err();
+    assert_eq!(e.kind(), bad_encoding().kind());
+    assert_eq!(e.to_string(), "bad encoding");
+
+    let e = serialized_length_from_bytes(&[0b11001111, 0xff]).unwrap_err();
+    assert_eq!(e.kind(), bad_encoding().kind());
+    assert_eq!(e.to_string(), "bad encoding");
+
+    let e = serialized_length_from_bytes(&[0b11001111, 0xff, 0, 0]).unwrap_err();
+    assert_eq!(e.kind(), bad_encoding().kind());
+    assert_eq!(e.to_string(), "bad encoding");
+
+    assert_eq!(
+        serialized_length_from_bytes(&[0x8f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).unwrap(),
+        16
+    );
 }
 
 #[test]
