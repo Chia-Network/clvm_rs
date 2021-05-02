@@ -11,7 +11,7 @@ use super::native_op_lookup::GenericNativeOpLookup;
 use super::py_node::PyNode;
 use super::run_program::{
     __pyo3_get_function_deserialize_and_run_program, __pyo3_get_function_serialize_and_run_program,
-    STRICT_MODE,
+    __pyo3_get_function_serialized_length, STRICT_MODE,
 };
 use crate::cost::Cost;
 
@@ -132,6 +132,7 @@ fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<NativeOpLookup>()?;
 
     m.add_function(wrap_pyfunction!(raise_eval_error, m)?)?;
+    m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
 
     Ok(())
 }

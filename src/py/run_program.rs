@@ -9,7 +9,7 @@ use crate::node::Node;
 use crate::py::f_table::{f_lookup_for_hashmap, FLookup};
 use crate::reduction::Response;
 use crate::run_program::{run_program, OperatorHandler};
-use crate::serialize::{node_from_bytes, node_to_bytes};
+use crate::serialize::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
 
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
@@ -167,4 +167,9 @@ raise EvalError(msg, sexp)",
             }
         }
     }
+}
+
+#[pyfunction]
+pub fn serialized_length(program: &[u8]) -> PyResult<u64> {
+    Ok(serialized_length_from_bytes(program)?)
 }
