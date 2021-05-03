@@ -170,9 +170,9 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.test_pypi_password }}
       run: twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
 
-  checks:
+  fmt:
     runs-on: ubuntu-20.04
-    name: Checks
+    name: cargo fmt
     steps:
       - uses: actions/checkout@v2
         with:
@@ -183,10 +183,22 @@ jobs:
             toolchain: nightly
             override: true
             components: rustfmt, clippy
-      - name: Clippy
-        run: cargo clippy -- -D warnings
       - name: fmt
         run: cargo fmt -- --files-with-diff --check
+
+  clippy:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          components: clippy
+          override: true
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features
 
   unit_tests:
     runs-on: ubuntu-20.04
