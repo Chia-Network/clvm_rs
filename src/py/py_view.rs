@@ -1,6 +1,5 @@
-use pyo3::pycell::PyCell;
 use pyo3::types::{PyBytes, PyTuple};
-use pyo3::{PyObject, PyResult, Python, ToPyObject};
+use pyo3::{pycell::PyCell, PyAny, PyObject, PyResult, Python, ToPyObject};
 
 use super::clvm_object::CLVMObject;
 
@@ -23,5 +22,18 @@ impl PyView {
         let _p1: &PyCell<CLVMObject> = pair.get_item(1).extract()?;
 
         Ok(PyView::Pair(pair.to_object(py)))
+    }
+
+    pub fn py_view_for_obj(obj: &PyAny) -> PyResult<PyView> {
+        let node: PyResult<&PyCell<CLVMObject>> = obj.extract();
+        if node.is_ok() {
+            return Ok(node?.borrow().py_view.clone());
+        }
+        let r: &PyAny = obj.getattr("atom")?.extract()?;
+        if !r.is_none() {
+            return Ok(PyView::Atom(r.into()));
+        }
+        let r: &PyAny = obj.getattr("pair")?.extract()?;
+        Ok(PyView::Pair(r.into()))
     }
 }

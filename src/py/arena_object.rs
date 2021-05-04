@@ -31,13 +31,27 @@ impl ArenaObject {
     fn clvm_object<'p>(&'p self, py: Python<'p>) -> PyResult<&'p PyAny> {
         let arena: PyRef<PyArena> = self.arena.extract(py)?;
         let mut allocator: RefMut<IntAllocator> = arena.allocator();
-        arena
-            .py_for_native(py, &self.ptr, &mut allocator)
+        arena.py_for_native(py, &self.ptr, &mut allocator)
     }
 
     #[getter(arena)]
     pub fn get_arena<'p>(&'p self, py: Python<'p>) -> PyResult<&'p PyCell<PyArena>> {
         self.arena.extract(py)
+    }
+
+    #[getter(ptr)]
+    pub fn get_ptr(&self) -> i32 {
+        self.ptr
+    }
+
+    #[getter(atom)]
+    pub fn get_atom<'p>(&'p self, py: Python<'p>) -> PyResult<&'p PyAny> {
+        self.clvm_object(py)?.getattr("atom")
+    }
+
+    #[getter(pair)]
+    pub fn get_pair<'p>(&'p self, py: Python<'p>) -> PyResult<&'p PyAny> {
+        self.clvm_object(py)?.getattr("pair")
     }
 }
 

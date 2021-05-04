@@ -1,4 +1,5 @@
 use std::cell::{RefCell, RefMut};
+use std::collections::HashSet;
 
 use pyo3::prelude::pyclass;
 use pyo3::prelude::*;
@@ -36,11 +37,14 @@ impl PyArena {
         };
         Ok(ArenaObject::new(py, slf, ptr))
     }
-}
 
-fn py_view_for_obj(obj: &PyAny) -> PyResult<PyView> {
-    let node: &PyCell<CLVMObject> = obj.extract()?;
-    Ok(node.borrow().py_view.clone())
+    pub fn include(slf: &PyCell<PyArena>, py: Python, obj: &PyAny) -> PyResult<ArenaObject> {
+        let borrowed_arena = slf.borrow();
+        let allocator: &mut IntAllocator = &mut borrowed_arena.allocator() as &mut IntAllocator;
+
+        let ptr = borrowed_arena.populate_native(py, obj, allocator)?;
+        Ok(ArenaObject::new(py, slf, ptr))
+    }
 }
 
 impl PyArena {
@@ -91,6 +95,11 @@ impl PyArena {
         obj: &PyAny,
         allocator: &mut IntAllocator,
     ) -> PyResult<<IntAllocator as Allocator>::Ptr> {
+        // items in `pending` are already in the stack of things to be converted
+        // if they appear again, we have an illegal cycle and must fail
+
+        let mut pending: HashSet<*const PyObject> = HashSet::new();
+
         apply_to_tree(obj, move |obj| {
             // is it in cache yet?
             if self.from_py_to_native_cache(py, obj).is_ok() {
@@ -100,7 +109,7 @@ impl PyArena {
 
             // it's not in the cache
 
-            match py_view_for_obj(obj)? {
+            match PyView::py_view_for_obj(obj)? {
                 PyView::Atom(atom) => {
                     let blob: &[u8] = atom.extract(py).unwrap();
                     let ptr = allocator.new_atom(blob).unwrap();
@@ -115,11 +124,25 @@ impl PyArena {
                     let p1: &PyAny = pair.get_item(1);
                     let ptr_0: PyResult<i32> = self.from_py_to_native_cache(py, p0);
                     let ptr_1: PyResult<i32> = self.from_py_to_native_cache(py, p1);
+
+                    let as_obj: PyObject = obj.into();
+                    let as_obj = &as_obj as *const PyObject;
+
                     if let (Ok(ptr_0), Ok(ptr_1)) = (ptr_0, ptr_1) {
                         let ptr = allocator.new_pair(ptr_0, ptr_1).unwrap();
                         self.add(py, obj, &ptr)?;
+
+                        pending.remove(&as_obj);
+
                         Ok(None)
                     } else {
+                        if pending.contains(&as_obj) {
+                            py.run("raise ValueError('illegal clvm object loop')", None, None)?;
+                            panic!();
+                        }
+
+                        pending.insert(as_obj);
+
                         Ok(Some((p0, p1)))
                     }
                 }
