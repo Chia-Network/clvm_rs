@@ -139,7 +139,7 @@ impl PyArena {
                     Ok(None)
                 }
                 PyView::Pair(pair) => {
-                    let pair: &PyAny = pair.clone().into_ref(py);
+                    let pair: &PyAny = pair.into_ref(py);
                     let pair: &PyTuple = pair.extract()?;
                     let p0: &PyAny = pair.get_item(0);
                     let p1: &PyAny = pair.get_item(1);

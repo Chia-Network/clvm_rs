@@ -16,7 +16,6 @@ use crate::reduction::{EvalErr, Reduction};
 use crate::serialize::{node_from_bytes, node_to_bytes};
 
 use super::arena_object::ArenaObject;
-use super::clvm_object::CLVMObject;
 use super::dialect::{Dialect, PyMultiOpFn};
 use super::f_table::OpFn;
 use super::native_op::NativeOp;
@@ -104,7 +103,7 @@ fn deserialize_from_bytes(py: Python, blob: &[u8]) -> PyResult<ArenaObject> {
 }
 
 #[pyfunction]
-fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyCell<CLVMObject>) -> PyResult<&'p PyBytes> {
+fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyAny) -> PyResult<&'p PyBytes> {
     let arena = PyArena::new_cell(py)?.borrow();
     let mut allocator_refcell: RefMut<IntAllocator> = arena.allocator();
     let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
@@ -121,7 +120,6 @@ fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyCell<CLVMObject>) -> PyResult
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyArena>()?;
     m.add_class::<ArenaObject>()?;
-    m.add_class::<CLVMObject>()?;
 
     m.add_function(wrap_pyfunction!(py_run_program, m)?)?;
     m.add_function(wrap_pyfunction!(deserialize_from_bytes, m)?)?;
@@ -149,8 +147,8 @@ fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
 #[allow(clippy::too_many_arguments)]
 pub fn py_run_program<'p>(
     py: Python<'p>,
-    program: &PyCell<CLVMObject>,
-    args: &PyCell<CLVMObject>,
+    program: &PyAny,
+    args: &PyAny,
     quote_kw: u8,
     apply_kw: u8,
     max_cost: Cost,

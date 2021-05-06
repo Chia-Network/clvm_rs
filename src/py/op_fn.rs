@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use pyo3::types::PyBytes;
 use pyo3::types::PyString;
 use pyo3::types::PyTuple;
-use pyo3::PyCell;
+use pyo3::PyAny;
 use pyo3::PyErr;
 use pyo3::PyObject;
 use pyo3::PyResult;
@@ -16,7 +16,6 @@ use crate::int_allocator::IntAllocator;
 use crate::reduction::{EvalErr, Reduction, Response};
 use crate::run_program::OperatorHandler;
 
-use super::clvm_object::CLVMObject;
 use super::f_table::{f_lookup_for_hashmap, FLookup};
 use super::py_arena::PyArena;
 
@@ -70,7 +69,7 @@ impl<'p> PyOperatorHandler<'p> {
                     let i0: u32 =
                         unwrap_or_eval_err(pair.get_item(0).extract(), args, "expected u32")?;
 
-                    let clvm_object: &PyCell<CLVMObject> =
+                    let clvm_object: &PyAny =
                         unwrap_or_eval_err(pair.get_item(1).extract(), args, "expected node")?;
 
                     let r = self.arena.native_for_py(py, clvm_object, allocator);
@@ -111,7 +110,7 @@ fn eval_err_for_pyerr<'p>(
 ) -> PyResult<EvalErr<i32>> {
     let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
     let arg0: &PyString = args.get_item(0).extract()?;
-    let sexp: &PyCell<CLVMObject> = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
+    let sexp: &PyAny = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
     let node: i32 = arena.native_for_py(py, sexp, allocator)?;
     let s: String = arg0.to_str()?.to_string();
     Ok(EvalErr(node, s))
