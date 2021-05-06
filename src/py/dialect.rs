@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use pyo3::prelude::{pyclass, pymethods};
 
 use pyo3::types::{PyBytes, PyDict, PyString, PyTuple};
-use pyo3::{FromPyObject, PyCell, PyErr, PyObject, PyRef, PyResult, Python, ToPyObject};
+use pyo3::{FromPyObject, PyAny, PyCell, PyErr, PyObject, PyRef, PyResult, Python, ToPyObject};
 
 use crate::allocator::Allocator;
 use crate::cost::Cost;
@@ -16,7 +16,6 @@ use crate::run_program::OperatorHandler;
 use crate::serialize::node_from_bytes;
 
 use super::arena_object::ArenaObject;
-use super::clvm_object::CLVMObject;
 use super::f_table::FLookup;
 use super::f_table::OpFn;
 use super::native_op::NativeOp;
@@ -130,8 +129,8 @@ impl Dialect {
     pub fn run_program<'p>(
         &self,
         py: Python<'p>,
-        program: &PyCell<CLVMObject>,
-        args: &PyCell<CLVMObject>,
+        program: &PyAny,
+        args: &PyAny,
         max_cost: Cost,
     ) -> PyResult<(Cost, PyObject)> {
         let arena = PyArena::new_cell(py)?;
@@ -272,7 +271,7 @@ impl DialectRunningContext<'_> {
                     let i0: u32 =
                         unwrap_or_eval_err(pair.get_item(0).extract(), args, "expected u32")?;
 
-                    let clvm_object: &PyCell<CLVMObject> =
+                    let clvm_object: &PyAny =
                         unwrap_or_eval_err(pair.get_item(1).extract(), args, "expected node")?;
 
                     let r = self.arena.native_for_py(py, clvm_object, allocator);
@@ -321,7 +320,7 @@ fn eval_err_for_pyerr<'p>(
 ) -> PyResult<EvalErr<i32>> {
     let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
     let arg0: &PyString = args.get_item(0).extract()?;
-    let sexp: &PyCell<CLVMObject> = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
+    let sexp: &PyAny = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
     let node: i32 = arena.native_for_py(py, sexp, allocator)?;
     let s: String = arg0.to_str()?.to_string();
     Ok(EvalErr(node, s))
