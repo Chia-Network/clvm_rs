@@ -38,12 +38,33 @@ impl PyArena {
         Ok(ArenaObject::new(py, slf, ptr))
     }
 
-    pub fn include(slf: &PyCell<PyArena>, py: Python, obj: &PyAny) -> PyResult<ArenaObject> {
+    pub fn include<'p>(
+        slf: &'p PyCell<PyArena>,
+        py: Python<'p>,
+        obj: &'p PyAny,
+    ) -> PyResult<&'p PyCell<ArenaObject>> {
         let borrowed_arena = slf.borrow();
-        let allocator: &mut IntAllocator = &mut borrowed_arena.allocator() as &mut IntAllocator;
+        let ptr = borrowed_arena.ptr_for_obj(py, obj)?;
+        PyCell::new(py, ArenaObject::new(py, slf, ptr))
+    }
 
-        let ptr = borrowed_arena.populate_native(py, obj, allocator)?;
-        Ok(ArenaObject::new(py, slf, ptr))
+    pub fn ptr_for_obj<'p>(&'p self, py: Python<'p>, obj: &'p PyAny) -> PyResult<i32> {
+        let allocator: &mut IntAllocator = &mut self.allocator() as &mut IntAllocator;
+
+        /*
+        let arena_obj: PyResult<PyRef<ArenaObject>> = obj.extract();
+        if let Ok(arena) = arena_obj {
+            let same_arena: bool = {
+                let o1: PyObject = self;
+                o1 == arena.borrow().get_arena(py)?.into()
+            };
+            if same_arena {
+                return Ok(arena);
+            }
+        };
+        */
+
+        self.populate_native(py, obj, allocator)
     }
 }
 
@@ -98,7 +119,7 @@ impl PyArena {
         // items in `pending` are already in the stack of things to be converted
         // if they appear again, we have an illegal cycle and must fail
 
-        let mut pending: HashSet<*const PyObject> = HashSet::new();
+        let mut pending: HashSet<usize> = HashSet::new();
 
         apply_to_tree(obj, move |obj| {
             // is it in cache yet?
@@ -125,22 +146,24 @@ impl PyArena {
                     let ptr_0: PyResult<i32> = self.from_py_to_native_cache(py, p0);
                     let ptr_1: PyResult<i32> = self.from_py_to_native_cache(py, p1);
 
-                    let as_obj: PyObject = obj.into();
-                    let as_obj = &as_obj as *const PyObject;
+                    let as_obj = id_for_pyany(py, obj)?;
 
                     if let (Ok(ptr_0), Ok(ptr_1)) = (ptr_0, ptr_1) {
                         let ptr = allocator.new_pair(ptr_0, ptr_1).unwrap();
                         self.add(py, obj, &ptr)?;
 
                         pending.remove(&as_obj);
-
                         Ok(None)
                     } else {
                         if pending.contains(&as_obj) {
-                            py.run("raise ValueError('illegal clvm object loop')", None, None)?;
+                            let locals = Some([("obj", obj)].into_py_dict(py));
+                            py.run(
+                                "raise ValueError(f'illegal clvm object loop {obj}')",
+                                None,
+                                locals,
+                            )?;
                             panic!();
                         }
-
                         pending.insert(as_obj);
 
                         Ok(Some((p0, p1)))
@@ -247,6 +270,11 @@ impl PyArena {
         self.from_native_to_py_cache(py, ptr)
             .or_else(|_err| self.populate_python(py, ptr, allocator))
     }
+}
+
+fn id_for_pyany(py: Python, obj: &PyAny) -> PyResult<usize> {
+    let locals = Some([("obj", obj)].into_py_dict(py));
+    py.eval("id(obj)", None, locals)?.extract()
 }
 
 fn apply_to_tree<T, F>(node: T, mut apply: F) -> PyResult<()>
