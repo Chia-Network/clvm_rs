@@ -13,7 +13,7 @@ use crate::int_allocator::IntAllocator;
 use crate::more_ops::*;
 use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction};
-use crate::serialize::{node_from_bytes, node_to_bytes};
+use crate::serialize::node_to_bytes;
 
 use super::arena_object::ArenaObject;
 use super::dialect::{Dialect, PyMultiOpFn};
@@ -83,26 +83,6 @@ fn raise_eval_error(py: Python, msg: &PyString, sexp: PyObject) -> PyResult<PyOb
 }
 
 #[pyfunction]
-fn deserialize_from_bytes_for_allocator<'p>(
-    py: Python<'p>,
-    blob: &[u8],
-    arena: &PyCell<PyArena>,
-) -> PyResult<ArenaObject> {
-    let ptr = {
-        let arena: PyRef<PyArena> = arena.borrow();
-        let allocator: &mut IntAllocator = &mut arena.allocator() as &mut IntAllocator;
-        node_from_bytes(allocator, blob)?
-    };
-    Ok(ArenaObject::new(py, arena, ptr))
-}
-
-#[pyfunction]
-fn deserialize_from_bytes(py: Python, blob: &[u8]) -> PyResult<ArenaObject> {
-    let arena = PyArena::new_cell(py)?;
-    deserialize_from_bytes_for_allocator(py, blob, &arena)
-}
-
-#[pyfunction]
 fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyAny) -> PyResult<&'p PyBytes> {
     let arena = PyArena::new_cell(py)?.borrow();
     let mut allocator_refcell: RefMut<IntAllocator> = arena.allocator();
@@ -118,17 +98,10 @@ fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyAny) -> PyResult<&'p PyBytes>
 /// This module is a python module implemented in Rust.
 #[pymodule]
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<PyArena>()?;
     m.add_class::<ArenaObject>()?;
-
-    m.add_function(wrap_pyfunction!(py_run_program, m)?)?;
-    m.add_function(wrap_pyfunction!(deserialize_from_bytes, m)?)?;
-    m.add_function(wrap_pyfunction!(deserialize_from_bytes_for_allocator, m)?)?;
-    m.add_function(wrap_pyfunction!(serialize_to_bytes, m)?)?;
-
-    m.add_function(wrap_pyfunction!(deserialize_and_run_program, m)?)?;
-
     m.add_class::<Dialect>()?;
+    m.add_class::<PyArena>()?;
+
     m.add_function(wrap_pyfunction!(native_opcodes_dict, m)?)?;
 
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
@@ -139,6 +112,10 @@ fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     )?;
 
     m.add("NATIVE_OP_UNKNOWN_STRICT", PyMultiOpFn::new(op_unknown))?;
+
+    m.add_function(wrap_pyfunction!(py_run_program, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_to_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(deserialize_and_run_program, m)?)?;
 
     Ok(())
 }
