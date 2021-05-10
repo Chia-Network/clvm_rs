@@ -51,8 +51,8 @@ enum Operation {
 
 pub struct RunProgramContext<'a, T: Allocator> {
     allocator: &'a mut T,
-    quote_kw: u8,
-    apply_kw: u8,
+    quote_kw: &'a [u8],
+    apply_kw: &'a [u8],
     operator_lookup: &'a dyn OperatorHandler<T>,
     pre_eval: Option<PreEval<T>>,
     posteval_stack: Vec<Box<PostEval<T>>>,
@@ -159,8 +159,8 @@ fn augment_cost_errors<P: Clone>(
 impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
     fn new(
         allocator: &'a mut T,
-        quote_kw: u8,
-        apply_kw: u8,
+        quote_kw: &'a [u8],
+        apply_kw: &'a [u8],
         operator_lookup: &'a dyn OperatorHandler<T>,
         pre_eval: Option<PreEval<T>>,
     ) -> Self {
@@ -205,7 +205,7 @@ impl<'a, T: Allocator> RunProgramContext<'a, T> {
     ) -> Result<Cost, EvalErr<T::Ptr>> {
         let op_atom = self.allocator.buf(op_buf);
         // special case check for quote
-        if op_atom.len() == 1 && op_atom[0] == self.quote_kw {
+        if op_atom.len() == 1 && op_atom == self.quote_kw {
             self.push(operand_list.clone());
             Ok(QUOTE_COST)
         } else {
@@ -300,7 +300,7 @@ impl<'a, T: Allocator> RunProgramContext<'a, T> {
             SExp::Atom(opa) => opa,
         };
         let op_atom = self.allocator.buf(&opa);
-        if op_atom.len() == 1 && op_atom[0] == self.apply_kw {
+        if op_atom.len() == 1 && op_atom == self.apply_kw {
             let operand_list = Node::new(self.allocator, operand_list);
             if operand_list.arg_count_is(2) {
                 let new_operator = operand_list.first()?;
@@ -374,8 +374,8 @@ pub fn run_program<T: Allocator>(
     allocator: &mut T,
     program: &T::Ptr,
     args: &T::Ptr,
-    quote_kw: u8,
-    apply_kw: u8,
+    quote_kw: &[u8],
+    apply_kw: &[u8],
     max_cost: Cost,
     operator_lookup: &dyn OperatorHandler<T>,
     pre_eval: Option<PreEval<T>>,
