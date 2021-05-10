@@ -82,8 +82,8 @@ fn same_arena(arena1: &PyArena, arena2: &PyArena) -> bool {
 
 #[pyclass]
 pub struct Dialect {
-    quote_kw: u8,
-    apply_kw: u8,
+    quote_kw: Vec<u8>,
+    apply_kw: Vec<u8>,
     u8_lookup: FLookup<IntAllocator>,
     python_u8_lookup: HashMap<Vec<u8>, PyObject>,
     native_u8_lookup: HashMap<Vec<u8>, OpFn<IntAllocator>>,
@@ -95,8 +95,8 @@ impl Dialect {
     #[new]
     pub fn new(
         py: Python,
-        quote_kw: u8,
-        apply_kw: u8,
+        quote_kw: Vec<u8>,
+        apply_kw: Vec<u8>,
         op_table: HashMap<Vec<u8>, PyObject>,
         unknown_op_callback: MultiOpFnE<IntAllocator>,
     ) -> PyResult<Self> {
@@ -206,8 +206,8 @@ impl Dialect {
             allocator,
             &program,
             &args,
-            self.quote_kw,
-            self.apply_kw,
+            &self.quote_kw,
+            &self.apply_kw,
             max_cost,
             &drc,
             None,
