@@ -3,8 +3,8 @@ use std::collections::HashMap;
 
 use pyo3::prelude::{pyclass, pymethods};
 
-use pyo3::types::{PyBytes, PyDict, PyString, PyTuple};
-use pyo3::{FromPyObject, PyAny, PyCell, PyErr, PyObject, PyRef, PyResult, Python, ToPyObject};
+use pyo3::types::{PyBytes, PyString, PyTuple};
+use pyo3::{FromPyObject, PyAny, PyCell, PyObject, PyRef, PyResult, Python, ToPyObject};
 
 use crate::allocator::Allocator;
 use crate::cost::Cost;

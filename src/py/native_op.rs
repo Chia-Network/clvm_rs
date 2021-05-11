@@ -2,13 +2,12 @@ use pyo3::prelude::{pyclass, pymethods};
 use pyo3::types::PyString;
 use pyo3::{PyAny, PyCell, PyResult, Python, ToPyObject};
 
-use crate::allocator::Allocator;
 use crate::cost::Cost;
 use crate::int_allocator::IntAllocator;
 use crate::reduction::Reduction;
 
 use super::arena_object::ArenaObject;
-use super::error_bridge::{eval_err_for_pyerr, raise_eval_error};
+use super::error_bridge::raise_eval_error;
 use super::f_table::OpFn;
 use super::py_arena::PyArena;
 
@@ -40,7 +39,7 @@ impl NativeOp {
                 let r = ArenaObject::new(py, arena_cell, ptr);
                 Ok((cost, r))
             }
-            Err(err) => {
+            Err(_err) => {
                 let r = ArenaObject::new(py, arena_cell, ptr);
                 match raise_eval_error(
                     py,
