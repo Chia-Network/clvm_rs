@@ -95,28 +95,13 @@ pub struct Dialect {
 impl Dialect {
     #[new]
     pub fn new(
-        py: Python,
         quote_kw: Vec<u8>,
         apply_kw: Vec<u8>,
-        op_table: HashMap<Vec<u8>, PyObject>,
         unknown_op_callback: MultiOpFnE<IntAllocator>,
     ) -> PyResult<Self> {
-        let mut u8_lookup = [None; 256];
-        let mut python_u8_lookup = HashMap::new();
-        let mut native_u8_lookup = HashMap::new();
-        for (op, fn_obj) in op_table.iter() {
-            let r: PyResult<PyRef<NativeOp>> = fn_obj.extract(py);
-            if let Ok(native_op) = r {
-                if op.len() == 1 {
-                    let index = op[0] as usize;
-                    u8_lookup[index] = Some(native_op.op);
-                } else {
-                    native_u8_lookup.insert(op.to_owned(), native_op.op);
-                }
-            } else {
-                python_u8_lookup.insert(op.to_owned(), fn_obj.clone());
-            }
-        }
+        let u8_lookup = [None; 256];
+        let python_u8_lookup = HashMap::new();
+        let native_u8_lookup = HashMap::new();
         Ok(Self {
             quote_kw,
             apply_kw,
@@ -125,6 +110,23 @@ impl Dialect {
             native_u8_lookup,
             unknown_op_callback,
         })
+    }
+
+    pub fn update(&mut self, py: Python, d: HashMap<Vec<u8>, PyObject>) -> PyResult<()> {
+        for (op, fn_obj) in d.iter() {
+            let r: PyResult<PyRef<NativeOp>> = fn_obj.extract(py);
+            if let Ok(native_op) = r {
+                if op.len() == 1 {
+                    let index = op[0] as usize;
+                    self.u8_lookup[index] = Some(native_op.op);
+                } else {
+                    self.native_u8_lookup.insert(op.to_owned(), native_op.op);
+                }
+            } else {
+                self.python_u8_lookup.insert(op.to_owned(), fn_obj.clone());
+            }
+        }
+        Ok(())
     }
 
     pub fn run_program<'p>(
