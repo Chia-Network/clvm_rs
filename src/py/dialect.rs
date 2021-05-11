@@ -16,6 +16,7 @@ use crate::run_program::OperatorHandler;
 use crate::serialize::node_from_bytes;
 
 use super::arena_object::ArenaObject;
+use super::error_bridge::{eval_err_for_pyerr, raise_eval_error, unwrap_or_eval_err};
 use super::f_table::FLookup;
 use super::f_table::OpFn;
 use super::native_op::NativeOp;
@@ -132,6 +133,7 @@ impl Dialect {
         program: &PyAny,
         args: &PyAny,
         max_cost: Cost,
+        pre_eval_f: &PyAny,
     ) -> PyResult<(Cost, PyObject)> {
         let arena = PyArena::new_cell(py)?;
         let arena_ptr: &PyArena = &arena.borrow() as &PyArena;
@@ -139,7 +141,7 @@ impl Dialect {
         let program = arena_ptr.ptr_for_obj(py, program)?;
         let args = arena_ptr.ptr_for_obj(py, args)?;
 
-        let (cost, r) = self.run_program_ptr(py, &arena, program, args, max_cost)?;
+        let (cost, r) = self.run_program_ptr(py, &arena, program, args, max_cost, pre_eval_f)?;
 
         let mut allocator_refcell: RefMut<IntAllocator> = arena_ptr.allocator();
         let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
@@ -155,12 +157,13 @@ impl Dialect {
         program: &ArenaObject,
         args: &ArenaObject,
         max_cost: Cost,
+        pre_eval: &PyAny,
     ) -> PyResult<(Cost, ArenaObject)> {
         let arena = program.get_arena(py)?;
         if !same_arena(&arena.borrow(), &args.get_arena(py)?.borrow()) {
             py.eval("raise ValueError('mismatched arenas')", None, None)?;
         }
-        self.run_program_ptr(py, arena, program.into(), args.into(), max_cost)
+        self.run_program_ptr(py, arena, program.into(), args.into(), max_cost, pre_eval)
     }
 
     pub fn deserialize_and_run_program<'p>(
@@ -169,6 +172,7 @@ impl Dialect {
         program_blob: &[u8],
         args_blob: &[u8],
         max_cost: Cost,
+        pre_eval: &PyAny,
     ) -> PyResult<(Cost, ArenaObject)> {
         let arena = PyArena::new_cell(py)?;
         let (program, args) = {
@@ -180,7 +184,7 @@ impl Dialect {
             let args = node_from_bytes(allocator, args_blob)?;
             (program, args)
         };
-        self.run_program_ptr(py, &arena, program, args, max_cost)
+        self.run_program_ptr(py, &arena, program, args, max_cost, pre_eval)
     }
 }
 
@@ -192,6 +196,7 @@ impl Dialect {
         program: i32,
         args: i32,
         max_cost: Cost,
+        _pre_eval: &PyAny,
     ) -> PyResult<(Cost, ArenaObject)> {
         let borrowed_arena = arena.borrow();
         let mut allocator_refcell: RefMut<IntAllocator> = borrowed_arena.allocator();
@@ -307,46 +312,5 @@ impl OperatorHandler<IntAllocator> for DialectRunningContext<'_> {
                 .unknown_op_callback
                 .invoke(allocator, o, *argument_list, max_cost)
         }
-    }
-}
-
-/// turn a `PyErr` into an `EvalErr<P>` if at all possible
-/// otherwise, return a `PyErr`
-fn eval_err_for_pyerr<'p>(
-    py: Python<'p>,
-    pyerr: &PyErr,
-    arena: &'p PyArena,
-    allocator: &mut IntAllocator,
-) -> PyResult<EvalErr<i32>> {
-    let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
-    let arg0: &PyString = args.get_item(0).extract()?;
-    let sexp: &PyAny = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
-    let node: i32 = arena.native_for_py(py, sexp, allocator)?;
-    let s: String = arg0.to_str()?.to_string();
-    Ok(EvalErr(node, s))
-}
-
-fn unwrap_or_eval_err<T, P>(obj: PyResult<T>, err_node: &P, msg: &str) -> Result<T, EvalErr<P>>
-where
-    P: Clone,
-{
-    match obj {
-        Err(_py_err) => Err(EvalErr(err_node.clone(), msg.to_string())),
-        Ok(o) => Ok(o),
-    }
-}
-
-fn raise_eval_error(py: Python, msg: &PyString, sexp: PyObject) -> PyResult<PyObject> {
-    let ctx: &PyDict = PyDict::new(py);
-    ctx.set_item("msg", msg)?;
-    ctx.set_item("sexp", sexp)?;
-    let r = py.run(
-        "from clvm.EvalError import EvalError; raise EvalError(msg, sexp)",
-        None,
-        Some(ctx),
-    );
-    match r {
-        Err(x) => Err(x),
-        Ok(_) => Ok(ctx.into()),
     }
 }
