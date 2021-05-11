@@ -107,11 +107,11 @@ fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
 
     m.add(
-        "NATIVE_OP_UNKNOWN_NON_STRICT",
+        "NATIVE_OP_UNKNOWN_STRICT",
         PyMultiOpFn::new(|_a, _b, op, _d| err(op, "unimplemented operator")),
     )?;
 
-    m.add("NATIVE_OP_UNKNOWN_STRICT", PyMultiOpFn::new(op_unknown))?;
+    m.add("NATIVE_OP_UNKNOWN_NON_STRICT", PyMultiOpFn::new(op_unknown))?;
 
     m.add_function(wrap_pyfunction!(py_run_program, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_to_bytes, m)?)?;
