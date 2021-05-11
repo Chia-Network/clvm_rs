@@ -17,6 +17,7 @@ use super::py_view::PyView;
 pub struct PyArena {
     arena: RefCell<IntAllocator>,
     cache: PyObject,
+    bridge_constructor: Box<dyn Fn(Python, PyView) -> PyResult<&PyAny>>,
 }
 
 #[pymethods]
@@ -26,6 +27,7 @@ impl PyArena {
         Ok(PyArena {
             arena: RefCell::new(IntAllocator::default()),
             cache: py.eval("dict()", None, None)?.to_object(py),
+            bridge_constructor: Box::new(|py, py_view| Ok(CLVMObject::new(py, py_view)?)),
         })
     }
 
@@ -70,13 +72,7 @@ impl PyArena {
 
 impl PyArena {
     pub fn new_cell(py: Python) -> PyResult<&PyCell<Self>> {
-        PyCell::new(
-            py,
-            PyArena {
-                arena: RefCell::new(IntAllocator::default()),
-                cache: py.eval("dict()", None, None)?.to_object(py),
-            },
-        )
+        PyCell::new(py, PyArena::new(py)?)
     }
 
     pub fn allocator(&self) -> RefMut<IntAllocator> {
@@ -218,7 +214,7 @@ impl PyArena {
                     let py_bytes = PyBytes::new(py, blob);
                     self.add(
                         py,
-                        CLVMObject::new(py, PyView::new_atom(py, py_bytes))?,
+                        (self.bridge_constructor)(py, PyView::new_atom(py, py_bytes))?,
                         &ptr,
                     )?;
                     Ok(None)
@@ -245,7 +241,7 @@ impl PyArena {
                             let (p1, p2): (&PyAny, &PyAny) = tuple.extract()?;
                             self.add(
                                 py,
-                                CLVMObject::new(
+                                (self.bridge_constructor)(
                                     py,
                                     PyView::new_pair(py, PyTuple::new(py, &[p1, p2]))?,
                                 )?,
