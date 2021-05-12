@@ -58,8 +58,9 @@ pub fn deserialize_and_run_program(
     max_cost: Cost,
     flags: u32,
 ) -> PyResult<(Cost, PyObject)> {
-    let arena = PyArena::new(py)?;
-    let mut allocator_refcell: RefMut<IntAllocator> = arena.allocator();
+    let arena = PyArena::new_cell(py)?;
+    let arena_borrowed = arena.borrow();
+    let mut allocator_refcell: RefMut<IntAllocator> = arena_borrowed.allocator();
     let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
     let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
     let strict: bool = flags != 0;
@@ -75,7 +76,7 @@ pub fn deserialize_and_run_program(
     match r {
         Ok(reduction) => Ok((
             reduction.0,
-            arena
+            arena_borrowed
                 .py_for_native(py, &reduction.1, allocator)?
                 .to_object(py),
         )),

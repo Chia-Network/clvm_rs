@@ -148,12 +148,11 @@ pub fn py_run_program<'p>(
 
     match r {
         Ok(reduction) => {
-            let r = arena.borrow().py_for_native(py, &reduction.1, allocator)?;
+            let r = arena_borrowed.py_for_native(py, &reduction.1, allocator)?;
             Ok((reduction.0, r.to_object(py)))
         }
         Err(eval_err) => {
-            let node: PyObject = arena
-                .borrow()
+            let node: PyObject = arena_borrowed
                 .py_for_native(py, &eval_err.0, allocator)?
                 .to_object(py);
             let s: String = eval_err.1;

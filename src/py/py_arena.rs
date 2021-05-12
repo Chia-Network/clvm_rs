@@ -10,24 +10,19 @@ use crate::int_allocator::IntAllocator;
 use crate::serialize::node_from_bytes;
 
 use super::arena_object::ArenaObject;
-use super::clvm_object::CLVMObject;
 use super::py_view::PyView;
+
+type Bridge = dyn for<'p> Fn(Python<'p>, &'p PyAny) -> PyResult<&'p PyAny>;
 
 #[pyclass(subclass, unsendable)]
 pub struct PyArena {
     arena: RefCell<IntAllocator>,
     cache: PyObject,
-    bridge_constructor: Box<dyn for<'p> Fn(Python<'p>, &'p PyAny) -> PyResult<&'p PyAny>>,
+    bridge_constructor: Box<Bridge>,
 }
 
-fn clvm_obj_bridge<'p>(py: Python<'p>, obj: &'p PyAny) -> PyResult<&'p PyAny> {
-    if let Ok(b) = obj.extract::<&PyBytes>() {
-        Ok(CLVMObject::new(py, PyView::new_atom(py, b))?)
-    } else if let Ok(p) = obj.extract::<&PyTuple>() {
-        Ok(CLVMObject::new(py, PyView::new_pair(py, p)?)?)
-    } else {
-        panic!("bad bridge")
-    }
+fn default_bridge<'p>(_py: Python<'p>, obj: &'p PyAny) -> PyResult<&'p PyAny> {
+    Ok(obj)
 }
 
 #[pymethods]
@@ -37,7 +32,7 @@ impl PyArena {
         Ok(PyArena {
             arena: RefCell::new(IntAllocator::default()),
             cache: py.eval("dict()", None, None)?.to_object(py),
-            bridge_constructor: Box::new(clvm_obj_bridge),
+            bridge_constructor: Box::new(default_bridge),
         })
     }
 
