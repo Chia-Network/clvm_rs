@@ -4,7 +4,6 @@ use pyo3::prelude::{pyclass, pymethods};
 use pyo3::PyAny;
 use pyo3::PyCell;
 use pyo3::PyObject;
-use pyo3::PyRef;
 use pyo3::PyResult;
 use pyo3::Python;
 use pyo3::ToPyObject;
@@ -29,9 +28,10 @@ impl ArenaObject {
 #[pymethods]
 impl ArenaObject {
     fn clvm_object<'p>(&'p self, py: Python<'p>) -> PyResult<&'p PyAny> {
-        let arena: PyRef<PyArena> = self.arena.extract(py)?;
-        let mut allocator: RefMut<IntAllocator> = arena.allocator();
-        arena.py_for_native(py, &self.ptr, &mut allocator)
+        let arena: &PyCell<PyArena> = self.arena.extract(py)?;
+        let arena_ptr = arena.borrow();
+        let mut allocator: RefMut<IntAllocator> = arena_ptr.allocator();
+        arena_ptr.py_for_native(py, &self.ptr, &mut allocator)
     }
 
     #[getter(arena)]

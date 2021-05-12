@@ -226,8 +226,7 @@ impl Dialect {
                 Ok((reduction.0, r))
             }
             Err(eval_err) => {
-                let node: PyObject = arena
-                    .borrow()
+                let node: PyObject = borrowed_arena
                     .py_for_native(py, &eval_err.0, allocator)?
                     .to_object(py);
                 let s: String = eval_err.1;
