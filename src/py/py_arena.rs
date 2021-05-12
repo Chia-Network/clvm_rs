@@ -17,7 +17,17 @@ use super::py_view::PyView;
 pub struct PyArena {
     arena: RefCell<IntAllocator>,
     cache: PyObject,
-    bridge_constructor: Box<dyn Fn(Python, PyView) -> PyResult<&PyAny>>,
+    bridge_constructor: Box<dyn for<'p> Fn(Python<'p>, &'p PyAny) -> PyResult<&'p PyAny>>,
+}
+
+fn clvm_obj_bridge<'p>(py: Python<'p>, obj: &'p PyAny) -> PyResult<&'p PyAny> {
+    if let Ok(b) = obj.extract::<&PyBytes>() {
+        Ok(CLVMObject::new(py, PyView::new_atom(py, b))?)
+    } else if let Ok(p) = obj.extract::<&PyTuple>() {
+        Ok(CLVMObject::new(py, PyView::new_pair(py, p)?)?)
+    } else {
+        panic!("bad bridge")
+    }
 }
 
 #[pymethods]
@@ -27,7 +37,7 @@ impl PyArena {
         Ok(PyArena {
             arena: RefCell::new(IntAllocator::default()),
             cache: py.eval("dict()", None, None)?.to_object(py),
-            bridge_constructor: Box::new(|py, py_view| Ok(CLVMObject::new(py, py_view)?)),
+            bridge_constructor: Box::new(clvm_obj_bridge),
         })
     }
 
@@ -212,16 +222,12 @@ impl PyArena {
                     // it's an atom, so we just populate cache directly
                     let blob = allocator.buf(&a);
                     let py_bytes = PyBytes::new(py, blob);
-                    self.add(
-                        py,
-                        (self.bridge_constructor)(py, PyView::new_atom(py, py_bytes))?,
-                        &ptr,
-                    )?;
+                    self.add(py, (self.bridge_constructor)(py, py_bytes)?, &ptr)?;
                     Ok(None)
                 }
                 SExp::Pair(ptr_1, ptr_2) => {
                     // we can only create this if the children are in the cache
-                    // Let's fine out
+                    // Let's find out
                     let locals = [
                         ("cache", self.cache.clone()),
                         ("p1", ptr_1.to_object(py)),
@@ -238,15 +244,8 @@ impl PyArena {
 
                         // the children are in the cache, create new node & populate cache with it
                         Ok(tuple) => {
-                            let (p1, p2): (&PyAny, &PyAny) = tuple.extract()?;
-                            self.add(
-                                py,
-                                (self.bridge_constructor)(
-                                    py,
-                                    PyView::new_pair(py, PyTuple::new(py, &[p1, p2]))?,
-                                )?,
-                                &ptr,
-                            )?;
+                            let (_p1, _p2): (&PyAny, &PyAny) = tuple.extract()?;
+                            self.add(py, (self.bridge_constructor)(py, tuple)?, &ptr)?;
                             Ok(None)
                         }
                     }
