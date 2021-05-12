@@ -84,11 +84,12 @@ fn raise_eval_error(py: Python, msg: &PyString, sexp: PyObject) -> PyResult<PyOb
 
 #[pyfunction]
 fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyAny) -> PyResult<&'p PyBytes> {
-    let arena = PyArena::new_cell(py)?.borrow();
-    let mut allocator_refcell: RefMut<IntAllocator> = arena.allocator();
+    let arena = PyArena::new_cell(py)?;
+    let arena_borrowed = arena.borrow();
+    let mut allocator_refcell: RefMut<IntAllocator> = arena_borrowed.allocator();
     let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
 
-    let ptr = arena.native_for_py(py, sexp, allocator)?;
+    let ptr = PyArena::native_for_py(arena, py, sexp, allocator)?;
 
     let node = Node::new(allocator, ptr);
     let s: Vec<u8> = node_to_bytes(&node)?;
@@ -132,13 +133,14 @@ pub fn py_run_program<'p>(
     opcode_lookup_by_name: HashMap<String, Vec<u8>>,
     py_callback: PyObject,
 ) -> PyResult<(Cost, PyObject)> {
-    let arena = PyArena::new_cell(py)?.borrow();
-    let mut allocator_refcell: RefMut<IntAllocator> = arena.allocator();
+    let arena = PyArena::new_cell(py)?;
+    let arena_borrowed = arena.borrow();
+    let mut allocator_refcell: RefMut<IntAllocator> = arena_borrowed.allocator();
     let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
 
-    let op_lookup = PyOperatorHandler::new(opcode_lookup_by_name, py_callback, &arena)?;
-    let program = arena.native_for_py(py, program, allocator)?;
-    let args = arena.native_for_py(py, args, allocator)?;
+    let op_lookup = PyOperatorHandler::new(opcode_lookup_by_name, py_callback, arena)?;
+    let program = PyArena::native_for_py(arena, py, program, allocator)?;
+    let args = PyArena::native_for_py(arena, py, args, allocator)?;
 
     let r: Result<Reduction<i32>, EvalErr<i32>> = crate::run_program::run_program(
         allocator, &program, &args, quote_kw, apply_kw, max_cost, &op_lookup, None,
@@ -146,11 +148,12 @@ pub fn py_run_program<'p>(
 
     match r {
         Ok(reduction) => {
-            let r = arena.py_for_native(py, &reduction.1, allocator)?;
+            let r = arena.borrow().py_for_native(py, &reduction.1, allocator)?;
             Ok((reduction.0, r.to_object(py)))
         }
         Err(eval_err) => {
             let node: PyObject = arena
+                .borrow()
                 .py_for_native(py, &eval_err.0, allocator)?
                 .to_object(py);
             let s: String = eval_err.1;

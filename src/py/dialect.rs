@@ -140,8 +140,8 @@ impl Dialect {
         let arena = PyArena::new_cell(py)?;
         let arena_ptr: &PyArena = &arena.borrow() as &PyArena;
 
-        let program = arena_ptr.ptr_for_obj(py, program)?;
-        let args = arena_ptr.ptr_for_obj(py, args)?;
+        let program = PyArena::ptr_for_obj(arena, py, program)?;
+        let args = PyArena::ptr_for_obj(arena, py, args)?;
 
         let (cost, r) = self.run_program_ptr(py, &arena, program, args, max_cost, pre_eval_f)?;
 
@@ -206,7 +206,7 @@ impl Dialect {
 
         let drc = DialectRunningContext {
             dialect: self,
-            arena: &borrowed_arena,
+            arena: &arena,
         };
 
         let r: Result<Reduction<i32>, EvalErr<i32>> = crate::run_program::run_program(
@@ -244,7 +244,7 @@ impl Dialect {
 
 struct DialectRunningContext<'a> {
     dialect: &'a Dialect,
-    arena: &'a PyArena,
+    arena: &'a PyCell<PyArena>,
 }
 
 impl DialectRunningContext<'_> {
@@ -259,17 +259,17 @@ impl DialectRunningContext<'_> {
         Python::with_gil(|py| {
             let op: &PyBytes = PyBytes::new(py, allocator.buf(&op_buf));
             let r = unwrap_or_eval_err(
-                self.arena.py_for_native(py, args, allocator),
+                PyArena::py_for_native(&self.arena.borrow(), py, args, allocator),
                 args,
                 "can't uncache",
             )?;
-            let r1 = obj.call1(py, (op, r.to_object(py), max_cost));
+            let r1 = obj.call1(py, (r.to_object(py), max_cost));
             match r1 {
                 Err(pyerr) => {
                     let eval_err: PyResult<EvalErr<i32>> =
                         eval_err_for_pyerr(py, &pyerr, self.arena, allocator);
                     let r: EvalErr<i32> =
-                        unwrap_or_eval_err(eval_err, args, "unexpected exception")?;
+                        unwrap_or_eval_err(eval_err, args, "2unexpected exception")?;
                     Err(r)
                 }
                 Ok(o) => {
@@ -281,7 +281,7 @@ impl DialectRunningContext<'_> {
                     let clvm_object: &PyAny =
                         unwrap_or_eval_err(pair.get_item(1).extract(), args, "expected node")?;
 
-                    let r = self.arena.native_for_py(py, clvm_object, allocator);
+                    let r = PyArena::native_for_py(self.arena, py, clvm_object, allocator);
                     let node: i32 = unwrap_or_eval_err(r, args, "can't find in int allocator")?;
                     Ok(Reduction(i0 as Cost, node))
                 }
