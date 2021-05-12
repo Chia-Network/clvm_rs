@@ -55,28 +55,14 @@ impl PyArena {
         py: Python<'p>,
         obj: &'p PyAny,
     ) -> PyResult<&'p PyCell<ArenaObject>> {
-        let borrowed_arena = slf.borrow();
-        let ptr = borrowed_arena.ptr_for_obj(py, obj)?;
+        let ptr = Self::ptr_for_obj(slf, py, obj)?;
         PyCell::new(py, ArenaObject::new(py, slf, ptr))
     }
 
-    pub fn ptr_for_obj<'p>(&'p self, py: Python<'p>, obj: &'p PyAny) -> PyResult<i32> {
-        let allocator: &mut IntAllocator = &mut self.allocator() as &mut IntAllocator;
-
-        /*
-        let arena_obj: PyResult<PyRef<ArenaObject>> = obj.extract();
-        if let Ok(arena) = arena_obj {
-            let same_arena: bool = {
-                let o1: PyObject = self;
-                o1 == arena.borrow().get_arena(py)?.into()
-            };
-            if same_arena {
-                return Ok(arena);
-            }
-        };
-        */
-
-        self.populate_native(py, obj, allocator)
+    pub fn ptr_for_obj<'p>(slf: &PyCell<PyArena>, py: Python<'p>, obj: &'p PyAny) -> PyResult<i32> {
+        let arena = slf.borrow();
+        let allocator: &mut IntAllocator = &mut arena.allocator() as &mut IntAllocator;
+        Self::populate_native(slf, py, obj, allocator)
     }
 }
 
@@ -117,7 +103,7 @@ impl PyArena {
     }
 
     fn populate_native(
-        &self,
+        slf: &PyCell<PyArena>,
         py: Python,
         obj: &PyAny,
         allocator: &mut IntAllocator,
@@ -128,8 +114,10 @@ impl PyArena {
         let mut pending: HashSet<usize> = HashSet::new();
 
         apply_to_tree(obj, move |obj| {
+            let celf = slf.borrow();
+
             // is it in cache yet?
-            if self.from_py_to_native_cache(py, obj).is_ok() {
+            if celf.from_py_to_native_cache(py, obj).is_ok() {
                 // yep, we're done
                 return Ok(None);
             }
@@ -140,7 +128,7 @@ impl PyArena {
                 PyView::Atom(atom) => {
                     let blob: &[u8] = atom.extract(py).unwrap();
                     let ptr = allocator.new_atom(blob).unwrap();
-                    self.add(py, obj, &ptr)?;
+                    celf.add(py, obj, &ptr)?;
 
                     Ok(None)
                 }
@@ -149,14 +137,14 @@ impl PyArena {
                     let pair: &PyTuple = pair.extract()?;
                     let p0: &PyAny = pair.get_item(0);
                     let p1: &PyAny = pair.get_item(1);
-                    let ptr_0: PyResult<i32> = self.from_py_to_native_cache(py, p0);
-                    let ptr_1: PyResult<i32> = self.from_py_to_native_cache(py, p1);
+                    let ptr_0: PyResult<i32> = celf.from_py_to_native_cache(py, p0);
+                    let ptr_1: PyResult<i32> = celf.from_py_to_native_cache(py, p1);
 
                     let as_obj = id_for_pyany(py, obj)?;
 
                     if let (Ok(ptr_0), Ok(ptr_1)) = (ptr_0, ptr_1) {
                         let ptr = allocator.new_pair(ptr_0, ptr_1).unwrap();
-                        self.add(py, obj, &ptr)?;
+                        celf.add(py, obj, &ptr)?;
 
                         pending.remove(&as_obj);
                         Ok(None)
@@ -178,17 +166,18 @@ impl PyArena {
             }
         })?;
 
-        self.from_py_to_native_cache(py, obj)
+        slf.borrow().from_py_to_native_cache(py, obj)
     }
 
     pub fn native_for_py(
-        &self,
+        slf: &PyCell<PyArena>,
         py: Python,
         obj: &PyAny,
         allocator: &mut IntAllocator,
     ) -> PyResult<<IntAllocator as Allocator>::Ptr> {
-        self.from_py_to_native_cache(py, obj)
-            .or_else(|_err| self.populate_native(py, obj, allocator))
+        let celf = slf.borrow();
+        celf.from_py_to_native_cache(py, obj)
+            .or_else(|_err| Self::populate_native(slf, py, obj, allocator))
     }
 
     // native to py methods

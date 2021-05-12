@@ -1,14 +1,12 @@
 use std::collections::HashMap;
 
 use pyo3::types::PyBytes;
-use pyo3::types::PyString;
 use pyo3::types::PyTuple;
-use pyo3::PyAny;
-use pyo3::PyErr;
 use pyo3::PyObject;
 use pyo3::PyResult;
 use pyo3::Python;
 use pyo3::ToPyObject;
+use pyo3::{PyAny, PyCell};
 
 use crate::allocator::Allocator;
 use crate::cost::Cost;
@@ -16,20 +14,21 @@ use crate::int_allocator::IntAllocator;
 use crate::reduction::{EvalErr, Reduction, Response};
 use crate::run_program::OperatorHandler;
 
+use super::error_bridge::{eval_err_for_pyerr, unwrap_or_eval_err};
 use super::f_table::{f_lookup_for_hashmap, FLookup};
 use super::py_arena::PyArena;
 
 pub struct PyOperatorHandler<'p> {
     native_lookup: FLookup<IntAllocator>,
     py_callable: PyObject,
-    arena: &'p PyArena,
+    arena: &'p PyCell<PyArena>,
 }
 
 impl<'p> PyOperatorHandler<'p> {
     pub fn new(
         opcode_lookup_by_name: HashMap<String, Vec<u8>>,
         py_callable: PyObject,
-        arena: &'p PyArena,
+        arena: &'p PyCell<PyArena>,
     ) -> PyResult<Self> {
         let native_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
         Ok(PyOperatorHandler {
@@ -50,7 +49,7 @@ impl<'p> PyOperatorHandler<'p> {
         Python::with_gil(|py| {
             let op: &PyBytes = PyBytes::new(py, allocator.buf(&op_buf));
             let r = unwrap_or_eval_err(
-                self.arena.py_for_native(py, args, allocator),
+                PyArena::py_for_native(&self.arena.borrow(), py, args, allocator),
                 args,
                 "can't uncache",
             )?;
@@ -72,7 +71,7 @@ impl<'p> PyOperatorHandler<'p> {
                     let clvm_object: &PyAny =
                         unwrap_or_eval_err(pair.get_item(1).extract(), args, "expected node")?;
 
-                    let r = self.arena.native_for_py(py, clvm_object, allocator);
+                    let r = PyArena::native_for_py(self.arena, py, clvm_object, allocator);
                     let node: i32 = unwrap_or_eval_err(r, args, "can't find in int allocator")?;
                     Ok(Reduction(i0 as Cost, node))
                 }
@@ -97,31 +96,5 @@ impl OperatorHandler<IntAllocator> for PyOperatorHandler<'_> {
         }
 
         self.invoke_py_obj(self.py_callable.clone(), allocator, op_buf, args, max_cost)
-    }
-}
-
-/// turn a `PyErr` into an `EvalErr<P>` if at all possible
-/// otherwise, return a `PyErr`
-fn eval_err_for_pyerr<'p>(
-    py: Python<'p>,
-    pyerr: &PyErr,
-    arena: &'p PyArena,
-    allocator: &mut IntAllocator,
-) -> PyResult<EvalErr<i32>> {
-    let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
-    let arg0: &PyString = args.get_item(0).extract()?;
-    let sexp: &PyAny = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
-    let node: i32 = arena.native_for_py(py, sexp, allocator)?;
-    let s: String = arg0.to_str()?.to_string();
-    Ok(EvalErr(node, s))
-}
-
-fn unwrap_or_eval_err<T, P>(obj: PyResult<T>, err_node: &P, msg: &str) -> Result<T, EvalErr<P>>
-where
-    P: Clone,
-{
-    match obj {
-        Err(_py_err) => Err(EvalErr(err_node.clone(), msg.to_string())),
-        Ok(o) => Ok(o),
     }
 }
