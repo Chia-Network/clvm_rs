@@ -136,8 +136,9 @@ impl Dialect {
         args: &PyAny,
         max_cost: Cost,
         pre_eval_f: &PyAny,
+        to_python: &PyAny,
     ) -> PyResult<(Cost, PyObject)> {
-        let arena = PyArena::new_cell(py)?;
+        let arena = PyArena::new_cell_obj(py, to_python.to_object(py))?;
         let arena_ptr: &PyArena = &arena.borrow() as &PyArena;
 
         let program = PyArena::ptr_for_obj(arena, py, program)?;
@@ -175,8 +176,9 @@ impl Dialect {
         args_blob: &[u8],
         max_cost: Cost,
         pre_eval: &PyAny,
+        to_python: &PyAny,
     ) -> PyResult<(Cost, ArenaObject)> {
-        let arena = PyArena::new_cell(py)?;
+        let arena = PyArena::new_cell_obj(py, to_python.to_object(py))?;
         let (program, args) = {
             let arena_ptr: &PyArena = &arena.borrow() as &PyArena;
             let mut allocator_refcell: RefMut<IntAllocator> = arena_ptr.allocator();
@@ -268,7 +270,7 @@ impl DialectRunningContext<'_> {
                     let eval_err: PyResult<EvalErr<i32>> =
                         eval_err_for_pyerr(py, &pyerr, self.arena, allocator);
                     let r: EvalErr<i32> =
-                        unwrap_or_eval_err(eval_err, args, "2unexpected exception")?;
+                        unwrap_or_eval_err(eval_err, args, "unexpected exception")?;
                     Err(r)
                 }
                 Ok(o) => {
