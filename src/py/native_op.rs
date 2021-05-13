@@ -1,12 +1,11 @@
 use pyo3::prelude::{pyclass, pymethods};
 use pyo3::types::PyString;
-use pyo3::{PyAny, PyCell, PyResult, Python, ToPyObject};
+use pyo3::{PyAny, PyObject, PyResult, Python, ToPyObject};
 
 use crate::cost::Cost;
 use crate::int_allocator::IntAllocator;
 use crate::reduction::Reduction;
 
-use super::arena_object::ArenaObject;
 use super::error_bridge::raise_eval_error;
 use super::f_table::OpFn;
 use super::py_arena::PyArena;
@@ -27,24 +26,29 @@ impl NativeOp {
 #[pymethods]
 impl NativeOp {
     #[call]
-    fn __call__(&self, py: Python, args: &PyAny, _max_cost: Cost) -> PyResult<(Cost, ArenaObject)> {
+    fn __call__<'p>(
+        &'p self,
+        py: Python<'p>,
+        args: &'p PyAny,
+        _max_cost: Cost,
+    ) -> PyResult<(Cost, PyObject)> {
         let arena_cell = PyArena::new_cell(py)?;
-        let ptr = PyArena::include(arena_cell, py, args)?.borrow().get_ptr();
         let arena: &PyArena = &arena_cell.borrow();
+        let ptr = arena.ptr_for_obj(py, args)?;
         let mut allocator = arena.allocator();
         let allocator: &mut IntAllocator = &mut allocator;
         let r = (self.op)(allocator, ptr, _max_cost);
         match r {
             Ok(Reduction(cost, ptr)) => {
-                let r = ArenaObject::new(py, arena_cell, ptr);
-                Ok((cost, r))
+                let r = arena.obj_for_ptr(py, ptr)?;
+                Ok((cost, r.to_object(py)))
             }
             Err(_err) => {
-                let r = ArenaObject::new(py, arena_cell, ptr);
+                let r = arena.obj_for_ptr(py, ptr)?;
                 match raise_eval_error(
                     py,
                     PyString::new(py, "problem in suboperator"),
-                    PyCell::new(py, r)?.to_object(py),
+                    r.to_object(py),
                 ) {
                     Err(e) => Err(e),
                     Ok(_) => panic!("oh dear"),

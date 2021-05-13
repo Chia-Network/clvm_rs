@@ -15,7 +15,6 @@ use crate::node::Node;
 use crate::reduction::{EvalErr, Reduction};
 use crate::serialize::node_to_bytes;
 
-use super::arena_object::ArenaObject;
 use super::dialect::{Dialect, PyMultiOpFn};
 use super::f_table::OpFn;
 use super::native_op::NativeOp;
@@ -99,7 +98,6 @@ fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyAny) -> PyResult<&'p PyBytes>
 /// This module is a python module implemented in Rust.
 #[pymodule]
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<ArenaObject>()?;
     m.add_class::<Dialect>()?;
     m.add_class::<PyArena>()?;
 
