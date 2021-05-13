@@ -12,7 +12,7 @@ use crate::int_allocator::IntAllocator;
 use crate::reduction::EvalErr;
 use crate::reduction::Reduction;
 use crate::reduction::Response;
-use crate::run_program::OperatorHandler;
+use crate::run_program::{PreEval, OperatorHandler};
 use crate::serialize::node_from_bytes;
 
 use super::error_bridge::{eval_err_for_pyerr, raise_eval_error, unwrap_or_eval_err};
@@ -183,6 +183,9 @@ impl Dialect {
             arena: &arena,
         };
 
+        let local_pre_eval: PreEval<IntAllocator> =
+            Box::new(|_allocator, _program, _args| Ok(None));
+
         let r: Result<Reduction<i32>, EvalErr<i32>> = crate::run_program::run_program(
             allocator,
             &program,
@@ -191,7 +194,7 @@ impl Dialect {
             &self.apply_kw,
             max_cost,
             &drc,
-            None,
+            Some(local_pre_eval),
         );
 
         match r {

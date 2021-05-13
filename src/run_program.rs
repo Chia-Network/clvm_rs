@@ -28,7 +28,7 @@ pub trait OperatorHandler<T: Allocator> {
 }
 
 pub type PreEval<A> = Box<
-    dyn Fn(
+    fn(
         &mut A,
         &<A as Allocator>::Ptr,
         &<A as Allocator>::Ptr,
