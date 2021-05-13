@@ -44,7 +44,7 @@ impl PyArena {
         let allocator: &mut IntAllocator = &mut self.allocator() as &mut IntAllocator;
         self.populate_native(py, obj, allocator)
     }
- }
+}
 
 impl PyArena {
     pub fn new_cell_obj(py: Python, new_obj_f: PyObject) -> PyResult<&PyCell<Self>> {
