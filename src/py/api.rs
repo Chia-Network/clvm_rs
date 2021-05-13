@@ -6,7 +6,7 @@ use pyo3::wrap_pyfunction;
 use pyo3::PyObject;
 
 use crate::core_ops::*;
-use crate::err_utils::err;
+use crate::err_utils::u8_err;
 use crate::int_allocator::IntAllocator;
 use crate::more_ops::*;
 use crate::node::Node;
@@ -87,7 +87,7 @@ fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add(
         "NATIVE_OP_UNKNOWN_STRICT",
-        PyMultiOpFn::new(|_a, _b, op, _d| err(op, "unimplemented operator")),
+        PyMultiOpFn::new(|_a, b, _op, _d| u8_err(_a, &b, "unimplemented operator")),
     )?;
 
     m.add("NATIVE_OP_UNKNOWN_NON_STRICT", PyMultiOpFn::new(op_unknown))?;
