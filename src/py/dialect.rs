@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use pyo3::prelude::{pyclass, pymethods};
 
-use pyo3::types::{PyBytes, PyString, PyTuple};
+use pyo3::types::{PyString, PyTuple};
 use pyo3::{FromPyObject, PyAny, PyCell, PyObject, PyRef, PyResult, Python, ToPyObject};
 
 use crate::allocator::Allocator;
@@ -15,7 +15,6 @@ use crate::reduction::Response;
 use crate::run_program::OperatorHandler;
 use crate::serialize::node_from_bytes;
 
-use super::arena_object::ArenaObject;
 use super::error_bridge::{eval_err_for_pyerr, raise_eval_error, unwrap_or_eval_err};
 use super::f_table::FLookup;
 use super::f_table::OpFn;
@@ -73,12 +72,6 @@ impl<'source> FromPyObject<'source> for MultiOpFnE<IntAllocator> {
             Ok(Self::Python(obj.into()))
         }
     }
-}
-
-fn same_arena(arena1: &PyArena, arena2: &PyArena) -> bool {
-    let p1: *const PyArena = arena1 as *const PyArena;
-    let p2: *const PyArena = arena2 as *const PyArena;
-    p1 == p2
 }
 
 #[pyclass]
@@ -141,32 +134,11 @@ impl Dialect {
         let arena = PyArena::new_cell_obj(py, to_python.to_object(py))?;
         let arena_ptr: &PyArena = &arena.borrow() as &PyArena;
 
-        let program = PyArena::ptr_for_obj(arena, py, program)?;
-        let args = PyArena::ptr_for_obj(arena, py, args)?;
+        let program = arena_ptr.ptr_for_obj(py, program)?;
+        let args = arena_ptr.ptr_for_obj(py, args)?;
 
         let (cost, r) = self.run_program_ptr(py, &arena, program, args, max_cost, pre_eval_f)?;
-
-        let mut allocator_refcell: RefMut<IntAllocator> = arena_ptr.allocator();
-        let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
-
-        let r_ptr = &(&r).into();
-        let new_r = arena_ptr.py_for_native(py, r_ptr, allocator)?;
-        Ok((cost, new_r.into()))
-    }
-
-    pub fn run_program_arena<'p>(
-        &self,
-        py: Python<'p>,
-        program: &ArenaObject,
-        args: &ArenaObject,
-        max_cost: Cost,
-        pre_eval: &PyAny,
-    ) -> PyResult<(Cost, ArenaObject)> {
-        let arena = program.get_arena(py)?;
-        if !same_arena(&arena.borrow(), &args.get_arena(py)?.borrow()) {
-            py.eval("raise ValueError('mismatched arenas')", None, None)?;
-        }
-        self.run_program_ptr(py, arena, program.into(), args.into(), max_cost, pre_eval)
+        Ok((cost, r.to_object(py)))
     }
 
     pub fn deserialize_and_run_program<'p>(
@@ -177,7 +149,7 @@ impl Dialect {
         max_cost: Cost,
         pre_eval: &PyAny,
         to_python: &PyAny,
-    ) -> PyResult<(Cost, ArenaObject)> {
+    ) -> PyResult<(Cost, &'p PyAny)> {
         let arena = PyArena::new_cell_obj(py, to_python.to_object(py))?;
         let (program, args) = {
             let arena_ptr: &PyArena = &arena.borrow() as &PyArena;
@@ -196,12 +168,12 @@ impl Dialect {
     pub fn run_program_ptr<'p>(
         &self,
         py: Python<'p>,
-        arena: &PyCell<PyArena>,
+        arena: &'p PyCell<PyArena>,
         program: i32,
         args: i32,
         max_cost: Cost,
         _pre_eval: &PyAny,
-    ) -> PyResult<(Cost, ArenaObject)> {
+    ) -> PyResult<(Cost, &'p PyAny)> {
         let borrowed_arena = arena.borrow();
         let mut allocator_refcell: RefMut<IntAllocator> = borrowed_arena.allocator();
         let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
@@ -224,7 +196,7 @@ impl Dialect {
 
         match r {
             Ok(reduction) => {
-                let r = ArenaObject::new(py, arena, reduction.1);
+                let r = borrowed_arena.py_for_native(py, &reduction.1, allocator)?;
                 Ok((reduction.0, r))
             }
             Err(eval_err) => {
@@ -253,12 +225,10 @@ impl DialectRunningContext<'_> {
         &self,
         obj: &PyObject,
         allocator: &mut IntAllocator,
-        op_buf: <IntAllocator as Allocator>::AtomBuf,
         args: &<IntAllocator as Allocator>::Ptr,
         max_cost: Cost,
     ) -> Response<<IntAllocator as Allocator>::Ptr> {
         Python::with_gil(|py| {
-            let op: &PyBytes = PyBytes::new(py, allocator.buf(&op_buf));
             let r = unwrap_or_eval_err(
                 PyArena::py_for_native(&self.arena.borrow(), py, args, allocator),
                 args,
@@ -309,7 +279,7 @@ impl OperatorHandler<IntAllocator> for DialectRunningContext<'_> {
         if let Some(op_fn) = self.dialect.native_u8_lookup.get(op) {
             op_fn(allocator, *argument_list, max_cost)
         } else if let Some(op_fn) = self.dialect.python_u8_lookup.get(op) {
-            self.invoke_py_obj(op_fn, allocator, o, argument_list, max_cost)
+            self.invoke_py_obj(op_fn, allocator, argument_list, max_cost)
         } else {
             self.dialect
                 .unknown_op_callback
