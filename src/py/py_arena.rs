@@ -12,27 +12,21 @@ use crate::serialize::node_from_bytes;
 use super::arena_object::ArenaObject;
 use super::py_view::PyView;
 
-type Bridge = dyn for<'p> Fn(Python<'p>, &'p PyAny) -> PyResult<&'p PyAny>;
-
 #[pyclass(subclass, unsendable)]
 pub struct PyArena {
     arena: RefCell<IntAllocator>,
     cache: PyObject,
-    bridge_constructor: Box<Bridge>,
-}
-
-fn default_bridge<'p>(_py: Python<'p>, obj: &'p PyAny) -> PyResult<&'p PyAny> {
-    Ok(obj)
+    to_python: PyObject,
 }
 
 #[pymethods]
 impl PyArena {
     #[new]
-    pub fn new(py: Python) -> PyResult<Self> {
+    pub fn new(py: Python, new_obj_f: PyObject) -> PyResult<Self> {
         Ok(PyArena {
             arena: RefCell::new(IntAllocator::default()),
             cache: py.eval("dict()", None, None)?.to_object(py),
-            bridge_constructor: Box::new(default_bridge),
+            to_python: new_obj_f,
         })
     }
 
@@ -62,8 +56,12 @@ impl PyArena {
 }
 
 impl PyArena {
+    pub fn new_cell_obj(py: Python, new_obj_f: PyObject) -> PyResult<&PyCell<Self>> {
+        PyCell::new(py, PyArena::new(py, new_obj_f)?)
+    }
+
     pub fn new_cell(py: Python) -> PyResult<&PyCell<Self>> {
-        PyCell::new(py, PyArena::new(py)?)
+        Self::new_cell_obj(py, py.eval("lambda sexp: sexp", None, None)?.to_object(py))
     }
 
     pub fn allocator(&self) -> RefMut<IntAllocator> {
@@ -206,7 +204,7 @@ impl PyArena {
                     // it's an atom, so we just populate cache directly
                     let blob = allocator.buf(&a);
                     let py_bytes = PyBytes::new(py, blob);
-                    self.add(py, (self.bridge_constructor)(py, py_bytes)?, &ptr)?;
+                    self.add(py, self.to_python.as_ref(py).call1((py_bytes,))?, &ptr)?;
                     Ok(None)
                 }
                 SExp::Pair(ptr_1, ptr_2) => {
@@ -229,7 +227,7 @@ impl PyArena {
                         // the children are in the cache, create new node & populate cache with it
                         Ok(tuple) => {
                             let (_p1, _p2): (&PyAny, &PyAny) = tuple.extract()?;
-                            self.add(py, (self.bridge_constructor)(py, tuple)?, &ptr)?;
+                            self.add(py, self.to_python.as_ref(py).call1((tuple,))?, &ptr)?;
                             Ok(None)
                         }
                     }
