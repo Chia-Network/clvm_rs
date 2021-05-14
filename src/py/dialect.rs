@@ -12,7 +12,7 @@ use crate::int_allocator::IntAllocator;
 use crate::reduction::EvalErr;
 use crate::reduction::Reduction;
 use crate::reduction::Response;
-use crate::run_program::{PreEval, OperatorHandler};
+use crate::run_program::{OperatorHandler, PreEval};
 use crate::serialize::node_from_bytes;
 
 use super::error_bridge::{eval_err_for_pyerr, raise_eval_error, unwrap_or_eval_err};
@@ -82,6 +82,7 @@ pub struct Dialect {
     python_u8_lookup: HashMap<Vec<u8>, PyObject>,
     native_u8_lookup: HashMap<Vec<u8>, OpFn<IntAllocator>>,
     unknown_op_callback: MultiOpFnE<IntAllocator>,
+    to_python: PyObject,
 }
 
 #[pymethods]
@@ -91,6 +92,7 @@ impl Dialect {
         quote_kw: Vec<u8>,
         apply_kw: Vec<u8>,
         unknown_op_callback: MultiOpFnE<IntAllocator>,
+        to_python: PyObject,
     ) -> PyResult<Self> {
         let u8_lookup = [None; 256];
         let python_u8_lookup = HashMap::new();
@@ -102,6 +104,7 @@ impl Dialect {
             python_u8_lookup,
             native_u8_lookup,
             unknown_op_callback,
+            to_python,
         })
     }
 
@@ -129,9 +132,8 @@ impl Dialect {
         args: &PyAny,
         max_cost: Cost,
         pre_eval_f: &PyAny,
-        to_python: &PyAny,
     ) -> PyResult<(Cost, PyObject)> {
-        let arena = PyArena::new_cell_obj(py, to_python.to_object(py))?;
+        let arena = PyArena::new_cell_obj(py, self.to_python.clone())?;
         let arena_ptr: &PyArena = &arena.borrow() as &PyArena;
 
         let program = arena_ptr.ptr_for_obj(py, program)?;
@@ -148,9 +150,8 @@ impl Dialect {
         args_blob: &[u8],
         max_cost: Cost,
         pre_eval: &PyAny,
-        to_python: &PyAny,
     ) -> PyResult<(Cost, &'p PyAny)> {
-        let arena = PyArena::new_cell_obj(py, to_python.to_object(py))?;
+        let arena = PyArena::new_cell_obj(py, self.to_python.clone())?;
         let (program, args) = {
             let arena_ptr: &PyArena = &arena.borrow() as &PyArena;
             let mut allocator_refcell: RefMut<IntAllocator> = arena_ptr.allocator();
