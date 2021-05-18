@@ -27,15 +27,16 @@ pub trait OperatorHandler<T: Allocator> {
     ) -> Response<<T as Allocator>::Ptr>;
 }
 
-pub type PreEval<A> = Box<
-    fn(
-        &mut A,
-        &<A as Allocator>::Ptr,
-        &<A as Allocator>::Ptr,
-    ) -> Result<Option<Box<PostEval<A>>>, EvalErr<<A as Allocator>::Ptr>>,
+pub type PreEval<'a, A> = Box<
+    dyn Fn(
+            &mut A,
+            &<A as Allocator>::Ptr,
+            &<A as Allocator>::Ptr,
+        ) -> Result<Option<Box<PostEval<'a, A>>>, EvalErr<<A as Allocator>::Ptr>>
+        + 'a,
 >;
 
-pub type PostEval<T> = dyn Fn(Option<&<T as Allocator>::Ptr>);
+pub type PostEval<'a, T> = dyn Fn(&mut T, &<T as Allocator>::Ptr) -> () + 'a;
 
 #[repr(u8)]
 enum Operation {
@@ -54,8 +55,8 @@ pub struct RunProgramContext<'a, T: Allocator> {
     quote_kw: &'a [u8],
     apply_kw: &'a [u8],
     operator_lookup: &'a dyn OperatorHandler<T>,
-    pre_eval: Option<PreEval<T>>,
-    posteval_stack: Vec<Box<PostEval<T>>>,
+    pre_eval: Option<PreEval<'a, T>>,
+    posteval_stack: Vec<Box<PostEval<'a, T>>>,
     val_stack: Vec<T::Ptr>,
     op_stack: Vec<Operation>,
 }
@@ -162,7 +163,7 @@ impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
         quote_kw: &'a [u8],
         apply_kw: &'a [u8],
         operator_lookup: &'a dyn OperatorHandler<T>,
-        pre_eval: Option<PreEval<T>>,
+        pre_eval: Option<PreEval<'a, T>>,
     ) -> Self {
         RunProgramContext {
             allocator,
@@ -357,7 +358,9 @@ impl<'a, T: Allocator> RunProgramContext<'a, T> {
                 Operation::PostEval => {
                     let f = self.posteval_stack.pop().unwrap();
                     let peek: Option<&T::Ptr> = self.val_stack.last();
-                    f(peek);
+                    if let Some(peek) = peek {
+                        f(self.allocator, peek);
+                    }
                     0
                 }
             };
@@ -370,15 +373,15 @@ impl<'a, T: Allocator> RunProgramContext<'a, T> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_program<T: Allocator>(
-    allocator: &mut T,
+pub fn run_program<'a, T: Allocator>(
+    allocator: &'a mut T,
     program: &T::Ptr,
     args: &T::Ptr,
-    quote_kw: &[u8],
-    apply_kw: &[u8],
+    quote_kw: &'a [u8],
+    apply_kw: &'a [u8],
     max_cost: Cost,
-    operator_lookup: &dyn OperatorHandler<T>,
-    pre_eval: Option<PreEval<T>>,
+    operator_lookup: &'a dyn OperatorHandler<T>,
+    pre_eval: Option<PreEval<'a, T>>,
 ) -> Response<T::Ptr> {
     let mut rpc = RunProgramContext::new(allocator, quote_kw, apply_kw, operator_lookup, pre_eval);
     rpc.run_program(program, args, max_cost)
