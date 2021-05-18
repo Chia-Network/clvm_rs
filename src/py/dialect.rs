@@ -1,5 +1,6 @@
 use std::cell::RefMut;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use pyo3::prelude::{pyclass, pymethods};
 
@@ -12,7 +13,7 @@ use crate::int_allocator::IntAllocator;
 use crate::reduction::EvalErr;
 use crate::reduction::Reduction;
 use crate::reduction::Response;
-use crate::run_program::{OperatorHandler, PreEval};
+use crate::run_program::{OperatorHandler, PostEval, PreEval};
 use crate::serialize::node_from_bytes;
 
 use super::error_bridge::{eval_err_for_pyerr, raise_eval_error, unwrap_or_eval_err};
@@ -175,7 +176,7 @@ impl Dialect {
         max_cost: Cost,
         pre_eval: &'p PyAny,
     ) -> PyResult<(Cost, &'p PyAny)> {
-        let borrowed_arena = arena.borrow();
+        let borrowed_arena = Arc::new(arena.borrow());
         let mut allocator_refcell: RefMut<IntAllocator> = borrowed_arena.allocator();
         let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
 
@@ -185,38 +186,36 @@ impl Dialect {
         };
 
         let pre_eval_obj = pre_eval.to_object(py);
+        let pre_eval_f = {
+            if pre_eval_obj.is_none(py) {
+                None
+            } else {
+                let local_pre_eval: PreEval<IntAllocator> = Box::new(|allocator, program, args| {
+                    {
+                        // TODO: fix unwraps
+                        let program_obj = borrowed_arena
+                            .py_for_native(py, program, allocator)
+                            .unwrap();
+                        let args_obj = borrowed_arena.py_for_native(py, args, allocator).unwrap();
+                        let post_eval_obj = pre_eval_obj
+                            .call1(py, (program_obj, args_obj))
+                            .unwrap()
+                            .to_object(py);
 
-        let local_pre_eval: PreEval<IntAllocator> = Box::new(|allocator, program, args| {
-            {
-                // TODO: fix unwraps
-                let program_obj = borrowed_arena
-                    .py_for_native(py, program, allocator)
-                    .unwrap();
-                let args_obj = borrowed_arena.py_for_native(py, args, allocator).unwrap();
-                if !pre_eval_obj.is_none(py) {
-                    let post_eval_obj = pre_eval_obj
-                        .call1(py, (program_obj, args_obj))
-                        .unwrap()
-                        .to_object(py);
-                }
-
-                let local_arena = arena.to_object(py);
-                /*
-                                    let post_eval: Box<PostEval<IntAllocator>> =
-                                        Box::new(move |allocator: &mut IntAllocator, result_ptr: &i32| {
-                                            dbg!("** 1");
-                                            let arena: PyRef<PyArena> = local_arena.extract(py).unwrap();
-                                            dbg!("** 1");
-                                            let r = arena.py_for_native(py, &result_ptr, allocator).unwrap();
-                                            dbg!("** 1");
-                                            post_eval_obj.call1(py, (r,)).unwrap();
-                                            dbg!("** 1");
-                                        });
-                */
-                Ok(None)
+                        let local_borrowed = borrowed_arena.clone();
+                        let post_eval: Box<PostEval<IntAllocator>> =
+                            Box::new(move |allocator: &mut IntAllocator, result_ptr: &i32| {
+                                let r = local_borrowed
+                                    .py_for_native(py, &result_ptr, allocator)
+                                    .unwrap();
+                                post_eval_obj.call1(py, (r,));
+                            });
+                        Ok(Some(post_eval))
+                    }
+                });
+                Some(local_pre_eval)
             }
-        });
-        let pre_eval_f = Some(local_pre_eval);
+        };
 
         let r: Result<Reduction<i32>, EvalErr<i32>> = crate::run_program::run_program(
             allocator,
