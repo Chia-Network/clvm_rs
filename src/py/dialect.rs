@@ -149,7 +149,7 @@ impl Dialect {
         program_blob: &[u8],
         args_blob: &[u8],
         max_cost: Cost,
-        pre_eval: &PyAny,
+        pre_eval: &'p PyAny,
     ) -> PyResult<(Cost, &'p PyAny)> {
         let arena = PyArena::new_cell_obj(py, self.to_python.clone())?;
         let (program, args) = {
@@ -173,7 +173,7 @@ impl Dialect {
         program: i32,
         args: i32,
         max_cost: Cost,
-        _pre_eval: &PyAny,
+        pre_eval: &'p PyAny,
     ) -> PyResult<(Cost, &'p PyAny)> {
         let borrowed_arena = arena.borrow();
         let mut allocator_refcell: RefMut<IntAllocator> = borrowed_arena.allocator();
@@ -184,8 +184,39 @@ impl Dialect {
             arena: &arena,
         };
 
-        let local_pre_eval: PreEval<IntAllocator> =
-            Box::new(|_allocator, _program, _args| Ok(None));
+        let pre_eval_obj = pre_eval.to_object(py);
+
+        let local_pre_eval: PreEval<IntAllocator> = Box::new(|allocator, program, args| {
+            {
+                // TODO: fix unwraps
+                let program_obj = borrowed_arena
+                    .py_for_native(py, program, allocator)
+                    .unwrap();
+                let args_obj = borrowed_arena.py_for_native(py, args, allocator).unwrap();
+                if !pre_eval_obj.is_none(py) {
+                    let post_eval_obj = pre_eval_obj
+                        .call1(py, (program_obj, args_obj))
+                        .unwrap()
+                        .to_object(py);
+                }
+
+                let local_arena = arena.to_object(py);
+                /*
+                                    let post_eval: Box<PostEval<IntAllocator>> =
+                                        Box::new(move |allocator: &mut IntAllocator, result_ptr: &i32| {
+                                            dbg!("** 1");
+                                            let arena: PyRef<PyArena> = local_arena.extract(py).unwrap();
+                                            dbg!("** 1");
+                                            let r = arena.py_for_native(py, &result_ptr, allocator).unwrap();
+                                            dbg!("** 1");
+                                            post_eval_obj.call1(py, (r,)).unwrap();
+                                            dbg!("** 1");
+                                        });
+                */
+                Ok(None)
+            }
+        });
+        let pre_eval_f = Some(local_pre_eval);
 
         let r: Result<Reduction<i32>, EvalErr<i32>> = crate::run_program::run_program(
             allocator,
@@ -195,7 +226,7 @@ impl Dialect {
             &self.apply_kw,
             max_cost,
             &drc,
-            Some(local_pre_eval),
+            pre_eval_f,
         );
 
         match r {
