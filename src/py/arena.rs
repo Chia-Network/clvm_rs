@@ -10,7 +10,7 @@ use crate::int_allocator::IntAllocator;
 use crate::serialize::node_from_bytes;
 
 #[pyclass(subclass, unsendable)]
-pub struct PyArena {
+pub struct Arena {
     arena: RefCell<IntAllocator>,
     cache: PyObject,
     to_python: PyObject,
@@ -28,10 +28,10 @@ pub fn sexp_for_obj(obj: &PyAny) -> PyResult<SExp<&PyAny, &PyBytes>> {
 }
 
 #[pymethods]
-impl PyArena {
+impl Arena {
     #[new]
     pub fn new(py: Python, new_obj_f: PyObject) -> PyResult<Self> {
-        Ok(PyArena {
+        Ok(Arena {
             arena: RefCell::new(IntAllocator::default()),
             cache: py.eval("dict()", None, None)?.to_object(py),
             to_python: new_obj_f,
@@ -55,9 +55,9 @@ impl PyArena {
     }
 }
 
-impl PyArena {
+impl Arena {
     pub fn new_cell_obj(py: Python, new_obj_f: PyObject) -> PyResult<&PyCell<Self>> {
-        PyCell::new(py, PyArena::new(py, new_obj_f)?)
+        PyCell::new(py, Arena::new(py, new_obj_f)?)
     }
 
     pub fn new_cell(py: Python) -> PyResult<&PyCell<Self>> {
@@ -161,7 +161,7 @@ impl PyArena {
     }
 
     pub fn native_for_py(
-        slf: &PyCell<PyArena>,
+        slf: &PyCell<Arena>,
         py: Python,
         obj: &PyAny,
         allocator: &mut IntAllocator,
