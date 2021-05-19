@@ -16,11 +16,11 @@ use crate::reduction::Response;
 use crate::run_program::{OperatorHandler, PostEval, PreEval};
 use crate::serialize::node_from_bytes;
 
+use super::arena::Arena;
 use super::error_bridge::{eval_err_for_pyerr, raise_eval_error, unwrap_or_eval_err};
 use super::f_table::FLookup;
 use super::f_table::OpFn;
 use super::native_op::NativeOp;
-use super::py_arena::PyArena;
 
 #[pyclass]
 #[derive(Clone)]
@@ -134,8 +134,8 @@ impl Dialect {
         max_cost: Cost,
         pre_eval_f: &PyAny,
     ) -> PyResult<(Cost, PyObject)> {
-        let arena = PyArena::new_cell_obj(py, self.to_python.clone())?;
-        let arena_ptr: &PyArena = &arena.borrow() as &PyArena;
+        let arena = Arena::new_cell_obj(py, self.to_python.clone())?;
+        let arena_ptr: &Arena = &arena.borrow() as &Arena;
 
         let program = arena_ptr.ptr_for_obj(py, program)?;
         let args = arena_ptr.ptr_for_obj(py, args)?;
@@ -152,9 +152,9 @@ impl Dialect {
         max_cost: Cost,
         pre_eval: &'p PyAny,
     ) -> PyResult<(Cost, &'p PyAny)> {
-        let arena = PyArena::new_cell_obj(py, self.to_python.clone())?;
+        let arena = Arena::new_cell_obj(py, self.to_python.clone())?;
         let (program, args) = {
-            let arena_ptr: &PyArena = &arena.borrow() as &PyArena;
+            let arena_ptr: &Arena = &arena.borrow() as &Arena;
             let mut allocator_refcell: RefMut<IntAllocator> = arena_ptr.allocator();
             let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
 
@@ -168,7 +168,7 @@ impl Dialect {
 
 fn pre_eval_callback(
     py: Python,
-    arena: &PyArena,
+    arena: &Arena,
     pre_eval_obj: PyObject,
     allocator: &mut IntAllocator,
     program: &i32,
@@ -187,13 +187,13 @@ impl Dialect {
     pub fn run_program_ptr<'p>(
         &self,
         py: Python<'p>,
-        arena: &'p PyCell<PyArena>,
+        arena: &'p PyCell<Arena>,
         program: i32,
         args: i32,
         max_cost: Cost,
         pre_eval: &'p PyAny,
     ) -> PyResult<(Cost, &'p PyAny)> {
-        let borrowed_arena: Arc<PyRef<PyArena>> = Arc::new(arena.borrow());
+        let borrowed_arena: Arc<PyRef<Arena>> = Arc::new(arena.borrow());
         let mut allocator_refcell: RefMut<IntAllocator> = borrowed_arena.allocator();
         let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
 
@@ -272,7 +272,7 @@ impl Dialect {
 
 struct DialectRunningContext<'a> {
     dialect: &'a Dialect,
-    arena: &'a PyCell<PyArena>,
+    arena: &'a PyCell<Arena>,
 }
 
 impl DialectRunningContext<'_> {
@@ -285,7 +285,7 @@ impl DialectRunningContext<'_> {
     ) -> Response<<IntAllocator as Allocator>::Ptr> {
         Python::with_gil(|py| {
             let r = unwrap_or_eval_err(
-                PyArena::py_for_native(&self.arena.borrow(), py, args, allocator),
+                Arena::py_for_native(&self.arena.borrow(), py, args, allocator),
                 args,
                 "can't uncache",
             )?;
@@ -307,7 +307,7 @@ impl DialectRunningContext<'_> {
                     let clvm_object: &PyAny =
                         unwrap_or_eval_err(pair.get_item(1).extract(), args, "expected node")?;
 
-                    let r = PyArena::native_for_py(self.arena, py, clvm_object, allocator);
+                    let r = Arena::native_for_py(self.arena, py, clvm_object, allocator);
                     let node: i32 = unwrap_or_eval_err(r, args, "can't find in int allocator")?;
                     Ok(Reduction(i0 as Cost, node))
                 }

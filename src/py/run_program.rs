@@ -11,8 +11,8 @@ use crate::reduction::Response;
 use crate::run_program::{run_program, OperatorHandler};
 use crate::serialize::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
 
+use super::arena::Arena;
 use super::f_table::{f_lookup_for_hashmap, FLookup};
-use super::py_arena::PyArena;
 
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
@@ -58,7 +58,7 @@ pub fn deserialize_and_run_program(
     max_cost: Cost,
     flags: u32,
 ) -> PyResult<(Cost, PyObject)> {
-    let arena = PyArena::new_cell(py)?;
+    let arena = Arena::new_cell(py)?;
     let arena_borrowed = arena.borrow();
     let mut allocator_refcell: RefMut<IntAllocator> = arena_borrowed.allocator();
     let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;

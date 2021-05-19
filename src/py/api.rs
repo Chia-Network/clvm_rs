@@ -12,10 +12,10 @@ use crate::more_ops::*;
 use crate::node::Node;
 use crate::serialize::node_to_bytes;
 
+use super::arena::Arena;
 use super::dialect::{Dialect, PyMultiOpFn};
 use super::f_table::OpFn;
 use super::native_op::NativeOp;
-use super::py_arena::PyArena;
 use super::run_program::{
     __pyo3_get_function_deserialize_and_run_program, __pyo3_get_function_serialized_length,
 };
@@ -63,12 +63,12 @@ pub fn native_opcodes_dict(py: Python) -> PyResult<PyObject> {
 
 #[pyfunction]
 fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyAny) -> PyResult<&'p PyBytes> {
-    let arena = PyArena::new_cell(py)?;
+    let arena = Arena::new_cell(py)?;
     let arena_borrowed = arena.borrow();
     let mut allocator_refcell: RefMut<IntAllocator> = arena_borrowed.allocator();
     let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
 
-    let ptr = PyArena::native_for_py(arena, py, sexp, allocator)?;
+    let ptr = Arena::native_for_py(arena, py, sexp, allocator)?;
 
     let node = Node::new(allocator, ptr);
     let s: Vec<u8> = node_to_bytes(&node)?;
@@ -78,8 +78,8 @@ fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyAny) -> PyResult<&'p PyBytes>
 /// This module is a python module implemented in Rust.
 #[pymodule]
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<Arena>()?;
     m.add_class::<Dialect>()?;
-    m.add_class::<PyArena>()?;
 
     m.add_function(wrap_pyfunction!(native_opcodes_dict, m)?)?;
 

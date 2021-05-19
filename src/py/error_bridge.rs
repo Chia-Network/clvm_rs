@@ -3,20 +3,20 @@ use crate::reduction::EvalErr;
 use pyo3::types::{PyDict, PyString, PyTuple};
 use pyo3::{PyAny, PyCell, PyErr, PyObject, PyResult, Python};
 
-use super::py_arena::PyArena;
+use super::arena::Arena;
 
 /// turn a `PyErr` into an `EvalErr<P>` if at all possible
 /// otherwise, return a `PyErr`
 pub fn eval_err_for_pyerr<'p>(
     py: Python<'p>,
     pyerr: &PyErr,
-    arena: &'p PyCell<PyArena>,
+    arena: &'p PyCell<Arena>,
     allocator: &mut IntAllocator,
 ) -> PyResult<EvalErr<i32>> {
     let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
     let arg0: &PyString = args.get_item(0).extract()?;
     let sexp: &PyAny = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
-    let node: i32 = PyArena::native_for_py(arena, py, sexp, allocator)?;
+    let node: i32 = Arena::native_for_py(arena, py, sexp, allocator)?;
     let s: String = arg0.to_str()?.to_string();
     Ok(EvalErr(node, s))
 }
