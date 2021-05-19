@@ -82,7 +82,6 @@ fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Dialect>()?;
 
     m.add_function(wrap_pyfunction!(native_opcodes_dict, m)?)?;
-
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
 
     m.add(

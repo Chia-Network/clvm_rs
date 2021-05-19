@@ -1,3 +1,7 @@
+/// An `Arena` is a collection of objects representing a program and
+/// its arguments, and intermediate values reached while running
+/// a program. Objects can be created in an `Arena` but are never
+/// dropped until the `Arena` is dropped.
 use std::cell::{RefCell, RefMut};
 use std::collections::HashSet;
 
@@ -12,9 +16,19 @@ use crate::serialize::node_from_bytes;
 #[pyclass(subclass, unsendable)]
 pub struct Arena {
     arena: RefCell<IntAllocator>,
+    /// this cache is a python `dict` that keeps a mapping
+    /// from `i32` to python objects and vice-versa
     cache: PyObject,
+    /// `to_python`, a python callable, is called whenever a `python`
+    /// object needs to be created from a native one. It's called with
+    /// either a `bytes` or `tuple` of two elements, each of which
+    /// either came from python or has had `to_python` called on them
     to_python: PyObject,
 }
+
+/// yield a corresponding `SExp` for a python object based
+/// on the standard way of looking in `.atom` for a `PyBytes` object
+/// and then in `.pair` for a `PyTuple`.
 
 pub fn sexp_for_obj(obj: &PyAny) -> PyResult<SExp<&PyAny, &PyBytes>> {
     let r: PyResult<&PyBytes> = obj.getattr("atom")?.extract();
@@ -38,17 +52,22 @@ impl Arena {
         })
     }
 
+    /// deserialize `bytes` into an object in this `Arena`
     pub fn deserialize<'p>(&self, py: Python<'p>, blob: &[u8]) -> PyResult<&'p PyAny> {
         let allocator: &mut IntAllocator = &mut self.allocator() as &mut IntAllocator;
         let ptr = node_from_bytes(allocator, blob)?;
         self.py_for_native(py, &ptr, allocator)
     }
 
+    /// copy this python object into this `Arena` if it's not yet in the cache
+    /// (otherwise it returns the previously cached object)
     pub fn include<'p>(&self, py: Python<'p>, obj: &'p PyAny) -> PyResult<&'p PyAny> {
         let ptr = Self::ptr_for_obj(self, py, obj)?;
         self.py_for_native(py, &ptr, &mut self.allocator() as &mut IntAllocator)
     }
 
+    /// copy this python object into this `Arena` if it's not yet in the cache
+    /// (otherwise it returns the previously cached object)
     pub fn ptr_for_obj(&self, py: Python, obj: &PyAny) -> PyResult<i32> {
         let allocator: &mut IntAllocator = &mut self.allocator() as &mut IntAllocator;
         self.populate_native(py, obj, allocator)
@@ -72,6 +91,8 @@ impl Arena {
         self.arena.borrow_mut()
     }
 
+    /// add a python object <-> native object mapping
+    /// to the cache, in both directions
     pub fn add(
         &self,
         py: Python,
