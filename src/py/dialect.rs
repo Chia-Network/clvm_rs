@@ -166,6 +166,23 @@ impl Dialect {
     }
 }
 
+fn pre_eval_callback(
+    py: Python,
+    arena: &PyArena,
+    pre_eval_obj: PyObject,
+    allocator: &mut IntAllocator,
+    program: &i32,
+    args: &i32,
+) -> PyResult<PyObject> {
+    // call the python `pre_eval` object and return the python object yielded
+    let program_obj = arena.py_for_native(py, program, allocator)?;
+    let args_obj = arena.py_for_native(py, args, allocator)?;
+    let post_eval_obj = pre_eval_obj
+        .call1(py, (program_obj, args_obj))?
+        .to_object(py);
+    Ok(post_eval_obj)
+}
+
 impl Dialect {
     pub fn run_program_ptr<'p>(
         &self,
@@ -176,7 +193,7 @@ impl Dialect {
         max_cost: Cost,
         pre_eval: &'p PyAny,
     ) -> PyResult<(Cost, &'p PyAny)> {
-        let borrowed_arena = Arc::new(arena.borrow());
+        let borrowed_arena: Arc<PyRef<PyArena>> = Arc::new(arena.borrow());
         let mut allocator_refcell: RefMut<IntAllocator> = borrowed_arena.allocator();
         let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
 
@@ -185,32 +202,36 @@ impl Dialect {
             arena: &arena,
         };
 
+        // we convert `pre_eval` from a python object to a `PreEval`
+        // this should be factored out to a standalone function, but
+        // lifetimes make it tough!
         let pre_eval_obj = pre_eval.to_object(py);
         let pre_eval_f = {
-            if pre_eval_obj.is_none(py) {
+            if pre_eval.is_none() {
                 None
             } else {
                 let local_pre_eval: PreEval<IntAllocator> = Box::new(|allocator, program, args| {
-                    {
-                        // TODO: fix unwraps
-                        let program_obj = borrowed_arena
-                            .py_for_native(py, program, allocator)
-                            .unwrap();
-                        let args_obj = borrowed_arena.py_for_native(py, args, allocator).unwrap();
-                        let post_eval_obj = pre_eval_obj
-                            .call1(py, (program_obj, args_obj))
-                            .unwrap()
-                            .to_object(py);
-
+                    if let Ok(post_eval_obj) = pre_eval_callback(
+                        py,
+                        &borrowed_arena,
+                        pre_eval_obj.clone(),
+                        allocator,
+                        program,
+                        args,
+                    ) {
                         let local_borrowed = borrowed_arena.clone();
                         let post_eval: Box<PostEval<IntAllocator>> =
                             Box::new(move |allocator: &mut IntAllocator, result_ptr: &i32| {
-                                let r = local_borrowed
-                                    .py_for_native(py, &result_ptr, allocator)
-                                    .unwrap();
-                                post_eval_obj.call1(py, (r,));
+                                if let Ok(r) =
+                                    local_borrowed.py_for_native(py, &result_ptr, allocator)
+                                {
+                                    // invoke the python `PostEval` callback
+                                    let _r = post_eval_obj.call1(py, (r,));
+                                }
                             });
                         Ok(Some(post_eval))
+                    } else {
+                        Ok(None)
                     }
                 });
                 Some(local_pre_eval)
