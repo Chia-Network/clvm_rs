@@ -9,13 +9,22 @@ use crate::allocator::{Allocator, SExp};
 use crate::int_allocator::IntAllocator;
 use crate::serialize::node_from_bytes;
 
-use super::py_view::PyView;
-
 #[pyclass(subclass, unsendable)]
 pub struct PyArena {
     arena: RefCell<IntAllocator>,
     cache: PyObject,
     to_python: PyObject,
+}
+
+pub fn sexp_for_obj(obj: &PyAny) -> PyResult<SExp<&PyAny, &PyBytes>> {
+    let r: PyResult<&PyBytes> = obj.getattr("atom")?.extract();
+    if let Ok(bytes) = r {
+        return Ok(SExp::Atom(bytes));
+    }
+    let pair: &PyTuple = obj.getattr("pair")?.extract()?;
+    let p0: &PyAny = pair.get_item(0);
+    let p1: &PyAny = pair.get_item(1);
+    Ok(SExp::Pair(p0, p1))
 }
 
 #[pymethods]
@@ -110,19 +119,15 @@ impl PyArena {
 
             // it's not in the cache
 
-            match PyView::py_view_for_obj(obj)? {
-                PyView::Atom(atom) => {
-                    let blob: &[u8] = atom.extract(py).unwrap();
+            match sexp_for_obj(obj)? {
+                SExp::Atom(atom) => {
+                    let blob: &[u8] = atom.extract()?;
                     let ptr = allocator.new_atom(blob).unwrap();
                     self.add(py, obj, &ptr)?;
 
                     Ok(None)
                 }
-                PyView::Pair(pair) => {
-                    let pair: &PyAny = pair.into_ref(py);
-                    let pair: &PyTuple = pair.extract()?;
-                    let p0: &PyAny = pair.get_item(0);
-                    let p1: &PyAny = pair.get_item(1);
+                SExp::Pair(p0, p1) => {
                     let ptr_0: PyResult<i32> = self.from_py_to_native_cache(py, p0);
                     let ptr_1: PyResult<i32> = self.from_py_to_native_cache(py, p1);
 
