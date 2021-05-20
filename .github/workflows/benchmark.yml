@@ -51,7 +51,7 @@ jobs:
         python -m venv venv
         . .\venv\Scripts\Activate.ps1
         ln -s venv\Scripts\Activate.ps1 activate
-        git clone https://github.com/Chia-Network/clvm_tools.git --branch=develop --single-branch
+        git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
         python -m pip install ./clvm_tools
         python -m pip install colorama
         maturin develop --release
@@ -70,7 +70,7 @@ jobs:
         python -m venv venv
         ln -s venv/bin/activate
         . ./activate
-        git clone https://github.com/Chia-Network/clvm_tools.git --branch=develop --single-branch
+        git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
         python -m pip install ./clvm_tools
         python -m pip install colorama
         maturin develop --release
@@ -116,7 +116,7 @@ jobs:
         python -m venv venv
         ln -s venv/bin/activate
         . ./activate
-        git clone https://github.com/Chia-Network/clvm_tools.git --branch=develop --single-branch
+        git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
         python -m pip install ./clvm_tools
         python -m pip install colorama
         maturin develop --release

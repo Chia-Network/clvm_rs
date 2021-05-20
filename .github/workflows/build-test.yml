@@ -96,21 +96,37 @@ jobs:
         . .\venv\Scripts\Activate.ps1
         ln -s venv\Scripts\Activate.ps1 activate
         maturin build --no-sdist -i python --release
+        # this will install into the venv
+        # it'd be better to use the wheel, but I can't figure out how to do that
+        # TODO: figure this out
+        # this does NOT work: pip install target/wheels/clvm_rs-*.whl
+        maturin develop --release
+        # the line above also doesn't seem to work
 
-    - name: Install dependencies
+    - name: Install clvm_rs wheel
+      if: ${{ !startsWith(matrix.os, 'windows') }}
       run: |
         . ./activate
-        pip install target/wheels/clvm_rs-*.whl
+        ls target/wheels/
+        # this mess puts the name of the `.whl` file into `$WHEEL_PATH`
+        # remove the dot, use the `glob` lib to grab the file from the directory
+        WHEEL_PATH=$(echo ${{ matrix.python }} | python -c 'DOTLESS=input().replace(".", ""); import glob; print(" ".join(glob.glob("target/wheels/clvm_rs-*-cp%s-cp*.whl" % DOTLESS)))' )
+        echo ${WHEEL_PATH}
+        pip install ${WHEEL_PATH}
+
+    - name: Install other wheels
+      run: |
+        . ./activate
         python -m pip install pytest
         python -m pip install blspy
 
     - name: install clvm & clvm_tools
       run: |
         . ./activate
-        git clone https://github.com/Chia-Network/clvm.git --branch=develop --single-branch
+        git clone https://github.com/Chia-Network/clvm.git --branch=main --single-branch
         python -m pip install ./clvm
 
-        git clone https://github.com/Chia-Network/clvm_tools.git --branch=develop --single-branch
+        git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
         python -m pip install ./clvm_tools
 
     - name: Ensure clvm, clvm_rs, clvm_tools are installed
