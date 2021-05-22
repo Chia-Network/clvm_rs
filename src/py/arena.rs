@@ -182,14 +182,13 @@ impl Arena {
     }
 
     pub fn native_for_py(
-        slf: &PyCell<Arena>,
+        slf: &PyRef<Arena>,
         py: Python,
         obj: &PyAny,
         allocator: &mut IntAllocator,
     ) -> PyResult<<IntAllocator as Allocator>::Ptr> {
-        let celf = slf.borrow();
-        celf.from_py_to_native_cache(py, obj)
-            .or_else(|_err| celf.populate_native(py, obj, allocator))
+        slf.from_py_to_native_cache(py, obj)
+            .or_else(|_err| slf.populate_native(py, obj, allocator))
     }
 
     // native to py methods

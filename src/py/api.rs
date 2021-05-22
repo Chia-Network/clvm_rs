@@ -63,12 +63,12 @@ pub fn native_opcodes_dict(py: Python) -> PyResult<PyObject> {
 
 #[pyfunction]
 fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyAny) -> PyResult<&'p PyBytes> {
-    let arena = Arena::new_cell(py)?;
-    let arena_borrowed = arena.borrow();
-    let mut allocator_refcell: RefMut<IntAllocator> = arena_borrowed.allocator();
+    let arena_cell = Arena::new_cell(py)?;
+    let arena = arena_cell.borrow();
+    let mut allocator_refcell: RefMut<IntAllocator> = arena.allocator();
     let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
 
-    let ptr = Arena::native_for_py(arena, py, sexp, allocator)?;
+    let ptr = Arena::native_for_py(&arena, py, sexp, allocator)?;
 
     let node = Node::new(allocator, ptr);
     let s: Vec<u8> = node_to_bytes(&node)?;

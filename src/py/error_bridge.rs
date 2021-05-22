@@ -1,7 +1,7 @@
 use crate::int_allocator::IntAllocator;
 use crate::reduction::EvalErr;
 use pyo3::types::{PyDict, PyString, PyTuple};
-use pyo3::{PyAny, PyCell, PyErr, PyObject, PyResult, Python};
+use pyo3::{PyAny, PyErr, PyObject, PyRef, PyResult, Python};
 
 use super::arena::Arena;
 
@@ -10,7 +10,7 @@ use super::arena::Arena;
 pub fn eval_err_for_pyerr<'p>(
     py: Python<'p>,
     pyerr: &PyErr,
-    arena: &'p PyCell<Arena>,
+    arena: &'p PyRef<Arena>,
     allocator: &mut IntAllocator,
 ) -> PyResult<EvalErr<i32>> {
     let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
