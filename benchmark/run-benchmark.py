@@ -8,7 +8,7 @@ import time
 import random
 from clvm import KEYWORD_FROM_ATOM, KEYWORD_TO_ATOM
 from clvm.operators import OP_REWRITE
-from clvm_rs import deserialize_and_run_program, STRICT_MODE
+from clvm_rs import deserialize_and_run_program2, STRICT_MODE
 from colorama import init, Fore, Style
 
 init()
@@ -195,7 +195,7 @@ for n in range(5):
             env_data = bytes.fromhex(open(env_fn, 'r').read())
 
             time_start = time.perf_counter()
-            cost, result = deserialize_and_run_program(
+            cost, result = deserialize_and_run_program2(
                 program_data,
                 env_data,
                 KEYWORD_TO_ATOM["q"][0],
