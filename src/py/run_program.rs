@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use crate::allocator::Allocator;
 use crate::cost::Cost;
@@ -7,6 +8,7 @@ use crate::int_allocator::IntAllocator;
 use crate::more_ops::op_unknown;
 use crate::node::Node;
 use crate::py::f_table::{f_lookup_for_hashmap, FLookup};
+use crate::py::lazy_node::LazyNode;
 use crate::reduction::Response;
 use crate::run_program::{run_program, OperatorHandler};
 use crate::serialize::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
@@ -172,4 +174,60 @@ raise EvalError(msg, sexp)",
 #[pyfunction]
 pub fn serialized_length(program: &[u8]) -> PyResult<u64> {
     Ok(serialized_length_from_bytes(program)?)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[pyfunction]
+pub fn deserialize_and_run_program2(
+    py: Python,
+    program: &[u8],
+    args: &[u8],
+    quote_kw: u8,
+    apply_kw: u8,
+    opcode_lookup_by_name: HashMap<String, Vec<u8>>,
+    max_cost: Cost,
+    flags: u32,
+) -> PyResult<(Cost, LazyNode)> {
+    let mut allocator = IntAllocator::new();
+    let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
+    let strict: bool = (flags & STRICT_MODE) != 0;
+    let f: Box<dyn OperatorHandler<IntAllocator> + Send> =
+        Box::new(OperatorHandlerWithMode { f_lookup, strict });
+    let program = node_from_bytes(&mut allocator, program)?;
+    let args = node_from_bytes(&mut allocator, args)?;
+
+    let r = py.allow_threads(|| {
+        run_program(
+            &mut allocator,
+            &program,
+            &args,
+            quote_kw,
+            apply_kw,
+            max_cost,
+            f,
+            None,
+        )
+    });
+    match r {
+        Ok(reduction) => {
+            let val = LazyNode::new(Rc::new(allocator), reduction.1);
+            Ok((reduction.0, val))
+        }
+        Err(eval_err) => {
+            let node = LazyNode::new(Rc::new(allocator), eval_err.0);
+            let msg = eval_err.1;
+            let ctx: &PyDict = PyDict::new(py);
+            ctx.set_item("msg", msg)?;
+            ctx.set_item("node", node)?;
+            Err(py
+                .run(
+                    "
+from clvm.EvalError import EvalError
+raise EvalError(msg, node)",
+                    None,
+                    Some(ctx),
+                )
+                .unwrap_err())
+        }
+    }
 }
