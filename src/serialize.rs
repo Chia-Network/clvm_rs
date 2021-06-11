@@ -5,7 +5,7 @@ use std::io::Seek;
 use std::io::Write;
 use std::io::{Error, ErrorKind, SeekFrom};
 
-use crate::int_allocator::{IntAllocator, SExp, NodePtr};
+use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::node::Node;
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
@@ -134,7 +134,7 @@ impl<T> std::convert::From<EvalErr<T>> for std::io::Error {
 }
 
 pub fn node_from_stream(
-    allocator: &mut IntAllocator,
+    allocator: &mut Allocator,
     f: &mut Cursor<&[u8]>,
 ) -> std::io::Result<NodePtr> {
     let mut values: Vec<NodePtr> = Vec::new();
@@ -180,7 +180,7 @@ pub fn node_from_stream(
     Ok(values.pop().unwrap())
 }
 
-pub fn node_from_bytes(allocator: &mut IntAllocator, b: &[u8]) -> std::io::Result<NodePtr> {
+pub fn node_from_bytes(allocator: &mut Allocator, b: &[u8]) -> std::io::Result<NodePtr> {
     let mut buffer = Cursor::new(b);
     node_from_stream(allocator, &mut buffer)
 }

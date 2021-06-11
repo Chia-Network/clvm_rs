@@ -1,13 +1,13 @@
-use super::int_allocator::{IntAllocator, SExp, NodePtr, AtomBuf};
+use super::allocator::{Allocator, AtomBuf, NodePtr, SExp};
 use std::fmt;
 
 pub struct Node<'a> {
-    pub allocator: &'a IntAllocator,
+    pub allocator: &'a Allocator,
     pub node: NodePtr,
 }
 
 impl<'a> Node<'a> {
-    pub fn new(allocator: &'a IntAllocator, node: NodePtr) -> Self {
+    pub fn new(allocator: &'a Allocator, node: NodePtr) -> Self {
         Node { allocator, node }
     }
 
@@ -120,7 +120,7 @@ impl<'a> IntoIterator for &Node<'a> {
     }
 }
 
-impl<'a> Iterator for Node<'a>{
+impl<'a> Iterator for Node<'a> {
     type Item = Node<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {

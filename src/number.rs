@@ -1,4 +1,4 @@
-use crate::int_allocator::{IntAllocator, NodePtr};
+use crate::allocator::{Allocator, NodePtr};
 use crate::node::Node;
 use crate::reduction::EvalErr;
 
@@ -6,7 +6,7 @@ use num_bigint::BigInt;
 pub type Number = BigInt;
 
 pub fn ptr_from_number(
-    allocator: &mut IntAllocator,
+    allocator: &mut Allocator,
     item: &Number,
 ) -> Result<NodePtr, EvalErr<NodePtr>> {
     let bytes: Vec<u8> = item.to_signed_bytes_be();
@@ -40,7 +40,7 @@ pub fn number_from_u8(v: &[u8]) -> Number {
 
 #[test]
 fn test_ptr_from_number() {
-    let mut a = IntAllocator::new();
+    let mut a = Allocator::new();
 
     // 0 is encoded as an empty string
     let num = number_from_u8(&[0]);

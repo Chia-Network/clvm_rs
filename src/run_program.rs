@@ -1,4 +1,4 @@
-use crate::int_allocator::{IntAllocator, SExp, NodePtr, AtomBuf};
+use crate::allocator::{Allocator, AtomBuf, NodePtr, SExp};
 use crate::cost::Cost;
 use crate::err_utils::err;
 use crate::node::Node;
@@ -20,7 +20,7 @@ const TRAVERSE_COST_PER_BIT: Cost = 4;
 pub trait OperatorHandler {
     fn op(
         &self,
-        allocator: &mut IntAllocator,
+        allocator: &mut Allocator,
         op: AtomBuf,
         args: &NodePtr,
         max_cost: Cost,
@@ -28,11 +28,7 @@ pub trait OperatorHandler {
 }
 
 pub type PreEval = Box<
-    dyn Fn(
-        &mut IntAllocator,
-        &NodePtr,
-        &NodePtr,
-    ) -> Result<Option<Box<PostEval>>, EvalErr<NodePtr>>,
+    dyn Fn(&mut Allocator, &NodePtr, &NodePtr) -> Result<Option<Box<PostEval>>, EvalErr<NodePtr>>,
 >;
 
 pub type PostEval = dyn Fn(Option<&NodePtr>);
@@ -50,7 +46,7 @@ enum Operation {
 // operator stack (of RpcOperators)
 
 pub struct RunProgramContext<'a> {
-    allocator: &'a mut IntAllocator,
+    allocator: &'a mut Allocator,
     quote_kw: u8,
     apply_kw: u8,
     operator_lookup: Box<dyn OperatorHandler>,
@@ -96,11 +92,7 @@ const fn first_non_zero(buf: &[u8]) -> usize {
     c
 }
 
-fn traverse_path(
-    allocator: &IntAllocator,
-    node_index: &[u8],
-    args: &NodePtr,
-) -> Response<NodePtr> {
+fn traverse_path(allocator: &Allocator, node_index: &[u8], args: &NodePtr) -> Response<NodePtr> {
     let mut arg_list: NodePtr = args.clone();
 
     // find first non-zero byte
@@ -158,7 +150,7 @@ fn augment_cost_errors<P: Clone>(
 
 impl<'a> RunProgramContext<'a> {
     fn new(
-        allocator: &'a mut IntAllocator,
+        allocator: &'a mut Allocator,
         quote_kw: u8,
         apply_kw: u8,
         operator_lookup: Box<dyn OperatorHandler>,
@@ -374,7 +366,7 @@ where
 
 #[allow(clippy::too_many_arguments)]
 pub fn run_program(
-    allocator: &mut IntAllocator,
+    allocator: &mut Allocator,
     program: &NodePtr,
     args: &NodePtr,
     quote_kw: u8,
@@ -420,9 +412,9 @@ fn test_first_non_zero() {
 
 #[test]
 fn test_traverse_path() {
-    use crate::int_allocator::IntAllocator;
+    use crate::allocator::Allocator;
 
-    let mut a = IntAllocator::new();
+    let mut a = Allocator::new();
     let nul = a.null();
     let n1 = a.new_atom(&[0, 1, 2]).unwrap();
     let n2 = a.new_atom(&[4, 5, 6]).unwrap();

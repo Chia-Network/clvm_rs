@@ -20,7 +20,7 @@ pub struct IntPair {
 
 pub type NodePtr = i32;
 
-pub struct IntAllocator {
+pub struct Allocator {
     // this is effectively a grow-only stack where atoms are allocated. Atoms
     // are immutable, so once they are created, they will stay around until the
     // program completes
@@ -35,13 +35,13 @@ pub struct IntAllocator {
     atom_vec: Vec<AtomBuf>,
 }
 
-impl Default for IntAllocator {
+impl Default for Allocator {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl IntAllocator {
+impl Allocator {
     pub fn new() -> Self {
         let mut r = Self {
             u8_vec: Vec::new(),
@@ -73,11 +73,7 @@ impl IntAllocator {
         Ok(-(self.atom_vec.len() as i32))
     }
 
-    pub fn new_pair(
-        &mut self,
-        first: NodePtr,
-        rest: NodePtr,
-    ) -> Result<NodePtr, EvalErr<NodePtr>> {
+    pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr<NodePtr>> {
         let r = self.pair_vec.len() as i32;
         if self.pair_vec.len() == i32::MAX as usize {
             return err(self.null(), "too many pairs");

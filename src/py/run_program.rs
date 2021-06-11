@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use crate::allocator::{Allocator, AtomBuf, NodePtr};
 use crate::cost::Cost;
 use crate::err_utils::err;
-use crate::int_allocator::{IntAllocator, NodePtr, AtomBuf};
 use crate::more_ops::op_unknown;
 use crate::node::Node;
 use crate::py::f_table::{f_lookup_for_hashmap, FLookup};
@@ -25,7 +25,7 @@ struct OperatorHandlerWithMode {
 impl OperatorHandler for OperatorHandlerWithMode {
     fn op(
         &self,
-        allocator: &mut IntAllocator,
+        allocator: &mut Allocator,
         o: AtomBuf,
         argument_list: &NodePtr,
         max_cost: Cost,
@@ -119,11 +119,10 @@ pub fn deserialize_and_run_program(
     max_cost: Cost,
     flags: u32,
 ) -> PyResult<(Cost, Py<PyBytes>)> {
-    let mut allocator = IntAllocator::new();
+    let mut allocator = Allocator::new();
     let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
     let strict: bool = (flags & STRICT_MODE) != 0;
-    let f: Box<dyn OperatorHandler + Send> =
-        Box::new(OperatorHandlerWithMode { f_lookup, strict });
+    let f: Box<dyn OperatorHandler + Send> = Box::new(OperatorHandlerWithMode { f_lookup, strict });
     let program = node_from_bytes(&mut allocator, program)?;
     let args = node_from_bytes(&mut allocator, args)?;
 
@@ -187,11 +186,10 @@ pub fn deserialize_and_run_program2(
     max_cost: Cost,
     flags: u32,
 ) -> PyResult<(Cost, LazyNode)> {
-    let mut allocator = IntAllocator::new();
+    let mut allocator = Allocator::new();
     let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
     let strict: bool = (flags & STRICT_MODE) != 0;
-    let f: Box<dyn OperatorHandler + Send> =
-        Box::new(OperatorHandlerWithMode { f_lookup, strict });
+    let f: Box<dyn OperatorHandler + Send> = Box::new(OperatorHandlerWithMode { f_lookup, strict });
     let program = node_from_bytes(&mut allocator, program)?;
     let args = node_from_bytes(&mut allocator, args)?;
 

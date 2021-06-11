@@ -1,14 +1,10 @@
-use crate::int_allocator::NodePtr;
+use crate::allocator::NodePtr;
 use crate::err_utils::err;
 use crate::node::Node;
 use crate::number::{number_from_u8, Number};
 use crate::reduction::EvalErr;
 
-pub fn check_arg_count(
-    args: &Node,
-    expected: usize,
-    name: &str,
-) -> Result<(), EvalErr<NodePtr>> {
+pub fn check_arg_count(args: &Node, expected: usize, name: &str) -> Result<(), EvalErr<NodePtr>> {
     if arg_count(args, expected) != expected {
         args.err(&format!(
             "{} takes exactly {} argument{}",
@@ -38,9 +34,9 @@ pub fn arg_count(args: &Node, return_early_if_exceeds: usize) -> usize {
 
 #[test]
 fn test_arg_count() {
-    use crate::int_allocator::IntAllocator;
+    use crate::allocator::Allocator;
 
-    let mut allocator = IntAllocator::new();
+    let mut allocator = Allocator::new();
     let null = allocator.null();
     let ptr_0_args = null;
     let ptr_1_args = allocator.new_pair(null, ptr_0_args).unwrap();
@@ -71,10 +67,7 @@ fn test_arg_count() {
     assert_eq!(arg_count(&count_3_args, 4), 3);
 }
 
-pub fn int_atom<'a>(
-    args: &'a Node,
-    op_name: &str,
-) -> Result<&'a [u8], EvalErr<NodePtr>> {
+pub fn int_atom<'a>(args: &'a Node, op_name: &str) -> Result<&'a [u8], EvalErr<NodePtr>> {
     match args.atom() {
         Some(a) => Ok(a),
         _ => args.err(&format!("{} requires int args", op_name)),
@@ -82,10 +75,7 @@ pub fn int_atom<'a>(
 }
 
 // rename to atom()
-pub fn atom<'a>(
-    args: &'a Node,
-    op_name: &str,
-) -> Result<&'a [u8], EvalErr<NodePtr>> {
+pub fn atom<'a>(args: &'a Node, op_name: &str) -> Result<&'a [u8], EvalErr<NodePtr>> {
     match args.atom() {
         Some(a) => Ok(a),
         _ => args.err(&format!("{} on list", op_name)),

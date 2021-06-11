@@ -1,4 +1,4 @@
-use crate::int_allocator::{IntAllocator, SExp, NodePtr};
+use crate::allocator::{Allocator, NodePtr, SExp};
 use std::rc::Rc;
 
 use pyo3::prelude::*;
@@ -7,7 +7,7 @@ use pyo3::types::{PyBytes, PyTuple};
 #[pyclass(subclass, unsendable)]
 #[derive(Clone)]
 pub struct LazyNode {
-    allocator: Rc<IntAllocator>,
+    allocator: Rc<Allocator>,
     node: NodePtr,
 }
 
@@ -44,7 +44,7 @@ impl LazyNode {
 }
 
 impl LazyNode {
-    pub const fn new(a: Rc<IntAllocator>, n: NodePtr) -> Self {
+    pub const fn new(a: Rc<Allocator>, n: NodePtr) -> Self {
         Self {
             allocator: a,
             node: n,
