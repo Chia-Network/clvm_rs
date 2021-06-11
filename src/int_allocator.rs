@@ -113,7 +113,7 @@ impl IntAllocator {
         Ok(-(self.atom_vec.len() as i32))
     }
 
-    pub fn atom<'a>(&'a self, node: &'a NodePtr) -> &'a [u8] {
+    pub fn atom<'a>(&'a self, node: &NodePtr) -> &'a [u8] {
         if *node >= 0 {
             panic!("expected atom, got pair");
         }
@@ -121,7 +121,7 @@ impl IntAllocator {
         &self.u8_vec[atom.start as usize..atom.end as usize]
     }
 
-    pub fn buf<'a>(&'a self, node: &'a AtomBuf) -> &'a [u8] {
+    pub fn buf<'a>(&'a self, node: &AtomBuf) -> &'a [u8] {
         &self.u8_vec[node.start as usize..node.end as usize]
     }
 
