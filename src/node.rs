@@ -1,21 +1,21 @@
-use super::allocator::{Allocator, SExp};
+use super::int_allocator::{IntAllocator, SExp, NodePtr, AtomBuf};
 use std::fmt;
 
-pub struct Node<'a, T: Allocator> {
-    pub allocator: &'a T,
-    pub node: T::Ptr,
+pub struct Node<'a> {
+    pub allocator: &'a IntAllocator,
+    pub node: NodePtr,
 }
 
-impl<'a, T: Allocator> Node<'a, T> {
-    pub fn new(allocator: &'a T, node: T::Ptr) -> Self {
+impl<'a> Node<'a> {
+    pub fn new(allocator: &'a IntAllocator, node: NodePtr) -> Self {
         Node { allocator, node }
     }
 
-    pub fn with_node(&self, node: T::Ptr) -> Self {
+    pub fn with_node(&self, node: NodePtr) -> Self {
         Node::new(self.allocator, node)
     }
 
-    pub fn sexp(&self) -> SExp<T::Ptr, T::AtomBuf> {
+    pub fn sexp(&self) -> SExp<NodePtr, AtomBuf> {
         self.allocator.sexp(&self.node)
     }
 
@@ -26,7 +26,7 @@ impl<'a, T: Allocator> Node<'a, T> {
         }
     }
 
-    pub fn pair(&self) -> Option<(Node<'a, T>, Node<'a, T>)> {
+    pub fn pair(&self) -> Option<(Node<'a>, Node<'a>)> {
         match self.sexp() {
             SExp::Pair(left, right) => Some((self.with_node(left), self.with_node(right))),
             _ => None,
@@ -80,7 +80,7 @@ impl<'a, T: Allocator> Node<'a, T> {
     }
 }
 
-impl<'a, T: Allocator> PartialEq for Node<'a, T> {
+impl<'a> PartialEq for Node<'a> {
     fn eq(&self, other: &Self) -> bool {
         match (self.sexp(), other.sexp()) {
             (SExp::Pair(l0, l1), SExp::Pair(r0, r1)) => {
@@ -92,7 +92,7 @@ impl<'a, T: Allocator> PartialEq for Node<'a, T> {
     }
 }
 
-impl<'a, T: Allocator> fmt::Debug for Node<'a, T> {
+impl<'a> fmt::Debug for Node<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.sexp() {
             SExp::Pair(l, r) => f
@@ -105,24 +105,23 @@ impl<'a, T: Allocator> fmt::Debug for Node<'a, T> {
     }
 }
 
-impl<'a, T: Allocator> Clone for Node<'a, T> {
+impl<'a> Clone for Node<'a> {
     fn clone(&self) -> Self {
         self.with_node(self.node.clone())
     }
 }
 
-impl<'a, T: Allocator> IntoIterator for &Node<'a, T> {
-    type Item = Node<'a, T>;
-
-    type IntoIter = Node<'a, T>;
+impl<'a> IntoIterator for &Node<'a> {
+    type Item = Node<'a>;
+    type IntoIter = Node<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.clone()
     }
 }
 
-impl<'a, T: Allocator> Iterator for Node<'a, T> {
-    type Item = Node<'a, T>;
+impl<'a> Iterator for Node<'a>{
+    type Item = Node<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.pair() {

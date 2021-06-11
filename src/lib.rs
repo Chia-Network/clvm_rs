@@ -1,4 +1,3 @@
-mod allocator;
 mod core_ops;
 mod cost;
 mod err_utils;

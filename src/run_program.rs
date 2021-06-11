@@ -1,4 +1,4 @@
-use crate::allocator::{Allocator, SExp};
+use crate::int_allocator::{IntAllocator, SExp, NodePtr, AtomBuf};
 use crate::cost::Cost;
 use crate::err_utils::err;
 use crate::node::Node;
@@ -17,25 +17,25 @@ const TRAVERSE_BASE_COST: Cost = 40;
 const TRAVERSE_COST_PER_ZERO_BYTE: Cost = 4;
 const TRAVERSE_COST_PER_BIT: Cost = 4;
 
-pub trait OperatorHandler<T: Allocator> {
+pub trait OperatorHandler {
     fn op(
         &self,
-        allocator: &mut T,
-        op: <T as Allocator>::AtomBuf,
-        args: &<T as Allocator>::Ptr,
+        allocator: &mut IntAllocator,
+        op: AtomBuf,
+        args: &NodePtr,
         max_cost: Cost,
-    ) -> Response<<T as Allocator>::Ptr>;
+    ) -> Response<NodePtr>;
 }
 
-pub type PreEval<A> = Box<
+pub type PreEval = Box<
     dyn Fn(
-        &mut A,
-        &<A as Allocator>::Ptr,
-        &<A as Allocator>::Ptr,
-    ) -> Result<Option<Box<PostEval<A>>>, EvalErr<<A as Allocator>::Ptr>>,
+        &mut IntAllocator,
+        &NodePtr,
+        &NodePtr,
+    ) -> Result<Option<Box<PostEval>>, EvalErr<NodePtr>>,
 >;
 
-pub type PostEval<T> = dyn Fn(Option<&<T as Allocator>::Ptr>);
+pub type PostEval = dyn Fn(Option<&NodePtr>);
 
 #[repr(u8)]
 enum Operation {
@@ -49,29 +49,29 @@ enum Operation {
 // `run_program` has two stacks: the operand stack (of `Node` objects) and the
 // operator stack (of RpcOperators)
 
-pub struct RunProgramContext<'a, T: Allocator> {
-    allocator: &'a mut T,
+pub struct RunProgramContext<'a> {
+    allocator: &'a mut IntAllocator,
     quote_kw: u8,
     apply_kw: u8,
-    operator_lookup: Box<dyn OperatorHandler<T>>,
-    pre_eval: Option<PreEval<T>>,
-    posteval_stack: Vec<Box<PostEval<T>>>,
-    val_stack: Vec<T::Ptr>,
+    operator_lookup: Box<dyn OperatorHandler>,
+    pre_eval: Option<PreEval>,
+    posteval_stack: Vec<Box<PostEval>>,
+    val_stack: Vec<NodePtr>,
     op_stack: Vec<Operation>,
 }
 
-impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
-    pub fn pop(&mut self) -> Result<T::Ptr, EvalErr<T::Ptr>> {
-        let v: Option<T::Ptr> = self.val_stack.pop();
+impl<'a, 'h> RunProgramContext<'a> {
+    pub fn pop(&mut self) -> Result<NodePtr, EvalErr<NodePtr>> {
+        let v: Option<NodePtr> = self.val_stack.pop();
         match v {
             None => {
-                let node: T::Ptr = self.allocator.null();
+                let node: NodePtr = self.allocator.null();
                 err(node, "runtime error: value stack empty")
             }
             Some(k) => Ok(k),
         }
     }
-    pub fn push(&mut self, node: T::Ptr) {
+    pub fn push(&mut self, node: NodePtr) {
         self.val_stack.push(node);
     }
 }
@@ -96,12 +96,12 @@ const fn first_non_zero(buf: &[u8]) -> usize {
     c
 }
 
-fn traverse_path<T: Allocator>(
-    allocator: &T,
+fn traverse_path(
+    allocator: &IntAllocator,
     node_index: &[u8],
-    args: &T::Ptr,
-) -> Response<T::Ptr> {
-    let mut arg_list: T::Ptr = args.clone();
+    args: &NodePtr,
+) -> Response<NodePtr> {
+    let mut arg_list: NodePtr = args.clone();
 
     // find first non-zero byte
     let first_bit_byte_index = first_non_zero(node_index);
@@ -156,13 +156,13 @@ fn augment_cost_errors<P: Clone>(
     }
 }
 
-impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
+impl<'a> RunProgramContext<'a> {
     fn new(
-        allocator: &'a mut T,
+        allocator: &'a mut IntAllocator,
         quote_kw: u8,
         apply_kw: u8,
-        operator_lookup: Box<dyn OperatorHandler<T>>,
-        pre_eval: Option<PreEval<T>>,
+        operator_lookup: Box<dyn OperatorHandler>,
+        pre_eval: Option<PreEval>,
     ) -> Self {
         RunProgramContext {
             allocator,
@@ -176,7 +176,7 @@ impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
         }
     }
 
-    fn swap_op(&mut self) -> Result<Cost, EvalErr<T::Ptr>> {
+    fn swap_op(&mut self) -> Result<Cost, EvalErr<NodePtr>> {
         /* Swap the top two operands. */
         let v2 = self.pop()?;
         let v1 = self.pop()?;
@@ -185,7 +185,7 @@ impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
         Ok(0)
     }
 
-    fn cons_op(&mut self) -> Result<Cost, EvalErr<T::Ptr>> {
+    fn cons_op(&mut self) -> Result<Cost, EvalErr<NodePtr>> {
         /* Join the top two operands. */
         let v1 = self.pop()?;
         let v2 = self.pop()?;
@@ -195,17 +195,17 @@ impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
     }
 }
 
-impl<'a, T: Allocator> RunProgramContext<'a, T>
+impl<'a> RunProgramContext<'a>
 where
-    <T as Allocator>::Ptr: 'static,
+    NodePtr: 'static,
 {
     fn eval_op_atom(
         &mut self,
-        op_buf: &T::AtomBuf,
-        operator_node: &T::Ptr,
-        operand_list: &T::Ptr,
-        args: &T::Ptr,
-    ) -> Result<Cost, EvalErr<T::Ptr>> {
+        op_buf: &AtomBuf,
+        operator_node: &NodePtr,
+        operand_list: &NodePtr,
+        args: &NodePtr,
+    ) -> Result<Cost, EvalErr<NodePtr>> {
         let op_atom = self.allocator.buf(op_buf);
         // special case check for quote
         if op_atom.len() == 1 && op_atom[0] == self.quote_kw {
@@ -214,7 +214,7 @@ where
         } else {
             self.op_stack.push(Operation::Apply);
             self.push(operator_node.clone());
-            let mut operands: T::Ptr = operand_list.clone();
+            let mut operands: NodePtr = operand_list.clone();
             loop {
                 if Node::new(self.allocator, operands.clone()).nullp() {
                     break;
@@ -236,12 +236,12 @@ where
         }
     }
 
-    fn eval_pair(&mut self, program: &T::Ptr, args: &T::Ptr) -> Result<Cost, EvalErr<T::Ptr>> {
+    fn eval_pair(&mut self, program: &NodePtr, args: &NodePtr) -> Result<Cost, EvalErr<NodePtr>> {
         // put a bunch of ops on op_stack
         let (op_node, op_list) = match self.allocator.sexp(program) {
             // the program is just a bitfield path through the args tree
             SExp::Atom(path) => {
-                let r: Reduction<T::Ptr> =
+                let r: Reduction<NodePtr> =
                     traverse_path(self.allocator, self.allocator.buf(&path), args)?;
                 self.push(r.1);
                 return Ok(r.0);
@@ -269,13 +269,13 @@ where
         self.eval_op_atom(&op_atom, &op_node, &op_list, args)
     }
 
-    fn eval_op(&mut self) -> Result<Cost, EvalErr<T::Ptr>> {
+    fn eval_op(&mut self) -> Result<Cost, EvalErr<NodePtr>> {
         /*
         Pop the top value and treat it as a (program, args) pair, and manipulate
         the op & value stack to evaluate all the arguments and apply the operator.
         */
 
-        let pair: T::Ptr = self.pop()?;
+        let pair: NodePtr = self.pop()?;
         match self.allocator.sexp(&pair) {
             SExp::Atom(_) => err(pair, "pair expected"),
             SExp::Pair(program, args) => {
@@ -293,7 +293,7 @@ where
         }
     }
 
-    fn apply_op(&mut self, max_cost: Cost) -> Result<Cost, EvalErr<T::Ptr>> {
+    fn apply_op(&mut self, max_cost: Cost) -> Result<Cost, EvalErr<NodePtr>> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
         let opa = match self.allocator.sexp(&operator) {
@@ -328,10 +328,10 @@ where
     #[allow(clippy::too_many_arguments)]
     pub fn run_program(
         &mut self,
-        program: &T::Ptr,
-        args: &T::Ptr,
+        program: &NodePtr,
+        args: &NodePtr,
         max_cost: Cost,
-    ) -> Response<T::Ptr> {
+    ) -> Response<NodePtr> {
         self.val_stack = vec![self.allocator.new_pair(program.clone(), args.clone())?];
         self.op_stack = vec![Operation::Eval];
 
@@ -359,7 +359,7 @@ where
                 Operation::Swap => self.swap_op()?,
                 Operation::PostEval => {
                     let f = self.posteval_stack.pop().unwrap();
-                    let peek: Option<&T::Ptr> = self.val_stack.last();
+                    let peek: Option<&NodePtr> = self.val_stack.last();
                     f(peek);
                     0
                 }
@@ -373,18 +373,18 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_program<T: Allocator>(
-    allocator: &mut T,
-    program: &T::Ptr,
-    args: &T::Ptr,
+pub fn run_program(
+    allocator: &mut IntAllocator,
+    program: &NodePtr,
+    args: &NodePtr,
     quote_kw: u8,
     apply_kw: u8,
     max_cost: Cost,
-    operator_lookup: Box<dyn OperatorHandler<T>>,
-    pre_eval: Option<PreEval<T>>,
-) -> Response<T::Ptr>
+    operator_lookup: Box<dyn OperatorHandler>,
+    pre_eval: Option<PreEval>,
+) -> Response<NodePtr>
 where
-    <T as Allocator>::Ptr: 'static,
+    NodePtr: 'static,
 {
     let mut rpc = RunProgramContext::new(allocator, quote_kw, apply_kw, operator_lookup, pre_eval);
     rpc.run_program(program, args, max_cost)

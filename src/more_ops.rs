@@ -7,7 +7,7 @@ use std::ops::BitXorAssign;
 
 use lazy_static::lazy_static;
 
-use crate::allocator::Allocator;
+use crate::int_allocator::{IntAllocator, NodePtr, AtomBuf};
 use crate::cost::{check_cost, Cost};
 use crate::err_utils::{err, u8_err};
 use crate::node::Node;
@@ -95,22 +95,22 @@ fn limbs_for_int(v: &Number) -> usize {
     ((v.bits() + 7) / 8) as usize
 }
 
-fn new_atom_and_cost<T: Allocator>(a: &mut T, cost: Cost, buf: &[u8]) -> Response<T::Ptr> {
+fn new_atom_and_cost(a: &mut IntAllocator, cost: Cost, buf: &[u8]) -> Response<NodePtr> {
     let c = buf.len() as Cost * MALLOC_COST_PER_BYTE;
     Ok(Reduction(cost + c, a.new_atom(buf)?))
 }
 
-fn malloc_cost<T: Allocator>(a: &T, cost: Cost, ptr: T::Ptr) -> Reduction<T::Ptr> {
+fn malloc_cost(a: &IntAllocator, cost: Cost, ptr: NodePtr) -> Reduction<NodePtr> {
     let c = a.atom(&ptr).len() as Cost * MALLOC_COST_PER_BYTE;
     Reduction(cost + c, ptr)
 }
 
-pub fn op_unknown<A: Allocator>(
-    allocator: &mut A,
-    o: A::AtomBuf,
-    args: A::Ptr,
+pub fn op_unknown(
+    allocator: &mut IntAllocator,
+    o: AtomBuf,
+    args: NodePtr,
     max_cost: Cost,
-) -> Response<A::Ptr> {
+) -> Response<NodePtr> {
     // unknown opcode in lenient mode
     // unknown ops are reserved if they start with 0xffff
     // otherwise, unknown ops are no-ops, but they have costs. The cost is computed
@@ -220,8 +220,8 @@ pub fn op_unknown<A: Allocator>(
 }
 
 #[cfg(test)]
-fn test_op_unknown<A: Allocator>(buf: &[u8], a: &mut A, n: A::Ptr) -> Response<A::Ptr> {
-    use crate::allocator::SExp;
+fn test_op_unknown(buf: &[u8], a: &mut IntAllocator, n: NodePtr) -> Response<NodePtr> {
+    use crate::int_allocator::SExp;
 
     let buf = a.new_atom(buf)?;
     let abuf = match a.sexp(&buf) {
@@ -233,7 +233,7 @@ fn test_op_unknown<A: Allocator>(buf: &[u8], a: &mut A, n: A::Ptr) -> Response<A
 
 #[test]
 fn test_unknown_op_reserved() {
-    let mut a = crate::int_allocator::IntAllocator::new();
+    let mut a = IntAllocator::new();
 
     // any op starting with ffff is reserved and a hard failure
     let buf = vec![0xff, 0xff];
@@ -292,7 +292,7 @@ fn test_lenient_mode_last_bits() {
 }
 
 #[cfg(windows)]
-pub fn op_sha256<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_sha256(a: &mut IntAllocator, input: NodePtr, max_cost: Cost) -> Response<NodePtr> {
     let mut cost = SHA256_BASE_COST;
     let mut byte_count: usize = 0;
     let mut hasher = Sha256::new();
@@ -312,7 +312,7 @@ pub fn op_sha256<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Resp
 }
 
 #[cfg(unix)]
-pub fn op_sha256<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_sha256(a: &mut IntAllocator, input: NodePtr, max_cost: Cost) -> Response<NodePtr> {
     let mut cost = SHA256_BASE_COST;
     let mut byte_count: usize = 0;
     let mut hasher = sha::Sha256::new();
@@ -331,7 +331,7 @@ pub fn op_sha256<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Resp
     new_atom_and_cost(a, cost, &hasher.finish())
 }
 
-pub fn op_add<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_add(a: &mut IntAllocator, input: NodePtr, max_cost: Cost) -> Response<NodePtr> {
     let mut cost = ARITH_BASE_COST;
     let mut byte_count: usize = 0;
     let mut total: Number = 0.into();
@@ -352,7 +352,7 @@ pub fn op_add<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Respons
     Ok(malloc_cost(a, cost, total))
 }
 
-pub fn op_subtract<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_subtract(a: &mut IntAllocator, input: NodePtr, max_cost: Cost) -> Response<NodePtr> {
     let mut cost = ARITH_BASE_COST;
     let mut byte_count: usize = 0;
     let mut total: Number = 0.into();
@@ -375,7 +375,7 @@ pub fn op_subtract<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Re
     Ok(malloc_cost(a, cost, total))
 }
 
-pub fn op_multiply<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_multiply(a: &mut IntAllocator, input: NodePtr, max_cost: Cost) -> Response<NodePtr> {
     let mut cost: Cost = MUL_BASE_COST;
     let mut first_iter: bool = true;
     let mut total: Number = 1.into();
@@ -403,7 +403,7 @@ pub fn op_multiply<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Re
     Ok(malloc_cost(a, cost, total))
 }
 
-pub fn op_div<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_div(a: &mut IntAllocator, input: NodePtr, _max_cost: Cost) -> Response<NodePtr> {
     let args = Node::new(a, input);
     let (a0, l0, a1, l1) = two_ints(&args, "/")?;
     let cost = DIV_BASE_COST + ((l0 + l1) as Cost) * DIV_COST_PER_BYTE;
@@ -425,7 +425,7 @@ pub fn op_div<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respon
     }
 }
 
-pub fn op_divmod<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_divmod(a: &mut IntAllocator, input: NodePtr, _max_cost: Cost) -> Response<NodePtr> {
     let args = Node::new(a, input);
     let (a0, l0, a1, l1) = two_ints(&args, "divmod")?;
     let cost = DIVMOD_BASE_COST + ((l0 + l1) as Cost) * DIVMOD_COST_PER_BYTE;
@@ -449,12 +449,12 @@ pub fn op_divmod<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Res
         let r1 = ptr_from_number(a, &r)?;
 
         let c = (a.atom(&q1).len() + a.atom(&r1).len()) as Cost * MALLOC_COST_PER_BYTE;
-        let r: T::Ptr = a.new_pair(q1, r1)?;
+        let r: NodePtr = a.new_pair(q1, r1)?;
         Ok(Reduction(cost + c, r))
     }
 }
 
-pub fn op_gr<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_gr(a: &mut IntAllocator, input: NodePtr, _max_cost: Cost) -> Response<NodePtr> {
     let args = Node::new(a, input);
     check_arg_count(&args, 2, ">")?;
     let a0 = args.first()?;
@@ -472,7 +472,7 @@ pub fn op_gr<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respons
     ))
 }
 
-pub fn op_gr_bytes<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_gr_bytes(a: &mut IntAllocator, input: NodePtr, _max_cost: Cost) -> Response<NodePtr> {
     let args = Node::new(a, input);
     check_arg_count(&args, 2, ">s")?;
     let a0 = args.first()?;
@@ -483,7 +483,7 @@ pub fn op_gr_bytes<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> R
     Ok(Reduction(cost, if v0 > v1 { a.one() } else { a.null() }))
 }
 
-pub fn op_strlen<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_strlen(a: &mut IntAllocator, input: NodePtr, _max_cost: Cost) -> Response<NodePtr> {
     let args = Node::new(a, input);
     check_arg_count(&args, 1, "strlen")?;
     let a0 = args.first()?;
@@ -495,7 +495,7 @@ pub fn op_strlen<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Res
     Ok(malloc_cost(a, cost, size_node))
 }
 
-pub fn op_substr<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_substr(a: &mut IntAllocator, input: NodePtr, _max_cost: Cost) -> Response<NodePtr> {
     let args = Node::new(a, input);
     let ac = arg_count(&args, 3);
     if !(2..=3).contains(&ac) {
@@ -523,7 +523,7 @@ pub fn op_substr<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Res
     }
 }
 
-pub fn op_concat<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_concat(a: &mut IntAllocator, input: NodePtr, max_cost: Cost) -> Response<NodePtr> {
     let args = Node::new(a, input);
     let mut cost = CONCAT_BASE_COST;
     let mut total_size: usize = 0;
@@ -550,7 +550,7 @@ pub fn op_concat<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Resp
     new_atom_and_cost(a, cost, &v)
 }
 
-pub fn op_ash<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_ash(a: &mut IntAllocator, input: NodePtr, _max_cost: Cost) -> Response<NodePtr> {
     let args = Node::new(a, input);
     check_arg_count(&args, 2, "ash")?;
     let a0 = args.first()?;
@@ -570,7 +570,7 @@ pub fn op_ash<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respon
     Ok(malloc_cost(a, cost, r))
 }
 
-pub fn op_lsh<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_lsh(a: &mut IntAllocator, input: NodePtr, _max_cost: Cost) -> Response<NodePtr> {
     let args = Node::new(a, input);
     check_arg_count(&args, 2, "lsh")?;
     let a0 = args.first()?;
@@ -593,14 +593,14 @@ pub fn op_lsh<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respon
     Ok(malloc_cost(a, cost, r))
 }
 
-fn binop_reduction<T: Allocator>(
+fn binop_reduction(
     op_name: &str,
-    a: &mut T,
+    a: &mut IntAllocator,
     initial_value: Number,
-    input: T::Ptr,
+    input: NodePtr,
     max_cost: Cost,
     op_f: fn(&mut Number, &Number) -> (),
-) -> Response<T::Ptr> {
+) -> Response<NodePtr> {
     let mut total = initial_value;
     let mut arg_size: usize = 0;
     let mut cost = LOG_BASE_COST;
@@ -617,34 +617,34 @@ fn binop_reduction<T: Allocator>(
     Ok(malloc_cost(a, cost, total))
 }
 
-fn logand_op<T: Allocator>(a: &mut Number, b: &Number) {
+fn logand_op(a: &mut Number, b: &Number) {
     a.bitand_assign(b);
 }
 
-pub fn op_logand<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_logand(a: &mut IntAllocator, input: NodePtr, max_cost: Cost) -> Response<NodePtr> {
     let v: Number = (-1).into();
-    binop_reduction("logand", a, v, input, max_cost, logand_op::<T>)
+    binop_reduction("logand", a, v, input, max_cost, logand_op)
 }
 
-fn logior_op<T: Allocator>(a: &mut Number, b: &Number) {
+fn logior_op(a: &mut Number, b: &Number) {
     a.bitor_assign(b);
 }
 
-pub fn op_logior<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_logior(a: &mut IntAllocator, input: NodePtr, max_cost: Cost) -> Response<NodePtr> {
     let v: Number = (0).into();
-    binop_reduction("logior", a, v, input, max_cost, logior_op::<T>)
+    binop_reduction("logior", a, v, input, max_cost, logior_op)
 }
 
-fn logxor_op<T: Allocator>(a: &mut Number, b: &Number) {
+fn logxor_op(a: &mut Number, b: &Number) {
     a.bitxor_assign(b);
 }
 
-pub fn op_logxor<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_logxor(a: &mut IntAllocator, input: NodePtr, max_cost: Cost) -> Response<NodePtr> {
     let v: Number = (0).into();
-    binop_reduction("logxor", a, v, input, max_cost, logxor_op::<T>)
+    binop_reduction("logxor", a, v, input, max_cost, logxor_op)
 }
 
-pub fn op_lognot<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_lognot(a: &mut IntAllocator, input: NodePtr, _max_cost: Cost) -> Response<NodePtr> {
     let args = Node::new(a, input);
     check_arg_count(&args, 1, "lognot")?;
     let a0 = args.first()?;
@@ -656,15 +656,15 @@ pub fn op_lognot<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Res
     Ok(malloc_cost(a, cost, r))
 }
 
-pub fn op_not<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_not(a: &mut IntAllocator, input: NodePtr, _max_cost: Cost) -> Response<NodePtr> {
     let args = Node::new(a, input);
     check_arg_count(&args, 1, "not")?;
-    let r: T::Ptr = args.from_bool(!args.first()?.as_bool()).node;
+    let r: NodePtr = args.from_bool(!args.first()?.as_bool()).node;
     let cost = BOOL_BASE_COST;
     Ok(Reduction(cost, r))
 }
 
-pub fn op_any<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_any(a: &mut IntAllocator, input: NodePtr, max_cost: Cost) -> Response<NodePtr> {
     let args = Node::new(a, input);
     let mut cost = BOOL_BASE_COST;
     let mut is_any = false;
@@ -673,11 +673,11 @@ pub fn op_any<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Respons
         check_cost(a, cost, max_cost)?;
         is_any = is_any || arg.as_bool();
     }
-    let total: Node<T> = args.from_bool(is_any);
+    let total: Node = args.from_bool(is_any);
     Ok(Reduction(cost, total.node))
 }
 
-pub fn op_all<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_all(a: &mut IntAllocator, input: NodePtr, max_cost: Cost) -> Response<NodePtr> {
     let args = Node::new(a, input);
     let mut cost = BOOL_BASE_COST;
     let mut is_all = true;
@@ -686,11 +686,11 @@ pub fn op_all<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Respons
         check_cost(a, cost, max_cost)?;
         is_all = is_all && arg.as_bool();
     }
-    let total: Node<T> = args.from_bool(is_all);
+    let total: Node = args.from_bool(is_all);
     Ok(Reduction(cost, total.node))
 }
 
-pub fn op_softfork<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_softfork(a: &mut IntAllocator, input: NodePtr, max_cost: Cost) -> Response<NodePtr> {
     let args = Node::new(a, input);
     match args.pair() {
         Some((p1, _)) => {
@@ -740,11 +740,11 @@ fn number_to_scalar(n: Number) -> Scalar {
     }
 }
 
-pub fn op_pubkey_for_exp<T: Allocator>(
-    a: &mut T,
-    input: T::Ptr,
+pub fn op_pubkey_for_exp(
+    a: &mut IntAllocator,
+    input: NodePtr,
     _max_cost: Cost,
-) -> Response<T::Ptr> {
+) -> Response<NodePtr> {
     let args = Node::new(a, input);
     check_arg_count(&args, 1, "pubkey_for_exp")?;
     let a0 = args.first()?;
@@ -759,7 +759,7 @@ pub fn op_pubkey_for_exp<T: Allocator>(
     new_atom_and_cost(a, cost, &point.to_compressed())
 }
 
-pub fn op_point_add<T: Allocator>(a: &mut T, input: T::Ptr, max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_point_add(a: &mut IntAllocator, input: NodePtr, max_cost: Cost) -> Response<NodePtr> {
     let args = Node::new(a, input);
     let mut cost = POINT_ADD_BASE_COST;
     let mut total: G1Projective = G1Projective::identity();

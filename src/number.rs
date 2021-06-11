@@ -1,14 +1,14 @@
-use crate::allocator::Allocator;
+use crate::int_allocator::{IntAllocator, NodePtr};
 use crate::node::Node;
 use crate::reduction::EvalErr;
 
 use num_bigint::BigInt;
 pub type Number = BigInt;
 
-pub fn ptr_from_number<T: Allocator>(
-    allocator: &mut T,
+pub fn ptr_from_number(
+    allocator: &mut IntAllocator,
     item: &Number,
-) -> Result<T::Ptr, EvalErr<T::Ptr>> {
+) -> Result<NodePtr, EvalErr<NodePtr>> {
     let bytes: Vec<u8> = item.to_signed_bytes_be();
     let mut slice = bytes.as_slice();
 
@@ -22,8 +22,8 @@ pub fn ptr_from_number<T: Allocator>(
     allocator.new_atom(slice)
 }
 
-impl<T: Allocator> From<&Node<'_, T>> for Option<Number> {
-    fn from(item: &Node<T>) -> Self {
+impl From<&Node<'_>> for Option<Number> {
+    fn from(item: &Node) -> Self {
         let v: &[u8] = item.atom()?;
         Some(number_from_u8(v))
     }
@@ -37,9 +37,6 @@ pub fn number_from_u8(v: &[u8]) -> Number {
         Number::from_signed_bytes_be(v)
     }
 }
-
-#[cfg(test)]
-use crate::int_allocator::IntAllocator;
 
 #[test]
 fn test_ptr_from_number() {

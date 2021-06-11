@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::allocator::Allocator;
+use crate::int_allocator::{IntAllocator, NodePtr};
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
 use crate::more_ops::{
@@ -10,12 +10,12 @@ use crate::more_ops::{
 };
 use crate::reduction::Response;
 
-type OpFn<T> = fn(&mut T, <T as Allocator>::Ptr, Cost) -> Response<<T as Allocator>::Ptr>;
+type OpFn = fn(&mut IntAllocator, NodePtr, Cost) -> Response<NodePtr>;
 
-pub type FLookup<T> = [Option<OpFn<T>>; 256];
+pub type FLookup = [Option<OpFn>; 256];
 
-pub fn opcode_by_name<T: Allocator>(name: &str) -> Option<OpFn<T>> {
-    let opcode_lookup: [(OpFn<T>, &str); 30] = [
+pub fn opcode_by_name(name: &str) -> Option<OpFn> {
+    let opcode_lookup: [(OpFn, &str); 30] = [
         (op_if, "op_if"),
         (op_cons, "op_cons"),
         (op_first, "op_first"),
@@ -57,9 +57,9 @@ pub fn opcode_by_name<T: Allocator>(name: &str) -> Option<OpFn<T>> {
     None
 }
 
-pub fn f_lookup_for_hashmap<A: Allocator>(
+pub fn f_lookup_for_hashmap(
     opcode_lookup_by_name: HashMap<String, Vec<u8>>,
-) -> FLookup<A> {
+) -> FLookup {
     let mut f_lookup = [None; 256];
     for (name, idx) in opcode_lookup_by_name.iter() {
         if idx.len() == 1 {

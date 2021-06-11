@@ -1,9 +1,13 @@
-use crate::allocator::{Allocator, SExp};
 use crate::err_utils::err;
 use crate::reduction::EvalErr;
 
+pub enum SExp<T, B> {
+    Atom(B),
+    Pair(T, T),
+}
+
 #[derive(Clone, Copy)]
-pub struct IntAtomBuf {
+pub struct AtomBuf {
     start: u32,
     end: u32,
 }
@@ -13,6 +17,8 @@ pub struct IntPair {
     first: i32,
     rest: i32,
 }
+
+pub type NodePtr = i32;
 
 pub struct IntAllocator {
     // this is effectively a grow-only stack where atoms are allocated. Atoms
@@ -26,7 +32,7 @@ pub struct IntAllocator {
     // storage for all atoms (negative indices).
     // node index -1 refers to index 0 in this vector, -2 refers to 1 and so
     // on.
-    atom_vec: Vec<IntAtomBuf>,
+    atom_vec: Vec<AtomBuf>,
 }
 
 impl Default for IntAllocator {
@@ -47,18 +53,13 @@ impl IntAllocator {
         r.pair_vec.reserve(256);
         r.u8_vec.push(1_u8);
         // Preallocated empty list
-        r.atom_vec.push(IntAtomBuf { start: 0, end: 0 });
+        r.atom_vec.push(AtomBuf { start: 0, end: 0 });
         // Preallocated 1
-        r.atom_vec.push(IntAtomBuf { start: 0, end: 1 });
+        r.atom_vec.push(AtomBuf { start: 0, end: 1 });
         r
     }
-}
 
-impl Allocator for IntAllocator {
-    type Ptr = i32;
-    type AtomBuf = IntAtomBuf;
-
-    fn new_atom(&mut self, v: &[u8]) -> Result<Self::Ptr, EvalErr<Self::Ptr>> {
+    pub fn new_atom(&mut self, v: &[u8]) -> Result<NodePtr, EvalErr<NodePtr>> {
         let start = self.u8_vec.len() as u32;
         if ((u32::MAX - start) as usize) < v.len() {
             return err(self.null(), "out of memory");
@@ -68,15 +69,15 @@ impl Allocator for IntAllocator {
         if self.atom_vec.len() == i32::MAX as usize {
             return err(self.null(), "too many atoms");
         }
-        self.atom_vec.push(IntAtomBuf { start, end });
+        self.atom_vec.push(AtomBuf { start, end });
         Ok(-(self.atom_vec.len() as i32))
     }
 
-    fn new_pair(
+    pub fn new_pair(
         &mut self,
-        first: Self::Ptr,
-        rest: Self::Ptr,
-    ) -> Result<Self::Ptr, EvalErr<Self::Ptr>> {
+        first: NodePtr,
+        rest: NodePtr,
+    ) -> Result<NodePtr, EvalErr<NodePtr>> {
         let r = self.pair_vec.len() as i32;
         if self.pair_vec.len() == i32::MAX as usize {
             return err(self.null(), "too many pairs");
@@ -85,12 +86,12 @@ impl Allocator for IntAllocator {
         Ok(r)
     }
 
-    fn new_substr(
+    pub fn new_substr(
         &mut self,
-        node: Self::Ptr,
+        node: NodePtr,
         start: u32,
         end: u32,
-    ) -> Result<Self::Ptr, EvalErr<Self::Ptr>> {
+    ) -> Result<NodePtr, EvalErr<NodePtr>> {
         if node >= 0 {
             return err(node, "(internal error) substr expected atom, got pair");
         }
@@ -105,14 +106,14 @@ impl Allocator for IntAllocator {
         if end < start {
             return err(node, "substr invalid bounds");
         }
-        self.atom_vec.push(IntAtomBuf {
+        self.atom_vec.push(AtomBuf {
             start: atom.start + start,
             end: atom.start + end,
         });
         Ok(-(self.atom_vec.len() as i32))
     }
 
-    fn atom<'a>(&'a self, node: &'a Self::Ptr) -> &'a [u8] {
+    pub fn atom<'a>(&'a self, node: &'a NodePtr) -> &'a [u8] {
         if *node >= 0 {
             panic!("expected atom, got pair");
         }
@@ -120,11 +121,11 @@ impl Allocator for IntAllocator {
         &self.u8_vec[atom.start as usize..atom.end as usize]
     }
 
-    fn buf<'a>(&'a self, node: &'a Self::AtomBuf) -> &'a [u8] {
+    pub fn buf<'a>(&'a self, node: &'a AtomBuf) -> &'a [u8] {
         &self.u8_vec[node.start as usize..node.end as usize]
     }
 
-    fn sexp(&self, node: &Self::Ptr) -> SExp<Self::Ptr, Self::AtomBuf> {
+    pub fn sexp(&self, node: &NodePtr) -> SExp<NodePtr, AtomBuf> {
         if *node >= 0 {
             let pair = self.pair_vec[*node as usize];
             SExp::Pair(pair.first, pair.rest)
@@ -134,11 +135,11 @@ impl Allocator for IntAllocator {
         }
     }
 
-    fn null(&self) -> Self::Ptr {
+    pub fn null(&self) -> NodePtr {
         -1
     }
 
-    fn one(&self) -> Self::Ptr {
+    pub fn one(&self) -> NodePtr {
         -2
     }
 }

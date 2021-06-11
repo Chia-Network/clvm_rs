@@ -1,10 +1,9 @@
-use super::allocator::Allocator;
-use super::int_allocator::IntAllocator;
+use super::int_allocator::{IntAllocator, NodePtr};
 use super::node::Node;
 use super::serialize::node_from_bytes;
 use super::serialize::node_to_bytes;
 
-fn test_serialize_roundtrip<T: Allocator>(a: &mut T, n: T::Ptr) {
+fn test_serialize_roundtrip(a: &mut IntAllocator, n: NodePtr) {
     let vec = node_to_bytes(&Node::new(a, n.clone())).unwrap();
     let n0 = node_from_bytes(a, &vec).unwrap();
     let n1 = Node::new(a, n0);

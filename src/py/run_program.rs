@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::allocator::Allocator;
 use crate::cost::Cost;
 use crate::err_utils::err;
-use crate::int_allocator::IntAllocator;
+use crate::int_allocator::{IntAllocator, NodePtr, AtomBuf};
 use crate::more_ops::op_unknown;
 use crate::node::Node;
 use crate::py::f_table::{f_lookup_for_hashmap, FLookup};
@@ -18,19 +17,19 @@ use pyo3::types::{PyBytes, PyDict};
 
 pub const STRICT_MODE: u32 = 1;
 
-struct OperatorHandlerWithMode<A: Allocator> {
-    f_lookup: FLookup<A>,
+struct OperatorHandlerWithMode {
+    f_lookup: FLookup,
     strict: bool,
 }
 
-impl<A: Allocator> OperatorHandler<A> for OperatorHandlerWithMode<A> {
+impl OperatorHandler for OperatorHandlerWithMode {
     fn op(
         &self,
-        allocator: &mut A,
-        o: <A as Allocator>::AtomBuf,
-        argument_list: &A::Ptr,
+        allocator: &mut IntAllocator,
+        o: AtomBuf,
+        argument_list: &NodePtr,
         max_cost: Cost,
-    ) -> Response<<A as Allocator>::Ptr> {
+    ) -> Response<NodePtr> {
         let op = &allocator.buf(&o);
         if op.len() == 1 {
             if let Some(f) = self.f_lookup[op[0] as usize] {
@@ -123,7 +122,7 @@ pub fn deserialize_and_run_program(
     let mut allocator = IntAllocator::new();
     let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
     let strict: bool = (flags & STRICT_MODE) != 0;
-    let f: Box<dyn OperatorHandler<IntAllocator> + Send> =
+    let f: Box<dyn OperatorHandler + Send> =
         Box::new(OperatorHandlerWithMode { f_lookup, strict });
     let program = node_from_bytes(&mut allocator, program)?;
     let args = node_from_bytes(&mut allocator, args)?;
@@ -191,7 +190,7 @@ pub fn deserialize_and_run_program2(
     let mut allocator = IntAllocator::new();
     let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
     let strict: bool = (flags & STRICT_MODE) != 0;
-    let f: Box<dyn OperatorHandler<IntAllocator> + Send> =
+    let f: Box<dyn OperatorHandler + Send> =
         Box::new(OperatorHandlerWithMode { f_lookup, strict });
     let program = node_from_bytes(&mut allocator, program)?;
     let args = node_from_bytes(&mut allocator, args)?;
