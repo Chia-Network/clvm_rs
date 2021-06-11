@@ -29,11 +29,6 @@ pub trait Allocator {
         end: u32,
     ) -> Result<Self::Ptr, EvalErr<Self::Ptr>>;
 
-    // The lifetime here is a bit special because IntAllocator and ArcAllocator
-    // have slightly different requirements. With IntAllocator, all buffers are
-    // owned by the allocator, with ArcAllocator all buffers have shared
-    // ownership by ArcAllocator::Ptr objects. So the returned buffer here
-    // depends on both
     fn atom<'a>(&'a self, node: &'a Self::Ptr) -> &'a [u8];
     fn buf<'a>(&'a self, node: &'a Self::AtomBuf) -> &'a [u8];
     fn sexp(&self, node: &Self::Ptr) -> SExp<Self::Ptr, Self::AtomBuf>;
