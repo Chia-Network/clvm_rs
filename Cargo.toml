@@ -1,6 +1,6 @@
 [package]
 name = "clvm_rs"
-version = "0.1.7"
+version = "0.1.8"
 authors = ["Richard Kiss <him@richardkiss.com>"]
 edition = "2018"
 
