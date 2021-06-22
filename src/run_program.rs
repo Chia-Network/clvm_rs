@@ -177,21 +177,61 @@ impl<'a, 'h, T: Allocator> RunProgramContext<'a, T> {
     }
 
     fn swap_op(&mut self) -> Result<Cost, EvalErr<T::Ptr>> {
-        /* Swap the top two operands. */
-        let v2 = self.pop()?;
-        let v1 = self.pop()?;
-        self.push(v2);
-        self.push(v1);
-        Ok(0)
+        /* swap the top two operands. */
+        match self.pop() {
+            Ok(v1) => {
+                match self.pop() {
+                    Ok(v2) => {
+                        // Push back on, reversing order.
+                        self.push(v1);
+                        self.push(v2);
+                        Ok(0)
+                    }
+                    Err(e) => {
+                        // In the case that the first pop succeeds but the second pop does not (ie:
+                        // only one element was on the stack, ensure the successfully popped element
+                        // gets put back on before yielding an error back.
+                        self.push(v1);
+                        Err(e)
+                    }
+                }
+            }
+            Err(e) => Err(e),
+        }
     }
 
     fn cons_op(&mut self) -> Result<Cost, EvalErr<T::Ptr>> {
         /* Join the top two operands. */
-        let v1 = self.pop()?;
-        let v2 = self.pop()?;
-        let p = self.allocator.new_pair(v1, v2)?;
-        self.push(p);
-        Ok(0)
+        match self.pop() {
+            Ok(v1) => {
+                match self.pop() {
+                    Ok(v2) => {
+                        let v1_bak = v1.clone();
+                        let v2_bak = v2.clone();
+                        match self.allocator.new_pair(v1, v2) {
+                            Ok(p) => {
+                                self.push(p);
+                                Ok(0)
+                            }
+                            Err(e) => {
+                                // Bizarre, but try to put them back in place, in order, before erroring.
+                                self.push(v2_bak);
+                                self.push(v1_bak);
+                                Err(e)
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        // In the case that the first pop succeeds but the second pop does not (ie:
+                        // only one element is in the stack, ensure the successfully popped element
+                        // gets put back on before yielding an error back.
+                        self.push(v1);
+                        Err(e)
+                    }
+                }
+            }
+            Err(e) => Err(e),
+        }
     }
 }
 
