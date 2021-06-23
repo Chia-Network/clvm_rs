@@ -18,8 +18,12 @@ def run_clvm(fn, env=None):
         env_data = bytes.fromhex(open(env, 'r').read())
     else:
         env_data = bytes.fromhex("ff80")
+    # constants from the main chia blockchain:
+    # https://github.com/Chia-Network/chia-blockchain/blob/main/chia/consensus/default_constants.py
     max_cost = 11000000000
+    cost_per_byte = 12000
 
+    max_cost -= (len(program_data) + len(env_data)) * cost_per_byte
     return deserialize_and_run_program(
         program_data,
         env_data,
