@@ -34,8 +34,23 @@ def run_clvm(fn, env=None):
         0,
     )
 
+def count_tree_size(tree) -> int:
+    stack = [tree]
+    ret = 0
+    while len(tree):
+        i = tree.pop()
+        if i.atom:
+            ret += len(atom)
+        else:
+            stack.append(i.pair[1])
+            stack.append(i.pair[0])
+    return ret
+
 if __name__ == "__main__":
     try:
-        run_clvm(sys.argv[1], sys.argv[2])
+        cost, result = run_clvm(sys.argv[1], sys.argv[2])
+        print(f"cost: {cost}")
+        ret_size = count_tree_size(result)
+        print(f"returned bytes: {ret_size}")
     except Exception as e:
         print("FAIL:", e)
