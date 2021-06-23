@@ -54,7 +54,7 @@ for fn in glob.glob('programs/*.env'):
         proc = subprocess.Popen(['opc', fn], stdout=out)
         proc.wait()
 
-for hexname in glob.glob('programs/*.hex'):
+for hexname in sorted(glob.glob('programs/*.hex')):
 
     hexenv = hexname[:-3] + 'envhex'
 
