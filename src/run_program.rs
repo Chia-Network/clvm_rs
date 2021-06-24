@@ -93,7 +93,7 @@ const fn first_non_zero(buf: &[u8]) -> usize {
 }
 
 fn traverse_path(allocator: &Allocator, node_index: &[u8], args: &NodePtr) -> Response<NodePtr> {
-    let mut arg_list: NodePtr = args.clone();
+    let mut arg_list: NodePtr = *args;
 
     // find first non-zero byte
     let first_bit_byte_index = first_non_zero(node_index);
@@ -119,7 +119,7 @@ fn traverse_path(allocator: &Allocator, node_index: &[u8], args: &NodePtr) -> Re
                 return Err(EvalErr(arg_list, "path into atom".into()));
             }
             SExp::Pair(left, right) => {
-                arg_list = (if is_bit_set { &right } else { &left }).clone();
+                arg_list = *(if is_bit_set { &right } else { &left });
             }
         }
         if bitmask == 0x80 {
@@ -201,25 +201,25 @@ where
         let op_atom = self.allocator.buf(op_buf);
         // special case check for quote
         if op_atom.len() == 1 && op_atom[0] == self.quote_kw {
-            self.push(operand_list.clone());
+            self.push(*operand_list);
             Ok(QUOTE_COST)
         } else {
             self.op_stack.push(Operation::Apply);
-            self.push(operator_node.clone());
-            let mut operands: NodePtr = operand_list.clone();
+            self.push(*operator_node);
+            let mut operands: NodePtr = *operand_list;
             loop {
-                if Node::new(self.allocator, operands.clone()).nullp() {
+                if Node::new(self.allocator, operands).nullp() {
                     break;
                 }
                 self.op_stack.push(Operation::Cons);
                 self.op_stack.push(Operation::Eval);
                 self.op_stack.push(Operation::Swap);
                 match self.allocator.sexp(&operands) {
-                    SExp::Atom(_) => return err(operand_list.clone(), "bad operand list"),
+                    SExp::Atom(_) => return err(*operand_list, "bad operand list"),
                     SExp::Pair(first, rest) => {
-                        let new_pair = self.allocator.new_pair(first, args.clone())?;
+                        let new_pair = self.allocator.new_pair(first, *args)?;
                         self.push(new_pair);
-                        operands = rest.clone();
+                        operands = rest;
                     }
                 }
             }
@@ -252,7 +252,7 @@ where
                         return Ok(APPLY_COST);
                     }
                 }
-                return Node::new(self.allocator, program.clone())
+                return Node::new(self.allocator, *program)
                     .err("in ((X)...) syntax X must be lone atom");
             }
             SExp::Atom(op_atom) => op_atom,
@@ -324,7 +324,7 @@ where
         args: &NodePtr,
         max_cost: Cost,
     ) -> Response<NodePtr> {
-        self.val_stack = vec![self.allocator.new_pair(program.clone(), args.clone())?];
+        self.val_stack = vec![self.allocator.new_pair(*program, *args)?];
         self.op_stack = vec![Operation::Eval];
 
         // max_cost is always in effect, and necessary to prevent wrap-around of

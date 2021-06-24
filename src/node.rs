@@ -107,7 +107,7 @@ impl<'a> fmt::Debug for Node<'a> {
 
 impl<'a> Clone for Node<'a> {
     fn clone(&self) -> Self {
-        self.with_node(self.node.clone())
+        self.with_node(self.node)
     }
 }
 

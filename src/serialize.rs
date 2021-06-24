@@ -52,7 +52,7 @@ fn encode_size(f: &mut dyn Write, size: u64) -> std::io::Result<()> {
 }
 
 pub fn node_to_stream(node: &Node, f: &mut dyn Write) -> std::io::Result<()> {
-    let mut values: Vec<NodePtr> = vec![node.node.clone()];
+    let mut values: Vec<NodePtr> = vec![node.node];
     let a = node.allocator;
     while !values.is_empty() {
         let v = values.pop().unwrap();

@@ -206,6 +206,6 @@ impl<'a> Node<'a> {
     }
 
     pub fn err<T>(&self, msg: &str) -> Result<T, EvalErr<NodePtr>> {
-        err(self.node.clone(), msg)
+        err(self.node, msg)
     }
 }

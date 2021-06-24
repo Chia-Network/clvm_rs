@@ -33,7 +33,7 @@ impl OperatorHandler for OperatorHandlerWithMode {
         let op = &allocator.buf(&o);
         if op.len() == 1 {
             if let Some(f) = self.f_lookup[op[0] as usize] {
-                return f(allocator, argument_list.clone(), max_cost);
+                return f(allocator, *argument_list, max_cost);
             }
         }
         if self.strict {
@@ -41,7 +41,7 @@ impl OperatorHandler for OperatorHandlerWithMode {
             let op_arg = allocator.new_atom(&buf)?;
             err(op_arg, "unimplemented operator")
         } else {
-            op_unknown(allocator, o, argument_list.clone(), max_cost)
+            op_unknown(allocator, o, *argument_list, max_cost)
         }
     }
 }
