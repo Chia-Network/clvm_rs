@@ -1,6 +1,8 @@
 use crate::err_utils::err;
 use crate::reduction::EvalErr;
 
+pub type NodePtr = i32;
+
 pub enum SExp {
     Atom(AtomBuf),
     Pair(NodePtr, NodePtr),
@@ -12,13 +14,17 @@ pub struct AtomBuf {
     end: u32,
 }
 
-#[derive(Clone, Copy)]
-pub struct IntPair {
-    first: i32,
-    rest: i32,
+impl AtomBuf {
+    pub fn is_empty(self) -> bool {
+        self.start == self.end
+    }
 }
 
-pub type NodePtr = i32;
+#[derive(Clone, Copy)]
+pub struct IntPair {
+    first: NodePtr,
+    rest: NodePtr,
+}
 
 pub struct Allocator {
     // this is effectively a grow-only stack where atoms are allocated. Atoms

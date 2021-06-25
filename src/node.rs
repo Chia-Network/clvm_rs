@@ -35,7 +35,7 @@ impl<'a> Node<'a> {
 
     pub fn nullp(&self) -> bool {
         match self.sexp() {
-            SExp::Atom(a) => self.allocator.buf(&a).is_empty(),
+            SExp::Atom(a) => a.is_empty(),
             _ => false,
         }
     }
