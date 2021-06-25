@@ -21,15 +21,14 @@ pub trait OperatorHandler {
     fn op(
         &self,
         allocator: &mut Allocator,
-        op: AtomBuf,
+        op: NodePtr,
         args: NodePtr,
         max_cost: Cost,
     ) -> Response<NodePtr>;
 }
 
-pub type PreEval = Box<
-    dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<PostEval>>, EvalErr>,
->;
+pub type PreEval =
+    Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<PostEval>>, EvalErr>>;
 
 pub type PostEval = dyn Fn(Option<NodePtr>);
 
@@ -133,10 +132,7 @@ fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) -> Res
     Ok(Reduction(cost, arg_list))
 }
 
-fn augment_cost_errors(
-    r: Result<Cost, EvalErr>,
-    max_cost: NodePtr,
-) -> Result<Cost, EvalErr> {
+fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Cost, EvalErr> {
     if r.is_ok() {
         return r;
     }
@@ -288,13 +284,10 @@ where
     fn apply_op(&mut self, max_cost: Cost) -> Result<Cost, EvalErr> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
-        let opa = match self.allocator.sexp(operator) {
-            SExp::Pair(_, _) => {
-                return Err(EvalErr(operator, "internal error".into()));
-            }
-            SExp::Atom(opa) => opa,
-        };
-        let op_atom = self.allocator.buf(&opa);
+        if let SExp::Pair(_, _) = self.allocator.sexp(operator) {
+            return err(operator, "internal error");
+        }
+        let op_atom = self.allocator.atom(operator);
         if op_atom.len() == 1 && op_atom[0] == self.apply_kw {
             let operand_list = Node::new(self.allocator, operand_list);
             if operand_list.arg_count_is(2) {
@@ -311,7 +304,7 @@ where
         } else {
             let r = self
                 .operator_lookup
-                .op(self.allocator, opa, operand_list, max_cost)?;
+                .op(self.allocator, operator, operand_list, max_cost)?;
             self.push(r.1);
             Ok(r.0)
         }
@@ -357,7 +350,7 @@ where
                 }
             };
             if cost > max_cost {
-                return Err(EvalErr(max_cost_ptr, "cost exceeded".into()));
+                return err(max_cost_ptr, "cost exceeded");
             }
         }
         Ok(Reduction(cost, self.pop()?))

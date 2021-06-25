@@ -1,5 +1,5 @@
-use crate::cost::Cost;
 use crate::allocator::NodePtr;
+use crate::cost::Cost;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EvalErr(pub NodePtr, pub String);

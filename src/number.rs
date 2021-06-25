@@ -5,10 +5,7 @@ use crate::reduction::EvalErr;
 use num_bigint::BigInt;
 pub type Number = BigInt;
 
-pub fn ptr_from_number(
-    allocator: &mut Allocator,
-    item: &Number,
-) -> Result<NodePtr, EvalErr> {
+pub fn ptr_from_number(allocator: &mut Allocator, item: &Number) -> Result<NodePtr, EvalErr> {
     let bytes: Vec<u8> = item.to_signed_bytes_be();
     let mut slice = bytes.as_slice();
 

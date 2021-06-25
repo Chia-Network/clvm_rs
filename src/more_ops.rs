@@ -7,9 +7,9 @@ use std::ops::BitXorAssign;
 
 use lazy_static::lazy_static;
 
-use crate::allocator::{Allocator, AtomBuf, NodePtr};
+use crate::allocator::{Allocator, NodePtr};
 use crate::cost::{check_cost, Cost};
-use crate::err_utils::{err, u8_err};
+use crate::err_utils::err;
 use crate::node::Node;
 use crate::number::{number_from_u8, ptr_from_number, Number};
 use crate::op_utils::{
@@ -107,7 +107,7 @@ fn malloc_cost(a: &Allocator, cost: Cost, ptr: NodePtr) -> Reduction<NodePtr> {
 
 pub fn op_unknown(
     allocator: &mut Allocator,
-    o: AtomBuf,
+    o: NodePtr,
     args: NodePtr,
     max_cost: Cost,
 ) -> Response<NodePtr> {
@@ -139,17 +139,17 @@ pub fn op_unknown(
     // this means that unknown ops where cost_function is 1, 2, or 3, may still be
     // fatal errors if the arguments passed are not atoms.
 
-    let op = allocator.buf(&o);
+    let op = allocator.atom(o);
 
     if op.is_empty() || (op.len() >= 2 && op[0] == 0xff && op[1] == 0xff) {
-        return u8_err(allocator, &o, "reserved operator");
+        return err(o, "reserved operator");
     }
 
     let cost_function = (op[op.len() - 1] & 0b11000000) >> 6;
     let cost_multiplier: u64 = match u32_from_u8(&op[0..op.len() - 1]) {
         Some(v) => v as u64,
         None => {
-            return u8_err(allocator, &o, "invalid operator");
+            return err(o, "invalid operator");
         }
     };
 
@@ -213,7 +213,7 @@ pub fn op_unknown(
     check_cost(allocator, cost, max_cost)?;
     cost *= cost_multiplier + 1;
     if cost > u32::MAX as u64 {
-        u8_err(allocator, &o, "invalid operator")
+        err(o, "invalid operator")
     } else {
         Ok(Reduction(cost as Cost, allocator.null()))
     }
@@ -221,14 +221,8 @@ pub fn op_unknown(
 
 #[cfg(test)]
 fn test_op_unknown(buf: &[u8], a: &mut Allocator, n: NodePtr) -> Response<NodePtr> {
-    use crate::allocator::SExp;
-
     let buf = a.new_atom(buf)?;
-    let abuf = match a.sexp(buf) {
-        SExp::Atom(abuf) => abuf,
-        _ => panic!("shouldn't happen"),
-    };
-    op_unknown(a, abuf, n, 1000000)
+    op_unknown(a, buf, n, 1000000)
 }
 
 #[test]
