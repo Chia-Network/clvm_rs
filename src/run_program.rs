@@ -28,7 +28,7 @@ pub trait OperatorHandler {
 }
 
 pub type PreEval = Box<
-    dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<PostEval>>, EvalErr<NodePtr>>,
+    dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<PostEval>>, EvalErr>,
 >;
 
 pub type PostEval = dyn Fn(Option<NodePtr>);
@@ -57,7 +57,7 @@ pub struct RunProgramContext<'a> {
 }
 
 impl<'a, 'h> RunProgramContext<'a> {
-    pub fn pop(&mut self) -> Result<NodePtr, EvalErr<NodePtr>> {
+    pub fn pop(&mut self) -> Result<NodePtr, EvalErr> {
         let v: Option<NodePtr> = self.val_stack.pop();
         match v {
             None => {
@@ -133,10 +133,10 @@ fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) -> Res
     Ok(Reduction(cost, arg_list))
 }
 
-fn augment_cost_errors<P: Clone>(
-    r: Result<Cost, EvalErr<P>>,
-    max_cost: &P,
-) -> Result<Cost, EvalErr<P>> {
+fn augment_cost_errors(
+    r: Result<Cost, EvalErr>,
+    max_cost: NodePtr,
+) -> Result<Cost, EvalErr> {
     if r.is_ok() {
         return r;
     }
@@ -144,7 +144,7 @@ fn augment_cost_errors<P: Clone>(
     if &e.1 != "cost exceeded" {
         Err(e)
     } else {
-        Err(EvalErr(max_cost.clone(), e.1))
+        Err(EvalErr(max_cost, e.1))
     }
 }
 
@@ -168,7 +168,7 @@ impl<'a> RunProgramContext<'a> {
         }
     }
 
-    fn swap_op(&mut self) -> Result<Cost, EvalErr<NodePtr>> {
+    fn swap_op(&mut self) -> Result<Cost, EvalErr> {
         /* Swap the top two operands. */
         let v2 = self.pop()?;
         let v1 = self.pop()?;
@@ -177,7 +177,7 @@ impl<'a> RunProgramContext<'a> {
         Ok(0)
     }
 
-    fn cons_op(&mut self) -> Result<Cost, EvalErr<NodePtr>> {
+    fn cons_op(&mut self) -> Result<Cost, EvalErr> {
         /* Join the top two operands. */
         let v1 = self.pop()?;
         let v2 = self.pop()?;
@@ -197,7 +197,7 @@ where
         operator_node: NodePtr,
         operand_list: NodePtr,
         args: NodePtr,
-    ) -> Result<Cost, EvalErr<NodePtr>> {
+    ) -> Result<Cost, EvalErr> {
         let op_atom = self.allocator.buf(op_buf);
         // special case check for quote
         if op_atom.len() == 1 && op_atom[0] == self.quote_kw {
@@ -228,7 +228,7 @@ where
         }
     }
 
-    fn eval_pair(&mut self, program: NodePtr, args: NodePtr) -> Result<Cost, EvalErr<NodePtr>> {
+    fn eval_pair(&mut self, program: NodePtr, args: NodePtr) -> Result<Cost, EvalErr> {
         // put a bunch of ops on op_stack
         let (op_node, op_list) = match self.allocator.sexp(program) {
             // the program is just a bitfield path through the args tree
@@ -261,7 +261,7 @@ where
         self.eval_op_atom(&op_atom, op_node, op_list, args)
     }
 
-    fn eval_op(&mut self) -> Result<Cost, EvalErr<NodePtr>> {
+    fn eval_op(&mut self) -> Result<Cost, EvalErr> {
         /*
         Pop the top value and treat it as a (program, args) pair, and manipulate
         the op & value stack to evaluate all the arguments and apply the operator.
@@ -285,7 +285,7 @@ where
         }
     }
 
-    fn apply_op(&mut self, max_cost: Cost) -> Result<Cost, EvalErr<NodePtr>> {
+    fn apply_op(&mut self, max_cost: Cost) -> Result<Cost, EvalErr> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
         let opa = match self.allocator.sexp(operator) {
@@ -344,10 +344,10 @@ where
             };
             cost += match op {
                 Operation::Apply => {
-                    augment_cost_errors(self.apply_op(max_cost - cost), &max_cost_ptr)?
+                    augment_cost_errors(self.apply_op(max_cost - cost), max_cost_ptr)?
                 }
                 Operation::Cons => self.cons_op()?,
-                Operation::Eval => augment_cost_errors(self.eval_op(), &max_cost_ptr)?,
+                Operation::Eval => augment_cost_errors(self.eval_op(), max_cost_ptr)?,
                 Operation::Swap => self.swap_op()?,
                 Operation::PostEval => {
                     let f = self.posteval_stack.pop().unwrap();

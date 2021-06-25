@@ -65,7 +65,7 @@ impl Allocator {
         r
     }
 
-    pub fn new_atom(&mut self, v: &[u8]) -> Result<NodePtr, EvalErr<NodePtr>> {
+    pub fn new_atom(&mut self, v: &[u8]) -> Result<NodePtr, EvalErr> {
         let start = self.u8_vec.len() as u32;
         if ((u32::MAX - start) as usize) < v.len() {
             return err(self.null(), "out of memory");
@@ -79,7 +79,7 @@ impl Allocator {
         Ok(-(self.atom_vec.len() as i32))
     }
 
-    pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr<NodePtr>> {
+    pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr> {
         let r = self.pair_vec.len() as i32;
         if self.pair_vec.len() == i32::MAX as usize {
             return err(self.null(), "too many pairs");
@@ -93,7 +93,7 @@ impl Allocator {
         node: NodePtr,
         start: u32,
         end: u32,
-    ) -> Result<NodePtr, EvalErr<NodePtr>> {
+    ) -> Result<NodePtr, EvalErr> {
         if node >= 0 {
             return err(node, "(internal error) substr expected atom, got pair");
         }
