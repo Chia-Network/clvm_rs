@@ -23,7 +23,7 @@ impl ToPyObject for LazyNode {
 impl LazyNode {
     #[getter(pair)]
     pub fn pair(&self, py: Python) -> PyResult<Option<PyObject>> {
-        match &self.allocator.sexp(&self.node) {
+        match &self.allocator.sexp(self.node) {
             SExp::Pair(p1, p2) => {
                 let r1 = Self::new(self.allocator.clone(), *p1);
                 let r2 = Self::new(self.allocator.clone(), *p2);
@@ -36,7 +36,7 @@ impl LazyNode {
 
     #[getter(atom)]
     pub fn atom(&self, py: Python) -> Option<PyObject> {
-        match &self.allocator.sexp(&self.node) {
+        match &self.allocator.sexp(self.node) {
             SExp::Atom(atom) => Some(PyBytes::new(py, self.allocator.buf(atom)).into()),
             _ => None,
         }

@@ -46,54 +46,54 @@ fn test_ptr_from_number() {
     let num = number_from_u8(&[0]);
     let ptr = ptr_from_number(&mut a, &num).unwrap();
     assert_eq!(format!("{}", num), "0");
-    assert_eq!(a.atom(&ptr).len(), 0);
+    assert_eq!(a.atom(ptr).len(), 0);
 
     let num = number_from_u8(&[1]);
     let ptr = ptr_from_number(&mut a, &num).unwrap();
     assert_eq!(format!("{}", num), "1");
-    assert_eq!(&[1], &a.atom(&ptr));
+    assert_eq!(&[1], &a.atom(ptr));
 
     // leading zeroes are redundant
     let num = number_from_u8(&[0, 0, 0, 1]);
     let ptr = ptr_from_number(&mut a, &num).unwrap();
     assert_eq!(format!("{}", num), "1");
-    assert_eq!(&[1], &a.atom(&ptr));
+    assert_eq!(&[1], &a.atom(ptr));
 
     let num = number_from_u8(&[0x00, 0x00, 0x80]);
     let ptr = ptr_from_number(&mut a, &num).unwrap();
     assert_eq!(format!("{}", num), "128");
-    assert_eq!(&[0x00, 0x80], &a.atom(&ptr));
+    assert_eq!(&[0x00, 0x80], &a.atom(ptr));
 
     // A leading zero is necessary to encode a positive number with the
     // penultimate byte's most significant bit set
     let num = number_from_u8(&[0x00, 0xff]);
     let ptr = ptr_from_number(&mut a, &num).unwrap();
     assert_eq!(format!("{}", num), "255");
-    assert_eq!(&[0x00, 0xff], &a.atom(&ptr));
+    assert_eq!(&[0x00, 0xff], &a.atom(ptr));
 
     let num = number_from_u8(&[0x7f, 0xff]);
     let ptr = ptr_from_number(&mut a, &num).unwrap();
     assert_eq!(format!("{}", num), "32767");
-    assert_eq!(&[0x7f, 0xff], &a.atom(&ptr));
+    assert_eq!(&[0x7f, 0xff], &a.atom(ptr));
 
     // the first byte is redundant, it's still -1
     let num = number_from_u8(&[0xff, 0xff]);
     let ptr = ptr_from_number(&mut a, &num).unwrap();
     assert_eq!(format!("{}", num), "-1");
-    assert_eq!(&[0xff], &a.atom(&ptr));
+    assert_eq!(&[0xff], &a.atom(ptr));
 
     let num = number_from_u8(&[0xff]);
     let ptr = ptr_from_number(&mut a, &num).unwrap();
     assert_eq!(format!("{}", num), "-1");
-    assert_eq!(&[0xff], &a.atom(&ptr));
+    assert_eq!(&[0xff], &a.atom(ptr));
 
     let num = number_from_u8(&[0x00, 0x80, 0x00]);
     assert_eq!(format!("{}", num), "32768");
     let ptr = ptr_from_number(&mut a, &num).unwrap();
-    assert_eq!(&[0x00, 0x80, 0x00], &a.atom(&ptr));
+    assert_eq!(&[0x00, 0x80, 0x00], &a.atom(ptr));
 
     let num = number_from_u8(&[0x00, 0x40, 0x00]);
     assert_eq!(format!("{}", num), "16384");
     let ptr = ptr_from_number(&mut a, &num).unwrap();
-    assert_eq!(&[0x40, 0x00], &a.atom(&ptr));
+    assert_eq!(&[0x40, 0x00], &a.atom(ptr));
 }
