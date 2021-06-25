@@ -101,7 +101,7 @@ fn new_atom_and_cost(a: &mut Allocator, cost: Cost, buf: &[u8]) -> Response<Node
 }
 
 fn malloc_cost(a: &Allocator, cost: Cost, ptr: NodePtr) -> Reduction<NodePtr> {
-    let c = a.atom(&ptr).len() as Cost * MALLOC_COST_PER_BYTE;
+    let c = a.atom(ptr).len() as Cost * MALLOC_COST_PER_BYTE;
     Reduction(cost + c, ptr)
 }
 
@@ -224,7 +224,7 @@ fn test_op_unknown(buf: &[u8], a: &mut Allocator, n: NodePtr) -> Response<NodePt
     use crate::allocator::SExp;
 
     let buf = a.new_atom(buf)?;
-    let abuf = match a.sexp(&buf) {
+    let abuf = match a.sexp(buf) {
         SExp::Atom(abuf) => abuf,
         _ => panic!("shouldn't happen"),
     };
@@ -448,7 +448,7 @@ pub fn op_divmod(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
         let q1 = ptr_from_number(a, &q)?;
         let r1 = ptr_from_number(a, &r)?;
 
-        let c = (a.atom(&q1).len() + a.atom(&r1).len()) as Cost * MALLOC_COST_PER_BYTE;
+        let c = (a.atom(q1).len() + a.atom(r1).len()) as Cost * MALLOC_COST_PER_BYTE;
         let r: NodePtr = a.new_pair(q1, r1)?;
         Ok(Reduction(cost + c, r))
     }

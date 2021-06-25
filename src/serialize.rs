@@ -56,7 +56,7 @@ pub fn node_to_stream(node: &Node, f: &mut dyn Write) -> std::io::Result<()> {
     let a = node.allocator;
     while !values.is_empty() {
         let v = values.pop().unwrap();
-        let n = a.sexp(&v);
+        let n = a.sexp(v);
         match n {
             SExp::Atom(atom_ptr) => {
                 let atom = a.buf(&atom_ptr);

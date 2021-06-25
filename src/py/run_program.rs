@@ -27,13 +27,13 @@ impl OperatorHandler for OperatorHandlerWithMode {
         &self,
         allocator: &mut Allocator,
         o: AtomBuf,
-        argument_list: &NodePtr,
+        argument_list: NodePtr,
         max_cost: Cost,
     ) -> Response<NodePtr> {
         let op = &allocator.buf(&o);
         if op.len() == 1 {
             if let Some(f) = self.f_lookup[op[0] as usize] {
-                return f(allocator, *argument_list, max_cost);
+                return f(allocator, argument_list, max_cost);
             }
         }
         if self.strict {
@@ -41,7 +41,7 @@ impl OperatorHandler for OperatorHandlerWithMode {
             let op_arg = allocator.new_atom(&buf)?;
             err(op_arg, "unimplemented operator")
         } else {
-            op_unknown(allocator, o, *argument_list, max_cost)
+            op_unknown(allocator, o, argument_list, max_cost)
         }
     }
 }
@@ -129,8 +129,8 @@ pub fn deserialize_and_run_program(
     let r = py.allow_threads(|| {
         run_program(
             &mut allocator,
-            &program,
-            &args,
+            program,
+            args,
             quote_kw,
             apply_kw,
             max_cost,
@@ -196,8 +196,8 @@ pub fn deserialize_and_run_program2(
     let r = py.allow_threads(|| {
         run_program(
             &mut allocator,
-            &program,
-            &args,
+            program,
+            args,
             quote_kw,
             apply_kw,
             max_cost,

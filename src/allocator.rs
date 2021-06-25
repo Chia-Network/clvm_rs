@@ -115,11 +115,11 @@ impl Allocator {
         Ok(-(self.atom_vec.len() as i32))
     }
 
-    pub fn atom<'a>(&'a self, node: &NodePtr) -> &'a [u8] {
-        if *node >= 0 {
+    pub fn atom(&self, node: NodePtr) -> &[u8] {
+        if node >= 0 {
             panic!("expected atom, got pair");
         }
-        let atom = self.atom_vec[(-*node - 1) as usize];
+        let atom = self.atom_vec[(-node - 1) as usize];
         &self.u8_vec[atom.start as usize..atom.end as usize]
     }
 
@@ -127,12 +127,12 @@ impl Allocator {
         &self.u8_vec[node.start as usize..node.end as usize]
     }
 
-    pub fn sexp(&self, node: &NodePtr) -> SExp {
-        if *node >= 0 {
-            let pair = self.pair_vec[*node as usize];
+    pub fn sexp(&self, node: NodePtr) -> SExp {
+        if node >= 0 {
+            let pair = self.pair_vec[node as usize];
             SExp::Pair(pair.first, pair.rest)
         } else {
-            let atom = self.atom_vec[(-*node - 1) as usize];
+            let atom = self.atom_vec[(-node - 1) as usize];
             SExp::Atom(atom)
         }
     }

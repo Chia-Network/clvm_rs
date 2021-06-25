@@ -22,16 +22,16 @@ pub trait OperatorHandler {
         &self,
         allocator: &mut Allocator,
         op: AtomBuf,
-        args: &NodePtr,
+        args: NodePtr,
         max_cost: Cost,
     ) -> Response<NodePtr>;
 }
 
 pub type PreEval = Box<
-    dyn Fn(&mut Allocator, &NodePtr, &NodePtr) -> Result<Option<Box<PostEval>>, EvalErr<NodePtr>>,
+    dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<PostEval>>, EvalErr<NodePtr>>,
 >;
 
-pub type PostEval = dyn Fn(Option<&NodePtr>);
+pub type PostEval = dyn Fn(Option<NodePtr>);
 
 #[repr(u8)]
 enum Operation {
@@ -92,8 +92,8 @@ const fn first_non_zero(buf: &[u8]) -> usize {
     c
 }
 
-fn traverse_path(allocator: &Allocator, node_index: &[u8], args: &NodePtr) -> Response<NodePtr> {
-    let mut arg_list: NodePtr = *args;
+fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) -> Response<NodePtr> {
+    let mut arg_list: NodePtr = args;
 
     // find first non-zero byte
     let first_bit_byte_index = first_non_zero(node_index);
@@ -114,7 +114,7 @@ fn traverse_path(allocator: &Allocator, node_index: &[u8], args: &NodePtr) -> Re
     let mut bitmask = 0x01;
     while byte_idx > first_bit_byte_index || bitmask < last_bitmask {
         let is_bit_set: bool = (node_index[byte_idx] & bitmask) != 0;
-        match allocator.sexp(&arg_list) {
+        match allocator.sexp(arg_list) {
             SExp::Atom(_) => {
                 return Err(EvalErr(arg_list, "path into atom".into()));
             }
@@ -194,19 +194,19 @@ where
     fn eval_op_atom(
         &mut self,
         op_buf: &AtomBuf,
-        operator_node: &NodePtr,
-        operand_list: &NodePtr,
-        args: &NodePtr,
+        operator_node: NodePtr,
+        operand_list: NodePtr,
+        args: NodePtr,
     ) -> Result<Cost, EvalErr<NodePtr>> {
         let op_atom = self.allocator.buf(op_buf);
         // special case check for quote
         if op_atom.len() == 1 && op_atom[0] == self.quote_kw {
-            self.push(*operand_list);
+            self.push(operand_list);
             Ok(QUOTE_COST)
         } else {
             self.op_stack.push(Operation::Apply);
-            self.push(*operator_node);
-            let mut operands: NodePtr = *operand_list;
+            self.push(operator_node);
+            let mut operands: NodePtr = operand_list;
             loop {
                 if Node::new(self.allocator, operands).nullp() {
                     break;
@@ -214,10 +214,10 @@ where
                 self.op_stack.push(Operation::Cons);
                 self.op_stack.push(Operation::Eval);
                 self.op_stack.push(Operation::Swap);
-                match self.allocator.sexp(&operands) {
-                    SExp::Atom(_) => return err(*operand_list, "bad operand list"),
+                match self.allocator.sexp(operands) {
+                    SExp::Atom(_) => return err(operand_list, "bad operand list"),
                     SExp::Pair(first, rest) => {
-                        let new_pair = self.allocator.new_pair(first, *args)?;
+                        let new_pair = self.allocator.new_pair(first, args)?;
                         self.push(new_pair);
                         operands = rest;
                     }
@@ -228,7 +228,7 @@ where
         }
     }
 
-    fn eval_pair(&mut self, program: &NodePtr, args: &NodePtr) -> Result<Cost, EvalErr<NodePtr>> {
+    fn eval_pair(&mut self, program: NodePtr, args: NodePtr) -> Result<Cost, EvalErr<NodePtr>> {
         // put a bunch of ops on op_stack
         let (op_node, op_list) = match self.allocator.sexp(program) {
             // the program is just a bitfield path through the args tree
@@ -242,9 +242,9 @@ where
             SExp::Pair(operator_node, operand_list) => (operator_node, operand_list),
         };
 
-        let op_atom = match self.allocator.sexp(&op_node) {
+        let op_atom = match self.allocator.sexp(op_node) {
             SExp::Pair(new_operator, must_be_nil) => {
-                if let SExp::Atom(_) = self.allocator.sexp(&new_operator) {
+                if let SExp::Atom(_) = self.allocator.sexp(new_operator) {
                     if Node::new(self.allocator, must_be_nil).nullp() {
                         self.push(new_operator);
                         self.push(op_list);
@@ -252,13 +252,13 @@ where
                         return Ok(APPLY_COST);
                     }
                 }
-                return Node::new(self.allocator, *program)
+                return Node::new(self.allocator, program)
                     .err("in ((X)...) syntax X must be lone atom");
             }
             SExp::Atom(op_atom) => op_atom,
         };
 
-        self.eval_op_atom(&op_atom, &op_node, &op_list, args)
+        self.eval_op_atom(&op_atom, op_node, op_list, args)
     }
 
     fn eval_op(&mut self) -> Result<Cost, EvalErr<NodePtr>> {
@@ -268,19 +268,19 @@ where
         */
 
         let pair: NodePtr = self.pop()?;
-        match self.allocator.sexp(&pair) {
+        match self.allocator.sexp(pair) {
             SExp::Atom(_) => err(pair, "pair expected"),
             SExp::Pair(program, args) => {
                 let post_eval = match self.pre_eval {
                     None => None,
-                    Some(ref pre_eval) => pre_eval(&mut self.allocator, &program, &args)?,
+                    Some(ref pre_eval) => pre_eval(&mut self.allocator, program, args)?,
                 };
                 if let Some(post_eval) = post_eval {
                     self.posteval_stack.push(post_eval);
                     self.op_stack.push(Operation::PostEval);
                 };
 
-                self.eval_pair(&program, &args)
+                self.eval_pair(program, args)
             }
         }
     }
@@ -288,7 +288,7 @@ where
     fn apply_op(&mut self, max_cost: Cost) -> Result<Cost, EvalErr<NodePtr>> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
-        let opa = match self.allocator.sexp(&operator) {
+        let opa = match self.allocator.sexp(operator) {
             SExp::Pair(_, _) => {
                 return Err(EvalErr(operator, "internal error".into()));
             }
@@ -311,7 +311,7 @@ where
         } else {
             let r = self
                 .operator_lookup
-                .op(self.allocator, opa, &operand_list, max_cost)?;
+                .op(self.allocator, opa, operand_list, max_cost)?;
             self.push(r.1);
             Ok(r.0)
         }
@@ -320,11 +320,11 @@ where
     #[allow(clippy::too_many_arguments)]
     pub fn run_program(
         &mut self,
-        program: &NodePtr,
-        args: &NodePtr,
+        program: NodePtr,
+        args: NodePtr,
         max_cost: Cost,
     ) -> Response<NodePtr> {
-        self.val_stack = vec![self.allocator.new_pair(*program, *args)?];
+        self.val_stack = vec![self.allocator.new_pair(program, args)?];
         self.op_stack = vec![Operation::Eval];
 
         // max_cost is always in effect, and necessary to prevent wrap-around of
@@ -351,7 +351,7 @@ where
                 Operation::Swap => self.swap_op()?,
                 Operation::PostEval => {
                     let f = self.posteval_stack.pop().unwrap();
-                    let peek: Option<&NodePtr> = self.val_stack.last();
+                    let peek: Option<NodePtr> = self.val_stack.last().copied();
                     f(peek);
                     0
                 }
@@ -367,8 +367,8 @@ where
 #[allow(clippy::too_many_arguments)]
 pub fn run_program(
     allocator: &mut Allocator,
-    program: &NodePtr,
-    args: &NodePtr,
+    program: NodePtr,
+    args: NodePtr,
     quote_kw: u8,
     apply_kw: u8,
     max_cost: Cost,
@@ -419,57 +419,54 @@ fn test_traverse_path() {
     let n1 = a.new_atom(&[0, 1, 2]).unwrap();
     let n2 = a.new_atom(&[4, 5, 6]).unwrap();
 
-    assert_eq!(traverse_path(&a, &[0], &n1).unwrap(), Reduction(48, nul));
-    assert_eq!(traverse_path(&a, &[0b1], &n1).unwrap(), Reduction(44, n1));
-    assert_eq!(traverse_path(&a, &[0b1], &n2).unwrap(), Reduction(44, n2));
+    assert_eq!(traverse_path(&a, &[0], n1).unwrap(), Reduction(48, nul));
+    assert_eq!(traverse_path(&a, &[0b1], n1).unwrap(), Reduction(44, n1));
+    assert_eq!(traverse_path(&a, &[0b1], n2).unwrap(), Reduction(44, n2));
 
     // cost for leading zeros
     assert_eq!(
-        traverse_path(&a, &[0, 0, 0, 0], &n1).unwrap(),
+        traverse_path(&a, &[0, 0, 0, 0], n1).unwrap(),
         Reduction(60, nul)
     );
 
     let n3 = a.new_pair(n1, n2).unwrap();
-    assert_eq!(traverse_path(&a, &[0b1], &n3).unwrap(), Reduction(44, n3));
-    assert_eq!(traverse_path(&a, &[0b10], &n3).unwrap(), Reduction(48, n1));
-    assert_eq!(traverse_path(&a, &[0b11], &n3).unwrap(), Reduction(48, n2));
-    assert_eq!(traverse_path(&a, &[0b11], &n3).unwrap(), Reduction(48, n2));
+    assert_eq!(traverse_path(&a, &[0b1], n3).unwrap(), Reduction(44, n3));
+    assert_eq!(traverse_path(&a, &[0b10], n3).unwrap(), Reduction(48, n1));
+    assert_eq!(traverse_path(&a, &[0b11], n3).unwrap(), Reduction(48, n2));
+    assert_eq!(traverse_path(&a, &[0b11], n3).unwrap(), Reduction(48, n2));
 
     let list = a.new_pair(n1, nul).unwrap();
     let list = a.new_pair(n2, list).unwrap();
 
+    assert_eq!(traverse_path(&a, &[0b10], list).unwrap(), Reduction(48, n2));
     assert_eq!(
-        traverse_path(&a, &[0b10], &list).unwrap(),
-        Reduction(48, n2)
-    );
-    assert_eq!(
-        traverse_path(&a, &[0b101], &list).unwrap(),
+        traverse_path(&a, &[0b101], list).unwrap(),
         Reduction(52, n1)
     );
     assert_eq!(
-        traverse_path(&a, &[0b111], &list).unwrap(),
+        traverse_path(&a, &[0b111], list).unwrap(),
         Reduction(52, nul)
     );
 
     // errors
     assert_eq!(
-        traverse_path(&a, &[0b1011], &list).unwrap_err(),
+        traverse_path(&a, &[0b1011], list).unwrap_err(),
         EvalErr(nul, "path into atom".to_string())
     );
     assert_eq!(
-        traverse_path(&a, &[0b1101], &list).unwrap_err(),
+        traverse_path(&a, &[0b1101], list).unwrap_err(),
         EvalErr(n1, "path into atom".to_string())
     );
     assert_eq!(
-        traverse_path(&a, &[0b1001], &list).unwrap_err(),
+        traverse_path(&a, &[0b1001], list).unwrap_err(),
         EvalErr(n1, "path into atom".to_string())
     );
     assert_eq!(
-        traverse_path(&a, &[0b1010], &list).unwrap_err(),
+        traverse_path(&a, &[0b1010], list).unwrap_err(),
         EvalErr(n2, "path into atom".to_string())
     );
     assert_eq!(
-        traverse_path(&a, &[0b1110], &list).unwrap_err(),
+        traverse_path(&a, &[0b1110], list).unwrap_err(),
         EvalErr(n2, "path into atom".to_string())
     );
 }
