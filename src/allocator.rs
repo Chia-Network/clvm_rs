@@ -1,9 +1,9 @@
 use crate::err_utils::err;
 use crate::reduction::EvalErr;
 
-pub enum SExp<T, B> {
-    Atom(B),
-    Pair(T, T),
+pub enum SExp {
+    Atom(AtomBuf),
+    Pair(NodePtr, NodePtr),
 }
 
 #[derive(Clone, Copy)]
@@ -121,7 +121,7 @@ impl Allocator {
         &self.u8_vec[node.start as usize..node.end as usize]
     }
 
-    pub fn sexp(&self, node: &NodePtr) -> SExp<NodePtr, AtomBuf> {
+    pub fn sexp(&self, node: &NodePtr) -> SExp {
         if *node >= 0 {
             let pair = self.pair_vec[*node as usize];
             SExp::Pair(pair.first, pair.rest)
