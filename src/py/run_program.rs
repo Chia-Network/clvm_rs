@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::allocator::{Allocator, AtomBuf, NodePtr};
+use crate::allocator::{Allocator, NodePtr};
 use crate::cost::Cost;
 use crate::err_utils::err;
 use crate::more_ops::op_unknown;
@@ -26,20 +26,18 @@ impl OperatorHandler for OperatorHandlerWithMode {
     fn op(
         &self,
         allocator: &mut Allocator,
-        o: AtomBuf,
+        o: NodePtr,
         argument_list: NodePtr,
         max_cost: Cost,
     ) -> Response<NodePtr> {
-        let op = &allocator.buf(&o);
-        if op.len() == 1 {
-            if let Some(f) = self.f_lookup[op[0] as usize] {
+        let b = &allocator.atom(o);
+        if b.len() == 1 {
+            if let Some(f) = self.f_lookup[b[0] as usize] {
                 return f(allocator, argument_list, max_cost);
             }
         }
         if self.strict {
-            let buf = op.to_vec();
-            let op_arg = allocator.new_atom(&buf)?;
-            err(op_arg, "unimplemented operator")
+            err(o, "unimplemented operator")
         } else {
             op_unknown(allocator, o, argument_list, max_cost)
         }

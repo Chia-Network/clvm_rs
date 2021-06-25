@@ -81,10 +81,7 @@ pub fn atom<'a>(args: &'a Node, op_name: &str) -> Result<&'a [u8], EvalErr> {
     }
 }
 
-pub fn two_ints(
-    args: &Node,
-    op_name: &str,
-) -> Result<(Number, usize, Number, usize), EvalErr> {
+pub fn two_ints(args: &Node, op_name: &str) -> Result<(Number, usize, Number, usize), EvalErr> {
     check_arg_count(args, 2, op_name)?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;

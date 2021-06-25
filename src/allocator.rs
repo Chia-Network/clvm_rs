@@ -88,12 +88,7 @@ impl Allocator {
         Ok(r)
     }
 
-    pub fn new_substr(
-        &mut self,
-        node: NodePtr,
-        start: u32,
-        end: u32,
-    ) -> Result<NodePtr, EvalErr> {
+    pub fn new_substr(&mut self, node: NodePtr, start: u32, end: u32) -> Result<NodePtr, EvalErr> {
         if node >= 0 {
             return err(node, "(internal error) substr expected atom, got pair");
         }
