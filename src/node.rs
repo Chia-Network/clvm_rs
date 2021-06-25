@@ -1,4 +1,4 @@
-use super::allocator::{Allocator, AtomBuf, NodePtr, SExp};
+use super::allocator::{Allocator, NodePtr, SExp};
 use std::fmt;
 
 pub struct Node<'a> {
@@ -15,7 +15,7 @@ impl<'a> Node<'a> {
         Node::new(self.allocator, node)
     }
 
-    pub fn sexp(&self) -> SExp<NodePtr, AtomBuf> {
+    pub fn sexp(&self) -> SExp {
         self.allocator.sexp(&self.node)
     }
 
