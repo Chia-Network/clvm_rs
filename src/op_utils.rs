@@ -1,10 +1,9 @@
-use crate::allocator::NodePtr;
 use crate::err_utils::err;
 use crate::node::Node;
 use crate::number::{number_from_u8, Number};
 use crate::reduction::EvalErr;
 
-pub fn check_arg_count(args: &Node, expected: usize, name: &str) -> Result<(), EvalErr<NodePtr>> {
+pub fn check_arg_count(args: &Node, expected: usize, name: &str) -> Result<(), EvalErr> {
     if arg_count(args, expected) != expected {
         args.err(&format!(
             "{} takes exactly {} argument{}",
@@ -67,7 +66,7 @@ fn test_arg_count() {
     assert_eq!(arg_count(&count_3_args, 4), 3);
 }
 
-pub fn int_atom<'a>(args: &'a Node, op_name: &str) -> Result<&'a [u8], EvalErr<NodePtr>> {
+pub fn int_atom<'a>(args: &'a Node, op_name: &str) -> Result<&'a [u8], EvalErr> {
     match args.atom() {
         Some(a) => Ok(a),
         _ => args.err(&format!("{} requires int args", op_name)),
@@ -75,7 +74,7 @@ pub fn int_atom<'a>(args: &'a Node, op_name: &str) -> Result<&'a [u8], EvalErr<N
 }
 
 // rename to atom()
-pub fn atom<'a>(args: &'a Node, op_name: &str) -> Result<&'a [u8], EvalErr<NodePtr>> {
+pub fn atom<'a>(args: &'a Node, op_name: &str) -> Result<&'a [u8], EvalErr> {
     match args.atom() {
         Some(a) => Ok(a),
         _ => args.err(&format!("{} on list", op_name)),
@@ -85,7 +84,7 @@ pub fn atom<'a>(args: &'a Node, op_name: &str) -> Result<&'a [u8], EvalErr<NodeP
 pub fn two_ints(
     args: &Node,
     op_name: &str,
-) -> Result<(Number, usize, Number, usize), EvalErr<NodePtr>> {
+) -> Result<(Number, usize, Number, usize), EvalErr> {
     check_arg_count(args, 2, op_name)?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
@@ -174,7 +173,7 @@ fn test_i32_from_u8() {
     assert_eq!(i32_from_u8(&[0x7d, 0xcc, 0x55, 0x88, 0xf3]), None);
 }
 
-pub fn i32_atom(args: &Node, op_name: &str) -> Result<i32, EvalErr<NodePtr>> {
+pub fn i32_atom(args: &Node, op_name: &str) -> Result<i32, EvalErr> {
     let buf = match args.atom() {
         Some(a) => a,
         _ => {
@@ -191,21 +190,21 @@ pub fn i32_atom(args: &Node, op_name: &str) -> Result<i32, EvalErr<NodePtr>> {
 }
 
 impl<'a> Node<'a> {
-    pub fn first(&self) -> Result<Node<'a>, EvalErr<NodePtr>> {
+    pub fn first(&self) -> Result<Node<'a>, EvalErr> {
         match self.pair() {
             Some((p1, _)) => Ok(self.with_node(p1.node)),
             _ => self.err("first of non-cons"),
         }
     }
 
-    pub fn rest(&self) -> Result<Node<'a>, EvalErr<NodePtr>> {
+    pub fn rest(&self) -> Result<Node<'a>, EvalErr> {
         match self.pair() {
             Some((_, p2)) => Ok(self.with_node(p2.node)),
             _ => self.err("rest of non-cons"),
         }
     }
 
-    pub fn err<T>(&self, msg: &str) -> Result<T, EvalErr<NodePtr>> {
+    pub fn err<T>(&self, msg: &str) -> Result<T, EvalErr> {
         err(self.node, msg)
     }
 }

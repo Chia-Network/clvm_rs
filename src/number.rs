@@ -8,7 +8,7 @@ pub type Number = BigInt;
 pub fn ptr_from_number(
     allocator: &mut Allocator,
     item: &Number,
-) -> Result<NodePtr, EvalErr<NodePtr>> {
+) -> Result<NodePtr, EvalErr> {
     let bytes: Vec<u8> = item.to_signed_bytes_be();
     let mut slice = bytes.as_slice();
 

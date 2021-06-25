@@ -127,8 +127,8 @@ enum ParseOp {
     Cons,
 }
 
-impl<T> std::convert::From<EvalErr<T>> for std::io::Error {
-    fn from(v: EvalErr<T>) -> Self {
+impl std::convert::From<EvalErr> for std::io::Error {
+    fn from(v: EvalErr) -> Self {
         Self::new(ErrorKind::Other, v.1)
     }
 }
