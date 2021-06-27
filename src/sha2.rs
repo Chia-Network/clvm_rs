@@ -7,6 +7,7 @@ use openssl::sha;
 // WINDOWS PART
 
 #[cfg(windows)]
+#[derive(Clone)]
 pub struct Sha256 {
     ctx: Ctx,
 }
@@ -27,6 +28,7 @@ impl Sha256 {
 // UNIX PART
 
 #[cfg(unix)]
+#[derive(Clone)]
 pub struct Sha256 {
     ctx: sha::Sha256,
 }
