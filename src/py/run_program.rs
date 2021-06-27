@@ -9,17 +9,24 @@ use crate::more_ops::op_unknown;
 use crate::node::Node;
 use crate::py::lazy_node::LazyNode;
 use crate::reduction::Response;
-use crate::run_program::{run_program, OperatorHandler};
+use crate::run_program::{run_program, OperatorHandler, STRICT_MODE};
 use crate::serialize::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
 
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
 
-pub const STRICT_MODE: u32 = 1;
-
-struct OperatorHandlerWithMode {
+pub struct OperatorHandlerWithMode {
     f_lookup: FLookup,
     strict: bool,
+}
+
+impl OperatorHandlerWithMode {
+    pub fn new(l: FLookup, strict: bool) -> OperatorHandlerWithMode {
+        OperatorHandlerWithMode {
+            f_lookup: l,
+            strict,
+        }
+    }
 }
 
 impl OperatorHandler for OperatorHandlerWithMode {

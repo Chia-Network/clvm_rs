@@ -8,13 +8,16 @@ pub enum SExp {
     Pair(NodePtr, NodePtr),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct AtomBuf {
     start: u32,
     end: u32,
 }
 
 impl AtomBuf {
+    pub fn idx_range(&self) -> (u32, u32) {
+        (self.start, self.end)
+    }
     pub fn is_empty(&self) -> bool {
         self.start == self.end
     }
@@ -23,12 +26,13 @@ impl AtomBuf {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct IntPair {
     first: NodePtr,
     rest: NodePtr,
 }
 
+#[derive(Debug)]
 pub struct Allocator {
     // this is effectively a grow-only stack where atoms are allocated. Atoms
     // are immutable, so once they are created, they will stay around until the

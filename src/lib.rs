@@ -3,6 +3,8 @@ mod core_ops;
 mod cost;
 mod err_utils;
 mod f_table;
+mod gen;
+mod int_to_bytes;
 mod more_ops;
 mod node;
 mod number;
