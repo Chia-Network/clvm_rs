@@ -80,18 +80,6 @@ impl<'a> Node<'a> {
     }
 }
 
-impl<'a> PartialEq for Node<'a> {
-    fn eq(&self, other: &Self) -> bool {
-        match (self.sexp(), other.sexp()) {
-            (SExp::Pair(l0, l1), SExp::Pair(r0, r1)) => {
-                self.with_node(l0) == self.with_node(r0) && self.with_node(l1) == self.with_node(r1)
-            }
-            (SExp::Atom(l0), SExp::Atom(r0)) => self.allocator.buf(&l0) == self.allocator.buf(&r0),
-            _ => false,
-        }
-    }
-}
-
 impl<'a> fmt::Debug for Node<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.sexp() {
