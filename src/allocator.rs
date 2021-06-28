@@ -15,8 +15,11 @@ pub struct AtomBuf {
 }
 
 impl AtomBuf {
-    pub fn is_empty(self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.start == self.end
+    }
+    pub fn len(&self) -> usize {
+        (self.end - self.start) as usize
     }
 }
 
@@ -107,6 +110,44 @@ impl Allocator {
             start: atom.start + start,
             end: atom.start + end,
         });
+        Ok(-(self.atom_vec.len() as i32))
+    }
+
+    pub fn new_concat(&mut self, new_size: usize, nodes: &[NodePtr]) -> Result<NodePtr, EvalErr> {
+        if self.atom_vec.len() == i32::MAX as usize {
+            return err(self.null(), "too many atoms");
+        }
+        let start = self.u8_vec.len() as u32;
+        if ((u32::MAX - start) as usize) < new_size {
+            return err(self.null(), "out of memory");
+        }
+        self.u8_vec.reserve(new_size);
+
+        let mut counter: usize = 0;
+        for node in nodes {
+            if *node >= 0 {
+                self.u8_vec.truncate(start as usize);
+                return err(*node, "(internal error) concat expected atom, got pair");
+            }
+
+            let term = self.atom_vec[(-node - 1) as usize];
+            if counter + term.len() > new_size {
+                self.u8_vec.truncate(start as usize);
+                return err(*node, "(internal error) concat passed invalid new_size");
+            }
+            self.u8_vec
+                .extend_from_within(term.start as usize..term.end as usize);
+            counter += term.len();
+        }
+        if counter != new_size {
+            self.u8_vec.truncate(start as usize);
+            return err(
+                self.null(),
+                "(internal error) concat passed invalid new_size",
+            );
+        }
+        let end = self.u8_vec.len() as u32;
+        self.atom_vec.push(AtomBuf { start, end });
         Ok(-(self.atom_vec.len() as i32))
     }
 

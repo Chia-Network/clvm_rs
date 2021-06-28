@@ -7,7 +7,7 @@ use std::ops::BitXorAssign;
 
 use lazy_static::lazy_static;
 
-use crate::allocator::{Allocator, NodePtr};
+use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::{check_cost, Cost};
 use crate::err_utils::err;
 use crate::node::Node;
@@ -521,6 +521,7 @@ pub fn op_concat(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
     let args = Node::new(a, input);
     let mut cost = CONCAT_BASE_COST;
     let mut total_size: usize = 0;
+    let mut terms = Vec::<NodePtr>::new();
     for arg in &args {
         cost += CONCAT_COST_PER_ARG;
         check_cost(
@@ -528,20 +529,18 @@ pub fn op_concat(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
             cost + total_size as Cost * CONCAT_COST_PER_BYTE,
             max_cost,
         )?;
-        let blob = atom(&arg, "concat")?;
-        total_size += blob.len();
+        match arg.sexp() {
+            SExp::Pair(_, _) => return arg.err("concat on list"),
+            SExp::Atom(b) => total_size += b.len(),
+        };
+        terms.push(arg.node);
     }
 
     cost += total_size as Cost * CONCAT_COST_PER_BYTE;
+    cost += total_size as Cost * MALLOC_COST_PER_BYTE;
     check_cost(a, cost, max_cost)?;
-    let mut v: Vec<u8> = Vec::with_capacity(total_size);
-
-    for arg in args {
-        let blob = arg.atom().unwrap();
-        v.extend_from_slice(blob);
-    }
-
-    new_atom_and_cost(a, cost, &v)
+    let new_atom = a.new_concat(total_size, &terms)?;
+    Ok(Reduction(cost, new_atom))
 }
 
 pub fn op_ash(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
