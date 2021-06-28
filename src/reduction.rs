@@ -5,6 +5,6 @@ use crate::cost::Cost;
 pub struct EvalErr(pub NodePtr, pub String);
 
 #[derive(Debug, PartialEq)]
-pub struct Reduction<T>(pub Cost, pub T);
+pub struct Reduction(pub Cost, pub NodePtr);
 
-pub type Response<T> = Result<Reduction<T>, EvalErr>;
+pub type Response = Result<Reduction, EvalErr>;
