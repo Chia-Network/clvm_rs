@@ -29,7 +29,7 @@ impl OperatorHandler for OperatorHandlerWithMode {
         o: NodePtr,
         argument_list: NodePtr,
         max_cost: Cost,
-    ) -> Response<NodePtr> {
+    ) -> Response {
         let b = &allocator.atom(o);
         if b.len() == 1 {
             if let Some(f) = self.f_lookup[b[0] as usize] {

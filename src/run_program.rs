@@ -18,13 +18,8 @@ const TRAVERSE_COST_PER_ZERO_BYTE: Cost = 4;
 const TRAVERSE_COST_PER_BIT: Cost = 4;
 
 pub trait OperatorHandler {
-    fn op(
-        &self,
-        allocator: &mut Allocator,
-        op: NodePtr,
-        args: NodePtr,
-        max_cost: Cost,
-    ) -> Response<NodePtr>;
+    fn op(&self, allocator: &mut Allocator, op: NodePtr, args: NodePtr, max_cost: Cost)
+        -> Response;
 }
 
 pub type PreEval =
@@ -91,7 +86,7 @@ const fn first_non_zero(buf: &[u8]) -> usize {
     c
 }
 
-fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) -> Response<NodePtr> {
+fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) -> Response {
     let mut arg_list: NodePtr = args;
 
     // find first non-zero byte
@@ -229,8 +224,7 @@ where
         let (op_node, op_list) = match self.allocator.sexp(program) {
             // the program is just a bitfield path through the args tree
             SExp::Atom(path) => {
-                let r: Reduction<NodePtr> =
-                    traverse_path(self.allocator, self.allocator.buf(&path), args)?;
+                let r: Reduction = traverse_path(self.allocator, self.allocator.buf(&path), args)?;
                 self.push(r.1);
                 return Ok(r.0);
             }
@@ -311,12 +305,7 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn run_program(
-        &mut self,
-        program: NodePtr,
-        args: NodePtr,
-        max_cost: Cost,
-    ) -> Response<NodePtr> {
+    pub fn run_program(&mut self, program: NodePtr, args: NodePtr, max_cost: Cost) -> Response {
         self.val_stack = vec![self.allocator.new_pair(program, args)?];
         self.op_stack = vec![Operation::Eval];
 
@@ -367,7 +356,7 @@ pub fn run_program(
     max_cost: Cost,
     operator_lookup: Box<dyn OperatorHandler>,
     pre_eval: Option<PreEval>,
-) -> Response<NodePtr>
+) -> Response
 where
     NodePtr: 'static,
 {
