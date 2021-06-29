@@ -1,0 +1,5 @@
+#!/bin/bash
+# Workaround for m1 mac - maturin calls python in the default runner arch (runner has to run in x86_64 even on the m1)
+# and even though maturin is called with arch -arm64, it seems the underlying call to python is somehow not
+
+exec arch -arm64 python "$@"
