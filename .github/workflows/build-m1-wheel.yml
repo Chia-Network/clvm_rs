@@ -36,6 +36,12 @@ jobs:
         . ./venv/bin/activate
         arch -arm64 maturin build --no-sdist -i python --release
 
+    - name: Install clvm_rs wheel
+      run: |
+        . ./venv/bin/activate
+        ls target/wheels/
+        arch -arm64 pip install ./target/wheels/clvm_rs*.whl
+
     - name: Install other wheels
       run: |
         . ./venv/bin/activate
