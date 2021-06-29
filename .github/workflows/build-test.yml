@@ -24,7 +24,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        fetch-depth: 1
+        fetch-depth: 0
 
     - uses: actions/setup-python@v2
       name: Install Python ${{ matrix.python }}
