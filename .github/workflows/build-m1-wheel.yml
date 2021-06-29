@@ -23,7 +23,8 @@ jobs:
 
     - name: Set up rust
       run: |
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | arch -arm64 sh
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rust.sh
+        arch -arm64 sh rust.sh -y
 
     - name: Ensure dependencies are present
       run: |
