@@ -2,8 +2,8 @@ use pyo3::prelude::{pyclass, pymethods};
 use pyo3::types::PyString;
 use pyo3::{PyAny, PyObject, PyResult, Python, ToPyObject};
 
+use crate::allocator::Allocator;
 use crate::cost::Cost;
-use crate::int_allocator::IntAllocator;
 use crate::reduction::Reduction;
 
 use super::arena::Arena;
@@ -12,11 +12,11 @@ use super::f_table::OpFn;
 
 #[pyclass]
 pub struct NativeOp {
-    pub op: OpFn<IntAllocator>,
+    pub op: OpFn,
 }
 
 impl NativeOp {
-    pub fn new(op: OpFn<IntAllocator>) -> Self {
+    pub fn new(op: OpFn) -> Self {
         Self { op }
     }
 }
@@ -34,15 +34,15 @@ impl NativeOp {
         let arena: &Arena = &arena_cell.borrow();
         let ptr = arena.ptr_for_obj(py, args)?;
         let mut allocator = arena.allocator();
-        let allocator: &mut IntAllocator = &mut allocator;
+        let allocator: &mut Allocator = &mut allocator;
         let r = (self.op)(allocator, ptr, _max_cost);
         match r {
             Ok(Reduction(cost, ptr)) => {
-                let r = arena.py_for_native(py, &ptr, allocator)?;
+                let r = arena.py_for_native(py, ptr, allocator)?;
                 Ok((cost, r.to_object(py)))
             }
             Err(_err) => {
-                let r = arena.py_for_native(py, &ptr, allocator)?;
+                let r = arena.py_for_native(py, ptr, allocator)?;
                 match raise_eval_error(
                     py,
                     PyString::new(py, "problem in suboperator"),

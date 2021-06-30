@@ -6,9 +6,8 @@ use pyo3::prelude::{pyclass, pymethods};
 use pyo3::types::{PyString, PyTuple};
 use pyo3::{FromPyObject, PyAny, PyObject, PyRef, PyResult, Python, ToPyObject};
 
-use crate::allocator::Allocator;
+use crate::allocator::{Allocator, NodePtr};
 use crate::cost::Cost;
-use crate::int_allocator::IntAllocator;
 use crate::reduction::EvalErr;
 use crate::reduction::Reduction;
 use crate::reduction::Response;
@@ -24,36 +23,31 @@ use super::native_op::NativeOp;
 #[pyclass]
 #[derive(Clone)]
 pub struct PyMultiOpFn {
-    op: MultiOpFn<IntAllocator>,
+    op: MultiOpFn,
 }
 
 impl PyMultiOpFn {
-    pub fn new(op: MultiOpFn<IntAllocator>) -> Self {
+    pub fn new(op: MultiOpFn) -> Self {
         Self { op }
     }
 }
 
-pub type MultiOpFn<T> = fn(
-    &mut T,
-    <T as Allocator>::AtomBuf,
-    <T as Allocator>::Ptr,
-    Cost,
-) -> Response<<T as Allocator>::Ptr>;
+pub type MultiOpFn = fn(&mut Allocator, NodePtr, NodePtr, Cost) -> Response;
 
 #[derive(Clone)]
-pub enum MultiOpFnE<T: Allocator> {
+pub enum MultiOpFnE {
     Python(PyObject),
-    Rust(MultiOpFn<T>),
+    Rust(MultiOpFn),
 }
 
-impl<T: Allocator> MultiOpFnE<T> {
+impl MultiOpFnE {
     pub fn invoke(
         &self,
-        allocator: &mut T,
-        o: <T as Allocator>::AtomBuf,
-        args: <T as Allocator>::Ptr,
+        allocator: &mut Allocator,
+        o: NodePtr,
+        args: NodePtr,
         max_cost: Cost,
-    ) -> Response<<T as Allocator>::Ptr> {
+    ) -> Response {
         match self {
             Self::Python(_o) => {
                 todo!()
@@ -63,7 +57,7 @@ impl<T: Allocator> MultiOpFnE<T> {
     }
 }
 
-impl<'source> FromPyObject<'source> for MultiOpFnE<IntAllocator> {
+impl<'source> FromPyObject<'source> for MultiOpFnE {
     fn extract(obj: &'source pyo3::PyAny) -> PyResult<Self> {
         let v: PyResult<PyRef<PyMultiOpFn>> = obj.extract();
         if let Ok(v) = v {
@@ -78,10 +72,10 @@ impl<'source> FromPyObject<'source> for MultiOpFnE<IntAllocator> {
 pub struct Dialect {
     quote_kw: Vec<u8>,
     apply_kw: Vec<u8>,
-    u8_lookup: FLookup<IntAllocator>,
+    u8_lookup: FLookup,
     python_u8_lookup: HashMap<Vec<u8>, PyObject>,
-    native_u8_lookup: HashMap<Vec<u8>, OpFn<IntAllocator>>,
-    unknown_op_callback: MultiOpFnE<IntAllocator>,
+    native_u8_lookup: HashMap<Vec<u8>, OpFn>,
+    unknown_op_callback: MultiOpFnE,
     to_python: PyObject,
 }
 
@@ -91,7 +85,7 @@ impl Dialect {
     pub fn new(
         quote_kw: Vec<u8>,
         apply_kw: Vec<u8>,
-        unknown_op_callback: MultiOpFnE<IntAllocator>,
+        unknown_op_callback: MultiOpFnE,
         to_python: PyObject,
     ) -> PyResult<Self> {
         let u8_lookup = [None; 256];
@@ -154,8 +148,8 @@ impl Dialect {
         let arena_cell = Arena::new_cell_obj(py, self.to_python.clone())?;
         let arena = arena_cell.borrow();
         let (program, args) = {
-            let mut allocator_refcell: RefMut<IntAllocator> = arena.allocator();
-            let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
+            let mut allocator_refcell: RefMut<Allocator> = arena.allocator();
+            let allocator: &mut Allocator = &mut allocator_refcell as &mut Allocator;
 
             let program = node_from_bytes(allocator, program_blob)?;
             let args = node_from_bytes(allocator, args_blob)?;
@@ -169,9 +163,9 @@ fn pre_eval_callback(
     py: Python,
     arena: &Arena,
     pre_eval_obj: PyObject,
-    allocator: &mut IntAllocator,
-    program: &i32,
-    args: &i32,
+    allocator: &mut Allocator,
+    program: NodePtr,
+    args: NodePtr,
 ) -> PyResult<PyObject> {
     // call the python `pre_eval` object and return the python object yielded
     let program_obj = arena.py_for_native(py, program, allocator)?;
@@ -192,8 +186,8 @@ impl Dialect {
         max_cost: Cost,
         pre_eval: &'p PyAny,
     ) -> PyResult<(Cost, &'p PyAny)> {
-        let mut allocator_refcell: RefMut<IntAllocator> = arena.allocator();
-        let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
+        let mut allocator_refcell: RefMut<Allocator> = arena.allocator();
+        let allocator: &mut Allocator = &mut allocator_refcell as &mut Allocator;
 
         let drc = DialectRunningContext {
             dialect: self,
@@ -208,7 +202,7 @@ impl Dialect {
             if pre_eval.is_none() {
                 None
             } else {
-                let local_pre_eval: PreEval<IntAllocator> = Box::new(|allocator, program, args| {
+                let local_pre_eval: PreEval = Box::new(|allocator, program, args| {
                     if let Ok(post_eval_obj) = pre_eval_callback(
                         py,
                         &arena,
@@ -218,9 +212,9 @@ impl Dialect {
                         args,
                     ) {
                         let local_arena = &arena;
-                        let post_eval: Box<PostEval<IntAllocator>> =
-                            Box::new(move |allocator: &mut IntAllocator, result_ptr: &i32| {
-                                if let Ok(r) = local_arena.py_for_native(py, &result_ptr, allocator)
+                        let post_eval: Box<PostEval> =
+                            Box::new(move |allocator: &mut Allocator, result_ptr: i32| {
+                                if let Ok(r) = local_arena.py_for_native(py, result_ptr, allocator)
                                 {
                                     // invoke the python `PostEval` callback
                                     let _r = post_eval_obj.call1(py, (r.to_object(py),));
@@ -235,10 +229,10 @@ impl Dialect {
             }
         };
 
-        let r: Result<Reduction<i32>, EvalErr<i32>> = crate::run_program::run_program(
+        let r: Result<Reduction, EvalErr> = crate::run_program::run_program(
             allocator,
-            &program,
-            &args,
+            program,
+            args,
             &self.quote_kw,
             &self.apply_kw,
             max_cost,
@@ -248,12 +242,12 @@ impl Dialect {
 
         match r {
             Ok(reduction) => {
-                let r = arena.py_for_native(py, &reduction.1, allocator)?;
+                let r = arena.py_for_native(py, reduction.1, allocator)?;
                 Ok((reduction.0, r))
             }
             Err(eval_err) => {
                 let node: PyObject = arena
-                    .py_for_native(py, &eval_err.0, allocator)?
+                    .py_for_native(py, eval_err.0, allocator)?
                     .to_object(py);
                 let s: String = eval_err.1;
                 let s1: &str = &s;
@@ -276,10 +270,10 @@ impl DialectRunningContext<'_> {
     pub fn invoke_py_obj(
         &self,
         obj: &PyObject,
-        allocator: &mut IntAllocator,
-        args: &<IntAllocator as Allocator>::Ptr,
+        allocator: &mut Allocator,
+        args: NodePtr,
         max_cost: Cost,
-    ) -> Response<<IntAllocator as Allocator>::Ptr> {
+    ) -> Response {
         Python::with_gil(|py| {
             let r = unwrap_or_eval_err(
                 Arena::py_for_native(&self.arena, py, args, allocator),
@@ -289,10 +283,9 @@ impl DialectRunningContext<'_> {
             let r1 = obj.call1(py, (r.to_object(py), max_cost));
             match r1 {
                 Err(pyerr) => {
-                    let eval_err: PyResult<EvalErr<i32>> =
+                    let eval_err: PyResult<EvalErr> =
                         eval_err_for_pyerr(py, &pyerr, &self.arena, allocator);
-                    let r: EvalErr<i32> =
-                        unwrap_or_eval_err(eval_err, args, "unexpected exception")?;
+                    let r: EvalErr = unwrap_or_eval_err(eval_err, args, "unexpected exception")?;
                     Err(r)
                 }
                 Ok(o) => {
@@ -313,29 +306,29 @@ impl DialectRunningContext<'_> {
     }
 }
 
-impl OperatorHandler<IntAllocator> for DialectRunningContext<'_> {
+impl OperatorHandler for DialectRunningContext<'_> {
     fn op(
         &self,
-        allocator: &mut IntAllocator,
-        o: <IntAllocator as Allocator>::AtomBuf,
-        argument_list: &<IntAllocator as Allocator>::Ptr,
+        allocator: &mut Allocator,
+        o: NodePtr,
+        argument_list: NodePtr,
         max_cost: Cost,
-    ) -> Response<<IntAllocator as Allocator>::Ptr> {
-        let op = &allocator.buf(&o);
+    ) -> Response {
+        let op = &allocator.atom(o);
         if op.len() == 1 {
             if let Some(f) = self.dialect.u8_lookup[op[0] as usize] {
-                return f(allocator, *argument_list, max_cost);
+                return f(allocator, argument_list, max_cost);
             }
         }
         let op = op.to_owned();
         if let Some(op_fn) = self.dialect.native_u8_lookup.get(op) {
-            op_fn(allocator, *argument_list, max_cost)
+            op_fn(allocator, argument_list, max_cost)
         } else if let Some(op_fn) = self.dialect.python_u8_lookup.get(op) {
             self.invoke_py_obj(op_fn, allocator, argument_list, max_cost)
         } else {
             self.dialect
                 .unknown_op_callback
-                .invoke(allocator, o, *argument_list, max_cost)
+                .invoke(allocator, o, argument_list, max_cost)
         }
     }
 }

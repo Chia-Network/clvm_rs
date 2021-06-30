@@ -1,18 +1,18 @@
-use crate::int_allocator::IntAllocator;
+use crate::allocator::{Allocator, NodePtr};
 use crate::reduction::EvalErr;
 use pyo3::types::{PyDict, PyString, PyTuple};
 use pyo3::{PyAny, PyErr, PyObject, PyRef, PyResult, Python};
 
 use super::arena::Arena;
 
-/// turn a `PyErr` into an `EvalErr<P>` if at all possible
+/// turn a `PyErr` into an `EvalErr` if at all possible
 /// otherwise, return a `PyErr`
 pub fn eval_err_for_pyerr<'p>(
     py: Python<'p>,
     pyerr: &PyErr,
     arena: &'p PyRef<Arena>,
-    allocator: &mut IntAllocator,
-) -> PyResult<EvalErr<i32>> {
+    allocator: &mut Allocator,
+) -> PyResult<EvalErr> {
     let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
     let arg0: &PyString = args.get_item(0).extract()?;
     let sexp: &PyAny = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
@@ -21,12 +21,9 @@ pub fn eval_err_for_pyerr<'p>(
     Ok(EvalErr(node, s))
 }
 
-pub fn unwrap_or_eval_err<T, P>(obj: PyResult<T>, err_node: &P, msg: &str) -> Result<T, EvalErr<P>>
-where
-    P: Clone,
-{
+pub fn unwrap_or_eval_err<T>(obj: PyResult<T>, err_node: NodePtr, msg: &str) -> Result<T, EvalErr> {
     match obj {
-        Err(_py_err) => Err(EvalErr(err_node.clone(), msg.to_string())),
+        Err(_py_err) => Err(EvalErr(err_node, msg.to_string())),
         Ok(o) => Ok(o),
     }
 }

@@ -5,7 +5,7 @@ use std::io::Seek;
 use std::io::Write;
 use std::io::{Error, ErrorKind, SeekFrom};
 
-use crate::allocator::{Allocator, SExp};
+use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::node::Node;
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
@@ -51,12 +51,12 @@ fn encode_size(f: &mut dyn Write, size: u64) -> std::io::Result<()> {
     Ok(())
 }
 
-pub fn node_to_stream<T: Allocator>(node: &Node<T>, f: &mut dyn Write) -> std::io::Result<()> {
-    let mut values: Vec<T::Ptr> = vec![node.node.clone()];
+pub fn node_to_stream(node: &Node, f: &mut dyn Write) -> std::io::Result<()> {
+    let mut values: Vec<NodePtr> = vec![node.node];
     let a = node.allocator;
     while !values.is_empty() {
         let v = values.pop().unwrap();
-        let n = a.sexp(&v);
+        let n = a.sexp(v);
         match n {
             SExp::Atom(atom_ptr) => {
                 let atom = a.buf(&atom_ptr);
@@ -127,17 +127,17 @@ enum ParseOp {
     Cons,
 }
 
-impl<T> std::convert::From<EvalErr<T>> for std::io::Error {
-    fn from(v: EvalErr<T>) -> Self {
+impl std::convert::From<EvalErr> for std::io::Error {
+    fn from(v: EvalErr) -> Self {
         Self::new(ErrorKind::Other, v.1)
     }
 }
 
-pub fn node_from_stream<T: Allocator>(
-    allocator: &mut T,
+pub fn node_from_stream(
+    allocator: &mut Allocator,
     f: &mut Cursor<&[u8]>,
-) -> std::io::Result<T::Ptr> {
-    let mut values: Vec<T::Ptr> = Vec::new();
+) -> std::io::Result<NodePtr> {
+    let mut values: Vec<NodePtr> = Vec::new();
     let mut ops = vec![ParseOp::SExp];
 
     let mut b = [0; 1];
@@ -180,12 +180,12 @@ pub fn node_from_stream<T: Allocator>(
     Ok(values.pop().unwrap())
 }
 
-pub fn node_from_bytes<T: Allocator>(allocator: &mut T, b: &[u8]) -> std::io::Result<T::Ptr> {
+pub fn node_from_bytes(allocator: &mut Allocator, b: &[u8]) -> std::io::Result<NodePtr> {
     let mut buffer = Cursor::new(b);
     node_from_stream(allocator, &mut buffer)
 }
 
-pub fn node_to_bytes<T: Allocator>(node: &Node<T>) -> std::io::Result<Vec<u8>> {
+pub fn node_to_bytes(node: &Node) -> std::io::Result<Vec<u8>> {
     let mut buffer = Cursor::new(Vec::new());
 
     node_to_stream(node, &mut buffer)?;

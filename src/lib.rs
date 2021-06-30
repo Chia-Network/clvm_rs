@@ -2,7 +2,6 @@ mod allocator;
 mod core_ops;
 mod cost;
 mod err_utils;
-mod int_allocator;
 mod more_ops;
 mod node;
 mod number;

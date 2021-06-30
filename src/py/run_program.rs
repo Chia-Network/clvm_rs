@@ -1,10 +1,10 @@
 use std::cell::RefMut;
 use std::collections::HashMap;
+use std::rc::Rc;
 
-use crate::allocator::Allocator;
+use crate::allocator::{Allocator, NodePtr};
 use crate::cost::Cost;
 use crate::err_utils::err;
-use crate::int_allocator::IntAllocator;
 use crate::more_ops::op_unknown;
 use crate::node::Node;
 use crate::reduction::Response;
@@ -13,35 +13,36 @@ use crate::serialize::{node_from_bytes, node_to_bytes, serialized_length_from_by
 
 use super::arena::Arena;
 use super::f_table::{f_lookup_for_hashmap, FLookup};
+use super::lazy_node::LazyNode;
 
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
 
-pub struct OperatorHandlerWithMode<A: Allocator> {
-    f_lookup: FLookup<A>,
+pub const STRICT_MODE: u32 = 1;
+
+pub struct OperatorHandlerWithMode {
+    f_lookup: FLookup,
     strict: bool,
 }
 
-impl<A: Allocator> OperatorHandler<A> for OperatorHandlerWithMode<A> {
+impl OperatorHandler for OperatorHandlerWithMode {
     fn op(
         &self,
-        allocator: &mut A,
-        o: <A as Allocator>::AtomBuf,
-        argument_list: &A::Ptr,
+        allocator: &mut Allocator,
+        o: NodePtr,
+        argument_list: NodePtr,
         max_cost: Cost,
-    ) -> Response<<A as Allocator>::Ptr> {
-        let op = &allocator.buf(&o);
-        if op.len() == 1 {
-            if let Some(f) = self.f_lookup[op[0] as usize] {
-                return f(allocator, argument_list.clone(), max_cost);
+    ) -> Response {
+        let b = &allocator.atom(o);
+        if b.len() == 1 {
+            if let Some(f) = self.f_lookup[b[0] as usize] {
+                return f(allocator, argument_list, max_cost);
             }
         }
         if self.strict {
-            let buf = op.to_vec();
-            let op_arg = allocator.new_atom(&buf)?;
-            err(op_arg, "unimplemented operator")
+            err(o, "unimplemented operator")
         } else {
-            op_unknown(allocator, o, argument_list.clone(), max_cost)
+            op_unknown(allocator, o, argument_list, max_cost)
         }
     }
 }
@@ -60,8 +61,8 @@ pub fn deserialize_and_run_program(
 ) -> PyResult<(Cost, PyObject)> {
     let arena = Arena::new_cell(py)?;
     let arena_borrowed = arena.borrow();
-    let mut allocator_refcell: RefMut<IntAllocator> = arena_borrowed.allocator();
-    let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
+    let mut allocator_refcell: RefMut<Allocator> = arena_borrowed.allocator();
+    let allocator: &mut Allocator = &mut allocator_refcell as &mut Allocator;
     let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
     let strict: bool = flags != 0;
     let f = OperatorHandlerWithMode { f_lookup, strict };
@@ -70,18 +71,18 @@ pub fn deserialize_and_run_program(
 
     let r = py.allow_threads(|| {
         run_program(
-            allocator, &program, &args, quote_kw, apply_kw, max_cost, &f, None,
+            allocator, program, args, quote_kw, apply_kw, max_cost, &f, None,
         )
     });
     match r {
         Ok(reduction) => Ok((
             reduction.0,
             arena_borrowed
-                .py_for_native(py, &reduction.1, allocator)?
+                .py_for_native(py, reduction.1, allocator)?
                 .to_object(py),
         )),
         Err(eval_err) => {
-            let node_as_blob = node_to_bytes(&Node::new(allocator, eval_err.0))?;
+            let node_as_blob = node_to_bytes(&Node::new(&allocator, eval_err.0))?;
             let msg = eval_err.1;
             let ctx: &PyDict = PyDict::new(py);
             ctx.set_item("msg", msg)?;
@@ -108,4 +109,59 @@ raise EvalError(msg, sexp)",
 #[pyfunction]
 pub fn serialized_length(program: &[u8]) -> PyResult<u64> {
     Ok(serialized_length_from_bytes(program)?)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[pyfunction]
+pub fn deserialize_and_run_program2(
+    py: Python,
+    program: &[u8],
+    args: &[u8],
+    quote_kw: &[u8],
+    apply_kw: &[u8],
+    opcode_lookup_by_name: HashMap<String, Vec<u8>>,
+    max_cost: Cost,
+    flags: u32,
+) -> PyResult<(Cost, LazyNode)> {
+    let mut allocator = Allocator::new();
+    let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
+    let strict: bool = (flags & STRICT_MODE) != 0;
+    let f = OperatorHandlerWithMode { f_lookup, strict };
+    let program = node_from_bytes(&mut allocator, program)?;
+    let args = node_from_bytes(&mut allocator, args)?;
+
+    let r = py.allow_threads(|| {
+        run_program(
+            &mut allocator,
+            program,
+            args,
+            quote_kw,
+            apply_kw,
+            max_cost,
+            &f,
+            None,
+        )
+    });
+    match r {
+        Ok(reduction) => {
+            let val = LazyNode::new(Rc::new(allocator), reduction.1);
+            Ok((reduction.0, val))
+        }
+        Err(eval_err) => {
+            let node = LazyNode::new(Rc::new(allocator), eval_err.0);
+            let msg = eval_err.1;
+            let ctx: &PyDict = PyDict::new(py);
+            ctx.set_item("msg", msg)?;
+            ctx.set_item("node", node)?;
+            Err(py
+                .run(
+                    "
+from clvm.EvalError import EvalError
+raise EvalError(msg, node)",
+                    None,
+                    Some(ctx),
+                )
+                .unwrap_err())
+        }
+    }
 }

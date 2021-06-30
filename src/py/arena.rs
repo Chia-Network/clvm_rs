@@ -9,13 +9,17 @@ use pyo3::prelude::pyclass;
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyBytes, PyTuple};
 
-use crate::allocator::{Allocator, SExp};
-use crate::int_allocator::IntAllocator;
+use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::serialize::node_from_bytes;
+
+pub enum PySExp<'p> {
+    Atom(&'p PyBytes),
+    Pair(&'p PyAny, &'p PyAny),
+}
 
 #[pyclass(subclass, unsendable)]
 pub struct Arena {
-    arena: RefCell<IntAllocator>,
+    arena: RefCell<Allocator>,
     /// this cache is a python `dict` that keeps a mapping
     /// from `i32` to python objects and vice-versa
     cache: PyObject,
@@ -26,19 +30,19 @@ pub struct Arena {
     to_python: PyObject,
 }
 
-/// yield a corresponding `SExp` for a python object based
+/// yield a corresponding `PySExp` for a python object based
 /// on the standard way of looking in `.atom` for a `PyBytes` object
 /// and then in `.pair` for a `PyTuple`.
 
-pub fn sexp_for_obj(obj: &PyAny) -> PyResult<SExp<&PyAny, &PyBytes>> {
+pub fn sexp_for_obj(obj: &PyAny) -> PyResult<PySExp> {
     let r: PyResult<&PyBytes> = obj.getattr("atom")?.extract();
     if let Ok(bytes) = r {
-        return Ok(SExp::Atom(bytes));
+        return Ok(PySExp::Atom(bytes));
     }
     let pair: &PyTuple = obj.getattr("pair")?.extract()?;
     let p0: &PyAny = pair.get_item(0);
     let p1: &PyAny = pair.get_item(1);
-    Ok(SExp::Pair(p0, p1))
+    Ok(PySExp::Pair(p0, p1))
 }
 
 #[pymethods]
@@ -46,7 +50,7 @@ impl Arena {
     #[new]
     pub fn new(py: Python, new_obj_f: PyObject) -> PyResult<Self> {
         Ok(Arena {
-            arena: RefCell::new(IntAllocator::default()),
+            arena: RefCell::new(Allocator::default()),
             cache: py.eval("dict()", None, None)?.to_object(py),
             to_python: new_obj_f,
         })
@@ -54,22 +58,22 @@ impl Arena {
 
     /// deserialize `bytes` into an object in this `Arena`
     pub fn deserialize<'p>(&self, py: Python<'p>, blob: &[u8]) -> PyResult<&'p PyAny> {
-        let allocator: &mut IntAllocator = &mut self.allocator() as &mut IntAllocator;
+        let allocator: &mut Allocator = &mut self.allocator() as &mut Allocator;
         let ptr = node_from_bytes(allocator, blob)?;
-        self.py_for_native(py, &ptr, allocator)
+        self.py_for_native(py, ptr, allocator)
     }
 
     /// copy this python object into this `Arena` if it's not yet in the cache
     /// (otherwise it returns the previously cached object)
     pub fn include<'p>(&self, py: Python<'p>, obj: &'p PyAny) -> PyResult<&'p PyAny> {
         let ptr = Self::ptr_for_obj(self, py, obj)?;
-        self.py_for_native(py, &ptr, &mut self.allocator() as &mut IntAllocator)
+        self.py_for_native(py, ptr, &mut self.allocator() as &mut Allocator)
     }
 
     /// copy this python object into this `Arena` if it's not yet in the cache
     /// (otherwise it returns the previously cached object)
     pub fn ptr_for_obj(&self, py: Python, obj: &PyAny) -> PyResult<i32> {
-        let allocator: &mut IntAllocator = &mut self.allocator() as &mut IntAllocator;
+        let allocator: &mut Allocator = &mut self.allocator() as &mut Allocator;
         self.populate_native(py, obj, allocator)
     }
 }
@@ -84,21 +88,16 @@ impl Arena {
     }
 
     pub fn obj_for_ptr<'p>(&self, py: Python<'p>, ptr: i32) -> PyResult<&'p PyAny> {
-        self.py_for_native(py, &ptr, &mut self.allocator())
+        self.py_for_native(py, ptr, &mut self.allocator())
     }
 
-    pub fn allocator(&self) -> RefMut<IntAllocator> {
+    pub fn allocator(&self) -> RefMut<Allocator> {
         self.arena.borrow_mut()
     }
 
     /// add a python object <-> native object mapping
     /// to the cache, in both directions
-    pub fn add(
-        &self,
-        py: Python,
-        obj: &PyAny,
-        ptr: &<IntAllocator as Allocator>::Ptr,
-    ) -> PyResult<()> {
+    pub fn add(&self, py: Python, obj: &PyAny, ptr: NodePtr) -> PyResult<()> {
         let locals = [
             ("cache", self.cache.clone()),
             ("obj", obj.to_object(py)),
@@ -111,11 +110,7 @@ impl Arena {
 
     // py to native methods
 
-    fn from_py_to_native_cache<'p>(
-        &self,
-        py: Python<'p>,
-        obj: &PyAny,
-    ) -> PyResult<<IntAllocator as Allocator>::Ptr> {
+    fn from_py_to_native_cache<'p>(&self, py: Python<'p>, obj: &PyAny) -> PyResult<NodePtr> {
         let locals = [("cache", self.cache.clone()), ("key", obj.to_object(py))].into_py_dict(py);
         py.eval("cache.get(id(key))", None, Some(locals))?.extract()
     }
@@ -124,8 +119,8 @@ impl Arena {
         &self,
         py: Python,
         obj: &PyAny,
-        allocator: &mut IntAllocator,
-    ) -> PyResult<<IntAllocator as Allocator>::Ptr> {
+        allocator: &mut Allocator,
+    ) -> PyResult<NodePtr> {
         // items in `pending` are already in the stack of things to be converted
         // if they appear again, we have an illegal cycle and must fail
 
@@ -141,14 +136,14 @@ impl Arena {
             // it's not in the cache
 
             match sexp_for_obj(obj)? {
-                SExp::Atom(atom) => {
+                PySExp::Atom(atom) => {
                     let blob: &[u8] = atom.extract()?;
                     let ptr = allocator.new_atom(blob).unwrap();
-                    self.add(py, obj, &ptr)?;
+                    self.add(py, obj, ptr)?;
 
                     Ok(None)
                 }
-                SExp::Pair(p0, p1) => {
+                PySExp::Pair(p0, p1) => {
                     let ptr_0: PyResult<i32> = self.from_py_to_native_cache(py, p0);
                     let ptr_1: PyResult<i32> = self.from_py_to_native_cache(py, p1);
 
@@ -156,7 +151,7 @@ impl Arena {
 
                     if let (Ok(ptr_0), Ok(ptr_1)) = (ptr_0, ptr_1) {
                         let ptr = allocator.new_pair(ptr_0, ptr_1).unwrap();
-                        self.add(py, obj, &ptr)?;
+                        self.add(py, obj, ptr)?;
 
                         pending.remove(&as_obj);
                         Ok(None)
@@ -185,19 +180,15 @@ impl Arena {
         slf: &PyRef<Arena>,
         py: Python,
         obj: &PyAny,
-        allocator: &mut IntAllocator,
-    ) -> PyResult<<IntAllocator as Allocator>::Ptr> {
+        allocator: &mut Allocator,
+    ) -> PyResult<NodePtr> {
         slf.from_py_to_native_cache(py, obj)
             .or_else(|_err| slf.populate_native(py, obj, allocator))
     }
 
     // native to py methods
 
-    fn from_native_to_py_cache<'p>(
-        &self,
-        py: Python<'p>,
-        ptr: &<IntAllocator as Allocator>::Ptr,
-    ) -> PyResult<&'p PyAny> {
+    fn from_native_to_py_cache<'p>(&self, py: Python<'p>, ptr: NodePtr) -> PyResult<&'p PyAny> {
         let locals = [("cache", self.cache.clone()), ("key", ptr.to_object(py))].into_py_dict(py);
         py.eval("cache[key]", None, Some(locals))?.extract()
     }
@@ -205,24 +196,24 @@ impl Arena {
     fn populate_python<'p>(
         &self,
         py: Python<'p>,
-        ptr: &<IntAllocator as Allocator>::Ptr,
-        allocator: &mut IntAllocator,
+        ptr: NodePtr,
+        allocator: &mut Allocator,
     ) -> PyResult<&'p PyAny> {
-        apply_to_tree(*ptr, move |ptr| {
+        apply_to_tree(ptr, move |ptr| {
             // is it in cache yet?
-            if self.from_native_to_py_cache(py, &ptr).is_ok() {
+            if self.from_native_to_py_cache(py, ptr).is_ok() {
                 // yep, we're done
                 return Ok(None);
             }
 
             // it's not in the cache
 
-            match allocator.sexp(&ptr) {
+            match allocator.sexp(ptr) {
                 SExp::Atom(a) => {
                     // it's an atom, so we just populate cache directly
                     let blob = allocator.buf(&a);
                     let py_bytes = PyBytes::new(py, blob);
-                    self.add(py, self.to_python.as_ref(py).call1((py_bytes,))?, &ptr)?;
+                    self.add(py, self.to_python.as_ref(py).call1((py_bytes,))?, ptr)?;
                     Ok(None)
                 }
                 SExp::Pair(ptr_1, ptr_2) => {
@@ -245,7 +236,7 @@ impl Arena {
                         // the children are in the cache, create new node & populate cache with it
                         Ok(tuple) => {
                             let (_p1, _p2): (&PyAny, &PyAny) = tuple.extract()?;
-                            self.add(py, self.to_python.as_ref(py).call1((tuple,))?, &ptr)?;
+                            self.add(py, self.to_python.as_ref(py).call1((tuple,))?, ptr)?;
                             Ok(None)
                         }
                     }
@@ -253,14 +244,14 @@ impl Arena {
             }
         })?;
 
-        self.from_native_to_py_cache(py, &ptr)
+        self.from_native_to_py_cache(py, ptr)
     }
 
     pub fn py_for_native<'p>(
         &self,
         py: Python<'p>,
-        ptr: &<IntAllocator as Allocator>::Ptr,
-        allocator: &mut IntAllocator,
+        ptr: NodePtr,
+        allocator: &mut Allocator,
     ) -> PyResult<&'p PyAny> {
         self.from_native_to_py_cache(py, ptr)
             .or_else(|_err| self.populate_python(py, ptr, allocator))

@@ -1,14 +1,9 @@
-use crate::allocator::Allocator;
 use crate::err_utils::err;
 use crate::node::Node;
 use crate::number::{number_from_u8, Number};
 use crate::reduction::EvalErr;
 
-pub fn check_arg_count<T: Allocator>(
-    args: &Node<T>,
-    expected: usize,
-    name: &str,
-) -> Result<(), EvalErr<T::Ptr>> {
+pub fn check_arg_count(args: &Node, expected: usize, name: &str) -> Result<(), EvalErr> {
     if arg_count(args, expected) != expected {
         args.err(&format!(
             "{} takes exactly {} argument{}",
@@ -21,7 +16,7 @@ pub fn check_arg_count<T: Allocator>(
     }
 }
 
-pub fn arg_count<T: Allocator>(args: &Node<T>, return_early_if_exceeds: usize) -> usize {
+pub fn arg_count(args: &Node, return_early_if_exceeds: usize) -> usize {
     let mut count = 0;
     // It would be nice to have a trait that wouldn't require us to copy every
     // node
@@ -38,32 +33,32 @@ pub fn arg_count<T: Allocator>(args: &Node<T>, return_early_if_exceeds: usize) -
 
 #[test]
 fn test_arg_count() {
-    use crate::int_allocator::IntAllocator;
+    use crate::allocator::Allocator;
 
-    let mut allocator = IntAllocator::new();
+    let mut allocator = Allocator::new();
     let null = allocator.null();
     let ptr_0_args = null;
     let ptr_1_args = allocator.new_pair(null, ptr_0_args).unwrap();
     let ptr_2_args = allocator.new_pair(null, ptr_1_args).unwrap();
     let ptr_3_args = allocator.new_pair(null, ptr_2_args).unwrap();
 
-    let count_0_args: Node<IntAllocator> = Node::new(&allocator, ptr_0_args);
+    let count_0_args: Node = Node::new(&allocator, ptr_0_args);
     assert_eq!(arg_count(&count_0_args, 0), 0);
     assert_eq!(arg_count(&count_0_args, 1), 0);
     assert_eq!(arg_count(&count_0_args, 2), 0);
 
-    let count_1_args: Node<IntAllocator> = Node::new(&allocator, ptr_1_args);
+    let count_1_args: Node = Node::new(&allocator, ptr_1_args);
     assert_eq!(arg_count(&count_1_args, 0), 1);
     assert_eq!(arg_count(&count_1_args, 1), 1);
     assert_eq!(arg_count(&count_1_args, 2), 1);
 
-    let count_2_args: Node<IntAllocator> = Node::new(&allocator, ptr_2_args);
+    let count_2_args: Node = Node::new(&allocator, ptr_2_args);
     assert_eq!(arg_count(&count_2_args, 0), 1);
     assert_eq!(arg_count(&count_2_args, 1), 2);
     assert_eq!(arg_count(&count_2_args, 2), 2);
     assert_eq!(arg_count(&count_2_args, 3), 2);
 
-    let count_3_args: Node<IntAllocator> = Node::new(&allocator, ptr_3_args);
+    let count_3_args: Node = Node::new(&allocator, ptr_3_args);
     assert_eq!(arg_count(&count_3_args, 0), 1);
     assert_eq!(arg_count(&count_3_args, 1), 2);
     assert_eq!(arg_count(&count_3_args, 2), 3);
@@ -71,10 +66,7 @@ fn test_arg_count() {
     assert_eq!(arg_count(&count_3_args, 4), 3);
 }
 
-pub fn int_atom<'a, T: Allocator>(
-    args: &'a Node<T>,
-    op_name: &str,
-) -> Result<&'a [u8], EvalErr<T::Ptr>> {
+pub fn int_atom<'a>(args: &'a Node, op_name: &str) -> Result<&'a [u8], EvalErr> {
     match args.atom() {
         Some(a) => Ok(a),
         _ => args.err(&format!("{} requires int args", op_name)),
@@ -82,20 +74,14 @@ pub fn int_atom<'a, T: Allocator>(
 }
 
 // rename to atom()
-pub fn atom<'a, T: Allocator>(
-    args: &'a Node<T>,
-    op_name: &str,
-) -> Result<&'a [u8], EvalErr<T::Ptr>> {
+pub fn atom<'a>(args: &'a Node, op_name: &str) -> Result<&'a [u8], EvalErr> {
     match args.atom() {
         Some(a) => Ok(a),
         _ => args.err(&format!("{} on list", op_name)),
     }
 }
 
-pub fn two_ints<T: Allocator>(
-    args: &Node<T>,
-    op_name: &str,
-) -> Result<(Number, usize, Number, usize), EvalErr<T::Ptr>> {
+pub fn two_ints(args: &Node, op_name: &str) -> Result<(Number, usize, Number, usize), EvalErr> {
     check_arg_count(args, 2, op_name)?;
     let a0 = args.first()?;
     let a1 = args.rest()?.first()?;
@@ -184,7 +170,7 @@ fn test_i32_from_u8() {
     assert_eq!(i32_from_u8(&[0x7d, 0xcc, 0x55, 0x88, 0xf3]), None);
 }
 
-pub fn i32_atom<A: Allocator>(args: &Node<A>, op_name: &str) -> Result<i32, EvalErr<A::Ptr>> {
+pub fn i32_atom(args: &Node, op_name: &str) -> Result<i32, EvalErr> {
     let buf = match args.atom() {
         Some(a) => a,
         _ => {
@@ -200,22 +186,22 @@ pub fn i32_atom<A: Allocator>(args: &Node<A>, op_name: &str) -> Result<i32, Eval
     }
 }
 
-impl<'a, A: Allocator> Node<'a, A> {
-    pub fn first(&self) -> Result<Node<'a, A>, EvalErr<A::Ptr>> {
+impl<'a> Node<'a> {
+    pub fn first(&self) -> Result<Node<'a>, EvalErr> {
         match self.pair() {
             Some((p1, _)) => Ok(self.with_node(p1.node)),
             _ => self.err("first of non-cons"),
         }
     }
 
-    pub fn rest(&self) -> Result<Node<'a, A>, EvalErr<A::Ptr>> {
+    pub fn rest(&self) -> Result<Node<'a>, EvalErr> {
         match self.pair() {
             Some((_, p2)) => Ok(self.with_node(p2.node)),
             _ => self.err("rest of non-cons"),
         }
     }
 
-    pub fn err<T>(&self, msg: &str) -> Result<T, EvalErr<A::Ptr>> {
-        err(self.node.clone(), msg)
+    pub fn err<T>(&self, msg: &str) -> Result<T, EvalErr> {
+        err(self.node, msg)
     }
 }

@@ -1,4 +1,4 @@
-use crate::allocator::Allocator;
+use crate::allocator::{Allocator, NodePtr};
 use crate::cost::Cost;
 use crate::node::Node;
 use crate::op_utils::{atom, check_arg_count};
@@ -15,7 +15,7 @@ const LISTP_COST: Cost = 19;
 const EQ_BASE_COST: Cost = 117;
 const EQ_COST_PER_BYTE: Cost = 1;
 
-pub fn op_if<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_if(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 3, "i")?;
     let cond = args.first()?;
@@ -26,7 +26,7 @@ pub fn op_if<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respons
     Ok(Reduction(IF_COST, chosen_node.first()?.node))
 }
 
-pub fn op_cons<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_cons(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 2, "c")?;
     let a1 = args.first()?;
@@ -37,19 +37,19 @@ pub fn op_cons<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Respo
     Ok(Reduction(CONS_COST, r))
 }
 
-pub fn op_first<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_first(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 1, "f")?;
     Ok(Reduction(FIRST_COST, args.first()?.first()?.node))
 }
 
-pub fn op_rest<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_rest(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 1, "r")?;
     Ok(Reduction(REST_COST, args.first()?.rest()?.node))
 }
 
-pub fn op_listp<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_listp(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 1, "l")?;
     match args.first()?.pair() {
@@ -58,12 +58,12 @@ pub fn op_listp<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Resp
     }
 }
 
-pub fn op_raise<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_raise(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     args.err("clvm raise")
 }
 
-pub fn op_eq<T: Allocator>(a: &mut T, input: T::Ptr, _max_cost: Cost) -> Response<T::Ptr> {
+pub fn op_eq(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 2, "=")?;
     let a0 = args.first()?;

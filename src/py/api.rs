@@ -3,11 +3,10 @@ use std::cell::RefMut;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
 use pyo3::wrap_pyfunction;
-use pyo3::PyObject;
 
+use crate::allocator::Allocator;
 use crate::core_ops::*;
-use crate::err_utils::u8_err;
-use crate::int_allocator::IntAllocator;
+use crate::err_utils::err;
 use crate::more_ops::*;
 use crate::node::Node;
 use crate::serialize::node_to_bytes;
@@ -15,14 +14,17 @@ use crate::serialize::node_to_bytes;
 use super::arena::Arena;
 use super::dialect::{Dialect, PyMultiOpFn};
 use super::f_table::OpFn;
+use super::lazy_node::LazyNode;
 use super::native_op::NativeOp;
 use super::run_program::{
-    __pyo3_get_function_deserialize_and_run_program, __pyo3_get_function_serialized_length,
+    __pyo3_get_function_deserialize_and_run_program,
+    __pyo3_get_function_deserialize_and_run_program2, __pyo3_get_function_serialized_length,
+    STRICT_MODE,
 };
 
 #[pyfunction]
 pub fn native_opcodes_dict(py: Python) -> PyResult<PyObject> {
-    let opcode_lookup: [(OpFn<IntAllocator>, &str); 30] = [
+    let opcode_lookup: [(OpFn, &str); 30] = [
         (op_if, "op_if"),
         (op_cons, "op_cons"),
         (op_first, "op_first"),
@@ -65,8 +67,8 @@ pub fn native_opcodes_dict(py: Python) -> PyResult<PyObject> {
 fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyAny) -> PyResult<&'p PyBytes> {
     let arena_cell = Arena::new_cell(py)?;
     let arena = arena_cell.borrow();
-    let mut allocator_refcell: RefMut<IntAllocator> = arena.allocator();
-    let allocator: &mut IntAllocator = &mut allocator_refcell as &mut IntAllocator;
+    let mut allocator_refcell: RefMut<Allocator> = arena.allocator();
+    let allocator: &mut Allocator = &mut allocator_refcell as &mut Allocator;
 
     let ptr = Arena::native_for_py(&arena, py, sexp, allocator)?;
 
@@ -80,19 +82,23 @@ fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyAny) -> PyResult<&'p PyBytes>
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Arena>()?;
     m.add_class::<Dialect>()?;
+    m.add_class::<LazyNode>()?;
 
     m.add_function(wrap_pyfunction!(native_opcodes_dict, m)?)?;
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
 
     m.add(
         "NATIVE_OP_UNKNOWN_STRICT",
-        PyMultiOpFn::new(|_a, b, _op, _d| u8_err(_a, &b, "unimplemented operator")),
+        PyMultiOpFn::new(|_a, b, _op, _d| err(b, "unimplemented operator")),
     )?;
 
     m.add("NATIVE_OP_UNKNOWN_NON_STRICT", PyMultiOpFn::new(op_unknown))?;
 
     m.add_function(wrap_pyfunction!(serialize_to_bytes, m)?)?;
+
     m.add_function(wrap_pyfunction!(deserialize_and_run_program, m)?)?;
+    m.add_function(wrap_pyfunction!(deserialize_and_run_program2, m)?)?;
+    m.add("STRICT_MODE", STRICT_MODE)?;
 
     Ok(())
 }
