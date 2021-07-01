@@ -16,7 +16,7 @@ pub fn eval_err_for_pyerr<'p>(
     let args: &PyTuple = pyerr.pvalue(py).getattr("args")?.extract()?;
     let arg0: &PyString = args.get_item(0).extract()?;
     let sexp: &PyAny = pyerr.pvalue(py).getattr("_sexp")?.extract()?;
-    let node: i32 = Arena::native_for_py(arena, py, sexp, allocator)?;
+    let node: i32 = arena.cache.native_for_py(py, sexp, allocator)?;
     let s: String = arg0.to_str()?.to_string();
     Ok(EvalErr(node, s))
 }

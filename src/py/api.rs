@@ -70,7 +70,7 @@ fn serialize_to_bytes<'p>(py: Python<'p>, sexp: &PyAny) -> PyResult<&'p PyBytes>
     let mut allocator_refcell: RefMut<Allocator> = arena.allocator();
     let allocator: &mut Allocator = &mut allocator_refcell as &mut Allocator;
 
-    let ptr = Arena::native_for_py(&arena, py, sexp, allocator)?;
+    let ptr = arena.cache.native_for_py(py, sexp, allocator)?;
 
     let node = Node::new(allocator, ptr);
     let s: Vec<u8> = node_to_bytes(&node)?;

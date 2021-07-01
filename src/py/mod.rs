@@ -1,5 +1,6 @@
 pub mod api;
 pub mod arena;
+pub mod bridge_cache;
 pub mod dialect;
 pub mod error_bridge;
 pub mod f_table;
