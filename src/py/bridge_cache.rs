@@ -44,21 +44,9 @@ impl BridgeCache {
         })
     }
 
-    /// copy this python object into this `BridgeCache` if it's not yet in the cache
-    /// (otherwise it returns the previously cached object)
-    pub fn include<'p>(
-        &self,
-        py: Python<'p>,
-        allocator: &mut Allocator,
-        obj: &'p PyAny,
-    ) -> PyResult<&'p PyAny> {
-        let ptr = self.populate_native(py, obj, allocator)?;
-        self.py_for_native(py, ptr, allocator)
-    }
-
     /// add a python object <-> native object mapping
     /// to the cache, in both directions
-    pub fn add(&self, py: Python, obj: &PyAny, ptr: NodePtr) -> PyResult<()> {
+    fn add(&self, py: Python, obj: &PyAny, ptr: NodePtr) -> PyResult<()> {
         let locals = [
             ("cache", self.cache.clone()),
             ("obj", obj.to_object(py)),
@@ -71,14 +59,14 @@ impl BridgeCache {
 
     // py to native methods
 
-    fn from_py_to_native_cache<'p>(&self, py: Python<'p>, obj: &PyAny) -> PyResult<NodePtr> {
+    fn native_from_cache<'p>(&self, py: Python<'p>, obj: &PyAny) -> PyResult<NodePtr> {
         let locals = [("cache", self.cache.clone()), ("key", obj.to_object(py))].into_py_dict(py);
-        py.eval("cache.get(id(key))", None, Some(locals))?.extract()
+        py.eval("cache[id(key)]", None, Some(locals))?.extract()
     }
 
     /// copy this python object into this `Arena` if it's not yet in the cache
     /// (otherwise it returns the previously cached object)
-    pub fn populate_native(
+    fn populate_native(
         &self,
         py: Python,
         obj: &PyAny,
@@ -91,7 +79,7 @@ impl BridgeCache {
 
         apply_to_tree(obj, move |obj| {
             // is it in cache yet?
-            if self.from_py_to_native_cache(py, obj).is_ok() {
+            if self.native_from_cache(py, obj).is_ok() {
                 // yep, we're done
                 return Ok(None);
             }
@@ -107,8 +95,8 @@ impl BridgeCache {
                     Ok(None)
                 }
                 PySExp::Pair(p0, p1) => {
-                    let ptr_0: PyResult<i32> = self.from_py_to_native_cache(py, p0);
-                    let ptr_1: PyResult<i32> = self.from_py_to_native_cache(py, p1);
+                    let ptr_0: PyResult<i32> = self.native_from_cache(py, p0);
+                    let ptr_1: PyResult<i32> = self.native_from_cache(py, p1);
 
                     let as_obj = id_for_pyany(py, obj)?;
 
@@ -136,22 +124,22 @@ impl BridgeCache {
             }
         })?;
 
-        self.from_py_to_native_cache(py, obj)
+        self.native_from_cache(py, obj)
     }
 
-    pub fn native_for_py(
+    pub fn as_native(
         &self,
         py: Python,
-        obj: &PyAny,
         allocator: &mut Allocator,
+        obj: &PyAny,
     ) -> PyResult<NodePtr> {
-        self.from_py_to_native_cache(py, obj)
+        self.native_from_cache(py, obj)
             .or_else(|_err| self.populate_native(py, obj, allocator))
     }
 
     // native to py methods
 
-    fn from_native_to_py_cache<'p>(&self, py: Python<'p>, ptr: NodePtr) -> PyResult<&'p PyAny> {
+    fn python_from_cache<'p>(&self, py: Python<'p>, ptr: NodePtr) -> PyResult<&'p PyAny> {
         let locals = [("cache", self.cache.clone()), ("key", ptr.to_object(py))].into_py_dict(py);
         py.eval("cache[key]", None, Some(locals))?.extract()
     }
@@ -164,7 +152,7 @@ impl BridgeCache {
     ) -> PyResult<&'p PyAny> {
         apply_to_tree(ptr, move |ptr| {
             // is it in cache yet?
-            if self.from_native_to_py_cache(py, ptr).is_ok() {
+            if self.python_from_cache(py, ptr).is_ok() {
                 // yep, we're done
                 return Ok(None);
             }
@@ -207,16 +195,16 @@ impl BridgeCache {
             }
         })?;
 
-        self.from_native_to_py_cache(py, ptr)
+        self.python_from_cache(py, ptr)
     }
 
-    pub fn py_for_native<'p>(
+    pub fn as_python<'p>(
         &self,
         py: Python<'p>,
-        ptr: NodePtr,
         allocator: &mut Allocator,
+        ptr: NodePtr,
     ) -> PyResult<&'p PyAny> {
-        self.from_native_to_py_cache(py, ptr)
+        self.python_from_cache(py, ptr)
             .or_else(|_err| self.populate_python(py, ptr, allocator))
     }
 }

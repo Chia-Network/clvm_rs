@@ -78,8 +78,7 @@ pub fn deserialize_and_run_program(
         Ok(reduction) => Ok((
             reduction.0,
             arena_borrowed
-                .cache
-                .py_for_native(py, reduction.1, allocator)?
+                .as_python(py, allocator, reduction.1)?
                 .to_object(py),
         )),
         Err(eval_err) => {

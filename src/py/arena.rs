@@ -8,14 +8,13 @@ use pyo3::prelude::pyclass;
 use pyo3::prelude::*;
 
 use super::bridge_cache::BridgeCache;
-use crate::allocator::Allocator;
+use crate::allocator::{Allocator, NodePtr};
 use crate::serialize::node_from_bytes;
 
 #[pyclass(subclass, unsendable)]
 pub struct Arena {
     arena: RefCell<Allocator>,
-    pub cache: BridgeCache,
-    // TODO: make this private, remove this `pub`
+    cache: BridgeCache,
 }
 
 #[pymethods]
@@ -32,22 +31,21 @@ impl Arena {
     pub fn deserialize<'p>(&self, py: Python<'p>, blob: &[u8]) -> PyResult<&'p PyAny> {
         let allocator: &mut Allocator = &mut self.allocator() as &mut Allocator;
         let ptr = node_from_bytes(allocator, blob)?;
-        self.cache.py_for_native(py, ptr, allocator)
+        self.as_python(py, allocator, ptr)
     }
 
     /// copy this python object into this `Arena` if it's not yet in the cache
     /// (otherwise it returns the previously cached object)
     pub fn include<'p>(&self, py: Python<'p>, obj: &'p PyAny) -> PyResult<&'p PyAny> {
-        let ptr = Self::ptr_for_obj(self, py, obj)?;
-        self.cache
-            .py_for_native(py, ptr, &mut self.allocator() as &mut Allocator)
+        let allocator = &mut self.allocator();
+        let ptr = self.as_native(py, allocator, obj)?;
+        self.as_python(py, allocator, ptr)
     }
 
     /// copy this python object into this `Arena` if it's not yet in the cache
     /// (otherwise it returns the previously cached object)
     pub fn ptr_for_obj(&self, py: Python, obj: &PyAny) -> PyResult<i32> {
-        let allocator: &mut Allocator = &mut self.allocator() as &mut Allocator;
-        self.cache.populate_native(py, obj, allocator)
+        self.as_native(py, &mut self.allocator(), obj)
     }
 }
 
@@ -61,10 +59,28 @@ impl Arena {
     }
 
     pub fn obj_for_ptr<'p>(&self, py: Python<'p>, ptr: i32) -> PyResult<&'p PyAny> {
-        self.cache.py_for_native(py, ptr, &mut self.allocator())
+        self.as_python(py, &mut self.allocator(), ptr)
     }
 
     pub fn allocator(&self) -> RefMut<Allocator> {
         self.arena.borrow_mut()
+    }
+
+    pub fn as_native(
+        &self,
+        py: Python,
+        allocator: &mut Allocator,
+        obj: &PyAny,
+    ) -> PyResult<NodePtr> {
+        self.cache.as_native(py, allocator, obj)
+    }
+
+    pub fn as_python<'p>(
+        &self,
+        py: Python<'p>,
+        allocator: &mut Allocator,
+        ptr: NodePtr,
+    ) -> PyResult<&'p PyAny> {
+        self.cache.as_python(py, allocator, ptr)
     }
 }

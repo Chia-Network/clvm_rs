@@ -168,8 +168,8 @@ fn pre_eval_callback(
     args: NodePtr,
 ) -> PyResult<PyObject> {
     // call the python `pre_eval` object and return the python object yielded
-    let program_obj = arena.cache.py_for_native(py, program, allocator)?;
-    let args_obj = arena.cache.py_for_native(py, args, allocator)?;
+    let program_obj = arena.as_python(py, allocator, program)?;
+    let args_obj = arena.as_python(py, allocator, args)?;
     let post_eval_obj = pre_eval_obj
         .call1(py, (program_obj, args_obj))?
         .to_object(py);
@@ -214,9 +214,7 @@ impl Dialect {
                         let local_arena = &arena;
                         let post_eval: Box<PostEval> =
                             Box::new(move |allocator: &mut Allocator, result_ptr: i32| {
-                                if let Ok(r) =
-                                    local_arena.cache.py_for_native(py, result_ptr, allocator)
-                                {
+                                if let Ok(r) = local_arena.as_python(py, allocator, result_ptr) {
                                     // invoke the python `PostEval` callback
                                     let _r = post_eval_obj.call1(py, (r.to_object(py),));
                                 }
@@ -243,14 +241,11 @@ impl Dialect {
 
         match r {
             Ok(reduction) => {
-                let r = arena.cache.py_for_native(py, reduction.1, allocator)?;
+                let r = arena.as_python(py, allocator, reduction.1)?;
                 Ok((reduction.0, r))
             }
             Err(eval_err) => {
-                let node: PyObject = arena
-                    .cache
-                    .py_for_native(py, eval_err.0, allocator)?
-                    .to_object(py);
+                let node: PyObject = arena.as_python(py, allocator, eval_err.0)?.to_object(py);
                 let s: String = eval_err.1;
                 let s1: &str = &s;
                 let msg: &PyString = PyString::new(py, s1);
@@ -278,7 +273,7 @@ impl DialectRunningContext<'_> {
     ) -> Response {
         Python::with_gil(|py| {
             let r = unwrap_or_eval_err(
-                self.arena.cache.py_for_native(py, args, allocator),
+                self.arena.as_python(py, allocator, args),
                 args,
                 "can't uncache",
             )?;
@@ -299,7 +294,7 @@ impl DialectRunningContext<'_> {
                     let clvm_object: &PyAny =
                         unwrap_or_eval_err(pair.get_item(1).extract(), args, "expected node")?;
 
-                    let r = self.arena.cache.native_for_py(py, clvm_object, allocator);
+                    let r = self.arena.as_native(py, allocator, clvm_object);
                     let node: i32 = unwrap_or_eval_err(r, args, "can't find in int allocator")?;
                     Ok(Reduction(i0 as Cost, node))
                 }

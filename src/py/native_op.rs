@@ -38,11 +38,11 @@ impl NativeOp {
         let r = (self.op)(allocator, ptr, _max_cost);
         match r {
             Ok(Reduction(cost, ptr)) => {
-                let r = arena.cache.py_for_native(py, ptr, allocator)?;
+                let r = arena.as_python(py, allocator, ptr)?;
                 Ok((cost, r.to_object(py)))
             }
             Err(_err) => {
-                let r = arena.cache.py_for_native(py, ptr, allocator)?;
+                let r = arena.as_python(py, allocator, ptr)?;
                 match raise_eval_error(
                     py,
                     PyString::new(py, "problem in suboperator"),
