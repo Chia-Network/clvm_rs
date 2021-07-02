@@ -53,8 +53,8 @@ pub fn deserialize_and_run_program(
     py: Python,
     program: &[u8],
     args: &[u8],
-    quote_kw: &[u8],
-    apply_kw: &[u8],
+    quote_kw: u8,
+    apply_kw: u8,
     opcode_lookup_by_name: HashMap<String, Vec<u8>>,
     max_cost: Cost,
     flags: u32,
@@ -64,14 +64,14 @@ pub fn deserialize_and_run_program(
     let mut allocator_refcell: RefMut<Allocator> = arena_borrowed.allocator();
     let allocator: &mut Allocator = &mut allocator_refcell as &mut Allocator;
     let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
-    let strict: bool = flags != 0;
+let strict: bool = (flags & STRICT_MODE) != 0;
     let f = OperatorHandlerWithMode { f_lookup, strict };
     let program = node_from_bytes(allocator, program)?;
     let args = node_from_bytes(allocator, args)?;
 
     let r = py.allow_threads(|| {
         run_program(
-            allocator, program, args, quote_kw, apply_kw, max_cost, &f, None,
+            allocator, program, args, &[quote_kw], &[apply_kw], max_cost, &f, None,
         )
     });
     match r {
@@ -117,8 +117,8 @@ pub fn deserialize_and_run_program2(
     py: Python,
     program: &[u8],
     args: &[u8],
-    quote_kw: &[u8],
-    apply_kw: &[u8],
+    quote_kw: u8,
+    apply_kw: u8,
     opcode_lookup_by_name: HashMap<String, Vec<u8>>,
     max_cost: Cost,
     flags: u32,
@@ -135,8 +135,8 @@ pub fn deserialize_and_run_program2(
             &mut allocator,
             program,
             args,
-            quote_kw,
-            apply_kw,
+            &[quote_kw],
+            &[apply_kw],
             max_cost,
             &f,
             None,
