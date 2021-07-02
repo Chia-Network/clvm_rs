@@ -17,12 +17,7 @@ use crate::op_utils::{
 };
 use crate::reduction::{Reduction, Response};
 use crate::serialize::node_to_bytes;
-
-#[cfg(windows)]
-use sha2::{Digest, Sha256};
-
-#[cfg(unix)]
-use openssl::sha;
+use crate::sha2::Sha256;
 
 // We ascribe some additional cost per byte for operations that allocate new atoms
 const MALLOC_COST_PER_BYTE: Cost = 10;
@@ -285,31 +280,10 @@ fn test_lenient_mode_last_bits() {
     assert_eq!(test_op_unknown(&buf, &mut a, null), Ok(Reduction(61, null)));
 }
 
-#[cfg(windows)]
 pub fn op_sha256(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let mut cost = SHA256_BASE_COST;
     let mut byte_count: usize = 0;
     let mut hasher = Sha256::new();
-    for arg in Node::new(a, input) {
-        cost += SHA256_COST_PER_ARG;
-        check_cost(
-            a,
-            cost + byte_count as Cost * SHA256_COST_PER_BYTE,
-            max_cost,
-        )?;
-        let blob = atom(&arg, "sha256")?;
-        byte_count += blob.len();
-        hasher.input(blob);
-    }
-    cost += byte_count as Cost * SHA256_COST_PER_BYTE;
-    new_atom_and_cost(a, cost, &hasher.result())
-}
-
-#[cfg(unix)]
-pub fn op_sha256(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
-    let mut cost = SHA256_BASE_COST;
-    let mut byte_count: usize = 0;
-    let mut hasher = sha::Sha256::new();
     for arg in Node::new(a, input) {
         cost += SHA256_COST_PER_ARG;
         check_cost(
