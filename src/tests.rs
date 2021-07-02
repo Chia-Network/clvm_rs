@@ -1,7 +1,19 @@
-use super::allocator::{Allocator, NodePtr};
+use super::allocator::{Allocator, NodePtr, SExp};
 use super::node::Node;
 use super::serialize::node_from_bytes;
 use super::serialize::node_to_bytes;
+
+impl<'a> PartialEq for Node<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self.sexp(), other.sexp()) {
+            (SExp::Pair(l0, l1), SExp::Pair(r0, r1)) => {
+                self.with_node(l0) == self.with_node(r0) && self.with_node(l1) == self.with_node(r1)
+            }
+            (SExp::Atom(l0), SExp::Atom(r0)) => self.allocator.buf(&l0) == self.allocator.buf(&r0),
+            _ => false,
+        }
+    }
+}
 
 fn test_serialize_roundtrip(a: &mut Allocator, n: NodePtr) {
     let vec = node_to_bytes(&Node::new(a, n.clone())).unwrap();

@@ -10,6 +10,7 @@ mod py;
 mod reduction;
 mod run_program;
 mod serialize;
+mod sha2;
 
 #[cfg(test)]
 mod tests;
