@@ -1,24 +1,13 @@
 [package]
-name = "clvm_rs"
+name = "clvm"
 version = "0.1.8"
 authors = ["Richard Kiss <him@richardkiss.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[lib]
-name = "clvm_rs"
-crate-type = ["cdylib"]
-
 [profile.release]
 lto = true
-
-[dependencies.pyo3]
-version = "0.13.2"
-
-[features]
-extension-module = ["pyo3/extension-module"]
-default = ["extension-module"]
 
 [dependencies]
 hex = "0.4.2"

@@ -1,15 +1,19 @@
-mod allocator;
-mod core_ops;
-mod cost;
-mod err_utils;
-mod more_ops;
-mod node;
+//! # `clvm`
+//!
+//! This crate provides an implementation of clvm contract language virtual machine
+//! used by Chia Network.
+
+pub mod allocator;
+pub mod core_ops;
+pub mod cost;
+pub mod err_utils;
+pub mod more_ops;
+pub mod node;
 mod number;
 mod op_utils;
-mod py;
-mod reduction;
-mod run_program;
-mod serialize;
+pub mod reduction;
+pub mod run_program;
+pub mod serialize;
 mod sha2;
 
 #[cfg(test)]
