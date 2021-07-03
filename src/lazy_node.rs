@@ -1,5 +1,6 @@
-use crate::allocator::{Allocator, NodePtr, SExp};
 use std::rc::Rc;
+
+use clvm::allocator::{Allocator, NodePtr, SExp};
 
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
