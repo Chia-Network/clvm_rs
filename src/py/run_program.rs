@@ -120,7 +120,7 @@ pub fn deserialize_and_run_program(
     let mut allocator = Allocator::new();
     let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
     let strict: bool = (flags & STRICT_MODE) != 0;
-    let f: Box<dyn OperatorHandler + Send> = Box::new(OperatorHandlerWithMode { f_lookup, strict });
+    let f = OperatorHandlerWithMode { f_lookup, strict };
     let program = node_from_bytes(&mut allocator, program)?;
     let args = node_from_bytes(&mut allocator, args)?;
 
@@ -129,10 +129,10 @@ pub fn deserialize_and_run_program(
             &mut allocator,
             program,
             args,
-            quote_kw,
-            apply_kw,
+            &[quote_kw],
+            &[apply_kw],
             max_cost,
-            f,
+            &f,
             None,
         )
     });
@@ -187,7 +187,7 @@ pub fn deserialize_and_run_program2(
     let mut allocator = Allocator::new();
     let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
     let strict: bool = (flags & STRICT_MODE) != 0;
-    let f: Box<dyn OperatorHandler + Send> = Box::new(OperatorHandlerWithMode { f_lookup, strict });
+    let f = OperatorHandlerWithMode { f_lookup, strict };
     let program = node_from_bytes(&mut allocator, program)?;
     let args = node_from_bytes(&mut allocator, args)?;
 
@@ -196,10 +196,10 @@ pub fn deserialize_and_run_program2(
             &mut allocator,
             program,
             args,
-            quote_kw,
-            apply_kw,
+            &[quote_kw],
+            &[apply_kw],
             max_cost,
-            f,
+            &f,
             None,
         )
     });

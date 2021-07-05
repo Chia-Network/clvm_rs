@@ -41,9 +41,9 @@ enum Operation {
 
 pub struct RunProgramContext<'a> {
     allocator: &'a mut Allocator,
-    quote_kw: u8,
-    apply_kw: u8,
-    operator_lookup: Box<dyn OperatorHandler>,
+    quote_kw: &'a [u8],
+    apply_kw: &'a [u8],
+    operator_lookup: &'a dyn OperatorHandler,
     pre_eval: Option<PreEval>,
     posteval_stack: Vec<Box<PostEval>>,
     val_stack: Vec<NodePtr>,
@@ -113,7 +113,7 @@ fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) -> Res
                 return Err(EvalErr(arg_list, "path into atom".into()));
             }
             SExp::Pair(left, right) => {
-                arg_list = *(if is_bit_set { &right } else { &left });
+                arg_list = if is_bit_set { right } else { left };
             }
         }
         if bitmask == 0x80 {
@@ -142,9 +142,9 @@ fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Co
 impl<'a> RunProgramContext<'a> {
     fn new(
         allocator: &'a mut Allocator,
-        quote_kw: u8,
-        apply_kw: u8,
-        operator_lookup: Box<dyn OperatorHandler>,
+        quote_kw: &'a [u8],
+        apply_kw: &'a [u8],
+        operator_lookup: &'a dyn OperatorHandler,
         pre_eval: Option<PreEval>,
     ) -> Self {
         RunProgramContext {
@@ -178,10 +178,7 @@ impl<'a> RunProgramContext<'a> {
     }
 }
 
-impl<'a> RunProgramContext<'a>
-where
-    NodePtr: 'static,
-{
+impl<'a> RunProgramContext<'a> {
     fn eval_op_atom(
         &mut self,
         op_buf: &AtomBuf,
@@ -191,7 +188,7 @@ where
     ) -> Result<Cost, EvalErr> {
         let op_atom = self.allocator.buf(op_buf);
         // special case check for quote
-        if op_atom.len() == 1 && op_atom[0] == self.quote_kw {
+        if op_atom == self.quote_kw {
             self.push(operand_list);
             Ok(QUOTE_COST)
         } else {
@@ -282,7 +279,7 @@ where
             return err(operator, "internal error");
         }
         let op_atom = self.allocator.atom(operator);
-        if op_atom.len() == 1 && op_atom[0] == self.apply_kw {
+        if op_atom == self.apply_kw {
             let operand_list = Node::new(self.allocator, operand_list);
             if operand_list.arg_count_is(2) {
                 let new_operator = operand_list.first()?;
@@ -347,19 +344,16 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_program(
-    allocator: &mut Allocator,
+pub fn run_program<'a>(
+    allocator: &'a mut Allocator,
     program: NodePtr,
     args: NodePtr,
-    quote_kw: u8,
-    apply_kw: u8,
+    quote_kw: &'a [u8],
+    apply_kw: &'a [u8],
     max_cost: Cost,
-    operator_lookup: Box<dyn OperatorHandler>,
+    operator_lookup: &'a dyn OperatorHandler,
     pre_eval: Option<PreEval>,
-) -> Response
-where
-    NodePtr: 'static,
-{
+) -> Response {
     let mut rpc = RunProgramContext::new(allocator, quote_kw, apply_kw, operator_lookup, pre_eval);
     rpc.run_program(program, args, max_cost)
 }
