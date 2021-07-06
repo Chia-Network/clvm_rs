@@ -13,8 +13,8 @@ Note that for now, you must use the `use_clvm_rs` branch of `clvm`.
 
 The rust code replaces `run_program` and `CLVMObject`.
 
-In order to run the unit tests, one has to pass `--no-default-features` to `cargo test`:
+In order to run the unit tests, run:
 
 ```
-cargo test --no-default-features
+cargo test
 ```
