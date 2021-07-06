@@ -6,6 +6,7 @@ mod more_ops;
 mod node;
 mod number;
 mod op_utils;
+#[cfg(not(test))]
 mod py;
 mod reduction;
 mod run_program;

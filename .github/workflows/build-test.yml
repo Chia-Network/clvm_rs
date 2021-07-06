@@ -229,4 +229,4 @@ jobs:
             toolchain: stable
             components: rustfmt, clippy
       - name: cargo test
-        run: cargo test --no-default-features
+        run: cargo test

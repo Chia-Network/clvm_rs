@@ -37,7 +37,7 @@ enum Operation {
 }
 
 // `run_program` has two stacks: the operand stack (of `Node` objects) and the
-// operator stack (of RpcOperators)
+// operator stack (of Operation)
 
 pub struct RunProgramContext<'a> {
     allocator: &'a mut Allocator,
