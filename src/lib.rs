@@ -7,6 +7,7 @@ pub mod allocator;
 pub mod core_ops;
 pub mod cost;
 pub mod err_utils;
+pub mod f_table;
 pub mod more_ops;
 pub mod node;
 mod number;
