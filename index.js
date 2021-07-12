@@ -29,8 +29,12 @@ function createHexString(arr) {
     return result;
 }
 
-let prog = parseHexString("ff1dffff1effff010a80ffff1effff01038080");
-let args = parseHexString("80");
-let t = wasm.run_clvm(prog, args);
-console.log("t = " + t);
-console.log("t = " + createHexString(t));
+
+function run_program() {
+    let prog = parseHexString(document.getElementById("program").innerHTML);
+    let args = parseHexString(document.getElementById("args").innerHTML);
+    let t = wasm.run_clvm(prog, args);
+    document.getElementById("output").innerHTML = createHexString(t);
+}
+
+run_program();
