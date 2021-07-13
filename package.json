@@ -34,6 +34,6 @@
     "copy-webpack-plugin": "^5.0.0"
   },
   "dependencies": {
-    "clvm": "file:../pkg"
-	}
+    "clvm": "git+https://git@github.com/Chia-Network/clvm_rs#wasm"
+  }
 }
