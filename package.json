@@ -1,0 +1,16 @@
+{
+  "name": "clvm-js",
+  "collaborators": [
+    "Richard Kiss <him@richardkiss.com>"
+  ],
+  "version": "0.1.0",
+  "files": [
+    "clvm_js_bg.wasm",
+    "clvm_js.js",
+    "clvm_js_bg.js",
+    "clvm_js.d.ts"
+  ],
+  "module": "clvm_js.js",
+  "types": "clvm_js.d.ts",
+  "sideEffects": false
+}
