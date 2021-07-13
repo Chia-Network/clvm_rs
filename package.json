@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "webpack --config webpack.config.js",
-    "start": "webpack-dev-server"
+    "start": "./node_modules/.bin/webpack-dev-server --public --disable-host-check"
   },
   "repository": {
     "type": "git",
@@ -27,13 +27,13 @@
   },
   "homepage": "https://github.com/rustwasm/create-wasm-app#readme",
   "devDependencies": {
+    "copy-webpack-plugin": "^5.0.0",
     "hello-wasm-pack": "^0.1.0",
     "webpack": "^4.29.3",
     "webpack-cli": "^3.1.0",
-    "webpack-dev-server": "^3.1.5",
-    "copy-webpack-plugin": "^5.0.0"
+    "webpack-dev-server": "^3.1.5"
   },
   "dependencies": {
-    "clvm": "git+https://git@github.com/Chia-Network/clvm_rs#wasm"
+    "clvm": "https://github.com/Chia-Network/clvm_rs/raw/npm-pkg/clvm.tar.gz"
   }
 }
