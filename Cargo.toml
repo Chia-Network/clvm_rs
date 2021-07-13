@@ -14,11 +14,11 @@ crate-type = ["cdylib"]
 lto = true
 
 [dependencies.pyo3]
-version = "0.13.2"
+version = "0.14.1"
 
 [features]
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
 
 [dependencies]
-clvm = {path = "/Users/kiss/projects/chia/clvm_rs/crate-only"}
+clvm = { git = "https://github.com/Chia-Network/clvm_rs/", branch = "crate-only" }
