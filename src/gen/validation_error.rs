@@ -31,14 +31,6 @@ pub enum ErrorCode {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ValidationErr(pub NodePtr, pub ErrorCode);
 
-pub fn checked_add(lhs: u64, rhs: u64, n: NodePtr, e: ErrorCode) -> Result<u64, ValidationErr> {
-    if u64::MAX - lhs < rhs {
-        Err(ValidationErr(n, e))
-    } else {
-        Ok(lhs + rhs)
-    }
-}
-
 // helper functions that fail with ValidationErr
 pub fn first(a: &Allocator, n: NodePtr) -> Result<NodePtr, ValidationErr> {
     match a.sexp(n) {
@@ -73,27 +65,4 @@ pub fn atom(a: &Allocator, n: NodePtr, code: ErrorCode) -> Result<&[u8], Validat
         SExp::Atom(_) => Ok(a.atom(n)),
         _ => Err(ValidationErr(n, code)),
     }
-}
-
-#[test]
-fn test_checked_add() {
-    let a = Allocator::new();
-    assert_eq!(
-        checked_add(u64::MAX - 1, 1, a.null(), ErrorCode::CostExceeded),
-        Ok(u64::MAX)
-    );
-    assert_eq!(checked_add(1, 1, a.null(), ErrorCode::CostExceeded), Ok(2));
-    assert_eq!(
-        checked_add(1024, 1024, a.null(), ErrorCode::CostExceeded),
-        Ok(2048)
-    );
-
-    assert_eq!(
-        checked_add(u64::MAX, 1, a.null(), ErrorCode::CostExceeded),
-        Err(ValidationErr(a.null(), ErrorCode::CostExceeded))
-    );
-    assert_eq!(
-        checked_add(u64::MAX, u64::MAX, a.null(), ErrorCode::CostExceeded),
-        Err(ValidationErr(a.null(), ErrorCode::CostExceeded))
-    );
 }

@@ -4,7 +4,7 @@ use super::condition_sanitizers::{
 };
 use super::rangeset::RangeSet;
 use super::sanitize_int::sanitize_integer;
-use super::validation_error::{checked_add, first, next, pair, rest, ErrorCode, ValidationErr};
+use super::validation_error::{first, next, pair, rest, ErrorCode, ValidationErr};
 use crate::allocator::{Allocator, NodePtr};
 use crate::cost::Cost;
 use crate::gen::opcodes::{
@@ -318,12 +318,10 @@ fn parse_spend_conditions(
         match cva {
             Condition::ReserveFee(limit) => {
                 // reserve fees are accumulated
-                spend.reserve_fee = checked_add(
-                    spend.reserve_fee,
-                    limit,
-                    c,
-                    ErrorCode::ReserveFeeConditionFailed,
-                )?;
+                spend.reserve_fee = spend
+                    .reserve_fee
+                    .checked_add(limit)
+                    .ok_or(ValidationErr(c, ErrorCode::ReserveFeeConditionFailed))?;
             }
             Condition::CreateCoin(ph, amount) => {
                 let new_coin = (a.atom(ph).to_vec(), amount);
