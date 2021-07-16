@@ -21,7 +21,7 @@ viewBody model =
             case model.runResult of
                 Just (Ok (hex,decoded)) ->
                     [ div [class "output-segment"]
-                          [ div [class "output-label"] [text "Serialized"]
+                          [ div [class "output-label"] [text "Serialized Result"]
                           , div [class "output-value output-good"] [text hex]
                           ]
                     , div [class "output-segment"]
@@ -61,7 +61,7 @@ viewBody model =
             , div [class "output-bar"]
                 (List.concat
                      [ [ div [class "output-segment"]
-                             [ div [class "output-label"] [text "Serialized"]
+                             [ div [class "output-label"] [text "Serialized Program"]
                              , div [class "output-value"] [comp]
                              ]
                        ]
