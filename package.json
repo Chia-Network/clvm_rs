@@ -37,6 +37,7 @@
     "browserfs": "^1.4.3",
     "clvm": "https://github.com/Chia-Network/clvm_rs/raw/npm-pkg/clvm.tar.gz",
     "clvm_tools": "^0.1.6",
-    "elm-webpack-loader": "^8.0.0"
+    "elm-webpack-loader": "^8.0.0",
+    "perf_hooks": "0.0.1"
   }
 }

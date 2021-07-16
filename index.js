@@ -1,5 +1,4 @@
 import * as wasm from "clvm";
-import { hexlify } from "binascii";
 import { Buffer } from "buffer";
 import * as clvm_tools from "clvm_tools";
 import {Elm, ports} from "./src/Main.elm";

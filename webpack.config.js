@@ -20,7 +20,8 @@ module.exports = {
           'path': 'browserfs/dist/shims/path.js',
           'processGlobal': 'browserfs/dist/shims/process.js',
           'bufferGlobal': 'browserfs/dist/shims/bufferGlobal.js',
-          'bfsGlobal': require.resolve('browserfs')
+          'bfsGlobal': require.resolve('browserfs'),
+          'perf_hooks': path.resolve(__dirname, 'stubs/perf_hooks.js'),
       }
   },
   plugins: [
