@@ -1,7 +1,9 @@
 Build with
 
+## Note: wasm-pack build should not be used unless this is hosted in a Cargo crate.
+
 ```
-wasm-pack build
+npm run build
 ```
 
 

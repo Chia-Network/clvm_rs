@@ -9,9 +9,6 @@ module.exports = {
     filename: "bootstrap.js",
   },
   mode: "development",
-  plugins: [
-    new CopyWebpackPlugin(['index.html'])
-  ],
   resolve: {
       // Use our versions of Node modules.
       alias: {
@@ -28,7 +25,8 @@ module.exports = {
       // Expose BrowserFS, process, and Buffer globals.
       // NOTE: If you intend to use BrowserFS in a script tag, you do not need
       // to expose a BrowserFS global.
-      new webpack.ProvidePlugin({ BrowserFS: 'bfsGlobal', process: 'processGlobal', Buffer: 'bufferGlobal' })
+      new webpack.ProvidePlugin({ BrowserFS: 'bfsGlobal', process: 'processGlobal', Buffer: 'bufferGlobal' }),
+      new CopyWebpackPlugin(['index.html'])
     ],
     // DISABLE Webpack's built-in process and Buffer polyfills!
     node: {
