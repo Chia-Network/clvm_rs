@@ -3,14 +3,82 @@
   <head>
     <meta charset="utf-8">
     <title>Hello wasm-pack!</title>
+    <style>
+     body {
+         margin: 0;
+         padding: 0;
+         height: 100vh;
+         width: 100vw;
+     }
+
+     .heading {
+         padding: 1em;
+         margin: 0;
+         color: white;
+         background-color: #444;
+     }
+
+     .output-good {
+         background-color: #cfc;
+     }
+
+     .output-bad {
+         background-color: #fcc;
+     }
+
+     .doc {
+         margin-top: 1em;
+         margin-left: 1em;
+         overflow: auto;
+     }
+
+     .input-bar {
+         display: flex;
+         width: 100%;
+         flex-direction: column;
+     }
+
+     .input-entry {
+         display: flex;
+         flex-direction: row;
+         margin: 0.25em;
+         padding: 0.25em;
+         background: #ddd;
+     }
+
+     .input-entry input {
+         width: 80%;
+     }
+
+     .input-label {
+         width: 8em;
+         flex-grow: 0;
+         flex-shrink: 0;
+     }
+
+     .output-bar {
+         display: flex;
+         width: 100%;
+         flex-direction: column;
+     }
+
+     .output-segment {
+         display: flex;
+         flex-direction: row;
+         margin: 0.25em;
+         padding: 0.25em;
+         background: #aaa;
+     }
+
+     .output-label {
+         width: 8em;
+         flex-grow: 0;
+         flex-shrink: 0;
+     }
+    </style>
   </head>
   <body>
-    <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
+    <div id="main"></div>
     <script src="./bootstrap.js"></script>
-    <textarea id="program" name="program" rows="8" cols="70">ff04ffff0183666f6fff0180</textarea>
-    <textarea id="args" name="args" rows="8" cols="70">83626172</textarea>
-    <button id="run" hidden="1">Run</button>
-    <hr>
-    <div id="output" name="output"></div>
   </body>
 </html>
