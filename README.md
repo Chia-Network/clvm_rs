@@ -18,3 +18,10 @@ In order to run the unit tests, run:
 ```
 cargo test
 ```
+
+
+To build a wasm `pkg`, use
+```
+$ cargo install wasm-pack
+$ wasm-pack build  --release -- --features=wasm-api
+```

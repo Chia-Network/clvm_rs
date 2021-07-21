@@ -14,8 +14,9 @@ crate-type = ["cdylib"]
 lto = true
 
 [features]
-extension-module = ["pyo3", "pyo3/extension-module"]
 default = ["sha2"]
+extension-module = ["pyo3", "pyo3/extension-module"]
+wasm-api = ["wasm-bindgen", "wasm-bindgen-test"]
 
 [dependencies]
 hex = "0.4.2"
@@ -24,6 +25,8 @@ num-bigint = "0.3.1"
 bls12_381 = "0.4.0"
 pyo3 = { version = "0.14.1", optional = true }
 sha2 = { version = "0.8.0", optional = true }
+wasm-bindgen = { version = "0.2.63", optional = true }
+wasm-bindgen-test = { version = "0.3.13", optional = true }
 
 [target.'cfg(unix)'.dependencies]
 openssl = { version = "0.10.32", features = ["vendored"], optional = true }

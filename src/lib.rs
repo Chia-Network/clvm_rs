@@ -18,3 +18,6 @@ mod sha2;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(feature = "wasm-api")]
+pub mod wasm;
