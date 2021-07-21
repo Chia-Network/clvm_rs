@@ -1,18 +1,15 @@
-#[cfg(windows)]
+// without openssl
+
+#[cfg(not(feature = "openssl"))]
 use sha2::{Digest, Sha256 as Ctx};
 
-#[cfg(unix)]
-use openssl::sha;
-
-// WINDOWS PART
-
-#[cfg(windows)]
+#[cfg(not(feature = "openssl"))]
 #[derive(Clone)]
 pub struct Sha256 {
     ctx: Ctx,
 }
 
-#[cfg(windows)]
+#[cfg(not(feature = "openssl"))]
 impl Sha256 {
     pub fn new() -> Sha256 {
         Sha256 { ctx: Ctx::new() }
@@ -25,15 +22,18 @@ impl Sha256 {
     }
 }
 
-// UNIX PART
+// with openssl
 
-#[cfg(unix)]
+#[cfg(feature = "openssl")]
+use openssl::sha;
+
+#[cfg(feature = "openssl")]
 #[derive(Clone)]
 pub struct Sha256 {
     ctx: sha::Sha256,
 }
 
-#[cfg(unix)]
+#[cfg(feature = "openssl")]
 impl Sha256 {
     pub fn new() -> Sha256 {
         Sha256 {

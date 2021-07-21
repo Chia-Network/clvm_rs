@@ -5,7 +5,7 @@ Install into current virtualenv with
 
 ```
 $ pip install maturin
-$ maturin develop --release
+$ maturin develop --release --cargo-extra-args='--features extension-module,openssl'  # on Windows, drop `openssl`
 $ pip install git+https://github.com/Chia-Network/clvm@use_clvm_rs
 ```
 
