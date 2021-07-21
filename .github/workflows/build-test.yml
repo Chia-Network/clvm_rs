@@ -50,7 +50,7 @@ jobs:
         python -m venv venv
         ln -s venv/bin/activate
         . ./activate
-        maturin build --no-sdist -i python --release
+        maturin build --no-sdist -i python --release --cargo-extra-args="--features extension-module,openssl"
 
 #    - name: Build Linux with maturin on Python ${{ matrix.python }}
 #      if: startsWith(matrix.os, 'ubuntu')
@@ -86,7 +86,7 @@ jobs:
             . ./activate && \
             pip install --upgrade pip && \
             pip install maturin && \
-            CC=gcc maturin build --no-sdist --release --manylinux 2010 \
+            CC=gcc maturin build --no-sdist --release --manylinux 2010 --cargo-extra-args="--features extension-module,openssl" \
           '
 
     - name: Build Windows with maturin on Python ${{ matrix.python }}
@@ -95,12 +95,12 @@ jobs:
         python -m venv venv
         . .\venv\Scripts\Activate.ps1
         ln -s venv\Scripts\Activate.ps1 activate
-        maturin build --no-sdist -i python --release
+        maturin build --no-sdist -i python --release --cargo-extra-args="--features extension-module"
         # this will install into the venv
         # it'd be better to use the wheel, but I can't figure out how to do that
         # TODO: figure this out
         # this does NOT work: pip install target/wheels/clvm_rs-*.whl
-        maturin develop --release
+        maturin develop --release --cargo-extra-args="--features extension-module"
         # the line above also doesn't seem to work
 
     - name: Install clvm_rs wheel
