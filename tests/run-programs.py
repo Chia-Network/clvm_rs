@@ -14,12 +14,6 @@ from run import run_clvm
 init()
 ret = 0
 
-native_opcode_names_by_opcode = dict(
-    ("op_%s" % OP_REWRITE.get(k, k), op)
-    for op, k in KEYWORD_FROM_ATOM.items()
-    if k not in "qa."
-)
-
 for fn in glob.glob('programs/large-atom-*.hex.invalid'):
 
     try:
