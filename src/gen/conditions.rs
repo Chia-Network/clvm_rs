@@ -1,6 +1,6 @@
 use super::coin_id::compute_coin_id;
 use super::condition_sanitizers::{
-    parse_amount, parse_height, parse_seconds, sanitize_announce_msg, sanitize_hash,
+    parse_amount, parse_height, parse_seconds, sanitize_announce_msg, sanitize_hash, u64_from_bytes
 };
 use super::rangeset::RangeSet;
 use super::sanitize_int::sanitize_uint;
@@ -14,7 +14,6 @@ use crate::gen::opcodes::{
     ASSERT_SECONDS_ABSOLUTE, ASSERT_SECONDS_RELATIVE, CREATE_COIN, CREATE_COIN_ANNOUNCEMENT,
     CREATE_COIN_COST, CREATE_PUZZLE_ANNOUNCEMENT, RESERVE_FEE,
 };
-use crate::op_utils::u64_from_bytes;
 use crate::run_program::STRICT_MODE;
 use crate::sha2::Sha256;
 use std::cmp::max;

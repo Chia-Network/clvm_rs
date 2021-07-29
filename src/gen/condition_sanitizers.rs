@@ -2,7 +2,6 @@ use super::rangeset::RangeSet;
 use super::sanitize_int::sanitize_uint;
 use super::validation_error::{atom, ErrorCode, ValidationErr};
 use crate::allocator::{Allocator, NodePtr};
-use crate::op_utils::u64_from_bytes;
 
 pub fn sanitize_hash(
     a: &Allocator,
@@ -397,4 +396,42 @@ fn test_parse_seconds() {
             Err(ValidationErr(pair, ErrorCode::AssertSecondsAbsolute))
         );
     }
+}
+
+pub fn u64_from_bytes(buf: &[u8]) -> u64 {
+    if buf.is_empty() {
+        return 0;
+    }
+
+    let mut ret: u64 = 0;
+    for b in buf {
+        ret <<= 8;
+        ret |= *b as u64;
+    }
+    ret
+}
+
+#[test]
+fn test_u64_from_bytes() {
+    assert_eq!(u64_from_bytes(&[]), 0);
+    assert_eq!(u64_from_bytes(&[0xcc]), 0xcc);
+    assert_eq!(u64_from_bytes(&[0xcc, 0x55]), 0xcc55);
+    assert_eq!(u64_from_bytes(&[0xcc, 0x55, 0x88]), 0xcc5588);
+    assert_eq!(u64_from_bytes(&[0xcc, 0x55, 0x88, 0xf3]), 0xcc5588f3);
+
+    assert_eq!(u64_from_bytes(&[0xff]), 0xff);
+    assert_eq!(u64_from_bytes(&[0xff, 0xff]), 0xffff);
+    assert_eq!(u64_from_bytes(&[0xff, 0xff, 0xff]), 0xffffff);
+    assert_eq!(u64_from_bytes(&[0xff, 0xff, 0xff, 0xff]), 0xffffffff);
+
+    assert_eq!(u64_from_bytes(&[0x00]), 0);
+    assert_eq!(u64_from_bytes(&[0x00, 0x00]), 0);
+    assert_eq!(u64_from_bytes(&[0x00, 0xcc, 0x55, 0x88]), 0xcc5588);
+    assert_eq!(u64_from_bytes(&[0x00, 0x00, 0xcc, 0x55, 0x88]), 0xcc5588);
+    assert_eq!(u64_from_bytes(&[0x00, 0xcc, 0x55, 0x88, 0xf3]), 0xcc5588f3);
+
+    assert_eq!(
+        u64_from_bytes(&[0xcc, 0x55, 0x88, 0xf3, 0xcc, 0x55, 0x88, 0xf3]),
+        0xcc5588f3cc5588f3
+    );
 }

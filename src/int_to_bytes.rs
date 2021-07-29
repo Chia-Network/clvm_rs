@@ -1,3 +1,4 @@
+#[cfg(feature = "extension-module")]
 pub fn u64_to_bytes(n: u64) -> Vec<u8> {
     let mut buf = Vec::<u8>::new();
     buf.extend_from_slice(&n.to_be_bytes());
