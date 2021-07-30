@@ -3,8 +3,11 @@ name = "clvm_rs"
 version = "0.1.8"
 authors = ["Richard Kiss <him@richardkiss.com>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "Apache-2.0"
+description = "Implementation of `clvm` for Chia coin"
+homepage = "https://github.com/Chia-Network/clvm_rs/"
+repository = "https://github.com/Chia-Network/clvm_rs/"
+readme = "README.md"
 
 [lib]
 name = "clvm_rs"

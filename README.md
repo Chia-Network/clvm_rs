@@ -1,5 +1,7 @@
 Rust implementation of clvm.
 
+Python Wheel
+------------
 
 Install into current virtualenv with
 
@@ -19,6 +21,8 @@ In order to run the unit tests, run:
 cargo test
 ```
 
+WASM
+----
 
 To build a wasm `pkg`, use
 ```
