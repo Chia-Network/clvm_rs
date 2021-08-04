@@ -1,0 +1,7 @@
+; (mod (A)
+;  (defun iter (N)
+;    (if N (logior (iter (- N 1)) N) 0)
+;  )
+;  (iter A)
+; )
+(a (q 2 2 (c 2 (c 5 ()))) (c (q 2 (i 5 (q 25 (a 2 (c 2 (c (- 5 (q . 1)) ()))) 5) ()) 1) 1))

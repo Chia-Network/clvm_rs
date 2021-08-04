@@ -1,0 +1,7 @@
+; (mod (A)
+;  (defun iter (N)
+;    (if N (lognot (iter (- N 1))) 0xcccccccccccccccccc)
+;  )
+;  (iter A)
+; )
+(a (q 2 2 (c 2 (c 5 ()))) (c (q 2 (i 5 (q 27 (a 2 (c 2 (c (- 5 (q . 1)) ())))) (q 1 . 0xcccccccccccccccccc)) 1) 1))
