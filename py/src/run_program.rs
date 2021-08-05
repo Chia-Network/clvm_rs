@@ -1,19 +1,20 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::allocator::{Allocator, NodePtr};
-use crate::cost::Cost;
-use crate::err_utils::err;
-use crate::f_table::{f_lookup_for_hashmap, FLookup};
-use crate::more_ops::op_unknown;
-use crate::node::Node;
-use crate::py::lazy_node::LazyNode;
-use crate::reduction::Response;
-use crate::run_program::{run_program, OperatorHandler, STRICT_MODE};
-use crate::serialize::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
+use clvm_rs::allocator::{Allocator, NodePtr};
+use clvm_rs::cost::Cost;
+use clvm_rs::err_utils::err;
+use clvm_rs::f_table::{f_lookup_for_hashmap, FLookup};
+use clvm_rs::more_ops::op_unknown;
+use clvm_rs::node::Node;
+use clvm_rs::reduction::Response;
+use clvm_rs::run_program::{run_program, OperatorHandler, STRICT_MODE};
+use clvm_rs::serialize::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
 
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
+
+use crate::lazy_node::LazyNode;
 
 pub struct OperatorHandlerWithMode {
     f_lookup: FLookup,

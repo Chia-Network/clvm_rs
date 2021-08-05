@@ -1,5 +1,5 @@
-use crate::allocator::{Allocator, NodePtr};
-use crate::sha2::Sha256;
+use clvm_rs::allocator::{Allocator, NodePtr};
+use clvm_rs::sha2::Sha256;
 
 pub fn compute_coin_id(
     a: &Allocator,

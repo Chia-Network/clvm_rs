@@ -1,12 +1,18 @@
 use super::coin_id::compute_coin_id;
 use super::condition_sanitizers::{
-    parse_amount, parse_height, parse_seconds, sanitize_announce_msg, sanitize_hash, u64_from_bytes
+    parse_amount, parse_height, parse_seconds, sanitize_announce_msg, sanitize_hash, u64_from_bytes,
 };
 use super::rangeset::RangeSet;
 use super::sanitize_int::sanitize_uint;
 use super::validation_error::{first, next, pair, rest, ErrorCode, ValidationErr};
-use crate::allocator::{Allocator, NodePtr};
-use crate::cost::Cost;
+use clvm_rs::allocator::{Allocator, NodePtr};
+use clvm_rs::cost::Cost;
+use clvm_rs::run_program::STRICT_MODE;
+use clvm_rs::sha2::Sha256;
+use std::cmp::max;
+use std::collections::HashSet;
+use std::sync::Arc;
+
 use crate::gen::opcodes::{
     parse_opcode, ConditionOpcode, AGG_SIG_COST, AGG_SIG_ME, AGG_SIG_UNSAFE,
     ASSERT_COIN_ANNOUNCEMENT, ASSERT_HEIGHT_ABSOLUTE, ASSERT_HEIGHT_RELATIVE, ASSERT_MY_AMOUNT,
@@ -14,11 +20,6 @@ use crate::gen::opcodes::{
     ASSERT_SECONDS_ABSOLUTE, ASSERT_SECONDS_RELATIVE, CREATE_COIN, CREATE_COIN_ANNOUNCEMENT,
     CREATE_COIN_COST, CREATE_PUZZLE_ANNOUNCEMENT, RESERVE_FEE,
 };
-use crate::run_program::STRICT_MODE;
-use crate::sha2::Sha256;
-use std::cmp::max;
-use std::collections::HashSet;
-use std::sync::Arc;
 
 // The structure of conditions, returned from a generator program, is a list,
 // where the first element is used, and any additional elements are left unused,
@@ -486,13 +487,13 @@ pub fn parse_spends(
 }
 
 #[cfg(test)]
-use crate::int_to_bytes::u64_to_bytes;
+use crate::genserialize::node_to_bytes;
 #[cfg(test)]
-use crate::node::Node;
+use clvm_rs::int_to_bytes::u64_to_bytes;
 #[cfg(test)]
-use crate::number::{ptr_from_number, Number};
+use clvm_rs::node::Node;
 #[cfg(test)]
-use crate::serialize::node_to_bytes;
+use clvm_rs::number::{ptr_from_number, Number};
 #[cfg(test)]
 use std::collections::HashMap;
 

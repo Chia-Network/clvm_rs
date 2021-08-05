@@ -1,5 +1,5 @@
-use crate::allocator::{Allocator, NodePtr, SExp};
-use crate::cost::Cost;
+use clvm_rs::allocator::{Allocator, NodePtr, SExp};
+use clvm_rs::cost::Cost;
 
 pub type ConditionOpcode = u8;
 

@@ -1,6 +1,8 @@
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
+use clvm_rs::run_program::STRICT_MODE;
+
 use super::lazy_node::LazyNode;
 use super::run_generator::{
     PyConditionWithArgs, PySpendConditionSummary, __pyo3_get_function_run_generator,
@@ -10,7 +12,6 @@ use super::run_program::{
     __pyo3_get_function_deserialize_and_run_program2,
     __pyo3_get_function_serialize_and_run_program, __pyo3_get_function_serialized_length,
 };
-use crate::run_program::STRICT_MODE;
 
 /// This module is a python module implemented in Rust.
 #[pymodule]

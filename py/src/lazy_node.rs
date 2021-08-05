@@ -1,4 +1,4 @@
-use crate::allocator::{Allocator, NodePtr, SExp};
+use clvm_rs::allocator::{Allocator, NodePtr, SExp};
 use std::rc::Rc;
 
 use pyo3::prelude::*;

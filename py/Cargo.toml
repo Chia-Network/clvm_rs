@@ -1,5 +1,5 @@
 [package]
-name = "clvm_rs"
+name = "clvm_rs_wheel"
 version = "0.0.2"
 authors = ["Richard Kiss <him@richardkiss.com>"]
 edition = "2018"
@@ -11,20 +11,12 @@ readme = "README.md"
 
 [lib]
 name = "clvm_rs"
-
-[profile.release]
-lto = true
+crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["sha2", "sha2/asm"]
+default = ["extension-module"]
+extension-module = ["pyo3", "pyo3/extension-module"]
 
 [dependencies]
-hex = "0.4.2"
-lazy_static = "1.4.0"
-num-bigint = "0.3.1"
-bls12_381 = "0.4.0"
-sha2 = { version = "0.8.0", optional = true }
-openssl = { version = "0.10.32", features = ["vendored"], optional = true }
-
-[workspace]
-members = ["py", "wasm"]
+clvm_rs = { path = ".." }
+pyo3 = { version = "0.14.1", optional = true }

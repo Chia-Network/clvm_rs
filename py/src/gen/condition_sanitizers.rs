@@ -1,7 +1,7 @@
 use super::rangeset::RangeSet;
 use super::sanitize_int::sanitize_uint;
 use super::validation_error::{atom, ErrorCode, ValidationErr};
-use crate::allocator::{Allocator, NodePtr};
+use clvm_rs::allocator::{Allocator, NodePtr};
 
 pub fn sanitize_hash(
     a: &Allocator,
@@ -85,7 +85,7 @@ pub fn sanitize_announce_msg(
 }
 
 #[cfg(test)]
-use crate::run_program::STRICT_MODE;
+use clvm_rs::run_program::STRICT_MODE;
 
 #[cfg(test)]
 fn zero_vec(len: usize) -> Vec<u8> {

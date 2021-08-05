@@ -1,25 +1,26 @@
-use crate::allocator::{Allocator, NodePtr};
-use crate::cost::Cost;
-use crate::gen::conditions::{parse_spends, Condition, SpendConditionSummary};
-use crate::gen::opcodes::{
-    ConditionOpcode, AGG_SIG_ME, AGG_SIG_UNSAFE, ASSERT_HEIGHT_ABSOLUTE, ASSERT_HEIGHT_RELATIVE,
-    ASSERT_SECONDS_ABSOLUTE, ASSERT_SECONDS_RELATIVE, CREATE_COIN, RESERVE_FEE,
-};
-use crate::gen::validation_error::{ErrorCode, ValidationErr};
-use crate::int_to_bytes::u64_to_bytes;
-use crate::py::run_program::OperatorHandlerWithMode;
-use crate::reduction::{EvalErr, Reduction};
-use crate::run_program::{run_program, STRICT_MODE};
-use crate::serialize::node_from_bytes;
+use clvm_rs::allocator::{Allocator, NodePtr};
+use clvm_rs::cost::Cost;
+use clvm_rs::reduction::{EvalErr, Reduction};
+use clvm_rs::run_program::{run_program, STRICT_MODE};
+use clvm_rs::serialize::node_from_bytes;
 
-use crate::f_table::f_lookup_for_hashmap;
-use crate::py::lazy_node::LazyNode;
+use clvm_rs::f_table::f_lookup_for_hashmap;
 
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
+
+use super::gen::conditions::{parse_spends, Condition, SpendConditionSummary};
+use super::gen::opcodes::{
+    ConditionOpcode, AGG_SIG_ME, AGG_SIG_UNSAFE, ASSERT_HEIGHT_ABSOLUTE, ASSERT_HEIGHT_RELATIVE,
+    ASSERT_SECONDS_ABSOLUTE, ASSERT_SECONDS_RELATIVE, CREATE_COIN, RESERVE_FEE,
+};
+use super::gen::validation_error::{ErrorCode, ValidationErr};
+use super::int_to_bytes::u64_to_bytes;
+use super::lazy_node::LazyNode;
+use super::run_program::OperatorHandlerWithMode;
 
 fn node_to_pybytes(py: Python, a: &Allocator, n: NodePtr) -> PyObject {
     PyBytes::new(py, a.atom(n)).into()

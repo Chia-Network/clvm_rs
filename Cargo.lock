@@ -105,10 +105,24 @@ dependencies = [
  "lazy_static",
  "num-bigint",
  "openssl",
- "pyo3",
  "sha2",
+]
+
+[[package]]
+name = "clvm_rs_wasm"
+version = "0.0.2"
+dependencies = [
+ "clvm_rs",
  "wasm-bindgen",
  "wasm-bindgen-test",
+]
+
+[[package]]
+name = "clvm_rs_wheel"
+version = "0.0.2"
+dependencies = [
+ "clvm_rs",
+ "pyo3",
 ]
 
 [[package]]
@@ -520,6 +534,16 @@ dependencies = [
  "digest",
  "fake-simd",
  "opaque-debug",
+ "sha2-asm",
+]
+
+[[package]]
+name = "sha2-asm"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7c2f225be6502f2134e6bbb35bb5e2957e41ffa0495ed08bce2e2b4ca885da4"
+dependencies = [
+ "cc",
 ]
 
 [[package]]
