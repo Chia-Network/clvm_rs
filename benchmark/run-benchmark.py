@@ -183,11 +183,12 @@ for n in range(5):
         max_cost = 0
         flags = 0
         if '--brun' in sys.argv:
-            command = ['brun', '-c', '--backend=rust', '--quiet', '--time', '--hex', fn, env_fn]
+            command = ['brun', '-m', '100000000000', '-c', '--backend=rust', '--quiet', '--time', '--hex', fn, env_fn]
             if "-v" in sys.argv:
                 print(" ".join(command))
             output = subprocess.check_output(command)
             output = output.decode('ascii').split('\n', 5)[:-1]
+            cost = 0
         else:
             if "-v" in sys.argv:
                 print(fn)
