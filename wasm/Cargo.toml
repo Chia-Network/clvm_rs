@@ -10,7 +10,7 @@ repository = "https://github.com/Chia-Network/clvm_rs/"
 readme = "README.md"
 
 [lib]
-name = "clvm_rs"
+name = "clvm_wasm"
 crate-type = ["cdylib", "rlib"]
 
 [features]
