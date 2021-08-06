@@ -1,6 +1,6 @@
-mod allocator;
+pub mod allocator;
 mod core_ops;
-mod cost;
+pub mod cost;
 mod err_utils;
 pub mod f_table;
 #[cfg(feature = "extension-module")]
