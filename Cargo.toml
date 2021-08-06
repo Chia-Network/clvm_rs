@@ -11,6 +11,7 @@ readme = "README.md"
 
 [lib]
 name = "clvm_rs"
+crate-type = ["cdylib", "rlib"]
 
 [profile.release]
 lto = true
