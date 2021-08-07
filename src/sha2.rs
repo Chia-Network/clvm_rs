@@ -1,4 +1,4 @@
-#[cfg(windows)]
+#[cfg(not(unix))]
 use sha2::{Digest, Sha256 as Ctx};
 
 #[cfg(unix)]
@@ -6,13 +6,13 @@ use openssl::sha;
 
 // WINDOWS PART
 
-#[cfg(windows)]
+#[cfg(not(unix))]
 #[derive(Clone)]
 pub struct Sha256 {
     ctx: Ctx,
 }
 
-#[cfg(windows)]
+#[cfg(not(unix))]
 impl Sha256 {
     pub fn new() -> Sha256 {
         Sha256 { ctx: Ctx::new() }
