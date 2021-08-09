@@ -1,0 +1,79 @@
+name: Build crate and npm package
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    tags:
+        - '**'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  build_crate:
+    name: Crate & NPM
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Set up rusts
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt, clippy
+
+    - name: Set up rust (nightly)
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        components: rustfmt, clippy
+
+    - name: fmt (nightly)
+      run: cargo +nightly fmt -- --files-with-diff --check
+    - name: clippy (nightly)
+      run: cargo +nightly clippy
+    - name: tests
+      run: cargo test && cargo test --release
+    - name: build
+      run: cargo build --release
+    - name: dry-run of `cargo publish`
+      run: cargo publish --dry-run
+
+    - name: Upload crate artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: crate
+        path: ./target/package/clvm_rs-*.crate
+
+    - name: install wasm-pack
+      run: cargo install wasm-pack
+
+    - name: wasm-pack build and pack
+      run: wasm-pack build && wasm-pack pack
+
+    - name: Upload npm pkg artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: npm-pkg
+        path: ./pkg/clvm_rs-*.tgz
+
+    # this has not been tested, so probably needs to be debugged next time a tag is created
+    - name: publish to crates.io if tagged
+      if: startsWith(github.event.ref, 'refs/tags')
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ secrets.cargo_registry_token }}
+      run: cargo publish
+
+    # this has not been tested, so probably needs to be debugged next time a tag is created
+    - name: publish to npmjs.com if tagged
+      if: startsWith(github.event.ref, 'refs/tags')
+      uses: JS-DevTools/npm-publish@v1
+      with:
+        token: ${{ secrets.node_auth_token }}
