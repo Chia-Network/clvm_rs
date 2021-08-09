@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from clvm_rs import run_generator
+from clvm_rs import run_generator2, STRICT_MODE
 from time import time
 from clvm_tools import binutils
 import sys
@@ -51,40 +51,59 @@ def run_gen(fn, flags=0):
     env_data = b"\xff" + env_data + b"\xff" + block_program_args  + b"\x80"
 
     try:
-        return run_generator(
+        return run_generator2(
             program_data,
             env_data,
-            0, 0,
-            {},
             max_cost,
             flags,
         )
     except Exception as e:
         # GENERATOR_RUNTIME_ERROR
-        return (117, [], None)
+        return (117, None)
+
+
+def print_spend_bundle_conditions(result) -> str:
+    ret = ""
+    if result.reserve_fee > 0:
+        ret += f"RESERVE_FEE: {result.reserve_fee}\n"
+    if result.height_absolute > 0:
+        ret += f"ASSERT_HEIGHT_ABSOLUTE {result.height_absolute}\n"
+    if result.seconds_absolute > 0:
+        ret += f"ASSERT_SECONDS_ABSOLUTE {result.seconds_absolute}\n"
+    for a in sorted(result.agg_sig_unsafe):
+        ret += f"AGG_SIG_UNSAFE pk: {a[0].hex()} msg: {a[1].hex()}\n"
+    ret += "SPENDS:\n"
+    for s in sorted(result.spends, key=lambda x: x.coin_id):
+        ret += f"- coin id: {s.coin_id.hex()} ph: {s.puzzle_hash.hex()}\n"
+
+        if s.height_relative:
+            ret += f"  ASSERT_HEIGHT_RELATIVE {s.height_relative}\n"
+        if s.seconds_relative > 0:
+            ret += f"  ASSERT_SECONDS_RELATIVE {s.seconds_relative}\n"
+        for a in sorted(s.create_coin):
+            if len(a[2]) > 0:
+                ret += f"  CREATE_COIN: ph: {a[0].hex()} amount: {a[1]} hint: {a[2].hex()}\n"
+            else:
+                ret += f"  CREATE_COIN: ph: {a[0].hex()} amount: {a[1]}\n"
+        for a in sorted(s.agg_sig_me):
+            ret += f"  AGG_SIG_ME pk: {a[0].hex()} msg: {a[1].hex()}\n"
+    ret += f"cost (clvm + conditions): {result.cost}\n"
+    return ret
 
 
 if __name__ == "__main__":
     try:
         start_time = time()
-        error_code, result, cost = run_gen(sys.argv[1])
+        error_code, result = run_gen(sys.argv[1])
         run_time = time() - start_time
         if error_code is not None:
             print(f"Validation Error: {error_code}")
             print(f"run-time: {run_time:.2f}s")
             sys.exit(1)
         start_time = time()
-        for r in sorted(result, key=lambda x: x.coin_name):
-            print(f"coin: {r.coin_name.hex()} ph: {r.puzzle_hash.hex()}")
-            for c in sorted(r.conditions, key=lambda x: x[0]):
-                print(f"  {c[0]}")
-                for cwa in sorted(c[1], key=lambda x: (x.opcode, x.vars)):
-                    print(f"    {cwa.opcode}", end="")
-                    for a in cwa.vars:
-                        print(f" {a.hex()}", end="")
-                    print("")
+        print("Spend bundle:")
+        print(print_spend_bundle_conditions(result))
         print_time = time() - start_time
-        print(f"cost: {cost}")
         print(f"run-time: {run_time:.2f}s")
         print(f"print-time: {print_time:.2f}s")
     except Exception as e:
