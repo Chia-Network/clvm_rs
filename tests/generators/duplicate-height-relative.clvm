@@ -1,6 +1,7 @@
 (q ((0x0101010101010101010101010101010101010101010101010101010101010101  (a (q 2 4 (c 2 (c (c (q . 82) (c (concat (a 6 (c 2 (c (q . 0x00) (c 5 ())))) (q . 100)) ())) (c 11 ())))) (c (q (a (i 11 (q 4 5 (a 4 (c 2 (c 5 (c (- 11 (q . 1)) ()))))) ()) 1) 2 (i 11 (q 2 6 (c 2 (c (concat 5 5) (c (- 11 (q . 1)) ())))) (q . 5)) 1) (q 28 280000)))  123 (() (q . ())))))
-coin: 53c6886d3ad86017db83b6f0d80912ebffab6f5ae15c56c61ca1b6644529f598 ph: f75575e8234878e37ddcd4df414a40c4b11bd64bb7cee744ca1502b4dd5ec7d8
-  82
-    82 64
+SPENDS:
+- coin id: 53c6886d3ad86017db83b6f0d80912ebffab6f5ae15c56c61ca1b6644529f598 ph: f75575e8234878e37ddcd4df414a40c4b11bd64bb7cee744ca1502b4dd5ec7d8
+  ASSERT_HEIGHT_RELATIVE 100
+cost (clvm + conditions): 10942135292
 STRICT:
 FAILED: 13
