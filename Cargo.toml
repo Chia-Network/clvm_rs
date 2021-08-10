@@ -3,18 +3,18 @@ name = "clvm_rs"
 version = "0.1.9"
 authors = ["Richard Kiss <him@richardkiss.com>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "Apache-2.0"
+description = "Implementation of `clvm` for Chia Network's cryptocurrency"
+homepage = "https://github.com/Chia-Network/clvm_rs/"
+repository = "https://github.com/Chia-Network/clvm_rs/"
+readme = "README.md"
 
 [lib]
 name = "clvm_rs"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [profile.release]
 lto = true
-
-[dependencies.pyo3]
-version = "0.13.2"
 
 [features]
 extension-module = ["pyo3/extension-module"]
@@ -26,8 +26,15 @@ lazy_static = "1.4.0"
 num-bigint = "0.3.1"
 bls12_381 = "0.4.0"
 
-[target.'cfg(windows)'.dependencies]
+[target.'cfg(not(unix))'.dependencies]
 sha2 = "0.8.0"
 
 [target.'cfg(unix)'.dependencies]
 openssl = { version = "0.10.32", features = ["vendored"] }
+
+[target.'cfg(target_family="wasm")'.dependencies]
+wasm-bindgen = "0.2.63"
+wasm-bindgen-test = "0.3.13"
+
+[target.'cfg(not(target_family="wasm"))'.dependencies]
+pyo3 = "0.13.2"
