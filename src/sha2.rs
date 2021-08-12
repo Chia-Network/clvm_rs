@@ -18,10 +18,10 @@ impl Sha256 {
         Sha256 { ctx: Ctx::new() }
     }
     pub fn update(&mut self, buf: &[u8]) {
-        self.ctx.input(buf);
+        self.ctx.update(buf);
     }
     pub fn finish(self) -> [u8; 32] {
-        self.ctx.result().into()
+        self.ctx.finalize().into()
     }
 }
 

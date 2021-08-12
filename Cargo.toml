@@ -21,20 +21,20 @@ extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
 
 [dependencies]
-hex = "0.4.2"
+hex = "0.4.3"
 lazy_static = "1.4.0"
-num-bigint = "0.3.1"
-bls12_381 = "0.4.0"
+num-bigint = "0.4.0"
+bls12_381 = "0.5.0"
 
-[target.'cfg(not(unix))'.dependencies]
-sha2 = "0.8.0"
+#[target.'cfg(not(unix))'.dependencies]
+sha2 = "0.9.5"
 
 [target.'cfg(unix)'.dependencies]
-openssl = { version = "0.10.32", features = ["vendored"] }
+openssl = { version = "0.10.35", features = ["vendored"] }
 
 [target.'cfg(target_family="wasm")'.dependencies]
-wasm-bindgen = "0.2.63"
-wasm-bindgen-test = "0.3.13"
+wasm-bindgen = "0.2.75"
+wasm-bindgen-test = "0.3.25"
 
 [target.'cfg(not(target_family="wasm"))'.dependencies]
-pyo3 = "0.13.2"
+pyo3 = "0.14.2"
