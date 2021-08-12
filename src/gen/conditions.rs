@@ -5,7 +5,7 @@ use super::condition_sanitizers::{
 use super::rangeset::RangeSet;
 use super::sanitize_int::sanitize_uint;
 use super::validation_error::{first, next, pair, rest, ErrorCode, ValidationErr};
-use crate::allocator::{Allocator, NodePtr};
+use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::Cost;
 use crate::gen::opcodes::{
     parse_opcode, ConditionOpcode, AGG_SIG_COST, AGG_SIG_ME, AGG_SIG_UNSAFE,
@@ -93,13 +93,21 @@ fn parse_args(
             let pubkey = sanitize_hash(a, first(a, c)?, 48, ErrorCode::InvalidPubkey)?;
             c = rest(a, c)?;
             let message = sanitize_announce_msg(a, first(a, c)?, ErrorCode::InvalidMessage)?;
-            Ok(Condition::AggSigUnsafe(pubkey, message))
+            // AGG_SIG_UNSAFE takes exactly two parameters
+            match a.sexp(rest(a, c)?) {
+                SExp::Pair(_, _) => Err(ValidationErr(c, ErrorCode::InvalidCondition)),
+                _ => Ok(Condition::AggSigUnsafe(pubkey, message)),
+            }
         }
         AGG_SIG_ME => {
             let pubkey = sanitize_hash(a, first(a, c)?, 48, ErrorCode::InvalidPubkey)?;
             c = rest(a, c)?;
             let message = sanitize_announce_msg(a, first(a, c)?, ErrorCode::InvalidMessage)?;
-            Ok(Condition::AggSigMe(pubkey, message))
+            // AGG_SIG_ME takes exactly two parameters
+            match a.sexp(rest(a, c)?) {
+                SExp::Pair(_, _) => Err(ValidationErr(c, ErrorCode::InvalidCondition)),
+                _ => Ok(Condition::AggSigMe(pubkey, message)),
+            }
         }
         CREATE_COIN => {
             let puzzle_hash = sanitize_hash(a, first(a, c)?, 32, ErrorCode::InvalidPuzzleHash)?;
@@ -1538,6 +1546,28 @@ fn test_single_agg_sig_unsafe() {
 }
 
 #[test]
+fn test_agg_sig_unsafe_extra_arg() {
+    // AGG_SIG_UNSAFE
+    assert_eq!(
+        cond_test("((({h1} ({h2} (123 (((49 ({pubkey} ({msg1} (456 )))))")
+            .unwrap_err()
+            .1,
+        ErrorCode::InvalidCondition
+    );
+}
+
+#[test]
+fn test_agg_sig_me_extra_arg() {
+    // AGG_SIG_ME
+    assert_eq!(
+        cond_test("((({h1} ({h2} (123 (((50 ({pubkey} ({msg1} (456 )))))")
+            .unwrap_err()
+            .1,
+        ErrorCode::InvalidCondition
+    );
+}
+
+#[test]
 fn test_duplicate_agg_sig_unsafe() {
     // AGG_SIG_UNSAFE
     // these conditions may not be deduplicated
@@ -1575,7 +1605,7 @@ fn test_agg_sig_unsafe_invalid_pubkey() {
 
 #[test]
 fn test_agg_sig_unsafe_invalid_msg() {
-    // AGG_SIG_ME
+    // AGG_SIG_UNSAFE
     assert_eq!(
         cond_test("((({h1} ({h2} (123 (((49 ({pubkey} ({longmsg} )))))")
             .unwrap_err()
