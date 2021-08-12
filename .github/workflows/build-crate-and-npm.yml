@@ -77,3 +77,4 @@ jobs:
       uses: JS-DevTools/npm-publish@v1
       with:
         token: ${{ secrets.node_auth_token }}
+        package: pkg/package.json
