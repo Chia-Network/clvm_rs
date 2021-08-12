@@ -93,7 +93,7 @@ fn parse_args(
             let pubkey = sanitize_hash(a, first(a, c)?, 48, ErrorCode::InvalidPubkey)?;
             c = rest(a, c)?;
             let message = sanitize_announce_msg(a, first(a, c)?, ErrorCode::InvalidMessage)?;
-            // AGG_SIGG_UNSAFE takes exactly two parameters
+            // AGG_SIG_UNSAFE takes exactly two parameters
             match a.sexp(rest(a, c)?) {
                 SExp::Pair(_, _) => Err(ValidationErr(c, ErrorCode::InvalidCondition)),
                 _ => Ok(Condition::AggSigUnsafe(pubkey, message)),
@@ -103,7 +103,7 @@ fn parse_args(
             let pubkey = sanitize_hash(a, first(a, c)?, 48, ErrorCode::InvalidPubkey)?;
             c = rest(a, c)?;
             let message = sanitize_announce_msg(a, first(a, c)?, ErrorCode::InvalidMessage)?;
-            // AGG_SIGG_ME takes exactly two parameters
+            // AGG_SIG_ME takes exactly two parameters
             match a.sexp(rest(a, c)?) {
                 SExp::Pair(_, _) => Err(ValidationErr(c, ErrorCode::InvalidCondition)),
                 _ => Ok(Condition::AggSigMe(pubkey, message)),
