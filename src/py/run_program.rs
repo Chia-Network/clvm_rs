@@ -216,7 +216,7 @@ pub fn deserialize_and_run_program2(
             Ok((reduction.0, val))
         }
         Err(eval_err) => {
-            let node = LazyNode::new(Rc::new(allocator), eval_err.0);
+            let node = LazyNode::new_cell(py, Rc::new(allocator), eval_err.0)?;
             let msg = eval_err.1;
             let ctx: &PyDict = PyDict::new(py);
             ctx.set_item("msg", msg)?;

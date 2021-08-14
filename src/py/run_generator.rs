@@ -258,7 +258,7 @@ pub fn run_generator(
             Ok((error_code, ret, 0))
         }
         Err(eval_err) => {
-            let node = LazyNode::new(Rc::new(allocator), eval_err.0);
+            let node = LazyNode::new_cell(py, Rc::new(allocator), eval_err.0)?;
             let msg = eval_err.1;
             let ctx: &PyDict = PyDict::new(py);
             ctx.set_item("msg", msg)?;
