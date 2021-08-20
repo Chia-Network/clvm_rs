@@ -6,7 +6,12 @@ from clvm import KEYWORD_FROM_ATOM, KEYWORD_TO_ATOM
 from time import time
 from clvm_tools import binutils
 import sys
-from run import native_opcode_names_by_opcode
+
+native_opcode_names_by_opcode = dict(
+    ("op_%s" % OP_REWRITE.get(k, k), op)
+    for op, k in KEYWORD_FROM_ATOM.items()
+    if k not in "qa."
+)
 
 def run_gen(fn):
 
