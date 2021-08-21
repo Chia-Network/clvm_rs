@@ -142,7 +142,7 @@ fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Co
 }
 
 impl<'a> RunProgramContext<'a> {
-    fn new(
+    pub fn new(
         allocator: &'a mut Allocator,
         quote_kw: &'a [u8],
         apply_kw: &'a [u8],
@@ -178,9 +178,7 @@ impl<'a> RunProgramContext<'a> {
         self.push(p);
         Ok(0)
     }
-}
 
-impl<'a> RunProgramContext<'a> {
     fn eval_op_atom(
         &mut self,
         op_buf: &AtomBuf,

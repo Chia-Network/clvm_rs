@@ -1,19 +1,21 @@
-mod allocator;
-mod core_ops;
-mod cost;
-mod err_utils;
-mod f_table;
+pub mod allocator;
+pub mod chia_dialect_factory;
+pub mod core_ops;
+pub mod cost;
+pub mod dialect;
+pub mod err_utils;
+pub mod f_table;
 mod gen;
-mod int_to_bytes;
-mod more_ops;
-mod node;
-mod number;
-mod op_utils;
+pub mod int_to_bytes;
+pub mod more_ops;
+pub mod node;
+pub mod number;
+pub mod op_utils;
 #[cfg(not(any(test, target_family = "wasm")))]
 mod py;
-mod reduction;
-mod run_program;
-mod serialize;
+pub mod reduction;
+pub mod run_program;
+pub mod serialize;
 mod sha2;
 
 #[cfg(test)]
