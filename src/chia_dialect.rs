@@ -12,19 +12,16 @@ use crate::run_program::OperatorHandler;
 const QUOTE_KW: [u8; 1] = [1];
 const APPLY_KW: [u8; 1] = [2];
 
-pub fn chia_op_handler(strict: bool) -> Box<dyn OperatorHandler> {
-    let f_lookup: FLookup = f_lookup_for_hashmap(chia_opcode_mapping());
-
-    Box::new(OperatorHandlerWithMode { f_lookup, strict })
-}
-
-pub fn chia_dialect(strict: bool) -> Dialect {
-    Dialect::new(&QUOTE_KW, &APPLY_KW, chia_op_handler(strict))
-}
-
 pub struct OperatorHandlerWithMode {
     f_lookup: FLookup,
     strict: bool,
+}
+
+impl OperatorHandlerWithMode {
+    pub fn new_with_hashmap(hashmap: HashMap<String, Vec<u8>>, strict: bool) -> Self {
+        let f_lookup: FLookup = f_lookup_for_hashmap(hashmap);
+        OperatorHandlerWithMode { f_lookup, strict }
+    }
 }
 
 impl OperatorHandler for OperatorHandlerWithMode {
@@ -87,4 +84,12 @@ pub fn chia_opcode_mapping() -> HashMap<String, Vec<u8>> {
         h.insert(v.to_string(), [k as u8].into());
     }
     h
+}
+
+pub fn chia_op_handler(strict: bool) -> OperatorHandlerWithMode {
+    OperatorHandlerWithMode::new_with_hashmap(chia_opcode_mapping(), strict)
+}
+
+pub fn chia_dialect(strict: bool) -> Dialect {
+    Dialect::new(&QUOTE_KW, &APPLY_KW, Box::new(chia_op_handler(strict)))
 }

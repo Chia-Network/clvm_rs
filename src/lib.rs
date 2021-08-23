@@ -1,5 +1,5 @@
 pub mod allocator;
-pub mod chia_dialect_factory;
+pub mod chia_dialect;
 pub mod core_ops;
 pub mod cost;
 pub mod dialect;

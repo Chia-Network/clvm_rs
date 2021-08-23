@@ -19,7 +19,7 @@ const TRAVERSE_BASE_COST: Cost = 40;
 const TRAVERSE_COST_PER_ZERO_BYTE: Cost = 4;
 const TRAVERSE_COST_PER_BIT: Cost = 4;
 
-pub trait OperatorHandler {
+pub trait OperatorHandler: Sync {
     fn op(&self, allocator: &mut Allocator, op: NodePtr, args: NodePtr, max_cost: Cost)
         -> Response;
 }
