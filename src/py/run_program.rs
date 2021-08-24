@@ -7,11 +7,39 @@ use crate::cost::Cost;
 use crate::dialect::Dialect;
 use crate::node::Node;
 use crate::py::lazy_node::LazyNode;
+use crate::reduction::Response;
 use crate::run_program::STRICT_MODE;
 use crate::serialize::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
 
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
+
+#[allow(clippy::too_many_arguments)]
+pub fn run_serialized_program(
+    py: Python,
+    allocator: &mut Allocator,
+    opcode_lookup_by_name: HashMap<String, Vec<u8>>,
+    quote_kw: &[u8],
+    apply_kw: &[u8],
+    program: &[u8],
+    args: &[u8],
+    max_cost: Cost,
+    flags: u32,
+) -> PyResult<Response> {
+    let strict: bool = (flags & STRICT_MODE) != 0;
+    let program = node_from_bytes(allocator, program)?;
+    let args = node_from_bytes(allocator, args)?;
+    let dialect = Dialect::new(
+        quote_kw,
+        apply_kw,
+        Box::new(OperatorHandlerWithMode::new_with_hashmap(
+            opcode_lookup_by_name,
+            strict,
+        )),
+    );
+
+    Ok(py.allow_threads(|| dialect.run_program(allocator, program, args, max_cost)))
+}
 
 #[pyfunction]
 pub fn serialize_and_run_program(
@@ -87,20 +115,17 @@ pub fn deserialize_and_run_program(
     flags: u32,
 ) -> PyResult<(Cost, Py<PyBytes>)> {
     let mut allocator = Allocator::new();
-    let strict: bool = (flags & STRICT_MODE) != 0;
-    let dialect = Dialect::new(
+    match run_serialized_program(
+        py,
+        &mut allocator,
+        opcode_lookup_by_name,
         &[quote_kw],
         &[apply_kw],
-        Box::new(OperatorHandlerWithMode::new_with_hashmap(
-            opcode_lookup_by_name,
-            strict,
-        )),
-    );
-    let program = node_from_bytes(&mut allocator, program)?;
-    let args = node_from_bytes(&mut allocator, args)?;
-
-    let r = py.allow_threads(|| dialect.run_program(&mut allocator, program, args, max_cost));
-    match r {
+        program,
+        args,
+        max_cost,
+        flags,
+    )? {
         Ok(reduction) => {
             let node_as_blob = node_to_bytes(&Node::new(&allocator, reduction.1))?;
             let node_as_bytes: Py<PyBytes> = PyBytes::new(py, &node_as_blob).into();
@@ -149,20 +174,17 @@ pub fn deserialize_and_run_program2(
     flags: u32,
 ) -> PyResult<(Cost, LazyNode)> {
     let mut allocator = Allocator::new();
-    let strict: bool = (flags & STRICT_MODE) != 0;
-    let program = node_from_bytes(&mut allocator, program)?;
-    let args = node_from_bytes(&mut allocator, args)?;
-    let dialect = Dialect::new(
+    match run_serialized_program(
+        py,
+        &mut allocator,
+        opcode_lookup_by_name,
         &[quote_kw],
         &[apply_kw],
-        Box::new(OperatorHandlerWithMode::new_with_hashmap(
-            opcode_lookup_by_name,
-            strict,
-        )),
-    );
-
-    let r = py.allow_threads(|| dialect.run_program(&mut allocator, program, args, max_cost));
-    match r {
+        program,
+        args,
+        max_cost,
+        flags,
+    )? {
         Ok(reduction) => {
             let val = LazyNode::new(Rc::new(allocator), reduction.1);
             Ok((reduction.0, val))
