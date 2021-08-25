@@ -36,10 +36,15 @@ impl Dialect {
         program: NodePtr,
         args: NodePtr,
         max_cost: Cost,
-        pre_eval: Option<PreEval>,
+        pre_eval: PreEval,
     ) -> Response {
-        let mut rpc =
-            RunProgramContext::new(allocator, &self.quote_kw, &self.apply_kw, self, pre_eval);
+        let mut rpc = RunProgramContext::new(
+            allocator,
+            &self.quote_kw,
+            &self.apply_kw,
+            self,
+            Some(pre_eval),
+        );
         rpc.run_program(program, args, max_cost)
     }
 
@@ -50,6 +55,7 @@ impl Dialect {
         args: NodePtr,
         max_cost: Cost,
     ) -> Response {
-        self.run_program_with_pre_eval(allocator, program, args, max_cost, None)
+        let mut rpc = RunProgramContext::new(allocator, &self.quote_kw, &self.apply_kw, self, None);
+        rpc.run_program(program, args, max_cost)
     }
 }
