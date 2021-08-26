@@ -1,7 +1,7 @@
 use crate::allocator::{Allocator, NodePtr};
 use crate::cost::Cost;
 use crate::reduction::Response;
-use crate::run_program::{OperatorHandler, PreEval, RunProgramContext};
+use crate::run_program::{run_program, OperatorHandler, PreEval};
 
 pub struct Dialect {
     quote_kw: Vec<u8>,
@@ -38,14 +38,16 @@ impl Dialect {
         max_cost: Cost,
         pre_eval: PreEval,
     ) -> Response {
-        let mut rpc = RunProgramContext::new(
+        run_program(
             allocator,
+            program,
+            args,
             &self.quote_kw,
             &self.apply_kw,
+            max_cost,
             self,
             Some(pre_eval),
-        );
-        rpc.run_program(program, args, max_cost)
+        )
     }
 
     pub fn run_program(
@@ -55,7 +57,15 @@ impl Dialect {
         args: NodePtr,
         max_cost: Cost,
     ) -> Response {
-        let mut rpc = RunProgramContext::new(allocator, &self.quote_kw, &self.apply_kw, self, None);
-        rpc.run_program(program, args, max_cost)
+        run_program(
+            allocator,
+            program,
+            args,
+            &self.quote_kw,
+            &self.apply_kw,
+            max_cost,
+            self,
+            None,
+        )
     }
 }

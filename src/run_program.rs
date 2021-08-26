@@ -41,7 +41,7 @@ enum Operation {
 // `run_program` has two stacks: the operand stack (of `Node` objects) and the
 // operator stack (of Operation)
 
-pub struct RunProgramContext<'a> {
+struct RunProgramContext<'a> {
     allocator: &'a mut Allocator,
     quote_kw: &'a [u8],
     apply_kw: &'a [u8],
