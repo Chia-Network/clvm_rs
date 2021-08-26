@@ -1,5 +1,7 @@
 use crate::allocator::{Allocator, NodePtr};
+use crate::chia_dialect::OperatorHandlerWithMode;
 use crate::cost::Cost;
+use crate::dialect::Dialect;
 use crate::gen::conditions::{parse_spends, Condition, SpendConditionSummary};
 use crate::gen::opcodes::{
     ConditionOpcode, AGG_SIG_ME, AGG_SIG_UNSAFE, ASSERT_HEIGHT_ABSOLUTE, ASSERT_HEIGHT_RELATIVE,
@@ -7,12 +9,10 @@ use crate::gen::opcodes::{
 };
 use crate::gen::validation_error::{ErrorCode, ValidationErr};
 use crate::int_to_bytes::u64_to_bytes;
-use crate::py::run_program::OperatorHandlerWithMode;
 use crate::reduction::{EvalErr, Reduction};
-use crate::run_program::{run_program, STRICT_MODE};
+use crate::run_program::STRICT_MODE;
 use crate::serialize::node_from_bytes;
 
-use crate::f_table::f_lookup_for_hashmap;
 use crate::py::lazy_node::LazyNode;
 
 use std::collections::HashMap;
@@ -215,24 +215,22 @@ pub fn run_generator(
     flags: u32,
 ) -> PyResult<(Option<ErrorCode>, Vec<PySpendConditionSummary>, Cost)> {
     let mut allocator = Allocator::new();
-    let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
     let strict: bool = (flags & STRICT_MODE) != 0;
-    let f = OperatorHandlerWithMode::new(f_lookup, strict);
     let program = node_from_bytes(&mut allocator, program)?;
     let args = node_from_bytes(&mut allocator, args)?;
+    let dialect = Dialect::new(
+        &[quote_kw],
+        &[apply_kw],
+        Box::new(OperatorHandlerWithMode::new_with_hashmap(
+            opcode_lookup_by_name,
+            strict,
+        )),
+    );
 
     let r = py.allow_threads(
         || -> Result<(Option<ErrorCode>, Cost, Vec<SpendConditionSummary>), EvalErr> {
-            let Reduction(cost, node) = run_program(
-                &mut allocator,
-                program,
-                args,
-                &[quote_kw],
-                &[apply_kw],
-                max_cost,
-                &f,
-                None,
-            )?;
+            let Reduction(cost, node) =
+                dialect.run_program(&mut allocator, program, args, max_cost)?;
             // we pass in what's left of max_cost here, to fail early in case the
             // cost of a condition brings us over the cost limit
             match parse_spends(&allocator, node, max_cost - cost, flags) {

@@ -1,6 +1,8 @@
 mod allocator;
+pub mod chia_dialect;
 mod core_ops;
 mod cost;
+mod dialect;
 mod err_utils;
 mod f_table;
 mod gen;

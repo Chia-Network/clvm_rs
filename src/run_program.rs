@@ -19,7 +19,7 @@ const TRAVERSE_BASE_COST: Cost = 40;
 const TRAVERSE_COST_PER_ZERO_BYTE: Cost = 4;
 const TRAVERSE_COST_PER_BIT: Cost = 4;
 
-pub trait OperatorHandler {
+pub trait OperatorHandler: Sync {
     fn op(&self, allocator: &mut Allocator, op: NodePtr, args: NodePtr, max_cost: Cost)
         -> Response;
 }
@@ -41,7 +41,7 @@ enum Operation {
 // `run_program` has two stacks: the operand stack (of `Node` objects) and the
 // operator stack (of Operation)
 
-pub struct RunProgramContext<'a> {
+struct RunProgramContext<'a> {
     allocator: &'a mut Allocator,
     quote_kw: &'a [u8],
     apply_kw: &'a [u8],
@@ -142,7 +142,7 @@ fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Co
 }
 
 impl<'a> RunProgramContext<'a> {
-    fn new(
+    pub fn new(
         allocator: &'a mut Allocator,
         quote_kw: &'a [u8],
         apply_kw: &'a [u8],
@@ -178,9 +178,7 @@ impl<'a> RunProgramContext<'a> {
         self.push(p);
         Ok(0)
     }
-}
 
-impl<'a> RunProgramContext<'a> {
     fn eval_op_atom(
         &mut self,
         op_buf: &AtomBuf,
