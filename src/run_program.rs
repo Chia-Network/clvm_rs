@@ -41,18 +41,18 @@ enum Operation {
 // `run_program` has two stacks: the operand stack (of `Node` objects) and the
 // operator stack (of Operation)
 
-pub struct RunProgramContext<'a> {
+pub struct RunProgramContext<'a, Handler> {
     allocator: &'a mut Allocator,
     quote_kw: &'a [u8],
     apply_kw: &'a [u8],
-    operator_lookup: &'a dyn OperatorHandler,
+    operator_lookup: &'a Handler,
     pre_eval: Option<PreEval>,
     posteval_stack: Vec<Box<PostEval>>,
     val_stack: Vec<NodePtr>,
     op_stack: Vec<Operation>,
 }
 
-impl<'a, 'h> RunProgramContext<'a> {
+impl<'a, 'h, Handler: OperatorHandler> RunProgramContext<'a, Handler> {
     pub fn pop(&mut self) -> Result<NodePtr, EvalErr> {
         let v: Option<NodePtr> = self.val_stack.pop();
         match v {
@@ -141,12 +141,12 @@ fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Co
     }
 }
 
-impl<'a> RunProgramContext<'a> {
+impl<'a, Handler: OperatorHandler> RunProgramContext<'a, Handler> {
     fn new(
         allocator: &'a mut Allocator,
         quote_kw: &'a [u8],
         apply_kw: &'a [u8],
-        operator_lookup: &'a dyn OperatorHandler,
+        operator_lookup: &'a Handler,
         pre_eval: Option<PreEval>,
     ) -> Self {
         RunProgramContext {
@@ -180,7 +180,7 @@ impl<'a> RunProgramContext<'a> {
     }
 }
 
-impl<'a> RunProgramContext<'a> {
+impl<'a, Handler: OperatorHandler> RunProgramContext<'a, Handler> {
     fn eval_op_atom(
         &mut self,
         op_buf: &AtomBuf,
@@ -346,14 +346,14 @@ impl<'a> RunProgramContext<'a> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_program<'a>(
+pub fn run_program<'a, Handler: OperatorHandler>(
     allocator: &'a mut Allocator,
     program: NodePtr,
     args: NodePtr,
     quote_kw: &'a [u8],
     apply_kw: &'a [u8],
     max_cost: Cost,
-    operator_lookup: &'a dyn OperatorHandler,
+    operator_lookup: &'a Handler,
     pre_eval: Option<PreEval>,
 ) -> Response {
     let mut rpc = RunProgramContext::new(allocator, quote_kw, apply_kw, operator_lookup, pre_eval);
