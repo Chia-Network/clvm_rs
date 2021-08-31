@@ -1,35 +1,28 @@
 use std::collections::HashMap;
 
-use wasm_bindgen::prelude::*;
-
 use crate::allocator::{Allocator, NodePtr};
 use crate::cost::Cost;
+use crate::dialect::Dialect;
 use crate::err_utils::err;
 use crate::f_table::{f_lookup_for_hashmap, FLookup};
 use crate::more_ops::op_unknown;
-use crate::node::Node;
 use crate::operator_handler::OperatorHandler;
 use crate::reduction::Response;
-use crate::run_program::run_program;
-use crate::serialize::{node_from_bytes, node_to_bytes};
 
-// When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
-// allocator.
-#[cfg(feature = "wee_alloc")]
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+const QUOTE_KW: [u8; 1] = [1];
+const APPLY_KW: [u8; 1] = [2];
 
-struct OperatorHandlerWithMode {
+pub struct OperatorHandlerWithMode {
     f_lookup: FLookup,
     strict: bool,
 }
 
-// NOTE: This is just a proof of concept.
-// Ideally, the wasm api will have more features, like the
-// python api. For now, this is just a sanity check that something
-// works at all.
-//
-// TODO: replace the below with something more robust and feature-filled
+impl OperatorHandlerWithMode {
+    pub fn new_with_hashmap(hashmap: HashMap<String, Vec<u8>>, strict: bool) -> Self {
+        let f_lookup: FLookup = f_lookup_for_hashmap(hashmap);
+        OperatorHandlerWithMode { f_lookup, strict }
+    }
+}
 
 impl OperatorHandler for OperatorHandlerWithMode {
     fn op(
@@ -53,14 +46,9 @@ impl OperatorHandler for OperatorHandlerWithMode {
     }
 }
 
-#[wasm_bindgen]
-pub fn run_clvm(program: &[u8], args: &[u8]) -> Vec<u8> {
-    let quote_kw: u8 = 1;
-    let apply_kw: u8 = 2;
-    let max_cost: Cost = 1_000_000_000_000_000;
-
-    let mut opcode_lookup_by_name = HashMap::<String, Vec<u8>>::new();
-    for (v, s) in [
+pub fn chia_opcode_mapping() -> HashMap<String, Vec<u8>> {
+    let mut h = HashMap::new();
+    let items = [
         (3, "op_if"),
         (4, "op_cons"),
         (5, "op_first"),
@@ -91,31 +79,21 @@ pub fn run_clvm(program: &[u8], args: &[u8]) -> Vec<u8> {
         (33, "op_any"),
         (34, "op_all"),
         (36, "op_softfork"),
-    ]
-    .iter()
-    {
-        let v: Vec<u8> = vec![*v as u8];
-        opcode_lookup_by_name.insert(s.to_string(), v);
+    ];
+    for (k, v) in items {
+        h.insert(v.to_string(), [k as u8].into());
     }
+    h
+}
 
-    let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
-    let strict: bool = false;
-    let f = OperatorHandlerWithMode { f_lookup, strict };
-    let mut allocator = Allocator::new();
-    let program = node_from_bytes(&mut allocator, program).unwrap();
-    let args = node_from_bytes(&mut allocator, args).unwrap();
-    let r = run_program(
-        &mut allocator,
-        &[quote_kw],
-        &[apply_kw],
-        &f,
-        program,
-        args,
-        max_cost,
-        None,
-    );
-    match r {
-        Ok(reduction) => node_to_bytes(&Node::new(&allocator, reduction.1)).unwrap(),
-        Err(_eval_err) => format!("{:?}", _eval_err).into(),
-    }
+pub fn chia_op_handler(strict: bool) -> OperatorHandlerWithMode {
+    OperatorHandlerWithMode::new_with_hashmap(chia_opcode_mapping(), strict)
+}
+
+pub fn chia_dialect_with_handler<Handler: OperatorHandler>(handler: Handler) -> Dialect<Handler> {
+    Dialect::new(&QUOTE_KW, &APPLY_KW, handler)
+}
+
+pub fn chia_dialect(strict: bool) -> Dialect<OperatorHandlerWithMode> {
+    chia_dialect_with_handler(chia_op_handler(strict))
 }

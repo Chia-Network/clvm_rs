@@ -1,6 +1,8 @@
 mod allocator;
+pub mod chia_dialect;
 mod core_ops;
 mod cost;
+mod dialect;
 mod err_utils;
 mod f_table;
 mod gen;
@@ -9,6 +11,7 @@ mod more_ops;
 mod node;
 mod number;
 mod op_utils;
+mod operator_handler;
 #[cfg(not(any(test, target_family = "wasm")))]
 mod py;
 mod reduction;

@@ -1,54 +1,41 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::allocator::{Allocator, NodePtr};
+use crate::allocator::Allocator;
+use crate::chia_dialect::OperatorHandlerWithMode;
 use crate::cost::Cost;
-use crate::err_utils::err;
-use crate::f_table::{f_lookup_for_hashmap, FLookup};
-use crate::more_ops::op_unknown;
+use crate::dialect::Dialect;
 use crate::node::Node;
 use crate::py::lazy_node::LazyNode;
 use crate::reduction::Response;
-use crate::run_program::{run_program, OperatorHandler, STRICT_MODE};
+use crate::run_program::STRICT_MODE;
 use crate::serialize::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
 
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
 
-pub struct OperatorHandlerWithMode {
-    f_lookup: FLookup,
-    strict: bool,
-}
+#[allow(clippy::too_many_arguments)]
+pub fn run_serialized_program(
+    py: Python,
+    allocator: &mut Allocator,
+    quote_kw: &[u8],
+    apply_kw: &[u8],
+    opcode_lookup_by_name: HashMap<String, Vec<u8>>,
+    program: &[u8],
+    args: &[u8],
+    max_cost: Cost,
+    flags: u32,
+) -> PyResult<Response> {
+    let strict: bool = (flags & STRICT_MODE) != 0;
+    let program = node_from_bytes(allocator, program)?;
+    let args = node_from_bytes(allocator, args)?;
+    let dialect = Dialect::new(
+        quote_kw,
+        apply_kw,
+        OperatorHandlerWithMode::new_with_hashmap(opcode_lookup_by_name, strict),
+    );
 
-impl OperatorHandlerWithMode {
-    pub fn new(l: FLookup, strict: bool) -> OperatorHandlerWithMode {
-        OperatorHandlerWithMode {
-            f_lookup: l,
-            strict,
-        }
-    }
-}
-
-impl OperatorHandler for OperatorHandlerWithMode {
-    fn op(
-        &self,
-        allocator: &mut Allocator,
-        o: NodePtr,
-        argument_list: NodePtr,
-        max_cost: Cost,
-    ) -> Response {
-        let b = &allocator.atom(o);
-        if b.len() == 1 {
-            if let Some(f) = self.f_lookup[b[0] as usize] {
-                return f(allocator, argument_list, max_cost);
-            }
-        }
-        if self.strict {
-            err(o, "unimplemented operator")
-        } else {
-            op_unknown(allocator, o, argument_list, max_cost)
-        }
-    }
+    Ok(py.allow_threads(|| dialect.run_program(allocator, program, args, max_cost)))
 }
 
 #[pyfunction]
@@ -125,25 +112,17 @@ pub fn deserialize_and_run_program(
     flags: u32,
 ) -> PyResult<(Cost, Py<PyBytes>)> {
     let mut allocator = Allocator::new();
-    let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
-    let strict: bool = (flags & STRICT_MODE) != 0;
-    let f = OperatorHandlerWithMode { f_lookup, strict };
-    let program = node_from_bytes(&mut allocator, program)?;
-    let args = node_from_bytes(&mut allocator, args)?;
-
-    let r = py.allow_threads(|| {
-        run_program(
-            &mut allocator,
-            program,
-            args,
-            &[quote_kw],
-            &[apply_kw],
-            max_cost,
-            &f,
-            None,
-        )
-    });
-    match r {
+    match run_serialized_program(
+        py,
+        &mut allocator,
+        &[quote_kw],
+        &[apply_kw],
+        opcode_lookup_by_name,
+        program,
+        args,
+        max_cost,
+        flags,
+    )? {
         Ok(reduction) => {
             let node_as_blob = node_to_bytes(&Node::new(&allocator, reduction.1))?;
             let node_as_bytes: Py<PyBytes> = PyBytes::new(py, &node_as_blob).into();
@@ -192,25 +171,17 @@ pub fn deserialize_and_run_program2(
     flags: u32,
 ) -> PyResult<(Cost, LazyNode)> {
     let mut allocator = Allocator::new();
-    let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
-    let strict: bool = (flags & STRICT_MODE) != 0;
-    let f = OperatorHandlerWithMode { f_lookup, strict };
-    let program = node_from_bytes(&mut allocator, program)?;
-    let args = node_from_bytes(&mut allocator, args)?;
-
-    let r = py.allow_threads(|| {
-        run_program(
-            &mut allocator,
-            program,
-            args,
-            &[quote_kw],
-            &[apply_kw],
-            max_cost,
-            &f,
-            None,
-        )
-    });
-    match r {
+    match run_serialized_program(
+        py,
+        &mut allocator,
+        &[quote_kw],
+        &[apply_kw],
+        opcode_lookup_by_name,
+        program,
+        args,
+        max_cost,
+        flags,
+    )? {
         Ok(reduction) => {
             let val = LazyNode::new(Rc::new(allocator), reduction.1);
             Ok((reduction.0, val))
