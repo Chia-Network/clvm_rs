@@ -1,4 +1,5 @@
 use crate::allocator::{Allocator, NodePtr};
+use crate::chia_dialect::chia_dialect;
 use crate::cost::Cost;
 use crate::gen::conditions::{parse_spends, Condition, SpendConditionSummary};
 use crate::gen::opcodes::{
@@ -7,12 +8,10 @@ use crate::gen::opcodes::{
 };
 use crate::gen::validation_error::{ErrorCode, ValidationErr};
 use crate::int_to_bytes::u64_to_bytes;
-use crate::py::run_program::OperatorHandlerWithMode;
 use crate::reduction::{EvalErr, Reduction};
-use crate::run_program::{run_program, STRICT_MODE};
+use crate::run_program::STRICT_MODE;
 use crate::serialize::node_from_bytes;
 
-use crate::f_table::f_lookup_for_hashmap;
 use crate::py::lazy_node::LazyNode;
 
 use std::collections::HashMap;
@@ -208,31 +207,25 @@ pub fn run_generator(
     py: Python,
     program: &[u8],
     args: &[u8],
-    quote_kw: u8,
-    apply_kw: u8,
-    opcode_lookup_by_name: HashMap<String, Vec<u8>>,
+    _quote_kw: u8,
+    _apply_kw: u8,
+    _opcode_lookup_by_name: HashMap<String, Vec<u8>>,
     max_cost: Cost,
     flags: u32,
 ) -> PyResult<(Option<ErrorCode>, Vec<PySpendConditionSummary>, Cost)> {
+    // `_quote_kw`, `_apply_kw`, `_opcode_lookup_by_name` are all deprecated
+    // and ignored. The standard chia dialect is always used.
+    // TODO: rev this API to drop these now deprecated parameters.
     let mut allocator = Allocator::new();
-    let f_lookup = f_lookup_for_hashmap(opcode_lookup_by_name);
     let strict: bool = (flags & STRICT_MODE) != 0;
-    let f = OperatorHandlerWithMode::new(f_lookup, strict);
     let program = node_from_bytes(&mut allocator, program)?;
     let args = node_from_bytes(&mut allocator, args)?;
+    let dialect = chia_dialect(strict);
 
     let r = py.allow_threads(
         || -> Result<(Option<ErrorCode>, Cost, Vec<SpendConditionSummary>), EvalErr> {
-            let Reduction(cost, node) = run_program(
-                &mut allocator,
-                program,
-                args,
-                &[quote_kw],
-                &[apply_kw],
-                max_cost,
-                &f,
-                None,
-            )?;
+            let Reduction(cost, node) =
+                dialect.run_program(&mut allocator, program, args, max_cost)?;
             // we pass in what's left of max_cost here, to fail early in case the
             // cost of a condition brings us over the cost limit
             match parse_spends(&allocator, node, max_cost - cost, flags) {

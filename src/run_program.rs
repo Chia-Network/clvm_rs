@@ -2,6 +2,7 @@ use crate::allocator::{Allocator, AtomBuf, NodePtr, SExp};
 use crate::cost::Cost;
 use crate::err_utils::err;
 use crate::node::Node;
+use crate::operator_handler::OperatorHandler;
 use crate::reduction::{EvalErr, Reduction, Response};
 
 use crate::number::{ptr_from_number, Number};
@@ -18,11 +19,6 @@ const APPLY_COST: Cost = 90;
 const TRAVERSE_BASE_COST: Cost = 40;
 const TRAVERSE_COST_PER_ZERO_BYTE: Cost = 4;
 const TRAVERSE_COST_PER_BIT: Cost = 4;
-
-pub trait OperatorHandler {
-    fn op(&self, allocator: &mut Allocator, op: NodePtr, args: NodePtr, max_cost: Cost)
-        -> Response;
-}
 
 pub type PreEval =
     Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<PostEval>>, EvalErr>>;
@@ -348,12 +344,12 @@ impl<'a, Handler: OperatorHandler> RunProgramContext<'a, Handler> {
 #[allow(clippy::too_many_arguments)]
 pub fn run_program<'a, Handler: OperatorHandler>(
     allocator: &'a mut Allocator,
-    program: NodePtr,
-    args: NodePtr,
     quote_kw: &'a [u8],
     apply_kw: &'a [u8],
-    max_cost: Cost,
     operator_lookup: &'a Handler,
+    program: NodePtr,
+    args: NodePtr,
+    max_cost: Cost,
     pre_eval: Option<PreEval>,
 ) -> Response {
     let mut rpc = RunProgramContext::new(allocator, quote_kw, apply_kw, operator_lookup, pre_eval);
