@@ -51,7 +51,7 @@ jobs:
             /opt/python/cp38-cp38/bin/python -m venv venv && \
             if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
             . ./activate && \
-            pip install maturin==0.11.2 && \
+            pip install maturin && \
             CC=gcc maturin build --no-sdist --release --manylinux 2014 \
           '
 

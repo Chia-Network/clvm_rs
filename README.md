@@ -6,7 +6,7 @@ Python Wheel
 Use `maturin` to build the python interface. First, install into current virtualenv with
 
 ```
-$ pip install maturin==0.11.2
+$ pip install maturin
 ```
 
 Build `clvm_rs` directly into the current virtualenv with
