@@ -32,7 +32,7 @@ jobs:
         . ./venv/bin/activate
         export PATH=~/.cargo/bin:$PATH
         arch -arm64 pip install maturin
-        arch -arm64 maturin build --no-sdist -i python --release
+        arch -arm64 maturin build --no-sdist -i python --release --strip
 
     - name: Install clvm_rs wheel
       run: |
