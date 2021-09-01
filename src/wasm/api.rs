@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
 use crate::allocator::{Allocator, NodePtr};
+use crate::chia_dialect::ChiaDialect;
 use crate::cost::Cost;
 use crate::err_utils::err;
 use crate::f_table::{f_lookup_for_hashmap, FLookup};

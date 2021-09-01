@@ -1,8 +1,8 @@
 use crate::allocator::{Allocator, AtomBuf, NodePtr, SExp};
 use crate::cost::Cost;
+use crate::dialect::Dialect;
 use crate::err_utils::err;
 use crate::node::Node;
-use crate::operator_handler::OperatorHandler;
 use crate::reduction::{EvalErr, Reduction, Response};
 
 use crate::number::{ptr_from_number, Number};
@@ -37,18 +37,16 @@ enum Operation {
 // `run_program` has two stacks: the operand stack (of `Node` objects) and the
 // operator stack (of Operation)
 
-pub struct RunProgramContext<'a, Handler> {
+struct RunProgramContext<'a, D> {
     allocator: &'a mut Allocator,
-    quote_kw: &'a [u8],
-    apply_kw: &'a [u8],
-    operator_lookup: &'a Handler,
+    dialect: &'a D,
     pre_eval: Option<PreEval>,
     posteval_stack: Vec<Box<PostEval>>,
     val_stack: Vec<NodePtr>,
     op_stack: Vec<Operation>,
 }
 
-impl<'a, 'h, Handler: OperatorHandler> RunProgramContext<'a, Handler> {
+impl<'a, 'h, D: Dialect> RunProgramContext<'a, D> {
     pub fn pop(&mut self) -> Result<NodePtr, EvalErr> {
         let v: Option<NodePtr> = self.val_stack.pop();
         match v {
@@ -137,19 +135,11 @@ fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Co
     }
 }
 
-impl<'a, Handler: OperatorHandler> RunProgramContext<'a, Handler> {
-    fn new(
-        allocator: &'a mut Allocator,
-        quote_kw: &'a [u8],
-        apply_kw: &'a [u8],
-        operator_lookup: &'a Handler,
-        pre_eval: Option<PreEval>,
-    ) -> Self {
+impl<'a, D: Dialect> RunProgramContext<'a, D> {
+    fn new(allocator: &'a mut Allocator, dialect: &'a D, pre_eval: Option<PreEval>) -> Self {
         RunProgramContext {
             allocator,
-            quote_kw,
-            apply_kw,
-            operator_lookup,
+            dialect,
             pre_eval,
             posteval_stack: Vec::new(),
             val_stack: Vec::new(),
@@ -176,7 +166,7 @@ impl<'a, Handler: OperatorHandler> RunProgramContext<'a, Handler> {
     }
 }
 
-impl<'a, Handler: OperatorHandler> RunProgramContext<'a, Handler> {
+impl<'a, D: Dialect> RunProgramContext<'a, D> {
     fn eval_op_atom(
         &mut self,
         op_buf: &AtomBuf,
@@ -186,7 +176,7 @@ impl<'a, Handler: OperatorHandler> RunProgramContext<'a, Handler> {
     ) -> Result<Cost, EvalErr> {
         let op_atom = self.allocator.buf(op_buf);
         // special case check for quote
-        if op_atom == self.quote_kw {
+        if op_atom == self.dialect.quote_kw() {
             self.push(operand_list);
             Ok(QUOTE_COST)
         } else {
@@ -277,7 +267,7 @@ impl<'a, Handler: OperatorHandler> RunProgramContext<'a, Handler> {
             return err(operator, "internal error");
         }
         let op_atom = self.allocator.atom(operator);
-        if op_atom == self.apply_kw {
+        if op_atom == self.dialect.apply_kw() {
             let operand_list = Node::new(self.allocator, operand_list);
             if operand_list.arg_count_is(2) {
                 let new_operator = operand_list.first()?;
@@ -292,7 +282,7 @@ impl<'a, Handler: OperatorHandler> RunProgramContext<'a, Handler> {
             }
         } else {
             let r = self
-                .operator_lookup
+                .dialect
                 .op(self.allocator, operator, operand_list, max_cost)?;
             self.push(r.1);
             Ok(r.0)
@@ -342,17 +332,15 @@ impl<'a, Handler: OperatorHandler> RunProgramContext<'a, Handler> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_program<'a, Handler: OperatorHandler>(
+pub fn run_program<'a, D: Dialect>(
     allocator: &'a mut Allocator,
-    quote_kw: &'a [u8],
-    apply_kw: &'a [u8],
-    operator_lookup: &'a Handler,
+    dialect: &'a D,
     program: NodePtr,
     args: NodePtr,
     max_cost: Cost,
     pre_eval: Option<PreEval>,
 ) -> Response {
-    let mut rpc = RunProgramContext::new(allocator, quote_kw, apply_kw, operator_lookup, pre_eval);
+    let mut rpc = RunProgramContext::new(allocator, dialect, pre_eval);
     rpc.run_program(program, args, max_cost)
 }
 
