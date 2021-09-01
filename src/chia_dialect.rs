@@ -1,30 +1,27 @@
-use std::collections::HashMap;
-
 use crate::allocator::{Allocator, NodePtr};
+use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
 use crate::dialect::Dialect;
 use crate::err_utils::err;
-use crate::f_table::{f_lookup_for_hashmap, FLookup};
-use crate::more_ops::op_unknown;
-use crate::operator_handler::OperatorHandler;
+use crate::more_ops::{
+    op_add, op_all, op_any, op_ash, op_concat, op_div, op_div_deprecated, op_divmod, op_gr,
+    op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not,
+    op_point_add, op_pubkey_for_exp, op_sha256, op_softfork, op_strlen, op_substr, op_subtract,
+    op_unknown,
+};
 use crate::reduction::Response;
 
-const QUOTE_KW: [u8; 1] = [1];
-const APPLY_KW: [u8; 1] = [2];
-
-pub struct OperatorHandlerWithMode {
-    f_lookup: FLookup,
+pub struct ChiaDialect {
     strict: bool,
 }
 
-impl OperatorHandlerWithMode {
-    pub fn new_with_hashmap(hashmap: HashMap<String, Vec<u8>>, strict: bool) -> Self {
-        let f_lookup: FLookup = f_lookup_for_hashmap(hashmap);
-        OperatorHandlerWithMode { f_lookup, strict }
+impl ChiaDialect {
+    pub fn new(strict: bool) -> ChiaDialect {
+        ChiaDialect { strict }
     }
 }
 
-impl OperatorHandler for OperatorHandlerWithMode {
+impl Dialect for ChiaDialect {
     fn op(
         &self,
         allocator: &mut Allocator,
@@ -33,74 +30,70 @@ impl OperatorHandler for OperatorHandlerWithMode {
         max_cost: Cost,
     ) -> Response {
         let b = &allocator.atom(o);
-        if b.len() == 1 {
-            if let Some(f) = self.f_lookup[b[0] as usize] {
-                return f(allocator, argument_list, max_cost);
-            }
-        }
-        if self.strict {
-            err(o, "unimplemented operator")
-        } else {
-            op_unknown(allocator, o, argument_list, max_cost)
-        }
-    }
-}
-
-pub fn chia_opcode_mapping(strict: bool) -> HashMap<String, Vec<u8>> {
-    let mut h = HashMap::new();
-    let items = [
-        (3, "op_if"),
-        (4, "op_cons"),
-        (5, "op_first"),
-        (6, "op_rest"),
-        (7, "op_listp"),
-        (8, "op_raise"),
-        (9, "op_eq"),
-        (10, "op_gr_bytes"),
-        (11, "op_sha256"),
-        (12, "op_substr"),
-        (13, "op_strlen"),
-        (14, "op_concat"),
-        (16, "op_add"),
-        (17, "op_subtract"),
-        (18, "op_multiply"),
-        (
-            19,
-            if strict {
-                "op_div_deprecated"
+        if b.len() != 1 {
+            return if self.strict {
+                err(o, "unimplemented operator")
             } else {
-                "op_div"
-            },
-        ),
-        (20, "op_divmod"),
-        (21, "op_gr"),
-        (22, "op_ash"),
-        (23, "op_lsh"),
-        (24, "op_logand"),
-        (25, "op_logior"),
-        (26, "op_logxor"),
-        (27, "op_lognot"),
-        (29, "op_point_add"),
-        (30, "op_pubkey_for_exp"),
-        (32, "op_not"),
-        (33, "op_any"),
-        (34, "op_all"),
-        (36, "op_softfork"),
-    ];
-    for (k, v) in items {
-        h.insert(v.to_string(), [k as u8].into());
+                op_unknown(allocator, o, argument_list, max_cost)
+            };
+        }
+        let f = match b[0] {
+            3 => op_if,
+            4 => op_cons,
+            5 => op_first,
+            6 => op_rest,
+            7 => op_listp,
+            8 => op_raise,
+            9 => op_eq,
+            10 => op_gr_bytes,
+            11 => op_sha256,
+            12 => op_substr,
+            13 => op_strlen,
+            14 => op_concat,
+            // 15 ---
+            16 => op_add,
+            17 => op_subtract,
+            18 => op_multiply,
+            19 => {
+                if self.strict {
+                    op_div_deprecated
+                } else {
+                    op_div
+                }
+            }
+            20 => op_divmod,
+            21 => op_gr,
+            22 => op_ash,
+            23 => op_lsh,
+            24 => op_logand,
+            25 => op_logior,
+            26 => op_logxor,
+            27 => op_lognot,
+            // 28 ---
+            29 => op_point_add,
+            30 => op_pubkey_for_exp,
+            // 31 ---
+            32 => op_not,
+            33 => op_any,
+            34 => op_all,
+            // 35 ---
+            36 => op_softfork,
+            _ => {
+                if self.strict {
+                    return err(o, "unimplemented operator");
+                } else {
+                    return op_unknown(allocator, o, argument_list, max_cost);
+                }
+            }
+        };
+        f(allocator, argument_list, max_cost)
     }
-    h
-}
 
-pub fn chia_op_handler(strict: bool) -> OperatorHandlerWithMode {
-    OperatorHandlerWithMode::new_with_hashmap(chia_opcode_mapping(strict), strict)
-}
+    fn quote_kw(&self) -> &[u8] {
+        &[1]
+    }
 
-pub fn chia_dialect_with_handler<Handler: OperatorHandler>(handler: Handler) -> Dialect<Handler> {
-    Dialect::new(&QUOTE_KW, &APPLY_KW, handler)
-}
-
-pub fn chia_dialect(strict: bool) -> Dialect<OperatorHandlerWithMode> {
-    chia_dialect_with_handler(chia_op_handler(strict))
+    fn apply_kw(&self) -> &[u8] {
+        &[2]
+    }
 }

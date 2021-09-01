@@ -1,5 +1,5 @@
 use crate::allocator::{Allocator, NodePtr};
-use crate::chia_dialect::chia_dialect;
+use crate::chia_dialect::ChiaDialect;
 use crate::cost::Cost;
 use crate::gen::conditions::{parse_spends, Condition, SpendConditionSummary};
 use crate::gen::opcodes::{
@@ -9,7 +9,7 @@ use crate::gen::opcodes::{
 use crate::gen::validation_error::{ErrorCode, ValidationErr};
 use crate::int_to_bytes::u64_to_bytes;
 use crate::reduction::{EvalErr, Reduction};
-use crate::run_program::STRICT_MODE;
+use crate::run_program::{run_program, STRICT_MODE};
 use crate::serialize::node_from_bytes;
 
 use crate::py::adapt_response::eval_err_to_pyresult;
@@ -223,12 +223,12 @@ pub fn run_generator(
     let strict: bool = (flags & STRICT_MODE) != 0;
     let program = node_from_bytes(&mut allocator, program)?;
     let args = node_from_bytes(&mut allocator, args)?;
-    let dialect = chia_dialect(strict);
+    let dialect = &ChiaDialect::new(strict);
 
     let r = py.allow_threads(
         || -> Result<(Option<ErrorCode>, Cost, Vec<SpendConditionSummary>), EvalErr> {
             let Reduction(cost, node) =
-                dialect.run_program(&mut allocator, program, args, max_cost)?;
+                run_program(&mut allocator, dialect, program, args, max_cost, None)?;
             // we pass in what's left of max_cost here, to fail early in case the
             // cost of a condition brings us over the cost limit
             match parse_spends(&allocator, node, max_cost - cost, flags) {

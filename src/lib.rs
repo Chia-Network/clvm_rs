@@ -11,7 +11,6 @@ pub mod more_ops;
 pub mod node;
 mod number;
 mod op_utils;
-pub mod operator_handler;
 #[cfg(not(any(test, target_family = "wasm")))]
 mod py;
 pub mod reduction;
