@@ -31,7 +31,7 @@ jobs:
         arch -arm64 python -m venv venv
         . ./venv/bin/activate
         export PATH=~/.cargo/bin:$PATH
-        arch -arm64 pip install maturin==0.11.2
+        arch -arm64 pip install maturin
         arch -arm64 maturin build --no-sdist -i python --release
 
     - name: Install clvm_rs wheel

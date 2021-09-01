@@ -42,7 +42,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-          python -m pip install maturin==0.11.2
+          python -m pip install maturin
 
     - name: Build MacOs with maturin on Python ${{ matrix.python }}
       if: startsWith(matrix.os, 'macos')
@@ -85,7 +85,7 @@ jobs:
             if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
             . ./activate && \
             pip install --upgrade pip && \
-            pip install maturin==0.11.2 && \
+            pip install maturin && \
             CC=gcc maturin build --no-sdist --release --manylinux 2010 \
           '
 
