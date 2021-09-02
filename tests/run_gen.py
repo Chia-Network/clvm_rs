@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
-from clvm_rs import run_generator, STRICT_MODE
-from clvm.operators import OP_REWRITE
-from clvm import KEYWORD_FROM_ATOM, KEYWORD_TO_ATOM
+from clvm_rs import run_generator
 from time import time
 from clvm_tools import binutils
 import sys
-from run import native_opcode_names_by_opcode
 
 def run_gen(fn, flags=0):
 
@@ -57,9 +54,8 @@ def run_gen(fn, flags=0):
         return run_generator(
             program_data,
             env_data,
-            KEYWORD_TO_ATOM["q"][0],
-            KEYWORD_TO_ATOM["a"][0],
-            native_opcode_names_by_opcode,
+            0, 0,
+            {},
             max_cost,
             flags,
         )

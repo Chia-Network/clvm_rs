@@ -1,14 +1,6 @@
 #!/usr/bin/env python3
 
-from clvm_rs import deserialize_and_run_program2, STRICT_MODE
-from clvm.operators import OP_REWRITE
-from clvm import KEYWORD_FROM_ATOM, KEYWORD_TO_ATOM
-
-native_opcode_names_by_opcode = dict(
-    ("op_%s" % OP_REWRITE.get(k, k), op)
-    for op, k in KEYWORD_FROM_ATOM.items()
-    if k not in "qa."
-)
+from clvm_rs import run_chia_program
 
 def run_clvm(fn, env=None):
 
@@ -23,12 +15,9 @@ def run_clvm(fn, env=None):
     cost_per_byte = 12000
 
     max_cost -= (len(program_data) + len(env_data)) * cost_per_byte
-    return deserialize_and_run_program2(
+    return run_chia_program(
         program_data,
         env_data,
-        KEYWORD_TO_ATOM["q"][0],
-        KEYWORD_TO_ATOM["a"][0],
-        native_opcode_names_by_opcode,
         max_cost,
         0,
     )
