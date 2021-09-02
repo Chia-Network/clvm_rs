@@ -2,8 +2,8 @@ use crate::allocator::{Allocator, NodePtr};
 use crate::cost::Cost;
 use crate::dialect::Dialect;
 use crate::err_utils::err;
-use crate::f_table::{f_lookup_for_hashmap, FLookup};
 use crate::more_ops::op_unknown;
+use crate::py::f_table::{f_lookup_for_hashmap, FLookup};
 use crate::reduction::Response;
 use std::collections::HashMap;
 
