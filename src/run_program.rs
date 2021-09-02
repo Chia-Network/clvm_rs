@@ -289,7 +289,6 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn run_program(&mut self, program: NodePtr, args: NodePtr, max_cost: Cost) -> Response {
         self.val_stack = vec![self.allocator.new_pair(program, args)?];
         self.op_stack = vec![Operation::Eval];
@@ -331,7 +330,6 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn run_program<'a, D: Dialect>(
     allocator: &'a mut Allocator,
     dialect: &'a D,
