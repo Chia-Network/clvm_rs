@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-from run_gen import run_gen, STRICT_MODE
+from run_gen import run_gen
+from clvm_rs import STRICT_MODE
 from time import time
 import sys
 import glob

@@ -5,9 +5,6 @@ import glob
 import time
 import sys
 import platform
-from clvm import KEYWORD_FROM_ATOM, KEYWORD_TO_ATOM
-from clvm.operators import OP_REWRITE
-from clvm.EvalError import EvalError
 from colorama import init, Fore, Style
 from run import run_clvm
 
