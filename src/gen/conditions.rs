@@ -4,7 +4,7 @@ use super::condition_sanitizers::{
 };
 use super::rangeset::RangeSet;
 use super::sanitize_int::sanitize_uint;
-use super::validation_error::{first, next, pair, rest, ErrorCode, ValidationErr};
+use super::validation_error::{first, next, rest, ErrorCode, ValidationErr};
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::Cost;
 use crate::gen::opcodes::{
@@ -310,9 +310,8 @@ fn parse_spend_conditions(
         agg_sigs: Vec::new(),
     };
 
-    let (mut iter, _) = next(a, cond)?;
-
-    while let Some((mut c, next)) = pair(a, iter) {
+    let mut iter = first(a, cond)?;
+    while let Some((mut c, next)) = next(a, iter)? {
         iter = next;
         let op = match parse_opcode(a, first(a, c)?) {
             None => {
@@ -430,8 +429,8 @@ pub fn parse_spends(
 
     let mut state = ParseState::new();
 
-    let (mut iter, _) = next(a, spends)?;
-    while let Some((spend, next)) = pair(a, iter) {
+    let mut iter = first(a, spends)?;
+    while let Some((spend, next)) = next(a, iter)? {
         iter = next;
         // max_cost is passed in as a mutable reference and decremented by the
         // cost of the condition (if it has a cost). This let us fail as early
@@ -765,6 +764,65 @@ fn cond_test_cb(
 #[cfg(test)]
 fn cond_test(input: &str) -> Result<(Allocator, Vec<SpendConditionSummary>), ValidationErr> {
     cond_test_cb(input, None)
+}
+
+#[test]
+fn test_invalid_condition_list1() {
+    assert_eq!(
+        cond_test("((({h1} ({h2} (123 (8 )))").unwrap_err().1,
+        ErrorCode::InvalidCondition
+    );
+}
+
+#[test]
+fn test_invalid_condition_list2() {
+    assert_eq!(
+        cond_test("((({h1} ({h2} (123 ((8 ))))").unwrap_err().1,
+        ErrorCode::InvalidCondition
+    );
+}
+
+#[test]
+fn test_invalid_condition_list_terminator() {
+    let (a, spend_list) = cond_test("((({h1} ({h2} (123 (((80 (50 8 ))))").unwrap();
+
+    assert_eq!(spend_list.len(), 1);
+    assert_eq!(*spend_list[0].coin_id, test_coin_id(VEC1, VEC2, 123));
+    assert_eq!(a.atom(spend_list[0].puzzle_hash), VEC2);
+
+    assert_eq!(spend_list[0].seconds_relative, 50);
+}
+
+#[test]
+fn test_invalid_condition_short_list_terminator() {
+    assert_eq!(
+        cond_test("((({h1} ({h2} (123 (((80 8 ))))").unwrap_err().1,
+        ErrorCode::InvalidCondition
+    );
+}
+
+#[test]
+fn test_invalid_spend_list1() {
+    assert_eq!(
+        cond_test("(8 )").unwrap_err().1,
+        ErrorCode::InvalidCondition
+    );
+}
+
+#[test]
+fn test_invalid_spend_list2() {
+    assert_eq!(
+        cond_test("((8 ))").unwrap_err().1,
+        ErrorCode::InvalidCondition
+    );
+}
+
+#[test]
+fn test_invalid_spend_list_terminator() {
+    assert_eq!(
+        cond_test("((({h1} ({h2} (123 (()) 8 ))").unwrap_err().1,
+        ErrorCode::InvalidCondition
+    );
 }
 
 #[test]
