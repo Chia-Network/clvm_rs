@@ -29,16 +29,16 @@ jobs:
         toolchain: stable
         components: rustfmt, clippy
 
-    - name: Set up rust (nightly)
+    - name: Set up rust (stable)
       uses: actions-rs/toolchain@v1
       with:
-        toolchain: nightly
+        toolchain: stable
         components: rustfmt, clippy
 
-    - name: fmt (nightly)
-      run: cargo +nightly fmt -- --files-with-diff --check
-    - name: clippy (nightly)
-      run: cargo +nightly clippy
+    - name: fmt (stable)
+      run: cargo +stable fmt -- --files-with-diff --check
+    - name: clippy (stable)
+      run: cargo +stable clippy
     - name: tests
       run: cargo test && cargo test --release
     - name: build
