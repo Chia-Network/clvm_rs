@@ -50,7 +50,7 @@ pub fn next(a: &Allocator, n: NodePtr) -> Result<Option<(NodePtr, NodePtr)>, Val
     match a.sexp(n) {
         SExp::Pair(left, right) => Ok(Some((left, right))),
         SExp::Atom(v) => {
-            // this is a valid list terminator
+            // this is expected to be a valid list terminator
             if v.is_empty() {
                 Ok(None)
             } else {
