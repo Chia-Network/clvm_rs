@@ -1,18 +1,18 @@
-mod allocator;
+pub mod allocator;
 mod core_ops;
-mod cost;
+pub mod cost;
 mod err_utils;
-mod f_table;
+pub mod f_table;
 mod gen;
 mod int_to_bytes;
-mod more_ops;
-mod node;
+pub mod more_ops;
+pub mod node;
 mod number;
 mod op_utils;
 #[cfg(not(any(test, target_family = "wasm")))]
 mod py;
-mod reduction;
-mod run_program;
+pub mod reduction;
+pub mod run_program;
 mod serialize;
 mod sha2;
 
