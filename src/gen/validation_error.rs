@@ -46,17 +46,17 @@ pub fn rest(a: &Allocator, n: NodePtr) -> Result<NodePtr, ValidationErr> {
     }
 }
 
-pub fn pair(a: &Allocator, n: NodePtr) -> Option<(NodePtr, NodePtr)> {
+pub fn next(a: &Allocator, n: NodePtr) -> Result<Option<(NodePtr, NodePtr)>, ValidationErr> {
     match a.sexp(n) {
-        SExp::Pair(left, right) => Some((left, right)),
-        _ => None,
-    }
-}
-
-pub fn next(a: &Allocator, n: NodePtr) -> Result<(NodePtr, NodePtr), ValidationErr> {
-    match a.sexp(n) {
-        SExp::Pair(left, right) => Ok((left, right)),
-        _ => Err(ValidationErr(n, ErrorCode::InvalidCondition)),
+        SExp::Pair(left, right) => Ok(Some((left, right))),
+        SExp::Atom(v) => {
+            // this is a valid list terminator
+            if v.is_empty() {
+                Ok(None)
+            } else {
+                Err(ValidationErr(n, ErrorCode::InvalidCondition))
+            }
+        }
     }
 }
 

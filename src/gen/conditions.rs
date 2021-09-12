@@ -4,7 +4,7 @@ use super::condition_sanitizers::{
 };
 use super::rangeset::RangeSet;
 use super::sanitize_int::sanitize_uint;
-use super::validation_error::{first, next, pair, rest, ErrorCode, ValidationErr};
+use super::validation_error::{first, next, rest, ErrorCode, ValidationErr};
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::Cost;
 use crate::gen::opcodes::{
@@ -234,37 +234,46 @@ pub struct SpendConditionSummary {
     pub agg_sigs: Vec<Condition>,
 }
 
-struct AnnounceState {
+struct ParseState {
     // hashing of the announcements is deferred until parsing is complete. This
     // means less work up-front, in case parsing/validation fails
-    coin: HashSet<(Arc<[u8; 32]>, NodePtr)>,
-    puzzle: HashSet<(NodePtr, NodePtr)>,
+    announce_coin: HashSet<(Arc<[u8; 32]>, NodePtr)>,
+    announce_puzzle: HashSet<(NodePtr, NodePtr)>,
 
     // the assert announcements are checked once everything has been parsed and
     // validated.
     assert_coin: HashSet<NodePtr>,
     assert_puzzle: HashSet<NodePtr>,
+
+    // all coin IDs that have been spent so far. When we parse a spend we also
+    // compute the coin ID, and stick it in this set. It's reference counted
+    // since it may also be referenced by announcements
+    spent_coins: HashSet<Arc<[u8; 32]>>,
+
+    // this object tracks which ranges of the heap we've scanned for zeros, to
+    // avoid scanning the same ranges multiple times.
+    range_cache: RangeSet,
 }
 
-impl AnnounceState {
-    fn new() -> AnnounceState {
-        AnnounceState {
-            coin: HashSet::new(),
-            puzzle: HashSet::new(),
+impl ParseState {
+    fn new() -> ParseState {
+        ParseState {
+            announce_coin: HashSet::new(),
+            announce_puzzle: HashSet::new(),
             assert_coin: HashSet::new(),
             assert_puzzle: HashSet::new(),
+            spent_coins: HashSet::new(),
+            range_cache: RangeSet::new(),
         }
     }
 }
 
 fn parse_spend_conditions(
     a: &Allocator,
-    ann: &mut AnnounceState,
-    spent_coins: &mut HashSet<Arc<[u8; 32]>>,
+    state: &mut ParseState,
     mut spend: NodePtr,
     flags: u32,
     max_cost: &mut Cost,
-    range_cache: &mut RangeSet,
 ) -> Result<SpendConditionSummary, ValidationErr> {
     let parent_id = sanitize_hash(a, first(a, spend)?, 32, ErrorCode::InvalidParentId)?;
     spend = rest(a, spend)?;
@@ -275,7 +284,7 @@ fn parse_spend_conditions(
         first(a, spend)?,
         8,
         ErrorCode::InvalidCoinAmount,
-        range_cache,
+        &mut state.range_cache,
         flags,
     )?
     .to_vec();
@@ -283,7 +292,7 @@ fn parse_spend_conditions(
     let cond = rest(a, spend)?;
     let coin_id = Arc::new(compute_coin_id(a, parent_id, puzzle_hash, &amount_buf));
 
-    if !spent_coins.insert(coin_id.clone()) {
+    if !state.spent_coins.insert(coin_id.clone()) {
         // if this coin ID has already been added to this set, it's a double
         // spend
         return Err(ValidationErr(spend, ErrorCode::DoubleSpend));
@@ -301,9 +310,8 @@ fn parse_spend_conditions(
         agg_sigs: Vec::new(),
     };
 
-    let (mut iter, _) = next(a, cond)?;
-
-    while let Some((mut c, next)) = pair(a, iter) {
+    let mut iter = first(a, cond)?;
+    while let Some((mut c, next)) = next(a, iter)? {
         iter = next;
         let op = match parse_opcode(a, first(a, c)?) {
             None => {
@@ -335,7 +343,7 @@ fn parse_spend_conditions(
             _ => (),
         }
         c = rest(a, c)?;
-        let cva = parse_args(a, c, op, range_cache, flags)?;
+        let cva = parse_args(a, c, op, &mut state.range_cache, flags)?;
         match cva {
             Condition::ReserveFee(limit) => {
                 // reserve fees are accumulated
@@ -387,16 +395,16 @@ fn parse_spend_conditions(
                 }
             }
             Condition::CreateCoinAnnouncement(msg) => {
-                ann.coin.insert((spend.coin_id.clone(), msg));
+                state.announce_coin.insert((spend.coin_id.clone(), msg));
             }
             Condition::CreatePuzzleAnnouncement(msg) => {
-                ann.puzzle.insert((spend.puzzle_hash, msg));
+                state.announce_puzzle.insert((spend.puzzle_hash, msg));
             }
             Condition::AssertCoinAnnouncement(msg) => {
-                ann.assert_coin.insert(msg);
+                state.assert_coin.insert(msg);
             }
             Condition::AssertPuzzleAnnouncement(msg) => {
-                ann.assert_puzzle.insert(msg);
+                state.assert_puzzle.insert(msg);
             }
             Condition::AggSigMe(_, _) | Condition::AggSigUnsafe(_, _) => {
                 spend.agg_sigs.push(cva);
@@ -419,49 +427,36 @@ pub fn parse_spends(
 ) -> Result<Vec<SpendConditionSummary>, ValidationErr> {
     let mut ret = Vec::<SpendConditionSummary>::new();
 
-    // this object tracks which ranges of the heap we've scanned for zeros, to
-    // avoid scanning the same ranges multiple times.
-    let mut range_cache = RangeSet::new();
+    let mut state = ParseState::new();
 
-    // this is where we collect all coin/puzzle announces (both create and
-    // asserts)
-    let mut ann = AnnounceState::new();
-
-    // all coin IDs that have been spent so far. When we parse a spend we also
-    // compute the coin ID, and stick it in this set. It's reference counted
-    // since it may also be referenced by announcements
-    let mut spent_coins = HashSet::<Arc<[u8; 32]>>::new();
-
-    let (mut iter, _) = next(a, spends)?;
-    while let Some((spend, next)) = pair(a, iter) {
+    let mut iter = first(a, spends)?;
+    while let Some((spend, next)) = next(a, iter)? {
         iter = next;
         // max_cost is passed in as a mutable reference and decremented by the
         // cost of the condition (if it has a cost). This let us fail as early
         // as possible if cost is exceeded
         ret.push(parse_spend_conditions(
             a,
-            &mut ann,
-            &mut spent_coins,
+            &mut state,
             spend,
             flags,
             &mut max_cost,
-            &mut range_cache,
         )?);
     }
 
     // check all the assert announcements
     // if there are no asserts, there is no need to hash all the announcements
-    if !ann.assert_coin.is_empty() {
+    if !state.assert_coin.is_empty() {
         let mut announcements = HashSet::<[u8; 32]>::new();
 
-        for (coin_id, announce) in ann.coin {
+        for (coin_id, announce) in state.announce_coin {
             let mut hasher = Sha256::new();
             hasher.update(&*coin_id);
             hasher.update(a.atom(announce));
             announcements.insert(hasher.finish());
         }
 
-        for coin_assert in ann.assert_coin {
+        for coin_assert in state.assert_coin {
             if !announcements.contains(a.atom(coin_assert)) {
                 return Err(ValidationErr(
                     coin_assert,
@@ -471,17 +466,17 @@ pub fn parse_spends(
         }
     }
 
-    if !ann.assert_puzzle.is_empty() {
+    if !state.assert_puzzle.is_empty() {
         let mut announcements = HashSet::<[u8; 32]>::new();
 
-        for (puzzle_hash, announce) in ann.puzzle {
+        for (puzzle_hash, announce) in state.announce_puzzle {
             let mut hasher = Sha256::new();
             hasher.update(a.atom(puzzle_hash));
             hasher.update(a.atom(announce));
             announcements.insert(hasher.finish());
         }
 
-        for puzzle_assert in ann.assert_puzzle {
+        for puzzle_assert in state.assert_puzzle {
             if !announcements.contains(a.atom(puzzle_assert)) {
                 return Err(ValidationErr(
                     puzzle_assert,
@@ -769,6 +764,65 @@ fn cond_test_cb(
 #[cfg(test)]
 fn cond_test(input: &str) -> Result<(Allocator, Vec<SpendConditionSummary>), ValidationErr> {
     cond_test_cb(input, None)
+}
+
+#[test]
+fn test_invalid_condition_list1() {
+    assert_eq!(
+        cond_test("((({h1} ({h2} (123 (8 )))").unwrap_err().1,
+        ErrorCode::InvalidCondition
+    );
+}
+
+#[test]
+fn test_invalid_condition_list2() {
+    assert_eq!(
+        cond_test("((({h1} ({h2} (123 ((8 ))))").unwrap_err().1,
+        ErrorCode::InvalidCondition
+    );
+}
+
+#[test]
+fn test_invalid_condition_list_terminator() {
+    let (a, spend_list) = cond_test("((({h1} ({h2} (123 (((80 (50 8 ))))").unwrap();
+
+    assert_eq!(spend_list.len(), 1);
+    assert_eq!(*spend_list[0].coin_id, test_coin_id(VEC1, VEC2, 123));
+    assert_eq!(a.atom(spend_list[0].puzzle_hash), VEC2);
+
+    assert_eq!(spend_list[0].seconds_relative, 50);
+}
+
+#[test]
+fn test_invalid_condition_short_list_terminator() {
+    assert_eq!(
+        cond_test("((({h1} ({h2} (123 (((80 8 ))))").unwrap_err().1,
+        ErrorCode::InvalidCondition
+    );
+}
+
+#[test]
+fn test_invalid_spend_list1() {
+    assert_eq!(
+        cond_test("(8 )").unwrap_err().1,
+        ErrorCode::InvalidCondition
+    );
+}
+
+#[test]
+fn test_invalid_spend_list2() {
+    assert_eq!(
+        cond_test("((8 ))").unwrap_err().1,
+        ErrorCode::InvalidCondition
+    );
+}
+
+#[test]
+fn test_invalid_spend_list_terminator() {
+    assert_eq!(
+        cond_test("((({h1} ({h2} (123 (()) 8 ))").unwrap_err().1,
+        ErrorCode::InvalidCondition
+    );
 }
 
 #[test]

@@ -50,7 +50,7 @@ jobs:
         python -m venv venv
         ln -s venv/bin/activate
         . ./activate
-        maturin build --no-sdist -i python --release
+        maturin build --no-sdist -i python --release --strip
 
 #    - name: Build Linux with maturin on Python ${{ matrix.python }}
 #      if: startsWith(matrix.os, 'ubuntu')
@@ -86,7 +86,7 @@ jobs:
             . ./activate && \
             pip install --upgrade pip && \
             pip install maturin && \
-            CC=gcc maturin build --no-sdist --release --manylinux 2010 \
+            CC=gcc maturin build --no-sdist --release --strip --manylinux 2010 \
           '
 
     - name: Build Windows with maturin on Python ${{ matrix.python }}
@@ -95,7 +95,7 @@ jobs:
         python -m venv venv
         . .\venv\Scripts\Activate.ps1
         ln -s venv\Scripts\Activate.ps1 activate
-        maturin build --no-sdist -i python --release
+        maturin build --no-sdist -i python --release --strip
         # this will install into the venv
         # it'd be better to use the wheel, but I can't figure out how to do that
         # TODO: figure this out
@@ -196,7 +196,7 @@ jobs:
       - name: Install rust
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: nightly
+            toolchain: stable
             override: true
             components: rustfmt, clippy
       - name: fmt
@@ -208,7 +208,7 @@ jobs:
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           components: clippy
           override: true
       - uses: actions-rs/clippy-check@v1

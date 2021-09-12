@@ -52,7 +52,7 @@ jobs:
             if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
             . ./activate && \
             pip install maturin && \
-            CC=gcc maturin build --no-sdist --release --manylinux 2014 \
+            CC=gcc maturin build --no-sdist --release --strip --manylinux 2014 \
           '
 
     - name: Upload artifacts
