@@ -55,10 +55,9 @@ pub enum Condition {
     // pubkey (48 bytes) and message (<= 1024 bytes)
     AggSigUnsafe(NodePtr, NodePtr),
     AggSigMe(NodePtr, NodePtr),
-    // puzzle hash (32 bytes), amount-node, amount integer
-    CreateCoin(NodePtr, u64),
-    // puzzle hash (32 bytes), amount-node, amount integer, hint hash (32 bytes)
-    CreateCoinWithHint(NodePtr, u64, NodePtr),
+    // puzzle hash (32 bytes), amount-node, amount integer, hint is an optional
+    // hash (32 bytes), may be left as null
+    CreateCoin(NodePtr, u64, NodePtr),
     // amount
     ReserveFee(u64),
     // message (<= 1024 bytes)
@@ -133,12 +132,12 @@ fn parse_args(
                 if let Ok(param) = first(a, c) {
                     if let SExp::Atom(b) = a.sexp(param) {
                         if a.buf(&b).len() == 32 {
-                            return Ok(Condition::CreateCoinWithHint(puzzle_hash, amount, param));
+                            return Ok(Condition::CreateCoin(puzzle_hash, amount, param));
                         }
                     }
                 }
             }
-            Ok(Condition::CreateCoin(puzzle_hash, amount))
+            Ok(Condition::CreateCoin(puzzle_hash, amount, a.null()))
         }
         RESERVE_FEE => {
             let fee = parse_amount(
@@ -396,17 +395,7 @@ fn parse_spend_conditions(
                     .checked_add(limit)
                     .ok_or(ValidationErr(c, ErrorCode::ReserveFeeConditionFailed))?;
             }
-            Condition::CreateCoin(ph, amount) => {
-                let new_coin = NewCoin {
-                    puzzle_hash: a.atom(ph).to_vec(),
-                    amount,
-                    hint: a.null(),
-                };
-                if !spend.create_coin.insert(new_coin) {
-                    return Err(ValidationErr(c, ErrorCode::DuplicateOutput));
-                }
-            }
-            Condition::CreateCoinWithHint(ph, amount, hint) => {
+            Condition::CreateCoin(ph, amount, hint) => {
                 let new_coin = NewCoin {
                     puzzle_hash: a.atom(ph).to_vec(),
                     amount,
