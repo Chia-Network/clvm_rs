@@ -19,6 +19,7 @@ use crate::run_program::STRICT_MODE;
 use crate::sha2::Sha256;
 use std::cmp::max;
 use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 // The structure of conditions, returned from a generator program, is a list,
@@ -56,6 +57,8 @@ pub enum Condition {
     AggSigMe(NodePtr, NodePtr),
     // puzzle hash (32 bytes), amount-node, amount integer
     CreateCoin(NodePtr, u64),
+    // puzzle hash (32 bytes), amount-node, amount integer, hint hash (32 bytes)
+    CreateCoinWithHint(NodePtr, u64, NodePtr),
     // amount
     ReserveFee(u64),
     // message (<= 1024 bytes)
@@ -123,6 +126,18 @@ fn parse_args(
                 range_cache,
                 flags,
             )?;
+            // CREATE_COIN takes an optional 3rd parameter, which is a 32 byte
+            // hash. If we find anything else, that's still OK, since garbage is
+            // ignored.
+            if let Ok(c) = rest(a, c) {
+                if let Ok(param) = first(a, c) {
+                    if let SExp::Atom(b) = a.sexp(param) {
+                        if a.buf(&b).len() == 32 {
+                            return Ok(Condition::CreateCoinWithHint(puzzle_hash, amount, param));
+                        }
+                    }
+                }
+            }
             Ok(Condition::CreateCoin(puzzle_hash, amount))
         }
         RESERVE_FEE => {
@@ -217,6 +232,31 @@ fn parse_args(
 }
 
 #[derive(Debug)]
+pub struct NewCoin {
+    pub puzzle_hash: Vec<u8>,
+    pub amount: u64,
+    // the hint is optional. When not provided, this points to null (NodePtr
+    // value -1). The hint is not part of the unique identity of a coin, it's not
+    // hashed when computing the coin ID
+    pub hint: NodePtr,
+}
+
+impl Hash for NewCoin {
+    fn hash<H: Hasher>(&self, h: &mut H) {
+        self.puzzle_hash.hash(h);
+        self.amount.hash(h);
+    }
+}
+
+impl Eq for NewCoin {}
+
+impl PartialEq for NewCoin {
+    fn eq(&self, lhs: &NewCoin) -> bool {
+        self.amount == lhs.amount && self.puzzle_hash == lhs.puzzle_hash
+    }
+}
+
+#[derive(Debug)]
 pub struct SpendConditionSummary {
     pub coin_id: Arc<[u8; 32]>,
     pub puzzle_hash: NodePtr,
@@ -233,7 +273,7 @@ pub struct SpendConditionSummary {
     pub seconds_relative: u64,
     pub seconds_absolute: u64,
     // all create coins. Duplicates are consensus failures
-    pub create_coin: HashSet<(Vec<u8>, u64)>,
+    pub create_coin: HashSet<NewCoin>,
     // Agg Sig conditions
     pub agg_sigs: Vec<Condition>,
 }
@@ -357,7 +397,21 @@ fn parse_spend_conditions(
                     .ok_or(ValidationErr(c, ErrorCode::ReserveFeeConditionFailed))?;
             }
             Condition::CreateCoin(ph, amount) => {
-                let new_coin = (a.atom(ph).to_vec(), amount);
+                let new_coin = NewCoin {
+                    puzzle_hash: a.atom(ph).to_vec(),
+                    amount,
+                    hint: a.null(),
+                };
+                if !spend.create_coin.insert(new_coin) {
+                    return Err(ValidationErr(c, ErrorCode::DuplicateOutput));
+                }
+            }
+            Condition::CreateCoinWithHint(ph, amount, hint) => {
+                let new_coin = NewCoin {
+                    puzzle_hash: a.atom(ph).to_vec(),
+                    amount,
+                    hint,
+                };
                 if !spend.create_coin.insert(new_coin) {
                     return Err(ValidationErr(c, ErrorCode::DuplicateOutput));
                 }
@@ -1359,7 +1413,11 @@ fn test_single_create_coin() {
     assert_eq!(*spend_list[0].coin_id, test_coin_id(H1, H2, 123));
     assert_eq!(a.atom(spend_list[0].puzzle_hash), H2);
     assert_eq!(spend_list[0].create_coin.len(), 1);
-    assert!(spend_list[0].create_coin.contains(&(H2.to_vec(), 42_u64)));
+    assert!(spend_list[0].create_coin.contains(&NewCoin {
+        puzzle_hash: H2.to_vec(),
+        amount: 42_u64,
+        hint: a.null()
+    }));
 }
 
 #[test]
@@ -1372,9 +1430,11 @@ fn test_create_coin_max_amount() {
     assert_eq!(*spend_list[0].coin_id, test_coin_id(H1, H2, 123));
     assert_eq!(a.atom(spend_list[0].puzzle_hash), H2);
     assert_eq!(spend_list[0].create_coin.len(), 1);
-    assert!(spend_list[0]
-        .create_coin
-        .contains(&(H2.to_vec(), 0xffffffffffffffff_u64)));
+    assert!(spend_list[0].create_coin.contains(&NewCoin {
+        puzzle_hash: H2.to_vec(),
+        amount: 0xffffffffffffffff_u64,
+        hint: a.null()
+    }));
 }
 
 #[test]
@@ -1411,6 +1471,87 @@ fn test_create_coin_invalid_puzzlehash() {
 }
 
 #[test]
+fn test_create_coin_with_hint() {
+    // CREATE_COIN
+    let (a, spend_list) = cond_test("((({h1} ({h2} (123 (((51 ({h2} (42 ({h1} )))))").unwrap();
+
+    assert_eq!(spend_list.len(), 1);
+    assert_eq!(*spend_list[0].coin_id, test_coin_id(H1, H2, 123));
+    assert_eq!(a.atom(spend_list[0].puzzle_hash), H2);
+    assert_eq!(spend_list[0].create_coin.len(), 1);
+    for c in &spend_list[0].create_coin {
+        assert!(c.puzzle_hash == H2.to_vec());
+        assert!(c.amount == 42_u64);
+        assert!(a.atom(c.hint) == H1.to_vec());
+    }
+}
+
+#[test]
+fn test_create_coin_with_invalid_hint_as_terminator() {
+    // CREATE_COIN
+    let (a, spend_list) = cond_test("((({h1} ({h2} (123 (((51 ({h2} (42 {h1}))))").unwrap();
+
+    assert_eq!(spend_list.len(), 1);
+    assert_eq!(*spend_list[0].coin_id, test_coin_id(H1, H2, 123));
+    assert_eq!(a.atom(spend_list[0].puzzle_hash), H2);
+    assert_eq!(spend_list[0].create_coin.len(), 1);
+    assert!(spend_list[0].create_coin.contains(&NewCoin {
+        puzzle_hash: H2.to_vec(),
+        amount: 42_u64,
+        hint: a.null()
+    }));
+}
+
+#[test]
+fn test_create_coin_with_short_hint() {
+    // CREATE_COIN
+    let (a, spend_list) = cond_test("((({h1} ({h2} (123 (((51 ({h2} (42 ({msg1})))))").unwrap();
+
+    assert_eq!(spend_list.len(), 1);
+    assert_eq!(*spend_list[0].coin_id, test_coin_id(H1, H2, 123));
+    assert_eq!(a.atom(spend_list[0].puzzle_hash), H2);
+    assert_eq!(spend_list[0].create_coin.len(), 1);
+    assert!(spend_list[0].create_coin.contains(&NewCoin {
+        puzzle_hash: H2.to_vec(),
+        amount: 42_u64,
+        hint: a.null()
+    }));
+}
+
+#[test]
+fn test_create_coin_with_long_hint() {
+    // CREATE_COIN
+    let (a, spend_list) = cond_test("((({h1} ({h2} (123 (((51 ({h2} (42 ({long})))))").unwrap();
+
+    assert_eq!(spend_list.len(), 1);
+    assert_eq!(*spend_list[0].coin_id, test_coin_id(H1, H2, 123));
+    assert_eq!(a.atom(spend_list[0].puzzle_hash), H2);
+    assert_eq!(spend_list[0].create_coin.len(), 1);
+    assert!(spend_list[0].create_coin.contains(&NewCoin {
+        puzzle_hash: H2.to_vec(),
+        amount: 42_u64,
+        hint: a.null()
+    }));
+}
+
+#[test]
+fn test_create_coin_with_pair_hint() {
+    // CREATE_COIN
+    let (a, spend_list) =
+        cond_test("((({h1} ({h2} (123 (((51 ({h2} (42 (({h1} {h2} )))))").unwrap();
+
+    assert_eq!(spend_list.len(), 1);
+    assert_eq!(*spend_list[0].coin_id, test_coin_id(H1, H2, 123));
+    assert_eq!(a.atom(spend_list[0].puzzle_hash), H2);
+    assert_eq!(spend_list[0].create_coin.len(), 1);
+    assert!(spend_list[0].create_coin.contains(&NewCoin {
+        puzzle_hash: H2.to_vec(),
+        amount: 42_u64,
+        hint: a.null()
+    }));
+}
+
+#[test]
 fn test_multiple_create_coin() {
     // CREATE_COIN
     let (a, spend_list) =
@@ -1420,8 +1561,16 @@ fn test_multiple_create_coin() {
     assert_eq!(*spend_list[0].coin_id, test_coin_id(H1, H2, 123));
     assert_eq!(a.atom(spend_list[0].puzzle_hash), H2);
     assert_eq!(spend_list[0].create_coin.len(), 2);
-    assert!(spend_list[0].create_coin.contains(&(H2.to_vec(), 42_u64)));
-    assert!(spend_list[0].create_coin.contains(&(H2.to_vec(), 43_u64)));
+    assert!(spend_list[0].create_coin.contains(&NewCoin {
+        puzzle_hash: H2.to_vec(),
+        amount: 42_u64,
+        hint: a.null()
+    }));
+    assert!(spend_list[0].create_coin.contains(&NewCoin {
+        puzzle_hash: H2.to_vec(),
+        amount: 43_u64,
+        hint: a.null()
+    }));
 }
 
 #[test]
