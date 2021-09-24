@@ -19,7 +19,14 @@ for g in glob.glob('generators/*.clvm'):
             output += f"  {c[0]}\n"
             for cwa in sorted(c[1], key=lambda x: (x.opcode, x.vars)):
                 output += f"    {cwa.opcode}"
-                for a in cwa.vars:
+
+                # special case to omit an empty hint from CREATE_COIN, to preserve the
+                # output from the test cases not using a hint
+                var = list(cwa.vars)
+                if cwa.opcode == 51 and len(cwa.vars) == 3 and len(cwa.vars[2]) == 0:
+                    var.pop(2)
+
+                for a in var:
                     output += f" {a.hex()}"
                 output += "\n"
     if error_code:

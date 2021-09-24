@@ -131,7 +131,7 @@ fn parse_args(
             if let Ok(c) = rest(a, c) {
                 if let Ok(param) = first(a, c) {
                     if let SExp::Atom(b) = a.sexp(param) {
-                        if a.buf(&b).len() == 32 {
+                        if a.buf(&b).len() <= 32 {
                             return Ok(Condition::CreateCoin(puzzle_hash, amount, param));
                         }
                     }
