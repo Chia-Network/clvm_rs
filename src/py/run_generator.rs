@@ -98,17 +98,14 @@ fn convert_spend(
 
     let mut new_coins = Vec::<PyConditionWithArgs>::new();
     for new_coin in spend_cond.create_coin {
-        let mut cwa = PyConditionWithArgs {
+        new_coins.push(PyConditionWithArgs {
             opcode: CREATE_COIN,
             vars: vec![
                 PyBytes::new(py, &new_coin.puzzle_hash).into(),
                 int_to_pybytes(py, new_coin.amount),
+                node_to_pybytes(py, a, new_coin.hint),
             ],
-        };
-        if new_coin.hint != a.null() {
-            cwa.vars.push(node_to_pybytes(py, a, new_coin.hint));
-        }
-        new_coins.push(cwa);
+        });
     }
     if !new_coins.is_empty() {
         ordered.insert(CREATE_COIN, new_coins);
