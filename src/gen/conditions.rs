@@ -1584,6 +1584,24 @@ fn test_create_coin_with_pair_hint() {
 }
 
 #[test]
+fn test_create_coin_with_cons_hint() {
+    // CREATE_COIN
+    // if the first element is a cons-box, it's not a valid hint
+    let (a, spend_list) =
+        cond_test("((({h1} ({h2} (123 (((51 ({h2} (42 ((({h1} {h2}) )))))").unwrap();
+
+    assert_eq!(spend_list.len(), 1);
+    assert_eq!(*spend_list[0].coin_id, test_coin_id(H1, H2, 123));
+    assert_eq!(a.atom(spend_list[0].puzzle_hash), H2);
+    assert_eq!(spend_list[0].create_coin.len(), 1);
+    for c in &spend_list[0].create_coin {
+        assert_eq!(c.puzzle_hash, H2.to_vec());
+        assert_eq!(c.amount, 42_u64);
+        assert_eq!(c.hint, a.null());
+    }
+}
+
+#[test]
 fn test_multiple_create_coin() {
     // CREATE_COIN
     let (a, spend_list) =
