@@ -526,7 +526,7 @@ pub fn op_ash(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let l0 = b0.len();
     let rest = args.rest()?;
     let a1 = i32_atom(&rest.first()?, "ash")?;
-    if a1.abs() > 65535 {
+    if a1 > 65535 || a1 < -65535 {
         return args.rest()?.first()?.err("shift too large");
     }
 
@@ -535,6 +535,63 @@ pub fn op_ash(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let r = ptr_from_number(a, &v)?;
     let cost = ASHIFT_BASE_COST + ((l0 + l1) as Cost) * ASHIFT_COST_PER_BYTE;
     Ok(malloc_cost(a, cost, r))
+}
+
+#[cfg(test)]
+fn test_shift(
+    op: fn(&mut Allocator, NodePtr, Cost) -> Response,
+    a: &mut Allocator,
+    a1: &[u8],
+    a2: &[u8],
+) -> Response {
+    let args = a.null();
+    let a2 = a.new_atom(a2).unwrap();
+    let args = a.new_pair(a2, args).unwrap();
+    let a1 = a.new_atom(a1).unwrap();
+    let args = a.new_pair(a1, args).unwrap();
+    op(a, args, 10000000 as Cost)
+}
+
+#[test]
+fn test_op_ash() {
+    let mut a = Allocator::new();
+
+    assert_eq!(
+        test_shift(op_ash, &mut a, &[1], &[0x80, 0, 0, 0])
+            .unwrap_err()
+            .1,
+        "shift too large"
+    );
+
+    assert_eq!(
+        test_shift(op_ash, &mut a, &[1], &[0x80, 0, 0])
+            .unwrap_err()
+            .1,
+        "shift too large"
+    );
+
+    let node = test_shift(op_ash, &mut a, &[1], &[0x80, 0]).unwrap().1;
+    assert_eq!(a.atom(node), &[]);
+
+    assert_eq!(
+        test_shift(op_ash, &mut a, &[1], &[0x7f, 0, 0, 0])
+            .unwrap_err()
+            .1,
+        "shift too large"
+    );
+
+    assert_eq!(
+        test_shift(op_ash, &mut a, &[1], &[0x7f, 0, 0])
+            .unwrap_err()
+            .1,
+        "shift too large"
+    );
+
+    let node = test_shift(op_ash, &mut a, &[1], &[0x7f, 0]).unwrap().1;
+    // the result is 1 followed by 4064 zeroes
+    let node = a.atom(node);
+    assert_eq!(node[0], 1);
+    assert_eq!(node.len(), 4065);
 }
 
 pub fn op_lsh(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
@@ -546,7 +603,7 @@ pub fn op_lsh(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let l0 = b0.len();
     let rest = args.rest()?;
     let a1 = i32_atom(&rest.first()?, "lsh")?;
-    if a1.abs() > 65535 {
+    if a1 > 65535 || a1 < -65535 {
         return args.rest()?.first()?.err("shift too large");
     }
 
@@ -558,6 +615,48 @@ pub fn op_lsh(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let r = ptr_from_number(a, &v)?;
     let cost = LSHIFT_BASE_COST + ((l0 + l1) as Cost) * LSHIFT_COST_PER_BYTE;
     Ok(malloc_cost(a, cost, r))
+}
+
+#[test]
+fn test_op_lsh() {
+    let mut a = Allocator::new();
+
+    assert_eq!(
+        test_shift(op_lsh, &mut a, &[1], &[0x80, 0, 0, 0])
+            .unwrap_err()
+            .1,
+        "shift too large"
+    );
+
+    assert_eq!(
+        test_shift(op_lsh, &mut a, &[1], &[0x80, 0, 0])
+            .unwrap_err()
+            .1,
+        "shift too large"
+    );
+
+    let node = test_shift(op_lsh, &mut a, &[1], &[0x80, 0]).unwrap().1;
+    assert_eq!(a.atom(node), &[]);
+
+    assert_eq!(
+        test_shift(op_lsh, &mut a, &[1], &[0x7f, 0, 0, 0])
+            .unwrap_err()
+            .1,
+        "shift too large"
+    );
+
+    assert_eq!(
+        test_shift(op_lsh, &mut a, &[1], &[0x7f, 0, 0])
+            .unwrap_err()
+            .1,
+        "shift too large"
+    );
+
+    let node = test_shift(op_lsh, &mut a, &[1], &[0x7f, 0]).unwrap().1;
+    // the result is 1 followed by 4064 zeroes
+    let node = a.atom(node);
+    assert_eq!(node[0], 1);
+    assert_eq!(node.len(), 4065);
 }
 
 fn binop_reduction(
