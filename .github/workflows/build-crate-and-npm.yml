@@ -39,6 +39,8 @@ jobs:
       run: cargo +stable fmt -- --files-with-diff --check
     - name: clippy (stable)
       run: cargo +stable clippy
+    - name: install GMP
+      run: sudo apt install libgmp3-dev
     - name: tests
       run: cargo test && cargo test --release
     - name: build

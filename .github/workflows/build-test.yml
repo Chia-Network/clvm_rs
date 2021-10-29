@@ -47,6 +47,7 @@ jobs:
     - name: Build MacOs with maturin on Python ${{ matrix.python }}
       if: startsWith(matrix.os, 'macos')
       run: |
+        brew install gmp
         python -m venv venv
         ln -s venv/bin/activate
         . ./activate
@@ -70,6 +71,8 @@ jobs:
             curl -L https://sh.rustup.rs > rustup-init.sh && \
             sh rustup-init.sh -y && \
             yum -y install openssl-devel && \
+            yum -y install gmp && \
+            ls -la /usr/lib64 && \
             source $HOME/.cargo/env && \
             rustup target add x86_64-unknown-linux-musl && \
             rm -rf venv && \
@@ -95,6 +98,7 @@ jobs:
         python -m venv venv
         . .\venv\Scripts\Activate.ps1
         ln -s venv\Scripts\Activate.ps1 activate
+        git clone https://github.com/Chia-Network/mpir_gc_x64.git --depth 1
         maturin build --no-sdist -i python --release --strip
         # this will install into the venv
         # it'd be better to use the wheel, but I can't figure out how to do that
@@ -227,6 +231,8 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
             toolchain: nightly
+      - name: install GMP
+        run: sudo apt install libgmp3-dev
       - name: cargo-fuzz
         run: cargo +nightly install cargo-fuzz
       - name: build
@@ -244,5 +250,7 @@ jobs:
         with:
             toolchain: stable
             components: rustfmt, clippy
+      - name: install GMP
+        run: sudo apt install libgmp3-dev
       - name: cargo test
         run: cargo test

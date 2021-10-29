@@ -44,6 +44,8 @@ jobs:
             curl -L https://sh.rustup.rs > rustup-init.sh && \
             sh rustup-init.sh -y && \
             yum -y install openssl-devel && \
+            yum -y install gmp && \
+            ls -la /usr/lib64/ && \
             source $HOME/.cargo/env && \
             rustup target add aarch64-unknown-linux-musl && \
             rm -rf venv && \

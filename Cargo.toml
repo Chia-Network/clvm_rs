@@ -23,9 +23,6 @@ default = ["extension-module"]
 [dependencies]
 hex = "=0.4.3"
 lazy_static = "=1.4.0"
-num-bigint = "=0.4.0"
-num-traits = "=0.2.14"
-num-integer = "=0.1.44"
 bls12_381 = "=0.5.0"
 sha2 = "=0.9.5"
 openssl = { version = "0.10.35", features = ["vendored"], optional = true }
