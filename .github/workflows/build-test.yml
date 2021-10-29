@@ -95,6 +95,7 @@ jobs:
         python -m venv venv
         . .\venv\Scripts\Activate.ps1
         ln -s venv\Scripts\Activate.ps1 activate
+        git clone https://github.com/Chia-Network/mpir_gc_x64.git --depth 1
         maturin build --no-sdist -i python --release --strip
         # this will install into the venv
         # it'd be better to use the wheel, but I can't figure out how to do that

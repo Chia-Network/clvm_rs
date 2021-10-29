@@ -9,7 +9,6 @@ use crate::more_ops::{
 use crate::number::{ptr_from_number, Number};
 use crate::reduction::{Reduction, Response};
 use hex::FromHex;
-use num_traits::Num;
 use std::collections::HashMap;
 
 static TEST_CASES: &str = r#"
@@ -705,7 +704,7 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
     }
 
     if v.starts_with("-") || "0123456789".contains(v.get(0..1).unwrap()) {
-        let num = Number::from_str_radix(v, 10).unwrap();
+        let num = Number::from_str_radix(v, 10);
         return ptr_from_number(a, &num).unwrap();
     }
 
