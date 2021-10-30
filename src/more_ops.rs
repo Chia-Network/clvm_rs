@@ -90,6 +90,54 @@ fn limbs_for_int(v: &Number) -> usize {
     ((v.bits() + 7) / 8) as usize
 }
 
+#[cfg(test)]
+fn limb_test_helper(bytes: &[u8]) {
+    let bigint = Number::from_signed_bytes_be(&bytes);
+    println!("{} bits: {}", &bigint, &bigint.bits());
+
+    // redundant leading zeros don't count, since they aren't stored internally
+    let expected = if bytes.len() > 0 && bytes[0] == 0 {
+        bytes.len() - 1
+    } else {
+        bytes.len()
+    };
+    assert_eq!(limbs_for_int(&bigint), expected);
+}
+
+#[test]
+fn test_limbs_for_int() {
+    limb_test_helper(&[]);
+    limb_test_helper(&[0x7f]);
+    limb_test_helper(&[0xff]);
+    limb_test_helper(&[0, 0xff]);
+    limb_test_helper(&[0x7f, 0xff]);
+    limb_test_helper(&[0x7f, 0]);
+    limb_test_helper(&[0x7f, 0x77]);
+
+    limb_test_helper(&[0x40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    limb_test_helper(&[0x40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    limb_test_helper(&[0x40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    limb_test_helper(&[0x40, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    limb_test_helper(&[0x40, 0, 0, 0, 0, 0, 0, 0, 0]);
+    limb_test_helper(&[0x40, 0, 0, 0, 0, 0, 0, 0]);
+
+    limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0]);
+    limb_test_helper(&[0x40, 0, 0, 0, 0, 0, 0]);
+    limb_test_helper(&[0x20, 0, 0, 0, 0, 0, 0]);
+    limb_test_helper(&[0x10, 0, 0, 0, 0, 0, 0]);
+    limb_test_helper(&[0x08, 0, 0, 0, 0, 0, 0]);
+    limb_test_helper(&[0x04, 0, 0, 0, 0, 0, 0]);
+    limb_test_helper(&[0x02, 0, 0, 0, 0, 0, 0]);
+    limb_test_helper(&[0x01, 0, 0, 0, 0, 0, 0]);
+
+    limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0, 0]);
+    limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0]);
+}
+
 fn new_atom_and_cost(a: &mut Allocator, cost: Cost, buf: &[u8]) -> Response {
     let c = buf.len() as Cost * MALLOC_COST_PER_BYTE;
     Ok(Reduction(cost + c, a.new_atom(buf)?))
