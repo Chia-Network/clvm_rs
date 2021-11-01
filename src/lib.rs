@@ -22,5 +22,8 @@ mod sha2;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod test_ops;
+
 #[cfg(target_family = "wasm")]
 pub mod wasm;
