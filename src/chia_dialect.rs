@@ -87,7 +87,11 @@ pub fn chia_opcode_mapping() -> HashMap<String, Vec<u8>> {
 }
 
 pub fn chia_op_handler(strict: bool) -> OperatorHandlerWithMode {
-    OperatorHandlerWithMode::new_with_hashmap(chia_opcode_mapping(), strict)
+    let mut mapping = chia_opcode_mapping();
+    if strict {
+        mapping.insert("op_div_deprecated".to_string(), [19].into());
+    }
+    OperatorHandlerWithMode::new_with_hashmap(mapping, strict)
 }
 
 pub fn chia_dialect_with_handler<Handler: OperatorHandler>(handler: Handler) -> Dialect<Handler> {
