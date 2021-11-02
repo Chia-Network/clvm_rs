@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
+use super::dialect::__pyo3_get_function_chia_dialect;
 use super::lazy_node::LazyNode;
 use super::run_generator::{
     PyConditionWithArgs, PySpendConditionSummary, __pyo3_get_function_run_generator,
@@ -15,6 +16,7 @@ use crate::run_program::STRICT_MODE;
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(deserialize_and_run_program2, m)?)?;
     m.add_function(wrap_pyfunction!(run_generator, m)?)?;
+    m.add_function(wrap_pyfunction!(chia_dialect, m)?)?;
     m.add("STRICT_MODE", STRICT_MODE)?;
     m.add_class::<LazyNode>()?;
     m.add_class::<PySpendConditionSummary>()?;
