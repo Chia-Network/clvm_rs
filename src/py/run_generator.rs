@@ -12,13 +12,12 @@ use crate::reduction::{EvalErr, Reduction};
 use crate::run_program::STRICT_MODE;
 use crate::serialize::node_from_bytes;
 
-use crate::py::lazy_node::LazyNode;
+use crate::py::adapt_response::eval_err_to_pyresult;
 
 use std::collections::HashMap;
-use std::rc::Rc;
 
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict};
+use pyo3::types::PyBytes;
 
 fn node_to_pybytes(py: Python, a: &Allocator, n: NodePtr) -> PyObject {
     PyBytes::new(py, a.atom(n)).into()
@@ -254,21 +253,6 @@ pub fn run_generator(
             // a validation error occurred
             Ok((error_code, ret, 0))
         }
-        Err(eval_err) => {
-            let node = LazyNode::new(Rc::new(allocator), eval_err.0);
-            let msg = eval_err.1;
-            let ctx: &PyDict = PyDict::new(py);
-            ctx.set_item("msg", msg)?;
-            ctx.set_item("node", node)?;
-            Err(py
-                .run(
-                    "
-from clvm.EvalError import EvalError
-raise EvalError(msg, node)",
-                    None,
-                    Some(ctx),
-                )
-                .unwrap_err())
-        }
+        Err(eval_err) => eval_err_to_pyresult(py, eval_err, allocator),
     }
 }

@@ -1,17 +1,16 @@
 use std::collections::HashMap;
-use std::rc::Rc;
 
 use crate::allocator::Allocator;
 use crate::chia_dialect::OperatorHandlerWithMode;
 use crate::cost::Cost;
 use crate::dialect::Dialect;
+use crate::py::adapt_response::adapt_response_to_py;
 use crate::py::lazy_node::LazyNode;
 use crate::reduction::Response;
 use crate::run_program::STRICT_MODE;
 use crate::serialize::{node_from_bytes, serialized_length_from_bytes};
 
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
 
 #[allow(clippy::too_many_arguments)]
 pub fn run_serialized_program(
@@ -55,7 +54,7 @@ pub fn deserialize_and_run_program2(
     flags: u32,
 ) -> PyResult<(Cost, LazyNode)> {
     let mut allocator = Allocator::new();
-    match run_serialized_program(
+    let r = run_serialized_program(
         py,
         &mut allocator,
         &[quote_kw],
@@ -65,26 +64,6 @@ pub fn deserialize_and_run_program2(
         args,
         max_cost,
         flags,
-    )? {
-        Ok(reduction) => {
-            let val = LazyNode::new(Rc::new(allocator), reduction.1);
-            Ok((reduction.0, val))
-        }
-        Err(eval_err) => {
-            let node = LazyNode::new(Rc::new(allocator), eval_err.0);
-            let msg = eval_err.1;
-            let ctx: &PyDict = PyDict::new(py);
-            ctx.set_item("msg", msg)?;
-            ctx.set_item("node", node)?;
-            Err(py
-                .run(
-                    "
-from clvm.EvalError import EvalError
-raise EvalError(msg, node)",
-                    None,
-                    Some(ctx),
-                )
-                .unwrap_err())
-        }
-    }
+    )?;
+    adapt_response_to_py(py, allocator, r)
 }
