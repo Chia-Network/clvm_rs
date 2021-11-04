@@ -53,15 +53,19 @@ def run_gen(fn, flags=0):
     block_program_args = b"\xff\x80\x80"
     env_data = b"\xff" + env_data + b"\xff" + block_program_args  + b"\x80"
 
-    return run_generator(
-        program_data,
-        env_data,
-        KEYWORD_TO_ATOM["q"][0],
-        KEYWORD_TO_ATOM["a"][0],
-        native_opcode_names_by_opcode,
-        max_cost,
-        flags,
-    )
+    try:
+        return run_generator(
+            program_data,
+            env_data,
+            KEYWORD_TO_ATOM["q"][0],
+            KEYWORD_TO_ATOM["a"][0],
+            native_opcode_names_by_opcode,
+            max_cost,
+            flags,
+        )
+    except Exception as e:
+        # GENERATOR_RUNTIME_ERROR
+        return (117, [], None)
 
 
 if __name__ == "__main__":

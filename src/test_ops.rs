@@ -453,6 +453,15 @@ x "error_message" => FAIL
 / -80001 73 => -1096
 / 0x00000000000000000a 0x000000000000000005 => 2
 
+/ 1 10 => 0
+/ -1 -10 => 0
+
+; these results are incorrect.
+; the result should be -1
+; the / operator is deprecated because of this
+/ -1 10 => 0
+/ 1 -10 => 0
+
 ; wrong number of arguments
 divmod => FAIL
 divmod ( 2 ) => FAIL
@@ -477,7 +486,10 @@ divmod -1 3 => ( -1 . 2 )
 divmod -1 -3 => ( 0 . -1 )
 divmod 1 -3 => ( -1 . -2 )
 
+divmod 1 10 => ( 0 . 1 )
 divmod 1 -10 => ( -1 . -9 )
+divmod -1 -10 => ( 0 . -1 )
+divmod -1 10 => ( -1 . 9 )
 divmod 1 -1000000000000 => ( -1 . -999999999999 )
 divmod -1 1000000000000 => ( -1 . 999999999999 )
 
@@ -629,7 +641,7 @@ point_add 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55
 point_add 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb00 => FAIL
 point_add null => FAIL
 
-; they point must be an atom
+; the point must be an atom
 point_add ( 1 2 3 ) => FAIL
 
 pubkey_for_exp 1 => 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb

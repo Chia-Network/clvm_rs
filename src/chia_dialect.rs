@@ -46,7 +46,7 @@ impl OperatorHandler for OperatorHandlerWithMode {
     }
 }
 
-pub fn chia_opcode_mapping() -> HashMap<String, Vec<u8>> {
+pub fn chia_opcode_mapping(strict: bool) -> HashMap<String, Vec<u8>> {
     let mut h = HashMap::new();
     let items = [
         (3, "op_if"),
@@ -64,7 +64,14 @@ pub fn chia_opcode_mapping() -> HashMap<String, Vec<u8>> {
         (16, "op_add"),
         (17, "op_subtract"),
         (18, "op_multiply"),
-        (19, "op_div"),
+        (
+            19,
+            if strict {
+                "op_div_deprecated"
+            } else {
+                "op_div"
+            },
+        ),
         (20, "op_divmod"),
         (21, "op_gr"),
         (22, "op_ash"),
@@ -87,7 +94,7 @@ pub fn chia_opcode_mapping() -> HashMap<String, Vec<u8>> {
 }
 
 pub fn chia_op_handler(strict: bool) -> OperatorHandlerWithMode {
-    OperatorHandlerWithMode::new_with_hashmap(chia_opcode_mapping(), strict)
+    OperatorHandlerWithMode::new_with_hashmap(chia_opcode_mapping(strict), strict)
 }
 
 pub fn chia_dialect_with_handler<Handler: OperatorHandler>(handler: Handler) -> Dialect<Handler> {
