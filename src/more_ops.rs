@@ -441,6 +441,11 @@ pub fn op_div(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     }
 }
 
+pub fn op_div_deprecated(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+    let args = Node::new(a, input);
+    args.err("div operator is deprecated")
+}
+
 pub fn op_divmod(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     let (a0, l0, a1, l1) = two_ints(&args, "divmod")?;
