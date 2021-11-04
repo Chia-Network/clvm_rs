@@ -8,7 +8,7 @@ from clvm_tools import binutils
 import sys
 from run import native_opcode_names_by_opcode
 
-def run_gen(fn):
+def run_gen(fn, flags=0):
 
     # the generator ROM from:
     # https://github.com/Chia-Network/chia-blockchain/blob/main/chia/wallet/puzzles/rom_bootstrap_generator.clvm.hex
@@ -60,7 +60,7 @@ def run_gen(fn):
         KEYWORD_TO_ATOM["a"][0],
         native_opcode_names_by_opcode,
         max_cost,
-        0,
+        flags,
     )
 
 
