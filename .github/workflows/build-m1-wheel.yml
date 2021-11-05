@@ -28,7 +28,7 @@ jobs:
 
     - name: Build m1 wheels
       run: |
-        arch -arm64 python -m venv venv
+        arch -arm64 python3 -m venv venv
         . ./venv/bin/activate
         export PATH=~/.cargo/bin:$PATH
         arch -arm64 pip install maturin
