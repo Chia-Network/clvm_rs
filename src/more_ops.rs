@@ -108,6 +108,9 @@ fn limb_test_helper(bytes: &[u8]) {
 #[test]
 fn test_limbs_for_int() {
     limb_test_helper(&[]);
+    limb_test_helper(&[0x1]);
+    limb_test_helper(&[0x80]);
+    limb_test_helper(&[0x81]);
     limb_test_helper(&[0x7f]);
     limb_test_helper(&[0xff]);
     limb_test_helper(&[0, 0xff]);
