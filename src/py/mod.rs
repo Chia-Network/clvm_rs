@@ -1,4 +1,5 @@
-pub mod api;
-pub mod lazy_node;
-pub mod run_generator;
-pub mod run_program;
+mod adapt_response;
+mod api;
+mod lazy_node;
+mod run_generator;
+mod run_program;
