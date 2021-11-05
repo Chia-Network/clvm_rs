@@ -1,6 +1,15 @@
 name: Build M1 Wheels
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+      - dev
+    tags:
+        - '**'
+  pull_request:
+    branches:
+      - '**'
 
 jobs:
   build_wheels:
