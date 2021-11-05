@@ -825,8 +825,12 @@ pub fn op_softfork(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respons
 
 lazy_static! {
     static ref GROUP_ORDER: Number = {
-        let order_as_hex = b"73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000001";
-        let n = BigUint::parse_bytes(order_as_hex, 16).unwrap();
+        let order_as_bytes = &[
+            0x73, 0xed, 0xa7, 0x53, 0x29, 0x9d, 0x7d, 0x48, 0x33, 0x39, 0xd8, 0x08, 0x09, 0xa1,
+            0xd8, 0x05, 0x53, 0xbd, 0xa4, 0x02, 0xff, 0xfe, 0x5b, 0xfe, 0xff, 0xff, 0xff, 0xff,
+            0x00, 0x00, 0x00, 0x01,
+        ];
+        let n = BigUint::from_bytes_be(order_as_bytes);
         n.into()
     };
 }
