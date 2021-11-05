@@ -156,9 +156,7 @@ impl Allocator {
     }
 
     pub fn atom(&self, node: NodePtr) -> &[u8] {
-        if node >= 0 {
-            panic!("expected atom, got pair");
-        }
+        assert!(node < 0, "expected atom, got pair");
         let atom = self.atom_vec[(-node - 1) as usize];
         &self.u8_vec[atom.start as usize..atom.end as usize]
     }

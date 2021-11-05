@@ -258,7 +258,7 @@ impl<'a, Handler: OperatorHandler> RunProgramContext<'a, Handler> {
             SExp::Pair(program, args) => {
                 let post_eval = match self.pre_eval {
                     None => None,
-                    Some(ref pre_eval) => pre_eval(&mut self.allocator, program, args)?,
+                    Some(ref pre_eval) => pre_eval(self.allocator, program, args)?,
                 };
                 if let Some(post_eval) = post_eval {
                     self.posteval_stack.push(post_eval);

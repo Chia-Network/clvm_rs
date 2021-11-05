@@ -687,7 +687,7 @@ fn parse_list_impl(
                 break;
             }
             num <<= 4;
-            num += c.to_digit(16).unwrap();
+            num += c.to_digit(16).unwrap() as u64;
             count += 1;
         }
         assert!(count > 0);
@@ -706,7 +706,7 @@ fn parse_list_impl(
                 break;
             }
             num *= 10;
-            num += c.to_digit(10).unwrap();
+            num += c.to_digit(10).unwrap() as u64;
             count += 1;
         }
         num *= negative;
