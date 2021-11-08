@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        python: [3.7, 3.8, 3.9]
+        python: [3.7]
 
     steps:
     - uses: actions/checkout@v2
@@ -110,7 +110,7 @@ jobs:
         ls target/wheels/
         # this mess puts the name of the `.whl` file into `$WHEEL_PATH`
         # remove the dot, use the `glob` lib to grab the file from the directory
-        WHEEL_PATH=$(echo ${{ matrix.python }} | python -c 'DOTLESS=input().replace(".", ""); import glob; print(" ".join(glob.glob("target/wheels/clvm_rs-*-cp%s-cp*.whl" % DOTLESS)))' )
+        WHEEL_PATH=$(echo ${{ matrix.python }} | python -c 'DOTLESS=input().replace(".", ""); import glob; print(" ".join(glob.glob("target/wheels/clvm_rs-*-cp%s-abi3-*.whl" % DOTLESS)))' )
         echo ${WHEEL_PATH}
         pip install ${WHEEL_PATH}
 
