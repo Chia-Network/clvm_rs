@@ -46,7 +46,7 @@ impl OperatorHandler for OperatorHandlerWithMode {
     }
 }
 
-pub fn chia_opcode_mapping(strict: bool) -> HashMap<String, Vec<u8>> {
+pub fn chia_opcode_mapping(deprecate_op_div: bool) -> HashMap<String, Vec<u8>> {
     let mut h = HashMap::new();
     let items = [
         (3, "op_if"),
@@ -66,7 +66,7 @@ pub fn chia_opcode_mapping(strict: bool) -> HashMap<String, Vec<u8>> {
         (18, "op_multiply"),
         (
             19,
-            if strict {
+            if deprecate_op_div {
                 "op_div_deprecated"
             } else {
                 "op_div"
