@@ -103,21 +103,27 @@ print('generating...')
 self_mtime = os.path.getmtime('benchmark/run-benchmark.py')
 
 if need_update('benchmark/substr.env', self_mtime):
+    random.seed(0xbaadf00d)
     long_string('benchmark/substr.env')
 
 if need_update('benchmark/substr-tree.env', self_mtime):
+    random.seed(0xbaadf00d)
     long_string('benchmark/substr-tree.env')
 
 if need_update('benchmark/hash-string.env', self_mtime):
+    random.seed(0xbaadf00d)
     long_strings('benchmark/hash-string.env', 1000)
 
 if need_update('benchmark/sum-tree.env', self_mtime):
+    random.seed(0xbaadf00d)
     large_tree('benchmark/sum-tree.env')
 
 if need_update('benchmark/hash-tree.env', self_mtime):
+    random.seed(0xbaadf00d)
     large_tree('benchmark/hash-tree.env', 16)
 
 if need_update('benchmark/pubkey-tree.env', self_mtime):
+    random.seed(0xbaadf00d)
     large_tree('benchmark/pubkey-tree.env', 10)
 
 if need_update('benchmark/shift-left.env', self_mtime):
@@ -125,12 +131,15 @@ if need_update('benchmark/shift-left.env', self_mtime):
         f.write('(0xbadf00dfeedface 500)')
 
 if need_update('benchmark/large-block.env', self_mtime):
+    random.seed(0xbaadf00d)
     generate_block('benchmark/large-block.env', p2_delegated_or_hidden_puzzle)
 
 if need_update('benchmark/count-even.envhex', self_mtime):
+    random.seed(0xbaadf00d)
     generate_list('benchmark/count-even.envhex', 15000)
 
 if need_update('benchmark/matrix-multiply.env', self_mtime):
+    random.seed(0xbaadf00d)
     size = 50
     with open('benchmark/matrix-multiply.env', 'w+') as f:
         f.write('(')
