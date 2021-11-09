@@ -94,36 +94,43 @@ def generate_list(filename, size):
             f.write('80')
         f.write('80')
 
+def need_update(file_path, mtime):
+    if not os.path.exists(file_path):
+        return True
+    return os.path.getmtime(file_path) < mtime
+
 print('generating...')
-if not os.path.exists('benchmark/substr.env'):
+self_mtime = os.path.getmtime('benchmark/run-benchmark.py')
+
+if need_update('benchmark/substr.env', self_mtime):
     long_string('benchmark/substr.env')
 
-if not os.path.exists('benchmark/substr-tree.env'):
+if need_update('benchmark/substr-tree.env', self_mtime):
     long_string('benchmark/substr-tree.env')
 
-if not os.path.exists('benchmark/hash-string.env'):
+if need_update('benchmark/hash-string.env', self_mtime):
     long_strings('benchmark/hash-string.env', 1000)
 
-if not os.path.exists('benchmark/sum-tree.env'):
+if need_update('benchmark/sum-tree.env', self_mtime):
     large_tree('benchmark/sum-tree.env')
 
-if not os.path.exists('benchmark/hash-tree.env'):
+if need_update('benchmark/hash-tree.env', self_mtime):
     large_tree('benchmark/hash-tree.env', 16)
 
-if not os.path.exists('benchmark/pubkey-tree.env'):
+if need_update('benchmark/pubkey-tree.env', self_mtime):
     large_tree('benchmark/pubkey-tree.env', 10)
 
-if not os.path.exists('benchmark/shift-left.env'):
+if need_update('benchmark/shift-left.env', self_mtime):
     with open('benchmark/shift-left.env', 'w+') as f:
         f.write('(0xbadf00dfeedface 500)')
 
-if not os.path.exists('benchmark/large-block.env'):
+if need_update('benchmark/large-block.env', self_mtime):
     generate_block('benchmark/large-block.env', p2_delegated_or_hidden_puzzle)
 
-if not os.path.exists('benchmark/count-even.envhex'):
+if need_update('benchmark/count-even.envhex', self_mtime):
     generate_list('benchmark/count-even.envhex', 15000)
 
-if not os.path.exists('benchmark/matrix-multiply.env'):
+if need_update('benchmark/matrix-multiply.env', self_mtime):
     size = 50
     with open('benchmark/matrix-multiply.env', 'w+') as f:
         f.write('(')
@@ -141,19 +148,20 @@ print('compiling...')
 for fn in glob.glob('benchmark/*.clvm'):
 
     hex_name = fn[:-4] + 'hex'
-    if not os.path.exists(hex_name):
+    if not os.path.exists(hex_name) or os.path.getmtime(hex_name) < os.path.getmtime(fn):
         out = open(hex_name, 'w+')
         if "-v" in sys.argv:
-            print("opc %s" % fn)
+            print(f"opc {fn}")
         proc = subprocess.Popen(['opc', fn], stdout=out)
         procs.append(proc)
 
+    env_name = fn[:-4] + 'env'
     env_hex_name = fn[:-4] + 'envhex'
-    if not os.path.exists(env_hex_name):
+    if os.path.exists(env_name) and (not os.path.exists(env_hex_name) or os.path.getmtime(env_hex_name) < os.path.getmtime(env_name)):
         out = open(env_hex_name, 'w+')
         if "-v" in sys.argv:
-            print("opc %s" % (fn[:-4] + 'env'))
-        proc = subprocess.Popen(['opc', fn[:-4] + 'env'], stdout=out)
+            print(f"opc {env_name}")
+        proc = subprocess.Popen(['opc', env_name], stdout=out)
         procs.append(proc)
 
 if len(procs) > 0:
@@ -226,6 +234,8 @@ for n in range(5):
         if fn in test_runs:
             test_runs[fn].append(counters['run_program'])
         else:
+            if fn in test_costs:
+                assert test_costs[fn] == cost
             test_costs[fn] = cost
             test_runs[fn] = [counters['run_program']]
 
