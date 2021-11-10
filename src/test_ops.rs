@@ -14,13 +14,13 @@ use std::collections::HashMap;
 
 static TEST_CASES: &str = r#"
 lognot ( 1 2 3 ) => FAIL
-lognot 0xff => null
-lognot 0xffffff => null
+lognot 0xff => 0
+lognot 0xffffff => 0
 lognot 0x0000ff => 0xff00
 lognot 0x0000000001 => 0xfe
 lognot 0xff00 => 0x00ff
 lognot 0x0c => 0xf3
-lognot null => 0xff
+lognot 0 => 0xff
 lognot 0xcccccc => 0x333333
 lognot 0x333333 => 0xcccccc
 ; requires exactly one argument
@@ -28,7 +28,7 @@ lognot 0x00 0x00 => FAIL
 lognot => FAIL
 
 logior ( 1 2 3 ) => FAIL
-logior => null
+logior => 0
 logior 0xbaadf00d => 0xbaadf00d
 logior 0xf0 0x0f => 0xff
 logior 0xcc 0x33 => 0xff
@@ -45,7 +45,7 @@ logior 0x01 0x01 => 0x01
 logxor 0x01 0x01 0x01 => 0x01
 
 logxor ( 1 2 3 ) => FAIL
-logxor => null
+logxor => 0
 logxor 0xbaadf00d => 0xbaadf00d
 logxor 0xf0 0x0f => 0xff
 logxor 0xcc 0x33 => 0xff
@@ -58,25 +58,25 @@ logxor 0x000080 0x7f => 0x00ff
 logxor 0x000070 0xff => 0x8f
 logxor 0xffff80 0x01 => 0x81
 logxor 0x01 0x02 0x04 0x08 0x10 0x20 0x40 0x80 => 0xff
-logxor 0x01 0x01 => null
+logxor 0x01 0x01 => 0
 logxor 0x01 0x01 0x01 => 0x01
 
 logand ( 1 2 3 ) => FAIL
 logand => 0xff
 logand 0xbaadf00d => 0xbaadf00d
-logand 0xf0 0x0f => null
-logand 0xcc 0x33 => null
-logand 0x800000 0x01 => null
-logand 0x400000 0x01 => null
-logand 0x000040 0x01 => null
-logand 0x000080 0x01 => null
+logand 0xf0 0x0f => 0
+logand 0xcc 0x33 => 0
+logand 0x800000 0x01 => 0
+logand 0x400000 0x01 => 0
+logand 0x000040 0x01 => 0
+logand 0x000080 0x01 => 0
 ; 0x000080 -> 0x0080, 0xff -> 0xffff
 logand 0x000080 0xff => 0x0080
 logand 0x000040 0xff => 0x40
-logand 0x000080 0x7f => null
+logand 0x000080 0x7f => 0
 logand 0x000070 0xff => 0x70
-logand 0xffff80 0x01 => null
-logand 0x01 0x02 0x04 0x08 0x10 0x20 0x40 0x80 => null
+logand 0xffff80 0x01 => 0
+logand 0x01 0x02 0x04 0x08 0x10 0x20 0x40 0x80 => 0
 logand 0x01 0x01 => 0x01
 logand 0x01 0x01 0x01 => 0x01
 
@@ -103,8 +103,8 @@ ash 0x7f -3 => 0x0f
 ash 0x7f -4 => 0x07
 ash 0x7f -5 => 0x03
 ash 0x7f -6 => 0x01
-ash 0x7f -7 => null
-ash 0x7f -8 => null
+ash 0x7f -7 => 0
+ash 0x7f -8 => 0
 
 ash 0x80 1 => 0xff00
 ash 0x80 2 => 0xfe00
@@ -170,7 +170,7 @@ lsh 0x80 -4 => 0x08
 lsh 0x80 -5 => 0x04
 lsh 0x80 -6 => 0x02
 lsh 0x80 -7 => 0x01
-lsh 0x80 -8 => null
+lsh 0x80 -8 => 0
 
 lsh 0x7f -1 => 0x3f
 lsh 0x7f -2 => 0x1f
@@ -178,8 +178,8 @@ lsh 0x7f -3 => 0x0f
 lsh 0x7f -4 => 0x07
 lsh 0x7f -5 => 0x03
 lsh 0x7f -6 => 0x01
-lsh 0x7f -7 => null
-lsh 0x7f -8 => null
+lsh 0x7f -7 => 0
+lsh 0x7f -8 => 0
 
 lsh 0x80 1 => 0x0100
 lsh 0x80 2 => 0x0200
@@ -224,7 +224,7 @@ lsh 0xcc 65536 => FAIL
 lsh 0xcc -65536 => FAIL
 lsh 0xcc 256 => 0x00cc0000000000000000000000000000000000000000000000000000000000000000
 lsh 0xcc 255 => 0x660000000000000000000000000000000000000000000000000000000000000000
-lsh 0xcc -256 => null
+lsh 0xcc -256 => 0
 
 ; parameter isn't allowed to be wider than 32 bits
 lsh 0xcc 0x0000000001 => FAIL
@@ -233,69 +233,69 @@ lsh 0xcc "foo" => FAIL
 not => FAIL
 not 1 2 => FAIL
 not 0 => 1
-not 1 => null
-not 0xffff => null
-not null => 1
+not 1 => 0
+not 0xffff => 0
+not 0 => 1
 ; a sigle zero-byte counts as true
-not 0x00 => null
+not 0x00 => 0
 
 ; a non-empty list counts as "true"
-not ( 1 2 3 ) => null
+not ( 1 2 3 ) => 0
 not ( ) => 1
 
-any => null
-any null => null
-any 1 null => 1
-any null 1 => 1
+any => 0
+any 0 => 0
+any 1 0 => 1
+any 0 1 => 1
 ; a sigle zero-byte counts as true
 any 0x00 => 1
 
 ; a non-empty list counts as "true"
-any null ( 1 2 ) => 1
+any 0 ( 1 2 ) => 1
 any ( ) ( 1 2 ) => 1
-any ( ) null => null
+any ( ) 0 => 0
 
 all => 1
-all null => null
-all 1 null => null
-all null 1 => null
+all 0 => 0
+all 1 0 => 0
+all 0 1 => 0
 all 1 2 3 => 1
 all 0x00 => 1
-all 0x00 null => null
+all 0x00 0 => 0
 
 ; a non-empty list counts as "true"
 all ( 1 ) 2 3 => 1
-all ( 1 ) 2 ( ) => null
+all ( 1 ) 2 ( ) => 0
 
 x => FAIL
 x ( "msg" ) => FAIL
 x "error_message" => FAIL
 
 > => FAIL
-> null => FAIL
-> null null => null
+> 0 => FAIL
+> 0 0 => 0
 
-; 0 and null are the same
-> 0 null => null
-> null 0 => null
+; 0 and 0 are the same
+> 0 0 => 0
+> 0 0 => 0
 
 > ( 1 0 ) => FAIL
 > ( 1 ) 0 => FAIL
 > 0 ( 1 ) => FAIL
 > 1 0 => 1
-> 0 1 => null
+> 0 1 => 0
 > 0 -1 => 1
-> -1 0 => null
+> -1 0 => 0
 > 0x0000000000000000000000000000000000000000000000000000000000000000000493e0 0x000000000000000000000000000000000000000000000000000000000000005a => 1
-> 3 300 => null
+> 3 300 => 0
 > 300 3 => 1
 > "foobar" "foo" => 1
 > "foo" "boo" => 1
-> "bar" "foo" => null
+> "bar" "foo" => 0
 
 >s => FAIL
 >s 0x00 => FAIL
->s 0x00 0x00 => null
+>s 0x00 0x00 => 0
 >s 0x00 0x00 0x00 => FAIL
 >s ( 1 ) ( 2 ) => FAIL
 >s "foo" ( 2 ) => FAIL
@@ -303,13 +303,13 @@ x "error_message" => FAIL
 
 ; -1 is 0xff which compares greater than 0, an empty atom
 >s -1 0 => 1
->s 0 -1 => null
+>s 0 -1 => 0
 >s 0x01 0x00 => 1
 >s 0x1001 0x1000 => 1
->s 0x1000 0x1001 => null
+>s 0x1000 0x1001 => 0
 >s "foo" "bar" => 1
->s "bar" "foo" => null
->s "foo" "foo" => null
+>s "bar" "foo" => 0
+>s "foo" "foo" => 0
 
 = => FAIL
 = 0x00 => FAIL
@@ -317,17 +317,17 @@ x "error_message" => FAIL
 = ( "foo" ) "foo" => FAIL
 = "foo" ( "foo" ) => FAIL
 
-= null null => 1
+= 0 0 => 1
 = 1 1 => 1
-= 0 null => 1
-= 0 0x00 => null
-= 0x00 0 => null
-= 0xff 0xffff => null
+= 0 0 => 1
+= 0 0x00 => 0
+= 0x00 0 => 0
+= 0xff 0xffff => 0
 = -1 -1 => 1
 = 1 1 => 1
 = 256 256 => 1
-= 255 -1 => null
-= 65535 -1 => null
+= 255 -1 => 0
+= 65535 -1 => 0
 = 65535 65535 => 1
 = 65536 65536 => 1
 = 4294967295 4294967295 => 1
@@ -335,7 +335,7 @@ x "error_message" => FAIL
 = 2147483647 2147483647 => 1
 = 2147483648 2147483648 => 1
 = 0x00000000000000000000000000000000000000000000000000000010 0x00000000000000000000000000000000000000000000000000000010 => 1
-= 0x00000000000000000000000000000000000000000000000000000010 0x00000000000000000000000000000000000000000000000000000020 => null
+= 0x00000000000000000000000000000000000000000000000000000010 0x00000000000000000000000000000000000000000000000000000020 => 0
 
 + ( 1 ) => FAIL
 + 1 ( 2 ) => FAIL
@@ -519,15 +519,15 @@ softfork ( 50 ) => FAIL
 softfork 0 => FAIL
 softfork -1 => FAIL
 
-softfork 50 => null
-softfork 51 110 => null
+softfork 50 => 0
+softfork 51 110 => 0
 softfork => FAIL
-softfork 3121 => null
-softfork 0x00000000000000000000000000000000000050 => null
+softfork 3121 => 0
+softfork 0x00000000000000000000000000000000000050 => 0
 softfork 0xffffffffffffffff => FAIL
 ; technically, this is a valid cost, but it still exceeds the limit we set for the tests
 softfork 0xffffffffffffff => FAIL
-softfork null => FAIL
+softfork 0 => FAIL
 
 strlen => FAIL
 strlen ( "list" ) => FAIL
@@ -605,7 +605,7 @@ i 1 1 => FAIL
 i 1 1 1 1 => FAIL
 i 1 "true" "false" => "true"
 i 0 "true" "false" => "false"
-i null "true" "false" => "false"
+i 0 "true" "false" => "false"
 i "" "true" "false" => "false"
 i 10 "true" "false" => "true"
 i -1 "true" "false" => "true"
@@ -623,12 +623,12 @@ c => FAIL
 c 1 => FAIL
 c 1 ( 2 ) "garbage" => FAIL
 c 1 ( 2 ) => ( 1 2 )
-c null ( 2 ) => ( null 2 )
+c 0 ( 2 ) => ( 0 2 )
 c 1 2 => ( 1 . 2 )
 c 1 ( 2 3 4 ) => ( 1 2 3 4 )
 c ( 1 2 3 ) ( 4 5 6 ) => ( ( 1 2 3 ) 4 5 6 )
 
-f null => FAIL
+f 0 => FAIL
 f 1 => FAIL
 f ( 1 2 3 ) 1 => FAIL
 f ( 1 2 3 ) => 1
@@ -637,7 +637,7 @@ f ( ( 1 2 ) 3 ) => ( 1 2 )
 r 1 => FAIL
 r => FAIL
 r ( 1 2 3 ) 12 => FAIL
-r null => FAIL
+r 0 => FAIL
 r ( 1 2 3 ) => ( 2 3 )
 r ( 1 . 2 ) => 2
 
@@ -645,8 +645,8 @@ l => FAIL
 l ( 1 2 ) 1 => FAIL
 l ( 1 2 3 ) => 1
 l 1 => 0
-l null => null
-l ( null . null ) => 1
+l 0 => 0
+l ( 0 . 0 ) => 1
 l ( 1 . 2 ) => 1
 
 point_add 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e => 0x89ece308f9d1f0131765212deca99697b112d61f9be9a5f1f3780a51335b3ff981747a0b2ca2179b96d2c0c9024e5224
@@ -654,7 +654,7 @@ point_add => 0xc0000000000000000000000000000000000000000000000000000000000000000
 ; the point must be 40 bytes
 point_add 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6 => FAIL
 point_add 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb00 => FAIL
-point_add null => FAIL
+point_add 0 => FAIL
 
 ; the point must be an atom
 point_add ( 1 2 3 ) => FAIL
@@ -682,7 +682,7 @@ pubkey_for_exp 0x8c1258acd66282b7ccc627f7f65e27faac425bfd0001a401000000000000000
 "#;
 
 fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
-    if v == "null" {
+    if v == "0" {
         return a.null();
     }
 
