@@ -1,5 +1,6 @@
 use bls12_381::{G1Affine, G1Projective, Scalar};
 use num_bigint::{BigUint, Sign};
+use num_integer::Integer;
 use std::convert::TryFrom;
 use std::ops::BitAndAssign;
 use std::ops::BitOrAssign;
@@ -842,13 +843,11 @@ lazy_static! {
 
 fn mod_group_order(n: Number) -> Number {
     let order = GROUP_ORDER.clone();
-    let divisor: Number = &n / &order;
-    let remainder: Number = &n - &divisor * &order;
+    let (_q, mut remainder) = n.div_mod_floor(&order);
     if remainder.sign() == Sign::Minus {
-        order + remainder
-    } else {
-        remainder
+        remainder += order;
     }
+    remainder
 }
 
 fn number_to_scalar(n: Number) -> Scalar {

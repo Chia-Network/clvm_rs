@@ -86,6 +86,7 @@ dependencies = [
  "hex",
  "lazy_static",
  "num-bigint",
+ "num-integer",
  "num-traits",
  "openssl",
  "pyo3",
