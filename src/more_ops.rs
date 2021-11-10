@@ -430,16 +430,13 @@ pub fn op_div(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     if a1.sign() == Sign::NoSign {
         args.first()?.err("div with 0")
     } else {
-        let q = &a0 / &a1;
-        let r = &a0 - &a1 * &q;
+        let (mut q, r) = a0.div_mod_floor(&a1);
 
-        // rust rounds division towards zero, but we want division to round
-        // toward negative infinity.
-        let q = if q.sign() == Sign::Minus && r.sign() != Sign::NoSign {
-            q - 1
-        } else {
-            q
-        };
+        // this is to preserve a buggy behavior from the initial implementation
+        // of this operator.
+        if q == (-1).into() && r != 0.into() {
+            q += 1;
+        }
         let q1 = ptr_from_number(a, &q)?;
         Ok(malloc_cost(a, cost, q1))
     }
