@@ -456,6 +456,13 @@ x "error_message" => FAIL
 / 1 10 => 0
 / -1 -10 => 0
 
+/ 1 1 => 1
+/ 1 -1 => -1
+/ -1 -1 => 1
+/ -1 1 => -1
+/ 0 -1 => 0
+/ 0 1 => 0
+
 ; these results are incorrect.
 ; the result should be -1
 ; the / operator is deprecated because of this
@@ -485,6 +492,11 @@ divmod 1 3 => ( 0 . 1 )
 divmod -1 3 => ( -1 . 2 )
 divmod -1 -3 => ( 0 . -1 )
 divmod 1 -3 => ( -1 . -2 )
+
+divmod 1 1 => ( 1 . 0 )
+divmod -1 1 => ( -1 . 0 )
+divmod -1 -1 => ( 1 . 0 )
+divmod 1 -1 => ( -1 . 0 )
 
 divmod 1 10 => ( 0 . 1 )
 divmod 1 -10 => ( -1 . -9 )
