@@ -454,19 +454,7 @@ pub fn op_divmod(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
     if a1.sign() == Sign::NoSign {
         args.first()?.err("divmod with 0")
     } else {
-        let q = &a0 / &a1;
-        let r = &a0 - &a1 * &q;
-
-        let signed_quotient =
-            (a0.sign() == Sign::Minus || a1.sign() == Sign::Minus) && a0.sign() != a1.sign();
-
-        // rust rounds division towards zero, but we want division to round
-        // toward negative infinity.
-        let (q, r) = if signed_quotient && r.sign() != Sign::NoSign {
-            (q - 1, r + &a1)
-        } else {
-            (q, r)
-        };
+        let (q, r) = a0.div_mod_floor(&a1);
         let q1 = ptr_from_number(a, &q)?;
         let r1 = ptr_from_number(a, &r)?;
 
