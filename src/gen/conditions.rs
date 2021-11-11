@@ -553,6 +553,10 @@ use crate::number::{ptr_from_number, Number};
 #[cfg(test)]
 use crate::serialize::node_to_bytes;
 #[cfg(test)]
+use hex::FromHex;
+#[cfg(test)]
+use num_traits::Num;
+#[cfg(test)]
 use std::collections::HashMap;
 
 #[cfg(test)]
@@ -652,66 +656,43 @@ fn test_coin_id(parent_id: &[u8], puzzle_hash: &[u8], amount: u64) -> [u8; 32] {
 #[cfg(test)]
 fn parse_list_impl(
     a: &mut Allocator,
-    mut input: &str,
+    input: &str,
     callback: &Option<fn(&mut Allocator) -> NodePtr>,
     subs: &HashMap<&'static str, NodePtr>,
 ) -> (NodePtr, usize) {
-    let first = input.chars().nth(0).unwrap();
-
     // skip whitespace
-    if first == ' ' {
+    if input.starts_with(" ") {
         let (n, skip) = parse_list_impl(a, &input[1..], callback, subs);
         return (n, skip + 1);
     }
-    if first == ')' {
+
+    if input.starts_with(")") {
         (a.null(), 1)
-    } else if first == '(' {
+    } else if input.starts_with("(") {
         let (first, step1) = parse_list_impl(a, &input[1..], callback, subs);
         let (rest, step2) = parse_list_impl(a, &input[(1 + step1)..], callback, subs);
         (a.new_pair(first, rest).unwrap(), 1 + step1 + step2)
-    } else if first == '{' {
+    } else if input.starts_with("{") {
         // substitute '{X}' tokens with our test hashes and messages
         // this keeps the test cases a lot simpler
-        let var = &input[1..].split('}').next().unwrap();
+        let var = input[1..].split_once("}").unwrap().0;
 
         let ret = match var {
-            &"" => callback.unwrap()(a),
+            "" => callback.unwrap()(a),
             _ => *subs.get(var).unwrap(),
         };
         (ret, var.len() + 2)
-    } else if &input[0..2] == "0x" {
-        let mut num = Number::from_signed_bytes_be(&[0]);
-        let mut count = 2;
-        for c in input[2..].chars() {
-            if c == ' ' {
-                break;
-            }
-            num <<= 4;
-            num += c.to_digit(16).unwrap() as u64;
-            count += 1;
-        }
-        assert!(count > 0);
-        (ptr_from_number(a, &num).unwrap(), count + 1)
+    } else if input.starts_with("0x") {
+        let v = input.split_once(" ").unwrap().0;
+
+        let buf = Vec::from_hex(v.strip_prefix("0x").unwrap()).unwrap();
+        (a.new_atom(&buf).unwrap(), v.len() + 1)
+    } else if input.starts_with("-") || "0123456789".contains(input.get(0..1).unwrap()) {
+        let v = input.split_once(" ").unwrap().0;
+        let num = Number::from_str_radix(v, 10).unwrap();
+        (ptr_from_number(a, &num).unwrap(), v.len() + 1)
     } else {
-        let negative = if input.chars().next().unwrap() == '-' {
-            input = &input[1..];
-            -1
-        } else {
-            1
-        };
-        let mut num = Number::from_signed_bytes_be(&[0]);
-        let mut count = 0;
-        for c in input.chars() {
-            if c == ' ' {
-                break;
-            }
-            num *= 10;
-            num += c.to_digit(10).unwrap() as u64;
-            count += 1;
-        }
-        num *= negative;
-        assert!(count > 0);
-        (ptr_from_number(a, &num).unwrap(), count + 1)
+        panic!("atom not supported \"{}\"", input);
     }
 }
 
