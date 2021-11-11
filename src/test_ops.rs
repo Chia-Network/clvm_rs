@@ -704,7 +704,7 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
         return a.new_atom(&buf).unwrap();
     }
 
-    if v.get(0..1).unwrap() == "-" || "0123456789".contains(v.get(0..1).unwrap()) {
+    if v.starts_with("-") || "0123456789".contains(v.get(0..1).unwrap()) {
         let num = Number::from_str_radix(v, 10).unwrap();
         return ptr_from_number(a, &num).unwrap();
     }
@@ -783,7 +783,7 @@ fn run_op_test(op: &Opf, args_str: &str, expected: &str) {
             if expected.starts_with("(") {
                 let (expected, rest) = parse_list(&mut a, expected.get(1..).unwrap());
                 assert_eq!(rest, "");
-                assert!(node_eq(&mut a, ret_value, expected));
+                assert!(node_eq(&a, ret_value, expected));
             } else {
                 let expected = parse_atom(&mut a, expected);
                 assert_eq!(a.atom(ret_value), a.atom(expected));
