@@ -831,7 +831,7 @@ lazy_static! {
 
 fn mod_group_order(n: Number) -> Number {
     let order = GROUP_ORDER.clone();
-    let (_q, mut remainder) = n.div_mod_floor(&order);
+    let mut remainder = n.mod_floor(&order);
     if remainder.sign() == Sign::Minus {
         remainder += order;
     }
