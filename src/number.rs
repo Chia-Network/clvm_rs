@@ -85,21 +85,24 @@ impl Number {
         }
         ret.resize(size + 1, 0);
         let sign = self.sign();
+        let mut out_size: usize = size;
+        unsafe {
+            gmp::mpz_export(
+                ret.as_mut_slice()[1..].as_mut_ptr() as *mut c_void,
+                &mut out_size,
+                1,
+                1,
+                0,
+                0,
+                &self.v,
+            );
+        }
+        // apparently mpz_export prints 0 bytes to the buffer if the value is 0
+        // hence the special case in the assert below.
+        assert!(out_size == ret.len() - 1);
         if sign == Sign::Minus {
             // If the value is negative, we need to convert it to two's
             // complement. We can't do that in-place.
-            let mut out_size: usize = size;
-            unsafe {
-                gmp::mpz_export(
-                    ret.as_mut_slice()[1..].as_mut_ptr() as *mut c_void,
-                    &mut out_size,
-                    1,
-                    1,
-                    0,
-                    0,
-                    &self.v,
-                );
-            }
             let mut carry = true;
             for digit in &mut ret.iter_mut().rev() {
                 let res = (!*digit).overflowing_add(carry as u8);
@@ -107,30 +110,12 @@ impl Number {
                 carry = res.1;
             }
             assert!(!carry);
-            assert!(out_size == ret.len() - 1);
             assert!(ret[0] & 0x80 != 0);
             if (ret[1] & 0x80) != 0 {
                 ret.remove(0);
             }
-        } else {
-            let mut out_size: usize = size;
-            unsafe {
-                gmp::mpz_export(
-                    ret.as_mut_slice()[1..].as_mut_ptr() as *mut c_void,
-                    &mut out_size,
-                    1,
-                    1,
-                    0,
-                    0,
-                    &self.v,
-                );
-            }
-            // apparently mpz_export prints 0 bytes to the buffer if the value is 0
-            // hence the special case in the assert below.
-            assert!(out_size == ret.len() - 1);
-            if ret[1] & 0x80 == 0 {
-                ret.remove(0);
-            }
+        } else if ret[1] & 0x80 == 0 {
+            ret.remove(0);
         }
         ret
     }
