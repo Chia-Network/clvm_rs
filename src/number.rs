@@ -1,16 +1,18 @@
 use crate::allocator::{Allocator, NodePtr};
+#[cfg(windows)]
+use crate::mpir_msvc as gmp;
 use crate::node::Node;
 use crate::reduction::EvalErr;
 use core::mem::MaybeUninit;
+#[cfg(not(windows))]
 use gmp_mpfr_sys::gmp;
+use std::cmp::Ordering;
 use std::cmp::PartialOrd;
 use std::ffi::c_void;
 use std::ops::Drop;
 use std::ops::{
     AddAssign, BitAndAssign, BitOrAssign, BitXorAssign, MulAssign, Not, Shl, Shr, SubAssign,
 };
-
-use std::cmp::Ordering;
 
 #[allow(clippy::enum_variant_names)]
 #[derive(PartialEq)]
