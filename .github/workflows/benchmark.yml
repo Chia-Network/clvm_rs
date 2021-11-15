@@ -54,6 +54,7 @@ jobs:
         git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
         python -m pip install ./clvm_tools
         python -m pip install colorama
+        git clone https://github.com/Chia-Network/mpir_gc_x64.git --depth 1
         maturin develop --release
 
     - name: Run benchmarks (Windows)

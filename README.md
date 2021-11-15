@@ -9,6 +9,12 @@ Use `maturin` to build the python interface. First, install into current virtual
 $ pip install maturin
 ```
 
+As we need `MPIR` for MSVC builds, prepare this dependency with
+
+```
+$ git clone https://github.com/Chia-Network/mpir_gc_x64.git --depth 1
+```
+
 Build `clvm_rs` directly into the current virtualenv with
 
 ```

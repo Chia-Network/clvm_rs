@@ -8,6 +8,8 @@ pub mod f_table;
 mod gen;
 mod int_to_bytes;
 pub mod more_ops;
+#[cfg(windows)]
+mod mpir_msvc;
 pub mod node;
 mod number;
 mod op_utils;
