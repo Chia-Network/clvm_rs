@@ -216,6 +216,22 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
 
+  fuzz_targets:
+    runs-on: ubuntu-20.04
+    name: Build fuzz targets
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Install rust
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: nightly
+      - name: cargo-fuzz
+        run: cargo +nightly install cargo-fuzz
+      - name: build
+        run: cargo +nightly fuzz build
+
   unit_tests:
     runs-on: ubuntu-20.04
     name: Unit tests

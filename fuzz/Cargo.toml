@@ -1,0 +1,38 @@
+[package]
+name = "clvm_rs-fuzz"
+version = "1.0.0"
+authors = ["Arvid Norberg <arvid@chia.net>"]
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.clvm_rs]
+path = ".."
+default-features = false
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "fuzz_run_program"
+path = "fuzz_targets/run_program.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_serialized_length"
+path = "fuzz_targets/serialized_length.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_deserialize"
+path = "fuzz_targets/deserialize.rs"
+test = false
+doc = false

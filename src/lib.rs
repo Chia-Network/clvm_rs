@@ -16,7 +16,7 @@ pub mod operator_handler;
 mod py;
 pub mod reduction;
 pub mod run_program;
-mod serialize;
+pub mod serialize;
 mod sha2;
 
 #[cfg(test)]
