@@ -231,7 +231,7 @@ jobs:
         with:
             toolchain: nightly
       - name: install GMP
-        run: sudo apt install libgmp3
+        run: sudo apt install libgmp3-dev
       - name: cargo-fuzz
         run: cargo +nightly install cargo-fuzz
       - name: build
@@ -250,6 +250,6 @@ jobs:
             toolchain: stable
             components: rustfmt, clippy
       - name: install GMP
-        run: sudo apt install libgmp3
+        run: sudo apt install libgmp3-dev
       - name: cargo test
         run: cargo test
