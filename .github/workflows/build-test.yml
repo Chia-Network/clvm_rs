@@ -247,6 +247,6 @@ jobs:
             toolchain: stable
             components: rustfmt, clippy
       - name: install GMP
-        run: sudo apt install gmp
+        run: sudo apt install libgmp3
       - name: cargo test
         run: cargo test

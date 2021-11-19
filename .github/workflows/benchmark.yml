@@ -66,7 +66,7 @@ jobs:
     - name: Install GMP
       if: ${{ startsWith(matrix.os, 'ubuntu') }}
       run: |
-        sudo apt install gmp
+        sudo apt install libgmp3
         ls -la /usr/lib64
 
     - name: Build
@@ -115,7 +115,7 @@ jobs:
       run: |
         python -m pip install maturin
         rustup target add x86_64-unknown-linux-musl
-        sudo apt install gmp
+        sudo apt install libgmp3
 
     - name: Build
       env:
