@@ -229,6 +229,8 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
             toolchain: nightly
+      - name: install GMP
+        run: sudo apt install libgmp3
       - name: cargo-fuzz
         run: cargo +nightly install cargo-fuzz
       - name: build
