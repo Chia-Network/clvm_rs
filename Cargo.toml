@@ -25,6 +25,7 @@ hex = "=0.4.3"
 lazy_static = "=1.4.0"
 bls12_381 = "=0.5.0"
 sha2 = "=0.9.5"
+openssl = { version = "0.10.35", features = ["vendored"], optional = true }
 
 [target.'cfg(not(windows))'.dependencies]
 # we just want the GMP bindings, so we disable default features
@@ -32,6 +33,7 @@ gmp-mpfr-sys = { version = "=1.4", default-features = false }
 
 [target.'cfg(unix)'.dependencies]
 openssl = { version = "0.10.35", features = ["vendored"] }
+
 
 [target.'cfg(target_family="wasm")'.dependencies]
 wasm-bindgen = "=0.2.75"
