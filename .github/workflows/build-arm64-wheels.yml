@@ -41,7 +41,7 @@ jobs:
             echo $PATH && \
             curl -L https://sh.rustup.rs > rustup-init.sh && \
             sh rustup-init.sh -y && \
-            yum -y install openssl-devel && \
+            yum -y install openssl-devel libgmp-dev && \
             source $HOME/.cargo/env && \
             rustup target add aarch64-unknown-linux-musl && \
             rm -rf venv && \
