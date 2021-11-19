@@ -7,5 +7,6 @@ fn main() {
     #[cfg(not(windows))]
     {
         println!("cargo:rustc-link-lib=gmp");
+        println!("cargo:rustc-link-search=/opt/homebrew/lib");
     }
 }
