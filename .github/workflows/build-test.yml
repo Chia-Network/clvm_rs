@@ -47,6 +47,7 @@ jobs:
     - name: Build MacOs with maturin on Python ${{ matrix.python }}
       if: startsWith(matrix.os, 'macos')
       run: |
+        brew install gmp
         python -m venv venv
         ln -s venv/bin/activate
         . ./activate
@@ -70,7 +71,6 @@ jobs:
             curl -L https://sh.rustup.rs > rustup-init.sh && \
             sh rustup-init.sh -y && \
             yum -y install openssl-devel && \
-            ls -la /usr/lib64/*gmp* && \
             source $HOME/.cargo/env && \
             rustup target add x86_64-unknown-linux-musl && \
             rm -rf venv && \
