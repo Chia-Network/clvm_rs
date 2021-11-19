@@ -69,7 +69,8 @@ jobs:
           bash -exc '\
             curl -L https://sh.rustup.rs > rustup-init.sh && \
             sh rustup-init.sh -y && \
-            yum -y install openssl-devel libgmp-dev && \
+            yum -y install openssl-devel && \
+            yum -y install libgmp-dev && \
             source $HOME/.cargo/env && \
             rustup target add x86_64-unknown-linux-musl && \
             rm -rf venv && \
