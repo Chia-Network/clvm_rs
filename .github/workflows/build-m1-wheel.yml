@@ -41,7 +41,7 @@ jobs:
       run: |
         curl -L https://gmplib.org/download/gmp/gmp-6.2.1.tar.lz | unxz | tar x && \
         cd gmp-6.2.1 && ./configure --enable-fat --with-pic && \
-        make -j 6 && sudo make install && cd .. && rm -rf gmp-6.2.1 && \
+        make -j 6 && sudo make install && cd .. && rm -rf gmp-6.2.1
 
     - name: Build m1 wheels
       run: |
