@@ -8,6 +8,7 @@ fn main() {
     {
         println!("cargo:rustc-link-lib=libgmp.so.3");
         println!("cargo:rustc-link-search=/usr/lib64");
+        println!("cargo:rustc-link-search=/usr/lib");
     }
     #[cfg(target_os = "macos")]
     {

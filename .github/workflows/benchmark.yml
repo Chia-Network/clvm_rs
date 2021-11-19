@@ -68,6 +68,7 @@ jobs:
       run: |
         sudo apt install libgmp3-dev
         ls -la /usr/lib64
+        ls -la /usr/lib
 
     - name: Build
       if: ${{ !startsWith(matrix.os, 'windows') }}
@@ -116,6 +117,8 @@ jobs:
         python -m pip install maturin
         rustup target add x86_64-unknown-linux-musl
         sudo apt install libgmp3-dev
+        ls -la /usr/lib64
+        ls -la /usr/lib
 
     - name: Build
       env:
