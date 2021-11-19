@@ -63,6 +63,10 @@ jobs:
         . .\venv\Scripts\Activate.ps1
         python benchmark/run-benchmark.py
 
+    - name: Install GMP
+      if: ${{ startsWith(matrix.os, 'ubuntu') }}
+      run: yum install gmp
+
     - name: Build
       if: ${{ !startsWith(matrix.os, 'windows') }}
       env:
@@ -109,6 +113,7 @@ jobs:
       run: |
         python -m pip install maturin
         rustup target add x86_64-unknown-linux-musl
+        yum install gmp
 
     - name: Build
       env:
