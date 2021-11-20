@@ -37,7 +37,7 @@ jobs:
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rust.sh
         arch -arm64 sh rust.sh -y
 
-    - name: install GMP
+    - name: Install GMP
       run: |
         curl -L https://gmplib.org/download/gmp/gmp-6.2.1.tar.lz | tar x
         cd gmp-6.2.1
@@ -53,7 +53,7 @@ jobs:
         . ./venv/bin/activate
         export PATH=~/.cargo/bin:$PATH
         arch -arm64 pip install maturin
-        arch -arm64 maturin build --no-sdist -i python --release --strip --cargo-extra-args="--features=openssl"
+        arch -arm64 maturin build --no-sdist --release --strip --cargo-extra-args="--features=openssl"
 
     - name: Install clvm_rs wheel
       run: |

@@ -45,6 +45,14 @@ jobs:
         python -m pip install maturin
         rustup target add x86_64-unknown-linux-musl
 
+    - name: Install GMP
+      if: startsWith(matrix.os, 'ubuntu')
+      run: |
+        sudo apt-get install lzip -y
+        curl -L https://gmplib.org/download/gmp/gmp-6.2.1.tar.lz | lzip -dc | tar x && \
+        cd gmp-6.2.1 && ./configure --enable-fat --with-pic && \
+        make -j 6 && sudo make install && cd .. && rm -rf gmp-6.2.1
+
     - name: Build Windows
       if: startsWith(matrix.os, 'windows')
       run: |
@@ -114,11 +122,12 @@ jobs:
 
     - name: Install dependencies
       run: |
+        sudo apt-get install lzip -y
+        curl -L https://gmplib.org/download/gmp/gmp-6.2.1.tar.lz | lzip -dc | tar x && \
+        cd gmp-6.2.1 && ./configure --enable-fat --with-pic && \
+        make -j 6 && sudo make install && cd .. && rm -rf gmp-6.2.1
         python -m pip install maturin
         rustup target add x86_64-unknown-linux-musl
-        sudo apt install libgmp3-dev
-        ls -la /usr/lib64
-        ls -la /usr/lib
 
     - name: Build
       env:
