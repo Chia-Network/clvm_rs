@@ -89,7 +89,7 @@ jobs:
             . ./activate && \
             pip install --upgrade pip && \
             pip install maturin && \
-            CC=gcc maturin build --no-sdist --release --strip --manylinux 2010 --cargo-extra-args="--features=openssl" \
+            CC=gcc maturin build --no-sdist --release --strip --manylinux 2010 --cargo-extra-args="--features=openssl,libgmp3" \
           '
 
     - name: Build Windows with maturin on Python ${{ matrix.python }}
@@ -99,12 +99,12 @@ jobs:
         . .\venv\Scripts\Activate.ps1
         ln -s venv\Scripts\Activate.ps1 activate
         git clone https://github.com/Chia-Network/mpir_gc_x64.git --depth 1
-        maturin build --no-sdist -i python --release --strip
+        maturin build --no-sdist -i python --release --strip --cargo-extra-args="--features=mpir"
         # this will install into the venv
         # it'd be better to use the wheel, but I can't figure out how to do that
         # TODO: figure this out
         # this does NOT work: pip install target/wheels/clvm_rs-*.whl
-        maturin develop --release
+        maturin develop --release --cargo-extra-args="--features=mpir"
         # the line above also doesn't seem to work
 
     - name: Install clvm_rs wheel
@@ -232,11 +232,11 @@ jobs:
         with:
             toolchain: nightly
       - name: install GMP
-        run: sudo apt install libgmp3-dev
+        run: sudo apt install libgmp-dev
       - name: cargo-fuzz
         run: cargo +nightly install cargo-fuzz
       - name: build
-        run: cargo +nightly fuzz build
+        run: cargo +nightly fuzz build --cargo-extra-args="--features=openssl"
 
   unit_tests:
     runs-on: ubuntu-20.04
@@ -251,6 +251,6 @@ jobs:
             toolchain: stable
             components: rustfmt, clippy
       - name: install GMP
-        run: sudo apt install libgmp3-dev
+        run: sudo apt install libgmp-dev
       - name: cargo test
         run: cargo test

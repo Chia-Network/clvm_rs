@@ -18,7 +18,11 @@ lto = true
 
 [features]
 extension-module = ["pyo3/extension-module"]
-default = ["extension-module"]
+libgmp = []
+libgmp3 = []
+libgmp10 = []
+mpir = []
+default = ["extension-module", "libgmp"]
 
 [dependencies]
 hex = "=0.4.3"
