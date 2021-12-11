@@ -73,6 +73,16 @@ for g in glob.glob('generators/*.clvm'):
             limit = 9
         elif "negative-reserve-fee.clvm" in g:
             limit = 4
+        elif "block-834752" in g:
+            limit = 2
+        elif "block-834760" in g:
+            limit = 9
+        elif "block-834765" in g:
+            limit = 4
+        elif "block-834766" in g:
+            limit = 5
+        elif "block-834768" in g:
+            limit = 5
 
         if run_time > limit or run_time2 > limit:
             print("run-time exceeds limit!")
