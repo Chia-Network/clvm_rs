@@ -78,9 +78,9 @@ if __name__ == "__main__":
             print(f"run-time: {run_time:.2f}s")
             sys.exit(1)
         start_time = time()
-        for r in sorted(result):
+        for r in sorted(result, key=lambda x: x.coin_name):
             print(f"coin: {r.coin_name.hex()} ph: {r.puzzle_hash.hex()}")
-            for c in sorted(r.conditions):
+            for c in sorted(r.conditions, key=lambda x: x[0]):
                 print(f"  {c[0]}")
                 for cwa in sorted(c[1], key=lambda x: (x.opcode, x.vars)):
                     print(f"    {cwa.opcode}", end="")
