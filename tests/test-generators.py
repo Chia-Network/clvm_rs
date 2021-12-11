@@ -17,9 +17,9 @@ def compare_output(output, expected, title):
 
 def parse_output(result, error_code):
     output = ""
-    for r in sorted(result):
+    for r in sorted(result, key=lambda x: x.coin_name):
         output += f"coin: {r.coin_name.hex()} ph: {r.puzzle_hash.hex()}\n"
-        for c in sorted(r.conditions):
+        for c in sorted(r.conditions, key=lambda x: x[0]):
             output += f"  {c[0]}\n"
             for cwa in sorted(c[1], key=lambda x: (x.opcode, x.vars)):
                 output += f"    {cwa.opcode}"
