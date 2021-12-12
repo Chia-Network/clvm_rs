@@ -76,13 +76,13 @@ for g in glob.glob('generators/*.clvm'):
         elif "block-834752" in g:
             limit = 2
         elif "block-834760" in g:
-            limit = 9
+            limit = 10
         elif "block-834765" in g:
-            limit = 4
+            limit = 5
         elif "block-834766" in g:
-            limit = 5
+            limit = 6
         elif "block-834768" in g:
-            limit = 5
+            limit = 6
 
         if run_time > limit or run_time2 > limit:
             print("run-time exceeds limit!")
