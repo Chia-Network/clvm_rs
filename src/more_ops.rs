@@ -423,13 +423,16 @@ pub fn op_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respons
     Ok(malloc_cost(a, cost, total))
 }
 
-pub fn op_div(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+pub fn op_div_impl(a: &mut Allocator, input: NodePtr, mempool: bool) -> Response {
     let args = Node::new(a, input);
     let (a0, l0, a1, l1) = two_ints(&args, "/")?;
     let cost = DIV_BASE_COST + ((l0 + l1) as Cost) * DIV_COST_PER_BYTE;
     if a1.sign() == Sign::NoSign {
         args.first()?.err("div with 0")
     } else {
+        if mempool && (a0.sign() == Sign::Minus || a1.sign() == Sign::Minus) {
+            return args.err("div operator with negative operands is deprecated");
+        }
         let (mut q, r) = a0.div_mod_floor(&a1);
 
         // this is to preserve a buggy behavior from the initial implementation
@@ -442,9 +445,12 @@ pub fn op_div(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     }
 }
 
+pub fn op_div(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+    op_div_impl(a, input, false)
+}
+
 pub fn op_div_deprecated(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
-    let args = Node::new(a, input);
-    args.err("div operator is deprecated")
+    op_div_impl(a, input, true)
 }
 
 pub fn op_divmod(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {

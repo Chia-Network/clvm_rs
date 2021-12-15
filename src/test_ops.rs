@@ -2,9 +2,9 @@ use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
 use crate::more_ops::{
-    op_add, op_all, op_any, op_ash, op_concat, op_div, op_divmod, op_gr, op_gr_bytes, op_logand,
-    op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add, op_pubkey_for_exp,
-    op_sha256, op_softfork, op_strlen, op_substr, op_subtract,
+    op_add, op_all, op_any, op_ash, op_concat, op_div, op_div_deprecated, op_divmod, op_gr,
+    op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not,
+    op_point_add, op_pubkey_for_exp, op_sha256, op_softfork, op_strlen, op_substr, op_subtract,
 };
 use crate::number::{ptr_from_number, Number};
 use crate::reduction::{Reduction, Response};
@@ -469,6 +469,44 @@ x "error_message" => FAIL
 / -1 10 => 0
 / 1 -10 => 0
 
+; the mempool version of op_div disallows negative operands
+
+; wrong number of arguments
+div_depr => FAIL
+div_depr 1 => FAIL
+div_depr 1 2 3 => FAIL
+
+; division by zero
+div_depr 0 0 => FAIL
+div_depr 10 0 => FAIL
+div_depr -10 0 => FAIL
+
+; division round towards negative infinity
+div_depr 10 3 => 3
+div_depr -10 3 => FAIL
+div_depr -10 -3 => FAIL
+div_depr 10 -3 => FAIL
+
+div_depr 80001 73 => 1095
+div_depr -80001 73 => FAIL
+div_depr 0x00000000000000000a 0x000000000000000005 => 2
+
+div_depr 1 10 => 0
+div_depr -1 -10 => FAIL
+
+div_depr 1 1 => 1
+div_depr 1 -1 =>  FAIL
+div_depr -1 -1 => FAIL
+div_depr -1 1 => FAIL
+div_depr 0 -1 => FAIL
+div_depr 0 1 => 0
+
+; these results are incorrect.
+; the result should be -1
+; the div_depr operator is deprecated because of this
+div_depr -1 10 => FAIL
+div_depr 1 -10 => FAIL
+
 ; wrong number of arguments
 divmod => FAIL
 divmod ( 2 ) => FAIL
@@ -807,6 +845,7 @@ fn test_ops() {
         ("-", op_subtract as Opf),
         ("*", op_multiply as Opf),
         ("/", op_div as Opf),
+        ("div_depr", op_div_deprecated as Opf),
         ("divmod", op_divmod as Opf),
         ("substr", op_substr as Opf),
         ("strlen", op_strlen as Opf),
