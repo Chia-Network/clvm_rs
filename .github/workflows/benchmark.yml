@@ -55,7 +55,7 @@ jobs:
         python -m pip install ./clvm_tools
         python -m pip install colorama
         git clone https://github.com/Chia-Network/mpir_gc_x64.git --depth 1
-        maturin develop --release --carg-extra-args="--features=mpir"
+        maturin develop --release --cargo-extra-args="--features=mpir"
 
     - name: Run benchmarks (Windows)
       if: startsWith(matrix.os, 'windows')
