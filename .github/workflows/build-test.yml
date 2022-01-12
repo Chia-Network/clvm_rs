@@ -72,7 +72,8 @@ jobs:
             sh rustup-init.sh -y && \
             yum -y install openssl-devel && \
             yum -y install gmp && \
-            ls -la /usr/lib64 && \
+            ls -la /opt/rh/devtoolset-8/root/usr/lib64 && \
+            ls -la /opt/rh/devtoolset-8/root/usr/lib && \
             source $HOME/.cargo/env && \
             rustup target add x86_64-unknown-linux-musl && \
             rm -rf venv && \
@@ -89,7 +90,7 @@ jobs:
             . ./activate && \
             pip install --upgrade pip && \
             pip install maturin && \
-            CC=gcc maturin build --no-sdist --release --strip --manylinux 2010 --cargo-extra-args="--features=openssl,libgmp3" \
+            CC=gcc maturin build --no-sdist --release --strip --manylinux 2010 --cargo-extra-args="--features=openssl,libgmp10" \
           '
 
     - name: Build Windows with maturin on Python ${{ matrix.python }}
@@ -236,7 +237,7 @@ jobs:
       - name: cargo-fuzz
         run: cargo +nightly install cargo-fuzz
       - name: build
-        run: cargo +nightly fuzz build --cargo-extra-args="--features=openssl"
+        run: cargo +nightly fuzz build
 
   unit_tests:
     runs-on: ubuntu-20.04
