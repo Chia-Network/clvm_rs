@@ -11,13 +11,20 @@ use crate::more_ops::{
 };
 use crate::reduction::Response;
 
+// division with negative numbers are disallowed
+pub const NO_NEG_DIV: u32 = 0x0001;
+
+// unknown operators are disallowed
+// (otherwise they are no-ops with well defined cost)
+pub const NO_UNKNOWN_OPS: u32 = 0x0002;
+
 pub struct ChiaDialect {
-    strict: bool,
+    flags: u32,
 }
 
 impl ChiaDialect {
-    pub fn new(strict: bool) -> ChiaDialect {
-        ChiaDialect { strict }
+    pub fn new(flags: u32) -> ChiaDialect {
+        ChiaDialect { flags }
     }
 }
 
@@ -31,7 +38,7 @@ impl Dialect for ChiaDialect {
     ) -> Response {
         let b = &allocator.atom(o);
         if b.len() != 1 {
-            return if self.strict {
+            return if (self.flags & NO_UNKNOWN_OPS) != 0 {
                 err(o, "unimplemented operator")
             } else {
                 op_unknown(allocator, o, argument_list, max_cost)
@@ -55,7 +62,7 @@ impl Dialect for ChiaDialect {
             17 => op_subtract,
             18 => op_multiply,
             19 => {
-                if self.strict {
+                if (self.flags & NO_NEG_DIV) != 0 {
                     op_div_deprecated
                 } else {
                     op_div
@@ -79,7 +86,7 @@ impl Dialect for ChiaDialect {
             // 35 ---
             36 => op_softfork,
             _ => {
-                if self.strict {
+                if (self.flags & NO_UNKNOWN_OPS) != 0 {
                     return err(o, "unimplemented operator");
                 } else {
                     return op_unknown(allocator, o, argument_list, max_cost);

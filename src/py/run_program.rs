@@ -7,7 +7,7 @@ use crate::py::adapt_response::adapt_response_to_py;
 use crate::py::lazy_node::LazyNode;
 use crate::py::runtime_dialect::RuntimeDialect;
 use crate::reduction::Response;
-use crate::run_program::{run_program, STRICT_MODE};
+use crate::run_program::run_program;
 use crate::serialize::{node_from_bytes, serialized_length_from_bytes};
 
 use pyo3::prelude::*;
@@ -30,7 +30,7 @@ pub fn run_serialized_program(
         opcode_lookup_by_name,
         quote_kw.to_vec(),
         apply_kw.to_vec(),
-        (flags & STRICT_MODE) != 0,
+        flags,
     );
 
     Ok(py.allow_threads(|| run_program(allocator, &dialect, program, args, max_cost, None)))
@@ -81,7 +81,7 @@ pub fn run_chia_program(
     let r: Response = (|| -> PyResult<Response> {
         let program = node_from_bytes(&mut allocator, program)?;
         let args = node_from_bytes(&mut allocator, args)?;
-        let dialect = ChiaDialect::new((flags & STRICT_MODE) != 0);
+        let dialect = ChiaDialect::new(flags);
 
         Ok(py
             .allow_threads(|| run_program(&mut allocator, &dialect, program, args, max_cost, None)))

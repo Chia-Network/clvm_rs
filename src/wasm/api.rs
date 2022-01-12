@@ -27,13 +27,12 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 pub fn run_clvm(program: &[u8], args: &[u8]) -> Vec<u8> {
     let max_cost: Cost = 1_000_000_000_000_000;
 
-    let strict: bool = false;
     let mut allocator = Allocator::new();
     let program = node_from_bytes(&mut allocator, program).unwrap();
     let args = node_from_bytes(&mut allocator, args).unwrap();
     let r = run_program(
         &mut allocator,
-        &ChiaDialect::new(strict),
+        &ChiaDialect::new(0),
         program,
         args,
         max_cost,

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from clvm_rs import run_generator2, STRICT_MODE
+from clvm_rs import run_generator2
 from time import time
 from clvm_tools import binutils
 import sys

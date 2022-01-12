@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from run_gen import run_gen, print_spend_bundle_conditions
-from clvm_rs import STRICT_MODE
+from clvm_rs import MEMPOOL_MODE
 from time import time
 import sys
 import glob
@@ -31,7 +31,7 @@ for g in glob.glob('generators/*.clvm'):
     output = parse_output(result, error_code)
 
     start_time = time()
-    error_code2, result2 = run_gen(g, STRICT_MODE)
+    error_code2, result2 = run_gen(g, MEMPOOL_MODE)
     run_time2 = time() - start_time
     output2 = parse_output(result2, error_code2)
 
@@ -40,7 +40,7 @@ for g in glob.glob('generators/*.clvm'):
         if not "STRICT" in expected:
             expected2 = expected
             if not (result is None and result2 is None or result.cost == result2.cost):
-                print("cost when running in strict mode differs from non-strict!")
+                print("cost when running in mempool mode differs from normal mode!")
                 failed = 1
         else:
             expected, expected2 = expected.split("STRICT:\n", 1)

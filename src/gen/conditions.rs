@@ -7,6 +7,7 @@ use super::sanitize_int::sanitize_uint;
 use super::validation_error::{first, next, rest, ErrorCode, ValidationErr};
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::Cost;
+use crate::gen::flags::NO_UNKNOWN_CONDS;
 use crate::gen::opcodes::{
     parse_opcode, ConditionOpcode, AGG_SIG_COST, AGG_SIG_ME, AGG_SIG_UNSAFE,
     ASSERT_COIN_ANNOUNCEMENT, ASSERT_HEIGHT_ABSOLUTE, ASSERT_HEIGHT_RELATIVE, ASSERT_MY_AMOUNT,
@@ -15,7 +16,6 @@ use crate::gen::opcodes::{
     CREATE_COIN_COST, CREATE_PUZZLE_ANNOUNCEMENT, RESERVE_FEE,
 };
 use crate::op_utils::u64_from_bytes;
-use crate::run_program::STRICT_MODE;
 use crate::sha2::Sha256;
 use std::cmp::max;
 use std::collections::HashSet;
@@ -386,7 +386,7 @@ fn parse_spend_conditions(
         let op = match parse_opcode(a, first(a, c)?) {
             None => {
                 // in strict mode we don't allow unknown conditions
-                if (flags & STRICT_MODE) != 0 {
+                if (flags & NO_UNKNOWN_CONDS) != 0 {
                     return Err(ValidationErr(c, ErrorCode::InvalidConditionOpcode));
                 }
                 // in non-strict mode, we just ignore unknown conditions

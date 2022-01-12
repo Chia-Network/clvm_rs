@@ -1,7 +1,7 @@
 use super::rangeset::RangeSet;
 use super::validation_error::{atom, ErrorCode, ValidationErr};
 use crate::allocator::{Allocator, AtomBuf, NodePtr, SExp};
-use crate::run_program::STRICT_MODE;
+use crate::gen::flags::COND_CANON_INTS;
 
 fn count_zeros_impl(buf: &[u8]) -> usize {
     let mut ret: usize = 0;
@@ -109,7 +109,7 @@ pub fn sanitize_uint<'a>(
         i -= 1;
     }
 
-    if (flags & STRICT_MODE) != 0 && i > 0 {
+    if (flags & COND_CANON_INTS) != 0 && i > 0 {
         // in strict mode, we don't allow any redundant leading zeros
         return Err(ValidationErr(n, code));
     }
