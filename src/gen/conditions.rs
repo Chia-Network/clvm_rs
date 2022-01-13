@@ -596,8 +596,6 @@ use crate::serialize::node_to_bytes;
 #[cfg(test)]
 use hex::FromHex;
 #[cfg(test)]
-use num_traits::Num;
-#[cfg(test)]
 use std::collections::HashMap;
 
 #[cfg(test)]
@@ -695,6 +693,9 @@ fn test_coin_id(parent_id: &[u8], puzzle_hash: &[u8], amount: u64) -> [u8; 32] {
 // and:
 
 #[cfg(test)]
+use crate::number_traits::TestNumberTraits;
+
+#[cfg(test)]
 fn parse_list_impl(
     a: &mut Allocator,
     input: &str,
@@ -730,7 +731,7 @@ fn parse_list_impl(
         (a.new_atom(&buf).unwrap(), v.len() + 1)
     } else if input.starts_with("-") || "0123456789".contains(input.get(0..1).unwrap()) {
         let v = input.split_once(" ").unwrap().0;
-        let num = Number::from_str_radix(v, 10).unwrap();
+        let num = Number::from_str_radix(v, 10);
         (ptr_from_number(a, &num).unwrap(), v.len() + 1)
     } else {
         panic!("atom not supported \"{}\"", input);

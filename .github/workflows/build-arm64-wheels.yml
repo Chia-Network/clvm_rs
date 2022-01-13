@@ -44,6 +44,8 @@ jobs:
             curl -L https://sh.rustup.rs > rustup-init.sh && \
             sh rustup-init.sh -y && \
             yum -y install openssl-devel && \
+            yum -y install gmp && \
+            pkg-config --libs gmp && \
             source $HOME/.cargo/env && \
             rustup target add aarch64-unknown-linux-musl && \
             rm -rf venv && \
@@ -54,7 +56,7 @@ jobs:
             if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
             . ./activate && \
             pip install maturin && \
-            CC=gcc maturin build --no-sdist --release --strip --manylinux 2014 --cargo-extra-args="--features=openssl" \
+            CC=gcc maturin build --no-sdist --release --strip --manylinux 2014 --cargo-extra-args="--features=openssl,libgmp10" \
           '
 
     - name: Upload artifacts

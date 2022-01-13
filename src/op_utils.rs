@@ -1,6 +1,7 @@
 use crate::err_utils::err;
 use crate::node::Node;
-use crate::number::{number_from_u8, Number};
+use crate::number::Number;
+use crate::number_traits::NumberTraits;
 use crate::reduction::EvalErr;
 
 pub fn check_arg_count(args: &Node, expected: usize, name: &str) -> Result<(), EvalErr> {
@@ -87,7 +88,7 @@ pub fn two_ints(args: &Node, op_name: &str) -> Result<(Number, usize, Number, us
     let a1 = args.rest()?.first()?;
     let n0 = int_atom(&a0, op_name)?;
     let n1 = int_atom(&a1, op_name)?;
-    Ok((number_from_u8(n0), n0.len(), number_from_u8(n1), n1.len()))
+    Ok((Number::from_u8(n0), n0.len(), Number::from_u8(n1), n1.len()))
 }
 
 fn u32_from_u8_impl(buf: &[u8], signed: bool) -> Option<u32> {

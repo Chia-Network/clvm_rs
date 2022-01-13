@@ -18,12 +18,16 @@ lto = true
 
 [features]
 extension-module = ["pyo3/extension-module"]
-default = ["extension-module"]
+libgmp = []
+libgmp3 = []
+libgmp10 = []
+mpir = []
+default = ["extension-module", "libgmp"]
 
 [dependencies]
 hex = "=0.4.3"
 lazy_static = "=1.4.0"
-num-bigint = "=0.4.0"
+num-bigint = { version = "0.4.0", optional = true }
 num-traits = "=0.2.14"
 num-integer = "=0.1.44"
 bls12_381 = "=0.5.0"

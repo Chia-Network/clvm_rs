@@ -14,6 +14,7 @@ libfuzzer-sys = "0.4"
 [dependencies.clvm_rs]
 path = ".."
 default-features = false
+features = ["libgmp", "openssl"]
 
 # Prevent this from interfering with workspaces
 [workspace]
