@@ -436,7 +436,7 @@ pub fn op_div_impl(a: &mut Allocator, input: NodePtr, mempool: bool) -> Response
 
         // this is to preserve a buggy behavior from the initial implementation
         // of this operator.
-        if q == -1 && r != 0 {
+        if q.equal(-1) && r.not_equal(0) {
             q += 1;
         }
         let q1 = ptr_from_number(a, &q)?;
@@ -807,7 +807,7 @@ pub fn op_softfork(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respons
         Some((p1, _)) => {
             let n: Number = Number::from_u8(int_atom(&p1, "softfork")?);
             if n.sign() == Sign::Plus {
-                if n > max_cost {
+                if n.greater_than(max_cost) {
                     return err(a.null(), "cost exceeded");
                 }
                 let cost: Cost = n.to_u64();

@@ -7,17 +7,18 @@ pub use num_bigint::BigInt as Number;
 pub use num_bigint::Sign;
 
 use crate::allocator::{Allocator, NodePtr};
+use crate::number_traits::NumberTraits;
 use crate::reduction::EvalErr;
 
 pub fn ptr_from_number(allocator: &mut Allocator, item: &Number) -> Result<NodePtr, EvalErr> {
-    let bytes: Vec<u8> = item.to_signed_bytes_be();
+    let bytes: Vec<u8> = item.to_signed_bytes();
     allocator.new_atom(bytes.as_slice())
 }
 
 #[cfg(test)]
 #[cfg(feature = "num-bigint")]
 impl crate::number_traits::TestNumberTraits for Number {
-    fn from_str_radix(mut s: &str, radix: i32) -> Number {
+    fn from_str_radix(s: &str, radix: i32) -> Number {
         num_traits::Num::from_str_radix(s, radix as u32).unwrap()
     }
 }
@@ -27,6 +28,19 @@ impl crate::number_traits::NumberTraits for Number {
     fn from_unsigned_bytes_be(v: &[u8]) -> Number {
         let i = num_bigint::BigUint::from_bytes_be(v);
         i.into()
+    }
+
+    fn to_signed_bytes(&self) -> Vec<u8> {
+        let mut ret = self.to_signed_bytes_be();
+
+        // make number minimal by removing leading zeros
+        while (!ret.is_empty()) && (ret[0] == 0) {
+            if ret.len() > 1 && (ret[1] & 0x80 == 0x80) {
+                break;
+            }
+            ret.remove(0);
+        }
+        ret
     }
 
     fn zero() -> Number {
@@ -42,16 +56,29 @@ impl crate::number_traits::NumberTraits for Number {
         }
     }
 
-    fn to_u64(n: &Number) -> u64 {
-        n.into()
+    fn to_u64(&self) -> u64 {
+        use std::convert::TryFrom;
+        TryFrom::try_from(self).unwrap()
     }
 
     fn div_mod_floor(&self, denominator: &Number) -> (Number, Number) {
-        self.div_mod_floor(denominator)
+        num_integer::Integer::div_mod_floor(self, denominator)
     }
 
     fn mod_floor(&self, denominator: &Number) -> Number {
         num_integer::Integer::mod_floor(&self, denominator)
+    }
+
+    fn equal(&self, other: i64) -> bool {
+        self == &Number::from(other)
+    }
+
+    fn not_equal(&self, other: i64) -> bool {
+        self != &Number::from(other)
+    }
+
+    fn greater_than(&self, other: u64) -> bool {
+        self > &Number::from(other)
     }
 }
 
@@ -115,4 +142,3 @@ fn test_ptr_from_number() {
     let ptr = ptr_from_number(&mut a, &num).unwrap();
     assert_eq!(&[0x40, 0x00], &a.atom(ptr));
 }
-

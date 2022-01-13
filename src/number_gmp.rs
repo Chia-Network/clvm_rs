@@ -1,5 +1,8 @@
 use crate::gmp_ffi as gmp;
 use crate::node::Node;
+use crate::number_traits::NumberTraits;
+#[cfg(test)]
+use crate::number_traits::TestNumberTraits;
 use core::mem::MaybeUninit;
 use std::cmp::Ordering;
 use std::cmp::PartialOrd;
@@ -8,9 +11,6 @@ use std::ops::Drop;
 use std::ops::{
     AddAssign, BitAndAssign, BitOrAssign, BitXorAssign, MulAssign, Not, Shl, Shr, SubAssign,
 };
-use crate::number_traits::NumberTraits;
-#[cfg(test)]
-use crate::number_traits::TestNumberTraits;
 
 #[allow(clippy::enum_variant_names)]
 #[derive(PartialEq)]
@@ -60,75 +60,7 @@ impl NumberTraits for Number {
         ret
     }
 
-    fn zero() -> Number {
-        let mut v = MaybeUninit::<gmp::mpz_t>::uninit();
-        unsafe {
-            gmp::mpz_init(v.as_mut_ptr());
-        }
-        Number {
-            v: unsafe { v.assume_init() },
-        }
-    }
-
-    fn from_u8(v: &[u8]) -> Number {
-        Number::from_signed_bytes_be(v)
-    }
-
-    fn to_u64(n: &Number) -> u64 {
-        n.into()
-    }
-
-    // returns the quotient and remained, from dividing self with denominator
-    fn div_mod_floor(&self, denominator: &Number) -> (Number, Number) {
-        let mut q = Number::zero();
-        let mut r = Number::zero();
-        unsafe {
-            gmp::mpz_fdiv_qr(&mut q.v, &mut r.v, &self.v, &denominator.v);
-        }
-        (q, r)
-    }
-
-    fn mod_floor(&self, denominator: &Number) -> Number {
-        let mut r = Number::zero();
-        unsafe {
-            gmp::mpz_fdiv_r(&mut r.v, &self.v, &denominator.v);
-        }
-        r
-    }
-}
-
-impl Number {
-    pub fn from_signed_bytes_be(v: &[u8]) -> Number {
-        let mut ret = Number::zero();
-        if v.is_empty() {
-            return ret;
-        }
-        // mpz_import() only reads unsigned values
-        let negative = (v[0] & 0x80) != 0;
-
-        if negative {
-            // since the bytes we read are two's complement
-            // if the most significant bit was set, we need to
-            // convert the value to a negative one. We do this by flipping
-            // all bits, adding one and then negating it.
-            let mut v = v.to_vec();
-            for digit in &mut v {
-                *digit = !*digit;
-            }
-            unsafe {
-                gmp::mpz_import(&mut ret.v, v.len(), 1, 1, 0, 0, v.as_ptr() as *const c_void);
-                gmp::mpz_add_ui(&mut ret.v, &ret.v, 1);
-                gmp::mpz_neg(&mut ret.v, &ret.v);
-            }
-        } else {
-            unsafe {
-                gmp::mpz_import(&mut ret.v, v.len(), 1, 1, 0, 0, v.as_ptr() as *const c_void);
-            }
-        }
-        ret
-    }
-
-    pub fn to_signed_bytes_be(&self) -> Vec<u8> {
+    fn to_signed_bytes(&self) -> Vec<u8> {
         let size = (self.bits() + 7) / 8;
         let mut ret: Vec<u8> = Vec::new();
         if size == 0 {
@@ -167,6 +99,86 @@ impl Number {
             }
         } else if ret[1] & 0x80 == 0 {
             ret.remove(0);
+        }
+        ret
+    }
+
+    fn zero() -> Number {
+        let mut v = MaybeUninit::<gmp::mpz_t>::uninit();
+        unsafe {
+            gmp::mpz_init(v.as_mut_ptr());
+        }
+        Number {
+            v: unsafe { v.assume_init() },
+        }
+    }
+
+    fn from_u8(v: &[u8]) -> Number {
+        Number::from_signed_bytes_be(v)
+    }
+
+    fn to_u64(&self) -> u64 {
+        u64::from(self)
+    }
+
+    // returns the quotient and remained, from dividing self with denominator
+    fn div_mod_floor(&self, denominator: &Number) -> (Number, Number) {
+        let mut q = Number::zero();
+        let mut r = Number::zero();
+        unsafe {
+            gmp::mpz_fdiv_qr(&mut q.v, &mut r.v, &self.v, &denominator.v);
+        }
+        (q, r)
+    }
+
+    fn mod_floor(&self, denominator: &Number) -> Number {
+        let mut r = Number::zero();
+        unsafe {
+            gmp::mpz_fdiv_r(&mut r.v, &self.v, &denominator.v);
+        }
+        r
+    }
+
+    fn equal(&self, other: i64) -> bool {
+        self == &other
+    }
+
+    fn not_equal(&self, other: i64) -> bool {
+        self != &other
+    }
+
+    fn greater_than(&self, other: u64) -> bool {
+        self > &other
+    }
+}
+
+impl Number {
+    pub fn from_signed_bytes_be(v: &[u8]) -> Number {
+        let mut ret = Number::zero();
+        if v.is_empty() {
+            return ret;
+        }
+        // mpz_import() only reads unsigned values
+        let negative = (v[0] & 0x80) != 0;
+
+        if negative {
+            // since the bytes we read are two's complement
+            // if the most significant bit was set, we need to
+            // convert the value to a negative one. We do this by flipping
+            // all bits, adding one and then negating it.
+            let mut v = v.to_vec();
+            for digit in &mut v {
+                *digit = !*digit;
+            }
+            unsafe {
+                gmp::mpz_import(&mut ret.v, v.len(), 1, 1, 0, 0, v.as_ptr() as *const c_void);
+                gmp::mpz_add_ui(&mut ret.v, &ret.v, 1);
+                gmp::mpz_neg(&mut ret.v, &ret.v);
+            }
+        } else {
+            unsafe {
+                gmp::mpz_import(&mut ret.v, v.len(), 1, 1, 0, 0, v.as_ptr() as *const c_void);
+            }
         }
         ret
     }
@@ -345,8 +357,8 @@ impl From<usize> for Number {
     }
 }
 
-impl From<Number> for u64 {
-    fn from(n: Number) -> u64 {
+impl From<&Number> for u64 {
+    fn from(n: &Number) -> u64 {
         unsafe {
             assert!(gmp::mpz_sizeinbase(&n.v, 2) <= 64);
             assert!(gmp::mpz_cmp_si(&n.v, 0) >= 0);
@@ -355,8 +367,8 @@ impl From<Number> for u64 {
     }
 }
 
-impl From<Number> for i64 {
-    fn from(n: Number) -> i64 {
+impl From<&Number> for i64 {
+    fn from(n: &Number) -> i64 {
         unsafe {
             assert!(gmp::mpz_sizeinbase(&n.v, 2) <= 64);
             gmp::mpz_get_si(&n.v)
@@ -456,6 +468,9 @@ impl From<&Node<'_>> for Option<Number> {
     }
 }
 
+// TODO: move all tests to number.rs so we can test both the GMP and num-bigint
+// versions
+
 // ==== TESTS ====
 
 #[cfg(test)]
@@ -489,7 +504,7 @@ fn roundtrip_bytes(b: &[u8]) {
             assert!(num.sign() == Sign::Plus);
         }
 
-        let round_trip = num.to_signed_bytes_be();
+        let round_trip = num.to_signed_bytes();
 
         assert_eq!(round_trip, b);
 
@@ -516,7 +531,7 @@ fn roundtrip_bytes(b: &[u8]) {
             unsafe {
                 gmp::mpz_neg(&mut negated.v, &num.v);
             }
-            let magnitude = negated.to_signed_bytes_be();
+            let magnitude = negated.to_signed_bytes();
             assert!(buf_le.iter().eq(magnitude.iter().rev()));
         }
     }
@@ -525,7 +540,7 @@ fn roundtrip_bytes(b: &[u8]) {
     {
         let unsigned_num = Number::from_unsigned_bytes_be(b);
         assert!(unsigned_num.sign() != Sign::Minus);
-        let unsigned_round_trip = unsigned_num.to_signed_bytes_be();
+        let unsigned_round_trip = unsigned_num.to_signed_bytes();
         let unsigned_round_trip = if unsigned_round_trip == &[0] {
             &unsigned_round_trip[1..]
         } else {
@@ -610,7 +625,7 @@ fn roundtrip_u64(v: u64) {
         assert!(num >= v - 1);
     }
 
-    let round_trip: u64 = num.into();
+    let round_trip: u64 = (&num).into();
     assert_eq!(round_trip, v);
 }
 
@@ -656,7 +671,7 @@ fn roundtrip_i64(v: i64) {
     }
 
     assert!(num.bits() <= 64);
-    let round_trip: i64 = num.into();
+    let round_trip: i64 = (&num).into();
     assert_eq!(round_trip, v);
 }
 

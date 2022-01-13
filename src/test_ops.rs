@@ -7,10 +7,10 @@ use crate::more_ops::{
     op_point_add, op_pubkey_for_exp, op_sha256, op_softfork, op_strlen, op_substr, op_subtract,
 };
 use crate::number::{ptr_from_number, Number};
+use crate::number_traits::TestNumberTraits;
 use crate::reduction::{Reduction, Response};
 use hex::FromHex;
 use std::collections::HashMap;
-use crate::number_traits::TestNumberTraits;
 
 static TEST_CASES: &str = r#"
 lognot ( 1 2 3 ) => FAIL
