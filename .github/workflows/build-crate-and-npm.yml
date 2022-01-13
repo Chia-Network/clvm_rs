@@ -58,7 +58,7 @@ jobs:
       run: cargo install wasm-pack
 
     - name: wasm-pack build and pack
-      run: wasm-pack build && wasm-pack pack
+      run: wasm-pack build --features=num-bigint && wasm-pack pack
 
     - name: Upload npm pkg artifacts
       uses: actions/upload-artifact@v2

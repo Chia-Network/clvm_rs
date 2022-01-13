@@ -5,10 +5,17 @@ pub mod cost;
 mod dialect;
 mod err_utils;
 mod gen;
-mod gmp_ffi;
 pub mod more_ops;
 pub mod node;
+
+#[cfg(not(feature = "num-bigint"))]
+mod gmp_ffi;
+#[cfg(not(feature = "num-bigint"))]
+mod number_gmp;
+
 mod number;
+mod number_traits;
+
 mod op_utils;
 #[cfg(not(any(test, target_family = "wasm")))]
 mod py;

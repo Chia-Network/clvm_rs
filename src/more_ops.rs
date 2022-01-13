@@ -9,13 +9,15 @@ use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::{check_cost, Cost};
 use crate::err_utils::err;
 use crate::node::Node;
-use crate::number::{number_from_u8, ptr_from_number, Number, Sign};
+use crate::number::{ptr_from_number, Number, Sign};
 use crate::op_utils::{
     arg_count, atom, check_arg_count, i32_atom, int_atom, two_ints, u32_from_u8,
 };
 use crate::reduction::{Reduction, Response};
 use crate::serialize::node_to_bytes;
 use crate::sha2::Sha256;
+
+use crate::number_traits::NumberTraits;
 
 // We ascribe some additional cost per byte for operations that allocate new atoms
 const MALLOC_COST_PER_BYTE: Cost = 10;
@@ -360,7 +362,7 @@ pub fn op_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
             max_cost,
         )?;
         let blob = int_atom(&arg, "+")?;
-        let v: Number = number_from_u8(blob);
+        let v: Number = Number::from_u8(blob);
         byte_count += blob.len();
         total += &v;
     }
@@ -378,7 +380,7 @@ pub fn op_subtract(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respons
         cost += ARITH_COST_PER_ARG;
         check_cost(a, cost + byte_count as Cost * ARITH_COST_PER_BYTE, max_cost)?;
         let blob = int_atom(&arg, "-")?;
-        let v: Number = number_from_u8(blob);
+        let v: Number = Number::from_u8(blob);
         byte_count += blob.len();
         if is_first {
             total += &v;
@@ -402,13 +404,13 @@ pub fn op_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respons
         let blob = int_atom(&arg, "*")?;
         if first_iter {
             l0 = blob.len();
-            total = number_from_u8(blob);
+            total = Number::from_u8(blob);
             first_iter = false;
             continue;
         }
         let l1 = blob.len();
 
-        total *= number_from_u8(blob);
+        total *= Number::from_u8(blob);
         cost += MUL_COST_PER_OP;
 
         cost += (l0 + l1) as Cost * MUL_LINEAR_COST_PER_BYTE;
@@ -477,7 +479,7 @@ pub fn op_gr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let cost = GR_BASE_COST + (v0.len() + v1.len()) as Cost * GR_COST_PER_BYTE;
     Ok(Reduction(
         cost,
-        if number_from_u8(v0) > number_from_u8(v1) {
+        if Number::from_u8(v0) > Number::from_u8(v1) {
             a.one()
         } else {
             a.null()
@@ -567,7 +569,7 @@ pub fn op_ash(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     check_arg_count(&args, 2, "ash")?;
     let a0 = args.first()?;
     let b0 = int_atom(&a0, "ash")?;
-    let i0 = number_from_u8(b0);
+    let i0 = Number::from_u8(b0);
     let l0 = b0.len();
     let rest = args.rest()?;
     let a1 = i32_atom(&rest.first()?, "ash")?;
@@ -715,7 +717,7 @@ fn binop_reduction(
     let mut cost = LOG_BASE_COST;
     for arg in Node::new(a, input) {
         let blob = int_atom(&arg, op_name)?;
-        let n0 = number_from_u8(blob);
+        let n0 = Number::from_u8(blob);
         op_f(&mut total, &n0);
         arg_size += blob.len();
         cost += LOG_COST_PER_ARG;
@@ -758,7 +760,7 @@ pub fn op_lognot(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
     check_arg_count(&args, 1, "lognot")?;
     let a0 = args.first()?;
     let v0 = int_atom(&a0, "lognot")?;
-    let mut n: Number = number_from_u8(v0);
+    let mut n: Number = Number::from_u8(v0);
     n = !n;
     let cost = LOGNOT_BASE_COST + ((v0.len() as Cost) * LOGNOT_COST_PER_BYTE);
     let r = ptr_from_number(a, &n)?;
@@ -803,12 +805,12 @@ pub fn op_softfork(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respons
     let args = Node::new(a, input);
     match args.pair() {
         Some((p1, _)) => {
-            let n: Number = number_from_u8(int_atom(&p1, "softfork")?);
+            let n: Number = Number::from_u8(int_atom(&p1, "softfork")?);
             if n.sign() == Sign::Plus {
                 if n > max_cost {
                     return err(a.null(), "cost exceeded");
                 }
-                let cost: Cost = n.into();
+                let cost: Cost = n.to_u64();
                 Ok(Reduction(cost, args.null().node))
             } else {
                 args.err("cost must be > 0")
@@ -856,7 +858,7 @@ pub fn op_pubkey_for_exp(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> 
     let a0 = args.first()?;
 
     let v0 = int_atom(&a0, "pubkey_for_exp")?;
-    let exp: Number = mod_group_order(number_from_u8(v0));
+    let exp: Number = mod_group_order(Number::from_u8(v0));
     let cost = PUBKEY_BASE_COST + (v0.len() as Cost) * PUBKEY_COST_PER_BYTE;
     let exp: Scalar = number_to_scalar(exp);
     let point: G1Projective = G1Affine::generator() * exp;

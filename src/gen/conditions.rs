@@ -693,6 +693,9 @@ fn test_coin_id(parent_id: &[u8], puzzle_hash: &[u8], amount: u64) -> [u8; 32] {
 // and:
 
 #[cfg(test)]
+use crate::number_traits::TestNumberTraits;
+
+#[cfg(test)]
 fn parse_list_impl(
     a: &mut Allocator,
     input: &str,
