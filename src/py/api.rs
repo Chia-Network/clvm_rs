@@ -13,8 +13,7 @@ use crate::gen::flags::{COND_CANON_INTS, NO_UNKNOWN_CONDS};
 pub const MEMPOOL_MODE: u32 = NO_NEG_DIV | COND_CANON_INTS | NO_UNKNOWN_CONDS | NO_UNKNOWN_OPS;
 
 /// This module is a python module implemented in Rust.
-#[pymodule]
-fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
+pub fn clvm_rs_module(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(deserialize_and_run_program2, m)?)?;
     m.add_function(wrap_pyfunction!(run_generator2, m)?)?;
     m.add_function(wrap_pyfunction!(run_chia_program, m)?)?;
