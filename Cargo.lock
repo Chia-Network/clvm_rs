@@ -79,8 +79,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "clvm_rs"
-version = "0.1.16"
+name = "clvm"
+version = "0.1.17"
 dependencies = [
  "bls12_381",
  "hex",
@@ -91,6 +91,23 @@ dependencies = [
  "openssl",
  "pyo3",
  "sha2",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+]
+
+[[package]]
+name = "clvm_rs"
+version = "0.1.17"
+dependencies = [
+ "clvm",
+ "pyo3",
+]
+
+[[package]]
+name = "clvm_wasm"
+version = "0.1.17"
+dependencies = [
+ "clvm",
  "wasm-bindgen",
  "wasm-bindgen-test",
 ]

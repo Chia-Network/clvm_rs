@@ -23,7 +23,6 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 //
 // TODO: replace the below with something more robust and feature-filled
 
-#[wasm_bindgen]
 pub fn run_clvm(program: &[u8], args: &[u8]) -> Vec<u8> {
     let max_cost: Cost = 1_000_000_000_000_000;
 

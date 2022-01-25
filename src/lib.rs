@@ -10,7 +10,7 @@ pub mod node;
 mod number;
 mod op_utils;
 #[cfg(not(any(test, target_family = "wasm")))]
-mod py;
+pub mod py;
 pub mod reduction;
 pub mod run_program;
 pub mod serialize;

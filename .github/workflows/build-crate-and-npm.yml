@@ -56,13 +56,13 @@ jobs:
       run: cargo install wasm-pack
 
     - name: wasm-pack build and pack
-      run: wasm-pack build && wasm-pack pack
+      run: wasm-pack build wasm && wasm-pack pack wasm
 
     - name: Upload npm pkg artifacts
       uses: actions/upload-artifact@v2
       with:
         name: npm-pkg
-        path: ./pkg/clvm_rs-*.tgz
+        path: ./wasm/pkg/clvm_rs-*.tgz
 
     # this has not been tested, so probably needs to be debugged next time a tag is created
     - name: publish to crates.io if tagged
@@ -77,4 +77,4 @@ jobs:
       uses: JS-DevTools/npm-publish@v1
       with:
         token: ${{ secrets.node_auth_token }}
-        package: pkg/package.json
+        package: wasm/pkg/package.json

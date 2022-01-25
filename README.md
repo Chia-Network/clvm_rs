@@ -1,5 +1,7 @@
 Rust implementation of clvm.
 
+The cargo workspace includes an rlib crate, for use with rust or other applications, and a python wheel.
+
 Python Wheel
 ------------
 
@@ -12,6 +14,7 @@ $ pip install maturin
 Build `clvm_rs` directly into the current virtualenv with
 
 ```
+$ cd wheel
 $ maturin develop --release
 ```
 
@@ -19,6 +22,7 @@ On UNIX-based platforms, you may get a speed boost on `sha256` operations by bui
 with OpenSSL.
 
 ```
+$ cd wheel
 $ maturin develop --release --cargo-extra-args="--features=openssl"
 ```
 
@@ -26,12 +30,14 @@ $ maturin develop --release --cargo-extra-args="--features=openssl"
 To build the wheel, do
 
 ```
+$ cd wheel
 $ maturin build --release --no-sdist
 ````
 
 or
 
 ```
+$ cd wheel
 $ maturin build --release --no-sdist --cargo-extra-args="--features=openssl"
 ```
 
@@ -65,7 +71,7 @@ Fuzzing
 
 The fuzzing infrastructure for `clvm_rs` uses [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz).
 
-Documentation for setting up fuzzing in rust  can be found [here](https://rust-fuzz.github.io/book/cargo-fuzz.html).
+Documentation for setting up fuzzing in rust can be found [here](https://rust-fuzz.github.io/book/cargo-fuzz.html).
 
 To generate an initial corpus (for the `run_program` fuzzer), run:
 

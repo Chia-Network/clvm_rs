@@ -1,5 +1,5 @@
 mod adapt_response;
-mod api;
+pub mod api;
 mod f_table;
 mod lazy_node;
 mod run_generator;

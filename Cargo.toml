@@ -1,5 +1,8 @@
+[workspace]
+members = ["wasm", "wheel"]
+
 [package]
-name = "clvm_rs"
+name = "clvm"
 version = "0.1.17"
 authors = ["Richard Kiss <him@richardkiss.com>"]
 edition = "2018"
@@ -11,7 +14,7 @@ readme = "README.md"
 
 [lib]
 name = "clvm_rs"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [profile.release]
 lto = true
