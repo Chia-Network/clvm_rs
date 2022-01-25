@@ -86,7 +86,7 @@ pub fn sanitize_announce_msg(
 }
 
 #[cfg(test)]
-use crate::run_program::STRICT_MODE;
+use crate::gen::flags::COND_CANON_INTS;
 
 #[cfg(test)]
 fn zero_vec(len: usize) -> Vec<u8> {
@@ -168,8 +168,9 @@ fn amount_tester(buf: &[u8], flags: u32) -> Result<u64, ValidationErr> {
 
 #[test]
 fn test_sanitize_amount() {
-    for flags in &[0, STRICT_MODE] {
+    for flags in &[0, COND_CANON_INTS] {
         // negative amounts are not allowed
+        // regardless of flags
         assert_eq!(
             amount_tester(&[0x80], *flags).unwrap_err().1,
             ErrorCode::InvalidCoinAmount
@@ -186,7 +187,7 @@ fn test_sanitize_amount() {
         // leading zeros are somtimes necessary to make values positive
         assert_eq!(amount_tester(&[0, 0xff], *flags), Ok(0xff));
         // but are stripped when they are redundant
-        if (flags & STRICT_MODE) != 0 {
+        if (flags & COND_CANON_INTS) != 0 {
             assert_eq!(
                 amount_tester(&[0, 0, 0, 0xff], *flags).unwrap_err().1,
                 ErrorCode::InvalidCoinAmount
@@ -243,7 +244,7 @@ fn height_tester(buf: &[u8], flags: u32) -> Result<u32, ValidationErr> {
 
 #[test]
 fn test_parse_height() {
-    for flags in &[0, STRICT_MODE] {
+    for flags in &[0, COND_CANON_INTS] {
         // negative heights can be ignored
         assert_eq!(height_tester(&[0x80], *flags), Ok(0));
         assert_eq!(height_tester(&[0xff], *flags), Ok(0));
@@ -252,7 +253,7 @@ fn test_parse_height() {
         // leading zeros are somtimes necessary to make values positive
         assert_eq!(height_tester(&[0, 0xff], *flags), Ok(0xff));
         // but are stripped when they are redundant
-        if (flags & STRICT_MODE) != 0 {
+        if (flags & COND_CANON_INTS) != 0 {
             assert_eq!(
                 height_tester(&[0, 0, 0, 0xff], *flags).unwrap_err().1,
                 ErrorCode::AssertHeightAbsolute
@@ -328,7 +329,7 @@ fn seconds_tester(buf: &[u8], flags: u32) -> Result<u64, ValidationErr> {
 
 #[test]
 fn test_parse_seconds() {
-    for flags in &[0, STRICT_MODE] {
+    for flags in &[0, COND_CANON_INTS] {
         // negative seconds can be ignored
         assert_eq!(seconds_tester(&[0x80], *flags), Ok(0));
         assert_eq!(seconds_tester(&[0xff], *flags), Ok(0));
@@ -337,7 +338,7 @@ fn test_parse_seconds() {
         // leading zeros are somtimes necessary to make values positive
         assert_eq!(seconds_tester(&[0, 0xff], *flags), Ok(0xff));
         // but are stripped when they are redundant
-        if (flags & STRICT_MODE) != 0 {
+        if (flags & COND_CANON_INTS) != 0 {
             assert_eq!(
                 seconds_tester(&[0, 0, 0, 0xff], *flags).unwrap_err().1,
                 ErrorCode::AssertSecondsAbsolute

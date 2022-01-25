@@ -8,7 +8,7 @@ import time
 import random
 from clvm import KEYWORD_FROM_ATOM, KEYWORD_TO_ATOM
 from clvm.operators import OP_REWRITE
-from clvm_rs import run_chia_program, STRICT_MODE
+from clvm_rs import run_chia_program
 from colorama import init, Fore, Style
 
 init()

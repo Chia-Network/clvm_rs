@@ -7,8 +7,6 @@ use crate::reduction::{EvalErr, Reduction, Response};
 
 use crate::number::{ptr_from_number, Number};
 
-pub const STRICT_MODE: u32 = 1;
-
 // lowered from 46
 const QUOTE_COST: Cost = 20;
 // lowered from 138

@@ -1,4 +1,5 @@
 use crate::allocator::{Allocator, NodePtr};
+use crate::chia_dialect::NO_UNKNOWN_OPS;
 use crate::cost::Cost;
 use crate::dialect::Dialect;
 use crate::err_utils::err;
@@ -11,7 +12,7 @@ pub struct RuntimeDialect {
     f_lookup: FLookup,
     quote_kw: Vec<u8>,
     apply_kw: Vec<u8>,
-    strict: bool,
+    flags: u32,
 }
 
 impl RuntimeDialect {
@@ -19,13 +20,13 @@ impl RuntimeDialect {
         op_map: HashMap<String, Vec<u8>>,
         quote_kw: Vec<u8>,
         apply_kw: Vec<u8>,
-        strict: bool,
+        flags: u32,
     ) -> RuntimeDialect {
         RuntimeDialect {
             f_lookup: f_lookup_for_hashmap(op_map),
             quote_kw,
             apply_kw,
-            strict,
+            flags,
         }
     }
 }
@@ -44,7 +45,7 @@ impl Dialect for RuntimeDialect {
                 return f(allocator, argument_list, max_cost);
             }
         }
-        if self.strict {
+        if (self.flags & NO_UNKNOWN_OPS) != 0 {
             err(o, "unimplemented operator")
         } else {
             op_unknown(allocator, o, argument_list, max_cost)

@@ -5,7 +5,7 @@ use crate::cost::Cost;
 use crate::gen::conditions::{parse_spends, Spend, SpendBundleConditions};
 use crate::gen::validation_error::{ErrorCode, ValidationErr};
 use crate::reduction::{EvalErr, Reduction};
-use crate::run_program::{run_program, STRICT_MODE};
+use crate::run_program::run_program;
 use crate::serialize::node_from_bytes;
 
 use pyo3::prelude::*;
@@ -144,10 +144,9 @@ pub fn run_generator2(
     flags: u32,
 ) -> PyResult<(Option<ErrorCode>, Option<PySpendBundleConditions>)> {
     let mut allocator = Allocator::new();
-    let strict: bool = (flags & STRICT_MODE) != 0;
     let program = node_from_bytes(&mut allocator, program)?;
     let args = node_from_bytes(&mut allocator, args)?;
-    let dialect = &ChiaDialect::new(strict);
+    let dialect = &ChiaDialect::new(flags);
 
     let r = py.allow_threads(
         || -> Result<(Option<ErrorCode>, Option<SpendBundleConditions>), EvalErr> {
