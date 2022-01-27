@@ -66,3 +66,11 @@ pub fn atom(a: &Allocator, n: NodePtr, code: ErrorCode) -> Result<&[u8], Validat
         _ => Err(ValidationErr(n, code)),
     }
 }
+
+pub fn check_nil(a: &Allocator, n: NodePtr) -> Result<(), ValidationErr> {
+    if atom(a, n, ErrorCode::InvalidCondition)?.is_empty() {
+        Ok(())
+    } else {
+        Err(ValidationErr(n, ErrorCode::InvalidCondition))
+    }
+}

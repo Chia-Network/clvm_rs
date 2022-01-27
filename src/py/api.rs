@@ -8,9 +8,10 @@ use super::run_program::{
     __pyo3_get_function_serialized_length,
 };
 use crate::chia_dialect::{NO_NEG_DIV, NO_UNKNOWN_OPS};
-use crate::gen::flags::{COND_CANON_INTS, NO_UNKNOWN_CONDS};
+use crate::gen::flags::{COND_ARGS_NIL, COND_CANON_INTS, NO_UNKNOWN_CONDS};
 
-pub const MEMPOOL_MODE: u32 = NO_NEG_DIV | COND_CANON_INTS | NO_UNKNOWN_CONDS | NO_UNKNOWN_OPS;
+pub const MEMPOOL_MODE: u32 =
+    NO_NEG_DIV | COND_CANON_INTS | NO_UNKNOWN_CONDS | NO_UNKNOWN_OPS | COND_ARGS_NIL;
 
 /// This module is a python module implemented in Rust.
 pub fn clvm_rs_module(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -19,6 +20,7 @@ pub fn clvm_rs_module(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run_chia_program, m)?)?;
     m.add("NO_NEG_DIV", NO_NEG_DIV)?;
     m.add("COND_CANON_INTS", COND_CANON_INTS)?;
+    m.add("COND_ARGS_NIL", COND_ARGS_NIL)?;
     m.add("NO_UNKNOWN_CONDS", NO_UNKNOWN_CONDS)?;
     m.add("NO_UNKNOWN_OPS", NO_UNKNOWN_OPS)?;
     m.add("MEMPOOL_MODE", MEMPOOL_MODE)?;
