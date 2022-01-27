@@ -4,10 +4,10 @@ use super::condition_sanitizers::{
 };
 use super::rangeset::RangeSet;
 use super::sanitize_int::sanitize_uint;
-use super::validation_error::{first, next, rest, ErrorCode, ValidationErr};
+use super::validation_error::{check_nil, first, next, rest, ErrorCode, ValidationErr};
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::Cost;
-use crate::gen::flags::NO_UNKNOWN_CONDS;
+use crate::gen::flags::{COND_ARGS_NIL, NO_UNKNOWN_CONDS};
 use crate::gen::opcodes::{
     parse_opcode, ConditionOpcode, AGG_SIG_COST, AGG_SIG_ME, AGG_SIG_UNSAFE,
     ASSERT_COIN_ANNOUNCEMENT, ASSERT_HEIGHT_ABSOLUTE, ASSERT_HEIGHT_RELATIVE, ASSERT_MY_AMOUNT,
@@ -96,11 +96,17 @@ fn parse_args(
             c = rest(a, c)?;
             let message = sanitize_announce_msg(a, first(a, c)?, ErrorCode::InvalidMessage)?;
             // AGG_SIG_UNSAFE takes exactly two parameters
-            // but the argument list still doesn't need to be terminated by NIL,
-            // just any atom will do
-            match a.sexp(rest(a, c)?) {
-                SExp::Pair(_, _) => Err(ValidationErr(c, ErrorCode::InvalidCondition)),
-                _ => Ok(Condition::AggSigUnsafe(pubkey, message)),
+            if (flags & COND_ARGS_NIL) != 0 {
+                // make sure there aren't more than two
+                check_nil(a, rest(a, c)?)?;
+                Ok(Condition::AggSigUnsafe(pubkey, message))
+            } else {
+                // but the argument list still doesn't need to be terminated by NIL,
+                // just any atom will do
+                match a.sexp(rest(a, c)?) {
+                    SExp::Pair(_, _) => Err(ValidationErr(c, ErrorCode::InvalidCondition)),
+                    _ => Ok(Condition::AggSigUnsafe(pubkey, message)),
+                }
             }
         }
         AGG_SIG_ME => {
@@ -108,11 +114,17 @@ fn parse_args(
             c = rest(a, c)?;
             let message = sanitize_announce_msg(a, first(a, c)?, ErrorCode::InvalidMessage)?;
             // AGG_SIG_ME takes exactly two parameters
-            // but the argument list still doesn't need to be terminated by NIL,
-            // just any atom will do
-            match a.sexp(rest(a, c)?) {
-                SExp::Pair(_, _) => Err(ValidationErr(c, ErrorCode::InvalidCondition)),
-                _ => Ok(Condition::AggSigMe(pubkey, message)),
+            if (flags & COND_ARGS_NIL) != 0 {
+                // make sure there aren't more than two
+                check_nil(a, rest(a, c)?)?;
+                Ok(Condition::AggSigMe(pubkey, message))
+            } else {
+                // but the argument list still doesn't need to be terminated by NIL,
+                // just any atom will do
+                match a.sexp(rest(a, c)?) {
+                    SExp::Pair(_, _) => Err(ValidationErr(c, ErrorCode::InvalidCondition)),
+                    _ => Ok(Condition::AggSigMe(pubkey, message)),
+                }
             }
         }
         CREATE_COIN => {
@@ -803,6 +815,7 @@ fn parse_list(
 #[cfg(test)]
 fn cond_test_cb(
     input: &str,
+    flags: u32,
     callback: Option<fn(&mut Allocator) -> NodePtr>,
 ) -> Result<(Allocator, SpendBundleConditions), ValidationErr> {
     let mut a = Allocator::new();
@@ -814,7 +827,6 @@ fn cond_test_cb(
         print!("{:02x}", c);
     }
     println!();
-    let flags: u32 = 0;
     match parse_spends(&a, n, 11000000000, flags) {
         Ok(list) => {
             for n in &list.spends {
@@ -828,7 +840,15 @@ fn cond_test_cb(
 
 #[cfg(test)]
 fn cond_test(input: &str) -> Result<(Allocator, SpendBundleConditions), ValidationErr> {
-    cond_test_cb(input, None)
+    cond_test_cb(input, 0, None)
+}
+
+#[cfg(test)]
+fn cond_test_flag(
+    input: &str,
+    flags: u32,
+) -> Result<(Allocator, SpendBundleConditions), ValidationErr> {
+    cond_test_cb(input, flags, None)
 }
 
 #[test]
@@ -860,6 +880,7 @@ fn test_invalid_condition_args_terminator() {
 
     assert_eq!(spend.seconds_relative, 50);
 }
+
 #[test]
 fn test_invalid_condition_list_terminator() {
     let (a, conds) = cond_test("((({h1} ({h2} (123 (((80 (50 8 ))))").unwrap();
@@ -1697,6 +1718,7 @@ fn test_create_coin_exceed_cost() {
     assert_eq!(
         cond_test_cb(
             "((({h1} ({h2} (123 ({} )))",
+            0,
             Some(|a: &mut Allocator| -> NodePtr {
                 let mut rest: NodePtr = a.null();
 
@@ -1799,6 +1821,7 @@ fn test_agg_sig_me_exceed_cost() {
     assert_eq!(
         cond_test_cb(
             "((({h1} ({h2} (123 ({} )))",
+            0,
             Some(|a: &mut Allocator| -> NodePtr {
                 let mut rest: NodePtr = a.null();
 
@@ -1864,6 +1887,70 @@ fn test_agg_sig_me_extra_arg() {
 }
 
 #[test]
+fn test_agg_sig_unsafe_invalid_terminator() {
+    // AGG_SIG_UNSAFE
+    let (a, conds) = cond_test("((({h1} ({h2} (123 (((49 ({pubkey} ({msg1} 456 ))))").unwrap();
+
+    assert_eq!(conds.spends.len(), 1);
+    let spend = &conds.spends[0];
+    assert_eq!(*spend.coin_id, test_coin_id(H1, H2, 123));
+    assert_eq!(a.atom(spend.puzzle_hash), H2);
+    assert_eq!(conds.agg_sig_unsafe.len(), 1);
+    for (pk, msg) in &conds.agg_sig_unsafe {
+        assert_eq!(a.atom(*pk), PUBKEY);
+        assert_eq!(a.atom(*msg), MSG1);
+    }
+}
+
+#[test]
+fn test_agg_sig_unsafe_invalid_terminator_flag() {
+    // AGG_SIG_UNSAFE
+    assert_eq!(
+        cond_test_flag(
+            "((({h1} ({h2} (123 (((49 ({pubkey} ({msg1} 456 ))))",
+            COND_ARGS_NIL
+        )
+        .unwrap_err()
+        .1,
+        ErrorCode::InvalidCondition
+    );
+}
+
+#[test]
+fn test_agg_sig_me_invalid_terminator() {
+    // AGG_SIG_ME
+    // this has an invalid list terminator of the argument list. This is OK
+    // according to the original consensus rules
+    let (a, conds) = cond_test("((({h1} ({h2} (123 (((50 ({pubkey} ({msg1} 456 ))))").unwrap();
+
+    assert_eq!(conds.spends.len(), 1);
+    let spend = &conds.spends[0];
+    assert_eq!(*spend.coin_id, test_coin_id(H1, H2, 123));
+    assert_eq!(a.atom(spend.puzzle_hash), H2);
+    assert_eq!(spend.agg_sig_me.len(), 1);
+    for (pk, msg) in &conds.agg_sig_unsafe {
+        assert_eq!(a.atom(*pk), PUBKEY);
+        assert_eq!(a.atom(*msg), MSG1);
+    }
+}
+
+#[test]
+fn test_agg_sig_me_invalid_terminator_flag() {
+    // AGG_SIG_ME
+    // this has an invalid list terminator of the argument list. This is NOT OK
+    // according to the stricter rules
+    assert_eq!(
+        cond_test_flag(
+            "((({h1} ({h2} (123 (((50 ({pubkey} ({msg1} 456 ))))",
+            COND_ARGS_NIL
+        )
+        .unwrap_err()
+        .1,
+        ErrorCode::InvalidCondition
+    );
+}
+
+#[test]
 fn test_duplicate_agg_sig_unsafe() {
     // AGG_SIG_UNSAFE
     // these conditions may not be deduplicated
@@ -1911,6 +1998,7 @@ fn test_agg_sig_unsafe_exceed_cost() {
     assert_eq!(
         cond_test_cb(
             "((({h1} ({h2} (123 ({} )))",
+            0,
             Some(|a: &mut Allocator| -> NodePtr {
                 let mut rest: NodePtr = a.null();
 
