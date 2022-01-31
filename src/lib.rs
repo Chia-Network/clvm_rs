@@ -7,14 +7,14 @@ mod err_utils;
 mod gen;
 pub mod more_ops;
 pub mod node;
-mod number;
-mod op_utils;
+pub mod number;
+pub mod op_utils;
 #[cfg(not(any(test, target_family = "wasm")))]
 pub mod py;
 pub mod reduction;
 pub mod run_program;
 pub mod serialize;
-mod sha2;
+pub mod sha2;
 
 #[cfg(test)]
 mod tests;
