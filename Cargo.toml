@@ -3,7 +3,7 @@ members = ["wasm", "wheel"]
 
 [package]
 name = "clvm"
-version = "0.1.19"
+version = "0.1.20"
 authors = ["Richard Kiss <him@richardkiss.com>"]
 edition = "2018"
 license = "Apache-2.0"

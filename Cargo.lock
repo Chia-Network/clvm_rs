@@ -3,6 +3,12 @@
 version = 3
 
 [[package]]
+name = "arbitrary"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "510c76ecefdceada737ea728f4f9a84bd2e1ef29f1ba555e560940fe279954de"
+
+[[package]]
 name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -80,7 +86,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "clvm"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "bls12_381",
  "hex",
@@ -97,15 +103,23 @@ dependencies = [
 
 [[package]]
 name = "clvm_rs"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "clvm",
  "pyo3",
 ]
 
 [[package]]
+name = "clvm_rs-fuzz"
+version = "0.1.20"
+dependencies = [
+ "clvm",
+ "libfuzzer-sys",
+]
+
+[[package]]
 name = "clvm_wasm"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "clvm",
  "wasm-bindgen",
@@ -252,6 +266,17 @@ name = "libc"
 version = "0.2.99"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7f823d141fe0a24df1e23b4af4e3c7ba9e5966ec514ea068c93024aa7deb765"
+
+[[package]]
+name = "libfuzzer-sys"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36a9a84a6e8b55dfefb04235e55edb2b9a2a18488fcae777a6bdaa6f06f1deb3"
+dependencies = [
+ "arbitrary",
+ "cc",
+ "once_cell",
+]
 
 [[package]]
 name = "lock_api"
