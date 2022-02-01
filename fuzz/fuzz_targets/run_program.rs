@@ -1,12 +1,12 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 
-use clvm_rs::chia_dialect::ChiaDialect;
-use clvm_rs::allocator::Allocator;
-use clvm_rs::reduction::Reduction;
-use clvm_rs::serialize::node_from_bytes;
-use clvm_rs::cost::Cost;
-use clvm_rs::run_program::run_program;
+use clvmr::chia_dialect::ChiaDialect;
+use clvmr::allocator::Allocator;
+use clvmr::reduction::Reduction;
+use clvmr::serialize::node_from_bytes;
+use clvmr::cost::Cost;
+use clvmr::run_program::run_program;
 
 fuzz_target!(|data: &[u8]| {
     let mut allocator = Allocator::new();

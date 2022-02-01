@@ -1,4 +1,4 @@
-use clvm_rs::wasm::api::run_clvm as wasm_run_clvm;
+use clvmr::wasm::api::run_clvm as wasm_run_clvm;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]

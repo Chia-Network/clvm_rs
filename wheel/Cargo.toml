@@ -15,8 +15,8 @@ crate-type = ["cdylib"]
 path = "src/lib.rs"
 
 [dependencies]
-clvm = { path = ".." }
+clvmr = { path = ".." }
 pyo3 = { version = "=0.15.1", features = ["abi3-py37", "extension-module"] }
 
 [features]
-openssl = ["clvm/openssl"]
+openssl = ["clvmr/openssl"]
