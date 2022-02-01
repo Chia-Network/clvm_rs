@@ -38,4 +38,4 @@ wasm-bindgen = "=0.2.75"
 wasm-bindgen-test = "=0.3.25"
 
 [target.'cfg(not(target_family="wasm"))'.dependencies]
-pyo3 = { version = "=0.14.2", features = ["abi3-py37"] }
+pyo3 = { version = "=0.15.1", features = ["abi3-py37"] }
