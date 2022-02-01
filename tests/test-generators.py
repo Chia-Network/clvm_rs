@@ -23,7 +23,7 @@ def parse_output(result, error_code) -> str:
     else:
         return print_spend_bundle_conditions(result)
 
-for g in glob.glob('generators/*.clvm'):
+for g in sorted(glob.glob('generators/*.clvm')):
     print(f"{g}")
     start_time = time()
     error_code, result = run_gen(g)

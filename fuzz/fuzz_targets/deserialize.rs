@@ -1,7 +1,7 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use clvm_rs::serialize::node_from_bytes;
-use clvm_rs::allocator::Allocator;
+use clvmr::serialize::node_from_bytes;
+use clvmr::allocator::Allocator;
 
 fuzz_target!(|data: &[u8]| {
     let mut allocator = Allocator::new();
