@@ -2,60 +2,7 @@ Rust implementation of clvm.
 
 The cargo workspace includes an rlib crate, for use with rust or other applications, and a python wheel.
 
-Python Wheel
-------------
-
-Use `maturin` to build the python interface. First, install into current virtualenv with
-
-```
-$ pip install maturin
-```
-
-Build `clvm_rs` directly into the current virtualenv with
-
-```
-$ cd wheel
-$ maturin develop --release
-```
-
-On UNIX-based platforms, you may get a speed boost on `sha256` operations by building
-with OpenSSL.
-
-```
-$ cd wheel
-$ maturin develop --release --cargo-extra-args="--features=openssl"
-```
-
-
-To build the wheel, do
-
-```
-$ cd wheel
-$ maturin build --release --no-sdist
-````
-
-or
-
-```
-$ cd wheel
-$ maturin build --release --no-sdist --cargo-extra-args="--features=openssl"
-```
-
-
-WASM
-----
-
-Use `wasm-pack` to build the wasm `pkg` file used with npm. Install it with:
-
-```
-$ cargo install wasm-pack
-```
-
-Then build with
-
-```
-$ wasm-pack build --release
-```
+The python wheel is in `wheel`. The npm package is in `wasm`.
 
 
 TESTS
