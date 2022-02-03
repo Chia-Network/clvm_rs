@@ -1,12 +1,12 @@
 use super::adapt_response::eval_err_to_pyresult;
-use crate::allocator::{Allocator, NodePtr};
-use crate::chia_dialect::ChiaDialect;
-use crate::cost::Cost;
-use crate::gen::conditions::{parse_spends, Spend, SpendBundleConditions};
-use crate::gen::validation_error::{ErrorCode, ValidationErr};
-use crate::reduction::{EvalErr, Reduction};
-use crate::run_program::run_program;
-use crate::serialize::node_from_bytes;
+use clvmr::allocator::{Allocator, NodePtr};
+use clvmr::chia_dialect::ChiaDialect;
+use clvmr::cost::Cost;
+use clvmr::gen::conditions::{parse_spends, Spend, SpendBundleConditions};
+use clvmr::gen::validation_error::{ErrorCode, ValidationErr};
+use clvmr::reduction::{EvalErr, Reduction};
+use clvmr::run_program::run_program;
+use clvmr::serialize::node_from_bytes;
 
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
@@ -100,39 +100,6 @@ fn convert_spend_bundle_conds(
     }
 }
 
-// from chia-blockchain/chia/util/errors.py
-impl IntoPy<PyObject> for ErrorCode {
-    fn into_py(self, py: Python) -> PyObject {
-        let ret = match self {
-            ErrorCode::NegativeAmount => 124,
-            ErrorCode::InvalidPuzzleHash => 10,
-            ErrorCode::InvalidPubkey => 10,
-            ErrorCode::InvalidMessage => 10,
-            ErrorCode::InvalidParentId => 10,
-            ErrorCode::InvalidConditionOpcode => 10,
-            ErrorCode::InvalidCoinAnnouncement => 10,
-            ErrorCode::InvalidPuzzleAnnouncement => 10,
-            ErrorCode::InvalidCondition => 10,
-            ErrorCode::InvalidCoinAmount => 10,
-            ErrorCode::AssertHeightAbsolute => 14,
-            ErrorCode::AssertHeightRelative => 13,
-            ErrorCode::AssertSecondsAbsolute => 15,
-            ErrorCode::AssertSecondsRelative => 105,
-            ErrorCode::AssertMyAmountFailed => 116,
-            ErrorCode::AssertMyPuzzlehashFailed => 115,
-            ErrorCode::AssertMyParentIdFailed => 114,
-            ErrorCode::AssertMyCoinIdFailed => 11,
-            ErrorCode::AssertPuzzleAnnouncementFailed => 12,
-            ErrorCode::AssertCoinAnnouncementFailed => 12,
-            ErrorCode::ReserveFeeConditionFailed => 48,
-            ErrorCode::DuplicateOutput => 4,
-            ErrorCode::DoubleSpend => 5,
-            ErrorCode::CostExceeded => 23,
-        };
-        ret.to_object(py)
-    }
-}
-
 // returns the cost of running the CLVM program along with conditions and the list of
 // spends
 #[pyfunction]
@@ -142,7 +109,7 @@ pub fn run_generator2(
     args: &[u8],
     max_cost: Cost,
     flags: u32,
-) -> PyResult<(Option<ErrorCode>, Option<PySpendBundleConditions>)> {
+) -> PyResult<(Option<u32>, Option<PySpendBundleConditions>)> {
     let mut allocator = Allocator::new();
     let program = node_from_bytes(&mut allocator, program)?;
     let args = node_from_bytes(&mut allocator, args)?;
@@ -180,7 +147,7 @@ pub fn run_generator2(
         }
         Ok((error_code, _)) => {
             // a validation error occurred
-            Ok((error_code, None))
+            Ok((error_code.map(|x| x.into()), None))
         }
         Err(eval_err) => eval_err_to_pyresult(py, eval_err, allocator),
     }

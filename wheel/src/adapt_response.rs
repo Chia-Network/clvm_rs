@@ -1,6 +1,6 @@
-use crate::allocator::Allocator;
-use crate::py::lazy_node::LazyNode;
-use crate::reduction::{EvalErr, Response};
+use crate::lazy_node::LazyNode;
+use clvmr::allocator::Allocator;
+use clvmr::reduction::{EvalErr, Response};
 
 use std::rc::Rc;
 

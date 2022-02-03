@@ -7,14 +7,14 @@ use super::run_program::{
     __pyo3_get_function_deserialize_and_run_program2, __pyo3_get_function_run_chia_program,
     __pyo3_get_function_serialized_length,
 };
-use crate::chia_dialect::{NO_NEG_DIV, NO_UNKNOWN_OPS};
-use crate::gen::flags::{COND_ARGS_NIL, COND_CANON_INTS, NO_UNKNOWN_CONDS};
+use clvmr::chia_dialect::{NO_NEG_DIV, NO_UNKNOWN_OPS};
+use clvmr::gen::flags::{COND_ARGS_NIL, COND_CANON_INTS, NO_UNKNOWN_CONDS};
 
 pub const MEMPOOL_MODE: u32 =
     NO_NEG_DIV | COND_CANON_INTS | NO_UNKNOWN_CONDS | NO_UNKNOWN_OPS | COND_ARGS_NIL;
 
-/// This module is a python module implemented in Rust.
-pub fn clvm_rs_module(_py: Python, m: &PyModule) -> PyResult<()> {
+#[pymodule]
+fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(deserialize_and_run_program2, m)?)?;
     m.add_function(wrap_pyfunction!(run_generator2, m)?)?;
     m.add_function(wrap_pyfunction!(run_chia_program, m)?)?;

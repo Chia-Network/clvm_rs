@@ -106,7 +106,6 @@ dependencies = [
  "num-integer",
  "num-traits",
  "openssl",
- "pyo3",
  "sha2",
  "wasm-bindgen",
  "wasm-bindgen-test",

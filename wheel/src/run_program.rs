@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
-use crate::allocator::Allocator;
-use crate::chia_dialect::ChiaDialect;
-use crate::cost::Cost;
-use crate::py::adapt_response::adapt_response_to_py;
-use crate::py::lazy_node::LazyNode;
-use crate::py::runtime_dialect::RuntimeDialect;
-use crate::reduction::Response;
-use crate::run_program::run_program;
-use crate::serialize::{node_from_bytes, serialized_length_from_bytes};
+use crate::adapt_response::adapt_response_to_py;
+use crate::lazy_node::LazyNode;
+use clvmr::allocator::Allocator;
+use clvmr::chia_dialect::ChiaDialect;
+use clvmr::cost::Cost;
+use clvmr::reduction::Response;
+use clvmr::run_program::run_program;
+use clvmr::runtime_dialect::RuntimeDialect;
+use clvmr::serialize::{node_from_bytes, serialized_length_from_bytes};
 
 use pyo3::prelude::*;
 
