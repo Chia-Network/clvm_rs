@@ -1,7 +1,4 @@
-use clvmr::wasm::api::run_clvm as wasm_run_clvm;
-use wasm_bindgen::prelude::*;
+pub mod api;
 
-#[wasm_bindgen]
-pub fn run_clvm1(program: &[u8], args: &[u8]) -> Vec<u8> {
-    wasm_run_clvm(program, args)
-}
+#[cfg(test)]
+pub mod tests;

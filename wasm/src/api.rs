@@ -1,14 +1,11 @@
 use wasm_bindgen::prelude::*;
 
-use crate::allocator::{Allocator, NodePtr};
-use crate::chia_dialect::ChiaDialect;
-use crate::cost::Cost;
-use crate::err_utils::err;
-use crate::more_ops::op_unknown;
-use crate::node::Node;
-use crate::reduction::Response;
-use crate::run_program::run_program;
-use crate::serialize::{node_from_bytes, node_to_bytes};
+use clvmr::allocator::Allocator;
+use clvmr::chia_dialect::ChiaDialect;
+use clvmr::cost::Cost;
+use clvmr::node::Node;
+use clvmr::run_program::run_program;
+use clvmr::serialize::{node_from_bytes, node_to_bytes};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -23,6 +20,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 //
 // TODO: replace the below with something more robust and feature-filled
 
+#[wasm_bindgen]
 pub fn run_clvm(program: &[u8], args: &[u8]) -> Vec<u8> {
     let max_cost: Cost = 1_000_000_000_000_000;
 

@@ -107,8 +107,6 @@ dependencies = [
  "num-traits",
  "openssl",
  "sha2",
- "wasm-bindgen",
- "wasm-bindgen-test",
 ]
 
 [[package]]
