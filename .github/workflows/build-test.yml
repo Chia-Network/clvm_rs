@@ -52,14 +52,6 @@ jobs:
         . ./activate
         maturin build -m wheel/Cargo.toml --no-sdist -i python --release --strip --cargo-extra-args="--features=openssl"
 
-#    - name: Build Linux with maturin on Python ${{ matrix.python }}
-#      if: startsWith(matrix.os, 'ubuntu')
-#      run: |
-#        python -m venv venv
-#        ln -s venv/bin/activate
-#        . ./activate
-#        maturin build -i python --release --manylinux 2010
-
     - name: Build Linux in manylinux2010 with maturin on Python ${{ matrix.python }}
       if: startsWith(matrix.os, 'ubuntu')
       run: |
@@ -72,7 +64,6 @@ jobs:
             yum -y install openssl-devel && \
             source $HOME/.cargo/env && \
             rustup target add x86_64-unknown-linux-musl && \
-            rm -rf venv && \
             PY_VERSION=${{ matrix.python }}
             PY_VERSION=${PY_VERSION/.} && \
             echo "Python version with dot removed is $PY_VERSION" && \
@@ -81,13 +72,14 @@ jobs:
             else export SCND_VERSION="$PY_VERSION"; fi && \
             echo "Exporting path /opt/python/cp$PY_VERSION-cp$SCND_VERSION/bin" && \
             export PATH=/opt/python/cp$PY_VERSION-cp$SCND_VERSION/bin/:$PATH && \
-            /opt/python/cp38-cp38/bin/python -m venv venv && \
-            if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
-            . ./activate && \
+            /opt/python/cp38-cp38/bin/python -m venv /venv && \
+            . /venv/bin/activate && \
             pip install --upgrade pip && \
             pip install maturin && \
-            CC=gcc maturin build -m wheel/Cargo.toml --no-sdist --release --strip --manylinux 2010 --cargo-extra-args="--features=openssl" \
+            CC=gcc maturin build -m wheel/Cargo.toml --release --strip --manylinux 2010 --cargo-extra-args="--features=openssl" \
           '
+        python -m venv venv
+        ln -s venv/bin/activate
 
     - name: Build Windows with maturin on Python ${{ matrix.python }}
       if: startsWith(matrix.os, 'windows')
