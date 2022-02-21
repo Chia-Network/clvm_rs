@@ -109,7 +109,7 @@ pub fn run_generator2(
     args: &[u8],
     max_cost: Cost,
     flags: u32,
-) -> PyResult<(Option<u32>, Option<PySpendBundleConditions>)> {
+) -> PyResult<(Option<u16>, Option<PySpendBundleConditions>)> {
     let mut allocator = Allocator::new();
     let program = node_from_bytes(&mut allocator, program)?;
     let args = node_from_bytes(&mut allocator, args)?;
