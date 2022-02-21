@@ -76,8 +76,8 @@ pub fn check_nil(a: &Allocator, n: NodePtr) -> Result<(), ValidationErr> {
 }
 
 // from chia-blockchain/chia/util/errors.py
-impl From<ErrorCode> for u32 {
-    fn from(err: ErrorCode) -> u32 {
+impl From<ErrorCode> for u16 {
+    fn from(err: ErrorCode) -> u16 {
         match err {
             ErrorCode::NegativeAmount => 124,
             ErrorCode::InvalidPuzzleHash => 10,
