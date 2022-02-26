@@ -11,7 +11,7 @@ readme = "README.md"
 
 [lib]
 name = "clvm_rs"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
 
 [dependencies]
