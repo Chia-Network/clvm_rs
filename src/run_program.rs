@@ -287,8 +287,8 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    pub fn run_program(&mut self, program: NodePtr, args: NodePtr, max_cost: Cost) -> Response {
-        self.val_stack = vec![self.allocator.new_pair(program, args)?];
+    pub fn run_program(&mut self, program: NodePtr, max_cost: Cost) -> Response {
+        self.push(program);
         self.op_stack = vec![Operation::Eval];
 
         // max_cost is always in effect, and necessary to prevent wrap-around of
@@ -332,12 +332,24 @@ pub fn run_program<'a, D: Dialect>(
     allocator: &'a mut Allocator,
     dialect: &'a D,
     program: NodePtr,
-    args: NodePtr,
     max_cost: Cost,
     pre_eval: Option<PreEval>,
 ) -> Response {
     let mut rpc = RunProgramContext::new(allocator, dialect, pre_eval);
-    rpc.run_program(program, args, max_cost)
+    rpc.run_program(program, max_cost)
+}
+
+pub fn run_program_with_args<'a, D: Dialect>(
+    allocator: &'a mut Allocator,
+    dialect: &'a D,
+    program: NodePtr,
+    args: NodePtr,
+    max_cost: Cost,
+    pre_eval: Option<PreEval>,
+) -> Response {
+    let program = allocator.new_pair(program, args)?;
+    let mut rpc = RunProgramContext::new(allocator, dialect, pre_eval);
+    rpc.run_program(program, max_cost)
 }
 
 #[test]

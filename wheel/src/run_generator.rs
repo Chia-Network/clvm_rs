@@ -5,7 +5,7 @@ use clvmr::cost::Cost;
 use clvmr::gen::conditions::{parse_spends, Spend, SpendBundleConditions};
 use clvmr::gen::validation_error::{ErrorCode, ValidationErr};
 use clvmr::reduction::{EvalErr, Reduction};
-use clvmr::run_program::run_program;
+use clvmr::run_program::run_program_with_args;
 use clvmr::serialize::node_from_bytes;
 
 use pyo3::prelude::*;
@@ -118,7 +118,7 @@ pub fn run_generator2(
     let r = py.allow_threads(
         || -> Result<(Option<ErrorCode>, Option<SpendBundleConditions>), EvalErr> {
             let Reduction(cost, node) =
-                run_program(&mut allocator, dialect, program, args, max_cost, None)?;
+                run_program_with_args(&mut allocator, dialect, program, args, max_cost, None)?;
             // we pass in what's left of max_cost here, to fail early in case the
             // cost of a condition brings us over the cost limit
             match parse_spends(&allocator, node, max_cost - cost, flags) {
