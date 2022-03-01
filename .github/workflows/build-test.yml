@@ -112,35 +112,10 @@ jobs:
         python -m pip install pytest
         python -m pip install blspy
 
-    - name: install clvm & clvm_tools
+    - name: Ensure clvm_rs is installed
       run: |
         . ./activate
-        git clone https://github.com/Chia-Network/clvm.git --branch=main --single-branch
-        python -m pip install ./clvm
-
-        git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
-        python -m pip install ./clvm_tools
-
-    - name: Ensure clvm, clvm_rs, clvm_tools are installed
-      run: |
-        . ./activate
-        python -c 'import clvm'
-        python -c 'import clvm; print(clvm.__file__)'
         python -c 'import clvm_rs; print(clvm_rs.__file__)'
-        python -c 'import clvm_tools; print(clvm_tools.__file__)'
-
-    - name: Run tests from clvm
-      run: |
-        . ./activate
-        cd clvm
-        python -m py.test tests
-
-    - name: Run tests from clvm_tools
-      continue-on-error: true
-      run: |
-        . ./activate
-        cd clvm_tools
-        python -m py.test tests
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
@@ -225,7 +200,8 @@ jobs:
         run: cargo +nightly fuzz build
 
   unit_tests:
-    runs-on: ubuntu-20.04
+    name: Wheel on ${{ matrix.os }} py-${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
     name: Unit tests
     steps:
       - uses: actions/checkout@v2
