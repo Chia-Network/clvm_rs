@@ -5,7 +5,6 @@ pub mod cost;
 pub mod dialect;
 pub mod err_utils;
 pub mod f_table;
-pub mod gen;
 pub mod more_ops;
 pub mod node;
 pub mod number;
