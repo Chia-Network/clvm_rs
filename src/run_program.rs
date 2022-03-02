@@ -11,6 +11,8 @@ use crate::number::{ptr_from_number, Number};
 const QUOTE_COST: Cost = 20;
 // lowered from 138
 const APPLY_COST: Cost = 90;
+// mandatory base cost for every operator we execute
+const OP_COST: Cost = 1;
 
 // lowered from measured 147 per bit. It doesn't seem to take this long in
 // practice
@@ -198,7 +200,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 }
             }
             self.push(self.allocator.null());
-            Ok(1)
+            Ok(OP_COST)
         }
     }
 
