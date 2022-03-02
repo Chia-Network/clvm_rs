@@ -128,8 +128,3 @@ jobs:
         ./generate-programs.py
         ./run-programs.py
 
-    - name: test generators
-      run: |
-        . ./activate
-        cd tests
-        ./test-generators.py
