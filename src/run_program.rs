@@ -725,10 +725,6 @@ fn test_run_program() {
         let args = check(parse_exp(&mut allocator, &t.args));
         let expected_result = &t.result.map(|v| check(parse_exp(&mut allocator, v)));
 
-        use crate::serialize::node_to_bytes;
-        let b: Vec<u8> = node_to_bytes(&Node::new(&allocator, program)).unwrap();
-        println!("{}", &hex::encode(b));
-
         let dialect = ChiaDialect::new(0);
         println!("prg: {}", t.prg);
         match run_program(&mut allocator, &dialect, program, args, t.cost, None) {
