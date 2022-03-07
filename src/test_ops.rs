@@ -10,6 +10,7 @@ use crate::number::{ptr_from_number, Number};
 use crate::reduction::{Reduction, Response};
 use hex::FromHex;
 use num_traits::Num;
+use std::cmp::min;
 use std::collections::HashMap;
 
 // the format of these test cases is the following. expected-cost is optional
@@ -741,22 +742,81 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
         return a.new_atom(&buf).unwrap();
     }
 
-    if v.starts_with("-") || "0123456789".contains(v.get(0..1).unwrap()) {
-        let num = Number::from_str_radix(v, 10).unwrap();
-        return ptr_from_number(a, &num).unwrap();
-    }
+    if let Ok(num) = Number::from_str_radix(v, 10) {
+        ptr_from_number(a, &num).unwrap()
+    } else {
+        let v = if v.starts_with("#") { &v[1..] } else { v };
+        match v {
+            "q" => a.new_atom(&[1]).unwrap(),
+            "a" => a.new_atom(&[2]).unwrap(),
+            "i" => a.new_atom(&[3]).unwrap(),
+            "c" => a.new_atom(&[4]).unwrap(),
+            "f" => a.new_atom(&[5]).unwrap(),
+            "r" => a.new_atom(&[6]).unwrap(),
+            "l" => a.new_atom(&[7]).unwrap(),
+            "x" => a.new_atom(&[8]).unwrap(),
+            "=" => a.new_atom(&[9]).unwrap(),
+            ">s" => a.new_atom(&[10]).unwrap(),
+            "sha256" => a.new_atom(&[11]).unwrap(),
+            "substr" => a.new_atom(&[12]).unwrap(),
+            "strlen" => a.new_atom(&[13]).unwrap(),
+            "concat" => a.new_atom(&[14]).unwrap(),
 
-    panic!("atom not supported \"{}\"", v);
+            "+" => a.new_atom(&[16]).unwrap(),
+            "-" => a.new_atom(&[17]).unwrap(),
+            "*" => a.new_atom(&[18]).unwrap(),
+            "/" => a.new_atom(&[19]).unwrap(),
+            "divmod" => a.new_atom(&[20]).unwrap(),
+            ">" => a.new_atom(&[21]).unwrap(),
+            "ash" => a.new_atom(&[22]).unwrap(),
+            "lsh" => a.new_atom(&[23]).unwrap(),
+            "logand" => a.new_atom(&[24]).unwrap(),
+            "logior" => a.new_atom(&[25]).unwrap(),
+            "logxor" => a.new_atom(&[26]).unwrap(),
+            "lognot" => a.new_atom(&[27]).unwrap(),
+
+            "point_add" => a.new_atom(&[29]).unwrap(),
+            "pubkey_for_exp" => a.new_atom(&[30]).unwrap(),
+
+            "not" => a.new_atom(&[32]).unwrap(),
+            "any" => a.new_atom(&[33]).unwrap(),
+            "all" => a.new_atom(&[34]).unwrap(),
+
+            "softfork" => a.new_atom(&[36]).unwrap(),
+            _ => {
+                panic!("atom not supported \"{}\"", v);
+            }
+        }
+    }
 }
 
 fn pop_token<'a>(s: &'a str) -> (&'a str, &'a str) {
-    match s.split_once(" ") {
-        Some((first, rest)) => (first.trim(), rest.trim()),
-        None => (s.trim(), ""),
+    let s = s.trim();
+    if s.starts_with("(") || s.starts_with(")") {
+        let (first, rest) = s.split_at(1);
+        println!("pop \"{}\" -> (\"{}\", \"{}\")", s, first, rest);
+        (first, rest.trim())
+    } else {
+        let space = s.find(' ');
+        let close = s.find(')');
+
+        let split_pos = if space.is_some() && close.is_some() {
+            min(space.unwrap(), close.unwrap())
+        } else if let Some(pos) = space {
+            pos
+        } else if let Some(pos) = close {
+            pos
+        } else {
+            s.len()
+        };
+
+        let (first, rest) = s.split_at(split_pos);
+        println!("pop \"{}\" -> (\"{}\", \"{}\")", s, first, rest);
+        (first.trim(), rest.trim())
     }
 }
 
-fn parse_list<'a>(a: &mut Allocator, v: &'a str) -> (NodePtr, &'a str) {
+pub fn parse_list<'a>(a: &mut Allocator, v: &'a str) -> (NodePtr, &'a str) {
     let v = v.trim();
     let (first, rest) = pop_token(v);
     if first.len() == 0 {
@@ -770,8 +830,7 @@ fn parse_list<'a>(a: &mut Allocator, v: &'a str) -> (NodePtr, &'a str) {
         let (tail, new_rest) = parse_list(a, new_rest);
         (a.new_pair(head, tail).unwrap(), new_rest)
     } else if first == "." {
-        let (first, new_rest) = pop_token(rest);
-        let node = parse_atom(a, first);
+        let (node, new_rest) = parse_exp(a, rest);
         let (end_list, new_rest) = pop_token(new_rest);
         assert_eq!(end_list, ")");
         (node, new_rest)
@@ -782,7 +841,16 @@ fn parse_list<'a>(a: &mut Allocator, v: &'a str) -> (NodePtr, &'a str) {
     }
 }
 
-fn node_eq(a: &Allocator, a0: NodePtr, a1: NodePtr) -> bool {
+pub fn parse_exp<'a>(a: &mut Allocator, v: &'a str) -> (NodePtr, &'a str) {
+    let (first, rest) = pop_token(v);
+    if first == "(" {
+        parse_list(a, rest)
+    } else {
+        (parse_atom(a, first), rest)
+    }
+}
+
+pub fn node_eq(a: &Allocator, a0: NodePtr, a1: NodePtr) -> bool {
     match a.sexp(a0) {
         SExp::Pair(left0, right0) => {
             if let SExp::Pair(left1, right1) = a.sexp(a1) {
@@ -818,14 +886,9 @@ fn run_op_test(op: &Opf, args_str: &str, expected: &str, expected_cost: u64) {
         }
         Ok(Reduction(cost, ret_value)) => {
             assert_eq!(cost, expected_cost);
-            if expected.starts_with("(") {
-                let (expected, rest) = parse_list(&mut a, expected.get(1..).unwrap());
-                assert_eq!(rest, "");
-                assert!(node_eq(&a, ret_value, expected));
-            } else {
-                let expected = parse_atom(&mut a, expected);
-                assert_eq!(a.atom(ret_value), a.atom(expected));
-            }
+            let (expected, rest) = parse_exp(&mut a, expected);
+            assert_eq!(rest, "");
+            assert!(node_eq(&a, ret_value, expected));
         }
     }
 }
