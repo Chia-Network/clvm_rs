@@ -157,26 +157,3 @@ fn test_serialize_tree() {
     );
     test_serialize_roundtrip(&mut a, n);
 }
-
-/*
-fn node_from_hex<'a>(a: &'a Allocator, the_hex: &str) -> Node<'a> {
-    let mut buffer = Cursor::new(Vec::new());
-    buffer.write_all(&hex::decode(the_hex).unwrap()).unwrap();
-    Node::new(a, node_from_bytes(a, &buffer.get_ref()).unwrap())
-}
-
-fn node_to_hex(node: &Node) -> String {
-    hex::encode(node_to_bytes(node))
-}
-
-fn do_test_run_program(input_as_hex: &str, expected_as_hex: &str) -> () {
-    let mut a = Allocator::new();
-    let n = node_from_hex(&a, input_as_hex);
-    let r = do_run_program(&n, &null);
-    assert_eq!(node_to_hex(&r), expected_as_hex);
-}
-
-#[test]
-fn test_run_program() {
-}
-*/
