@@ -1,7 +1,0 @@
-(q ((0x0101010101010101010101010101010101010101010101010101010101010101  (a (q 2 4 (c 2 (c (c (q . 52) (c (concat (a 6 (c 2 (c (q . 0x00) (c 5 ())))) (q . 100)) ())) (c 11 ())))) (c (q (a (i 11 (q 4 5 (a 4 (c 2 (c 5 (c (- 11 (q . 1)) ()))))) ()) 1) 2 (i 11 (q 2 6 (c 2 (c (concat 5 5) (c (- 11 (q . 1)) ())))) (q . 5)) 1) (q 28 280000)))  123 (() (q . ())))))
-RESERVE_FEE: 28000000
-SPENDS:
-- coin id: 41d2105ad6c9d3ecead8f96376dee46c780ee8f8f9af135f13987cdb480dfec3 ph: 13265845d41f5cc9baadfbc3dcd3b2ea21d448595194885a1509f1d18d9b326a
-cost (clvm + conditions): 10942135292
-STRICT:
-FAILED: 48
