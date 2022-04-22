@@ -209,8 +209,13 @@ jobs:
           args: --all-features
 
   fuzz_targets:
-    runs-on: ubuntu-20.04
     name: Build fuzz targets
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+        python: [3.7]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -225,8 +230,13 @@ jobs:
         run: cargo +nightly fuzz build
 
   unit_tests:
-    runs-on: ubuntu-20.04
     name: Unit tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+        python: [3.7]
     steps:
       - uses: actions/checkout@v2
         with:
