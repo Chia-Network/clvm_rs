@@ -208,6 +208,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
 
+  # leaving out Windows fuzzing for now though it seems supported
+  # https://llvm.org/docs/LibFuzzer.html#q-does-libfuzzer-support-windows
   fuzz_targets:
     name: Build fuzz targets
     runs-on: ${{ matrix.os }}
@@ -235,7 +237,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest]
+        os: [macos-latest, ubuntu-latest, windows-latest]
         python: [3.7]
     steps:
       - uses: actions/checkout@v2
