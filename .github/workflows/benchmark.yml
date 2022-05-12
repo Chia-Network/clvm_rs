@@ -30,7 +30,7 @@ jobs:
     - uses: actions/setup-python@v4
       name: Install Python ${{ matrix.python-version }}
       with:
-        python-version: ${{ format('{0}.0-alpha - {0}.X', matrix.python) }}
+        python-version: ${{ format('{0}.0-alpha - {0}.X', matrix.python-version) }}
 
     - name: Update pip
       run: |
@@ -99,7 +99,7 @@ jobs:
     - uses: actions/setup-python@v2
       name: Install Python ${{ matrix.python-version }}
       with:
-        python-version: ${{ format('{0}.0-alpha - {0}.X', matrix.python) }}
+        python-version: ${{ format('{0}.0-alpha - {0}.X', matrix.python-version) }}
 
     - name: Update pip
       run: |
