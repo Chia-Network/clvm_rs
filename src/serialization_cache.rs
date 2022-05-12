@@ -16,16 +16,16 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
         Self { hash, allocator, f }
     }
     pub fn get(&mut self, node: &NodePtr) -> Option<&T> {
-        self.update(&node);
+        self.update(node);
         self.hash.get(node)
     }
 }
 
-pub fn generate_cache<'a, T>(
-    allocator: &'a Allocator,
+pub fn generate_cache<T>(
+    allocator: &Allocator,
     root_node: NodePtr,
     f: HashFunction<T>,
-) -> ObjectCache<'a, T>
+) -> ObjectCache<T>
 where
     T: Clone,
 {
@@ -35,7 +35,7 @@ where
 }
 
 impl<'a, T: Clone> ObjectCache<'a, T> {
-    pub fn update(&mut self, root_node: &NodePtr) -> () {
+    pub fn update(&mut self, root_node: &NodePtr) {
         let mut obj_list = vec![*root_node];
         loop {
             match obj_list.pop() {
@@ -45,9 +45,7 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
                 Some(node) => {
                     let v = self.hash.get(&node);
                     match v {
-                        Some(_) => {
-                            return;
-                        }
+                        Some(_) => {}
                         None => match (self.f)(self, self.allocator, node) {
                             None => match self.allocator.sexp(node) {
                                 SExp::Pair(left, right) => {
@@ -104,17 +102,15 @@ pub fn serialized_length(
     match allocator.sexp(node) {
         SExp::Pair(left, right) => match cache.hash.get(&left) {
             None => None,
-            Some(left_value) => match cache.hash.get(&right) {
-                None => None,
-                Some(right_value) => Some(1 + left_value + right_value),
-            },
+            Some(left_value) => cache
+                .hash
+                .get(&right)
+                .map(|right_value| 1 + left_value + right_value),
         },
         SExp::Atom(atom_buf) => {
             let buf = allocator.buf(&atom_buf);
             let lb = buf.len();
-            Some(if lb == 0 {
-                1
-            } else if lb == 1 && buf[0] < 128 {
+            Some(if lb == 0 || (lb == 1 && buf[0] < 128) {
                 1
             } else if lb < 0x40 {
                 1 + lb
