@@ -20,6 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
+        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
 
     steps:
     - uses: actions/checkout@v3
@@ -27,9 +28,9 @@ jobs:
         fetch-depth: 1
 
     - uses: actions/setup-python@v4
-      name: Install Python 3.9
+      name: Install Python ${{ matrix.python-version }}
       with:
-        python-version: 3.9
+        python-version: ${{ format('{0}.0-alpha - {0}.X', matrix.python) }}
 
     - name: Update pip
       run: |
@@ -83,17 +84,22 @@ jobs:
 
   max-cost-checks:
     name: Cost checks
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
 
     steps:
     - uses: actions/checkout@v3
       with:
         fetch-depth: 1
 
-    - uses: actions/setup-python@v4
-      name: Install Python 3.9
+    - uses: actions/setup-python@v2
+      name: Install Python ${{ matrix.python-version }}
       with:
-        python-version: 3.9
+        python-version: ${{ format('{0}.0-alpha - {0}.X', matrix.python) }}
 
     - name: Update pip
       run: |
@@ -109,7 +115,27 @@ jobs:
         python -m pip install maturin
         rustup target add x86_64-unknown-linux-musl
 
+    - name: Build Windows
+      if: startsWith(matrix.os, 'windows')
+      run: |
+        python -m venv venv
+        . .\venv\Scripts\Activate.ps1
+        ln -s venv\Scripts\Activate.ps1 activate
+        git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
+        python -m pip install ./clvm_tools
+        python -m pip install colorama
+        maturin develop -m wheel/Cargo.toml --release
+
+    - name: Run cost checks
+      if: startsWith(matrix.os, 'windows')
+      run: |
+        . .\venv\Scripts\Activate.ps1
+        cd tests
+        ./generate-programs.py
+        ./run-programs.py
+
     - name: Build
+      if: ${{ !startsWith(matrix.os, 'windows') }}
       env:
         CC: gcc
       run: |
@@ -122,6 +148,7 @@ jobs:
         maturin develop -m wheel/Cargo.toml --release --features=openssl
 
     - name: Run cost checks
+      if: ${{ !startsWith(matrix.os, 'windows') }}
       run: |
         . ./activate
         cd tests
