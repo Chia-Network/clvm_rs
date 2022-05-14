@@ -89,47 +89,37 @@ impl StackCache {
         self.push(new_root_hash);
     }
 
-    pub fn find_path(&self, id: &Bytes32, max_path_length: usize) -> Option<Vec<u8>> {
+    pub fn find_path(&self, id: &Bytes32, serialized_length: usize) -> Option<Vec<u8>> {
         let mut seen_ids = HashSet::new();
+        if serialized_length < 3 { return None; }
+        let max_bytes_for_path_encoding = serialized_length - 2; // 1 byte for 0xfe, 1 min byte for savings
+        let max_path_length = max_bytes_for_path_encoding * 8 - 1;
         seen_ids.insert(id);
-        //dbg!(&id);
-        //dbg!(&max_path_length);
         let mut partial_paths = vec![(id.clone(), vec![])];
 
         loop {
             if partial_paths.is_empty() {
                 break;
             }
-            //dbg!(&partial_paths.len());
             let mut new_partial_paths = vec![];
             for (node, path) in partial_paths.iter_mut() {
-                //dbg!(&node);
-                // dbg!(&path);
                 if *node == self.root_hash {
-                    //   dbg!(node);
-                    //dbg!(&self);
-                    //dbg!(&path);
                     path.reverse();
-                    return Some(path_to_vec_u8(&path));
+                    return Some(path_to_vec_u8(path));
                 }
 
                 let parents = self.parent_lookup.get(node);
-                //dbg!(&parents);
                 if let Some(items) = parents {
                     for (parent, direction) in items.iter() {
-                        //dbg!(&parent);
-                        //dbg!(&direction);
                         if *(self.count.get(parent).unwrap_or(&0)) > 0 && !seen_ids.contains(parent)
                         {
                             let mut new_path = path.clone();
                             new_path.push(*direction);
-                            if new_path.len() >= max_path_length {
-                                //println!("TOO LONG");
+                            if new_path.len() > max_path_length {
                                 return None;
                             }
                             new_partial_paths.push((parent.clone(), new_path));
                             seen_ids.insert(parent);
-                            //dbg!(&seen_ids);
                         }
                     }
                 }
@@ -142,11 +132,7 @@ impl StackCache {
 
 fn path_to_vec_u8(path: &[u8]) -> Vec<u8> {
     let byte_count = (path.len() + 1 + 7) >> 3;
-    //dbg!(&byte_count);
-    let mut v = Vec::with_capacity(byte_count);
-    for _ in 0..byte_count {
-        v.push(0);
-    }
+    let mut v = vec![0; byte_count];
     let mut index = byte_count - 1;
     let mut mask: u8 = 1;
     for p in path.iter() {

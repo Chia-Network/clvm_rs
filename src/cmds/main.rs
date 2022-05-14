@@ -12,6 +12,12 @@ struct Cli {
     input_program_string: String,
 }
 
+#[derive(PartialEq, Eq)]
+enum ReadOp {
+    Parse,
+    Cons,
+}
+
 const BACK_REFERENCE: u8 = 0xFE;
 
 fn append_atom_encoding_prefix(v: &mut Vec<u8>, atom: &[u8]) {
@@ -45,9 +51,14 @@ fn append_atom_encoding_prefix(v: &mut Vec<u8>, atom: &[u8]) {
     }
 }
 
+fn push_encoded_atom(r: &mut Vec<u8>, atom: &[u8]) {
+    append_atom_encoding_prefix(r, atom);
+    r.extend_from_slice(atom);
+}
+
 fn sexp_to_u8_v2(allocator: &Allocator, node: NodePtr) -> Vec<u8> {
     let mut r = vec![];
-    let mut read_op_stack: Vec<u8> = vec![0]; // 0 = "parse", 1 = "cons"
+    let mut read_op_stack: Vec<ReadOp> = vec![ReadOp::Parse];
     let mut write_stack: Vec<NodePtr> = vec![node];
 
     let mut stack_cache = StackCache::new();
@@ -56,62 +67,42 @@ fn sexp_to_u8_v2(allocator: &Allocator, node: NodePtr) -> Vec<u8> {
     let mut slc = ObjectCache::new(allocator, serialized_length);
 
     while !write_stack.is_empty() {
-        //dbg!(&r);
-        //dbg!(&write_stack);
-        //dbg!(&read_op_stack);
         let node_to_write = write_stack.pop().expect("write_stack empty");
-        //dbg!(&node_to_write);
 
         let op = read_op_stack.pop();
-        assert!(op == Some(0));
-        //dbg!(&op);
+        assert!(op == Some(ReadOp::Parse));
 
         let node_serialized_length = *slc
             .get(&node_to_write)
             .expect("couldn't calculate serialized length");
         let node_tree_hash = thc.get(&node_to_write).expect("can't get treehash");
-        //dbg!(&stack_cache);
-        //dbg!(&node_tree_hash);
         match stack_cache.find_path(node_tree_hash, node_serialized_length) {
             Some(path) => {
-                //dbg!(&path);
                 r.push(BACK_REFERENCE);
-                append_atom_encoding_prefix(&mut r, &path);
-                r.extend_from_slice(&path);
-                //dbg!(&r);
+                push_encoded_atom(&mut r, &path);
                 stack_cache.push(node_tree_hash.clone());
             }
             None => match allocator.sexp(node_to_write) {
                 SExp::Pair(left, right) => {
-                    //dbg!(&left);
-                    //dbg!(&right);
-
                     r.push(CONS_BOX_MARKER);
                     write_stack.push(right);
                     write_stack.push(left);
-                    read_op_stack.push(1);
-                    read_op_stack.push(0);
-                    read_op_stack.push(0);
+                    read_op_stack.push(ReadOp::Cons);
+                    read_op_stack.push(ReadOp::Parse);
+                    read_op_stack.push(ReadOp::Parse);
                 }
                 SExp::Atom(atom_buf) => {
                     let atom = allocator.buf(&atom_buf);
-                    //dbg!(&atom.len());
-                    append_atom_encoding_prefix(&mut r, atom);
-                    r.extend_from_slice(atom);
-                    //dbg!(&r);
+                    push_encoded_atom(&mut r, atom);
                     stack_cache.push(node_tree_hash.clone());
                 }
             },
         }
-        //dbg!(&stack_cache);
-        //dbg!(&read_op_stack);
-        while !read_op_stack.is_empty() && read_op_stack[read_op_stack.len() - 1] == 1 {
+        while !read_op_stack.is_empty() && read_op_stack[read_op_stack.len() - 1] == ReadOp::Cons {
             read_op_stack.pop();
             stack_cache.pop2_and_cons();
-            //dbg!(&stack_cache);
         }
     }
-    //dbg!(&stack_cache);
     r
 }
 
@@ -121,10 +112,10 @@ fn main() {
     let mut allocator = Allocator::new();
     let node = node_from_bytes(&mut allocator, &input_program).expect("can't deserialize");
     println!("{:?}", node);
-    let mut thc = ObjectCache::new(&allocator, treehash);
+    //let mut thc = ObjectCache::new(&allocator, treehash);
     //println!("{:?}", encode(thc.get(&node).unwrap()));
     //println!("{:?}", thc.invert());
-    let mut slc = ObjectCache::new(&allocator, serialized_length);
+    //let mut slc = ObjectCache::new(&allocator, serialized_length);
     //println!("{:?}", slc.get(&node).unwrap());
     let t = sexp_to_u8_v2(&allocator, node);
     println!("{:?}", encode(t));
