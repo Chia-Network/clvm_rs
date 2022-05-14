@@ -1,8 +1,10 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::sha2::{Digest, Sha256};
+use std::collections::hash_set::HashSet;
 use std::collections::HashMap;
-
+use std::hash::Hash;
 type HashFunction<T> = fn(&mut ObjectCache<T>, &Allocator, NodePtr) -> Option<T>;
+use crate::bytes32::{hash_blobs, Bytes32};
 
 pub struct ObjectCache<'a, T> {
     hash: HashMap<NodePtr, T>,
@@ -18,6 +20,12 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
     pub fn get(&mut self, node: &NodePtr) -> Option<&T> {
         self.update(node);
         self.hash.get(node)
+    }
+}
+
+impl<'a, T: Hash + Eq + Clone> ObjectCache<'a, T> {
+    pub fn invert(&self) -> HashMap<&T, HashSet<&NodePtr>> {
+        invert_hashmap(&self.hash)
     }
 }
 
@@ -67,30 +75,19 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
 }
 
 pub fn treehash(
-    cache: &mut ObjectCache<[u8; 32]>,
+    cache: &mut ObjectCache<Bytes32>,
     allocator: &Allocator,
     node: NodePtr,
-) -> Option<[u8; 32]> {
+) -> Option<Bytes32> {
     match allocator.sexp(node) {
         SExp::Pair(left, right) => match cache.hash.get(&left) {
             None => None,
-            Some(left_value) => match cache.hash.get(&right) {
-                None => None,
-                Some(right_value) => {
-                    let mut sha256 = Sha256::new();
-                    sha256.update(&[2]);
-                    sha256.update(left_value);
-                    sha256.update(right_value);
-                    Some(sha256.finalize().into())
-                }
-            },
+            Some(left_value) => cache
+                .hash
+                .get(&right)
+                .map(|right_value| hash_blobs(&[&[2], &left_value.0, &right_value.0])),
         },
-        SExp::Atom(atom_buf) => {
-            let mut sha256 = Sha256::new();
-            sha256.update(&[1]);
-            sha256.update(allocator.buf(&atom_buf));
-            Some(sha256.finalize().into())
-        }
+        SExp::Atom(atom_buf) => Some(hash_blobs(&[&[1], allocator.buf(&atom_buf)])),
     }
 }
 
@@ -125,4 +122,37 @@ pub fn serialized_length(
             })
         }
     }
+}
+
+pub fn parent_path(
+    cache: &mut ObjectCache<HashSet<(NodePtr, i8)>>,
+    allocator: &Allocator,
+    node: NodePtr,
+) -> Option<HashSet<(NodePtr, i8)>> {
+    match allocator.sexp(node) {
+        SExp::Pair(left, right) => {
+            if cache.hash.contains_key(&left) && cache.hash.contains_key(&right) {
+                let left_value = cache.hash.get_mut(&left).unwrap();
+                left_value.insert((node, 0));
+                let right_value = cache.hash.get_mut(&right).unwrap();
+                right_value.insert((node, 0));
+                Some(HashSet::new())
+            } else {
+                None
+            }
+        }
+        SExp::Atom(_atom_buf) => Some(HashSet::new()),
+    }
+}
+
+pub fn invert_hashmap<K: Hash + Eq, V: Hash + Eq>(map: &HashMap<K, V>) -> HashMap<&V, HashSet<&K>> {
+    let mut hm = HashMap::new();
+    for (k, v) in map.iter() {
+        if !hm.contains_key(v) {
+            hm.insert(v, HashSet::new());
+        }
+        let hs = hm.get_mut(v).unwrap();
+        hs.insert(k);
+    }
+    hm
 }

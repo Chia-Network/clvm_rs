@@ -1,4 +1,5 @@
 pub mod allocator;
+pub mod bytes32;
 pub mod chia_dialect;
 pub mod core_ops;
 pub mod cost;
@@ -15,6 +16,7 @@ pub mod runtime_dialect;
 pub mod serialization_cache;
 pub mod serialize;
 pub mod sha2;
+pub mod stack_cache;
 
 #[cfg(test)]
 mod tests;
