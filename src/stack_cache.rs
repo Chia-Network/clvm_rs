@@ -119,8 +119,8 @@ impl StackCache {
                                 return None;
                             }
                             new_partial_paths.push((parent.clone(), new_path));
-                            seen_ids.insert(parent);
                         }
+                        seen_ids.insert(parent);
                     }
                 }
             }
