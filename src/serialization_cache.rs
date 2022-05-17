@@ -14,7 +14,7 @@ pub struct ObjectCache<'a, T> {
 
 impl<'a, T: Clone> ObjectCache<'a, T> {
     pub fn new(allocator: &'a Allocator, f: HashFunction<T>) -> Self {
-        let hash = HashMap::new();
+        let hash = HashMap::default();
         Self { hash, allocator, f }
     }
     pub fn get(&mut self, node: &NodePtr) -> Option<&T> {
@@ -136,20 +136,20 @@ pub fn parent_path(
                 left_value.insert((node, 0));
                 let right_value = cache.hash.get_mut(&right).unwrap();
                 right_value.insert((node, 0));
-                Some(HashSet::new())
+                Some(HashSet::default())
             } else {
                 None
             }
         }
-        SExp::Atom(_atom_buf) => Some(HashSet::new()),
+        SExp::Atom(_atom_buf) => Some(HashSet::default()),
     }
 }
 
 pub fn invert_hashmap<K: Hash + Eq, V: Hash + Eq>(map: &HashMap<K, V>) -> HashMap<&V, HashSet<&K>> {
-    let mut hm = HashMap::new();
+    let mut hm = HashMap::default();
     for (k, v) in map.iter() {
         if !hm.contains_key(v) {
-            hm.insert(v, HashSet::new());
+            hm.insert(v, HashSet::default());
         }
         let hs = hm.get_mut(v).unwrap();
         hs.insert(k);

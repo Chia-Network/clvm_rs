@@ -21,9 +21,9 @@ impl StackCache {
     pub fn new() -> Self {
         let root_hash = hash_blob(&[1]);
         let read_stack = vec![];
-        let mut count = HashMap::new();
+        let mut count = HashMap::default();
         count.insert(root_hash.clone(), 1);
-        let parent_lookup = HashMap::new();
+        let parent_lookup = HashMap::default();
         Self {
             root_hash,
             read_stack,
@@ -90,7 +90,7 @@ impl StackCache {
     }
 
     pub fn find_path(&self, id: &Bytes32, serialized_length: usize) -> Option<Vec<u8>> {
-        let mut seen_ids = HashSet::new();
+        let mut seen_ids = HashSet::<&Bytes32>::default();
         if serialized_length < 3 { return None; }
         let max_bytes_for_path_encoding = serialized_length - 2; // 1 byte for 0xfe, 1 min byte for savings
         let max_path_length = max_bytes_for_path_encoding * 8 - 1;
