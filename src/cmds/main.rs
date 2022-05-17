@@ -111,7 +111,6 @@ fn main() {
     let input_program = decode(args.input_program_string).expect("can't parse hex");
     let mut allocator = Allocator::new();
     let node = node_from_bytes(&mut allocator, &input_program).expect("can't deserialize");
-    println!("{:?}", node);
     //let mut thc = ObjectCache::new(&allocator, treehash);
     //println!("{:?}", encode(thc.get(&node).unwrap()));
     //println!("{:?}", thc.invert());
