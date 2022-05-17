@@ -1,4 +1,4 @@
-use crate::sha2::Sha256;
+use crate::sha2::{Digest, Sha256};
 use hex::encode;
 
 use std::fmt::{Debug, Formatter};
@@ -22,7 +22,7 @@ impl Debug for Bytes32 {
 pub fn hash_blob(blob: &[u8]) -> Bytes32 {
     let mut sha256 = Sha256::new();
     sha256.update(blob);
-    Bytes32(sha256.finish())
+    Bytes32(sha256.finalize().into())
 }
 
 pub fn hash_blobs(blobs: &[&[u8]]) -> Bytes32 {
@@ -30,5 +30,5 @@ pub fn hash_blobs(blobs: &[&[u8]]) -> Bytes32 {
     for blob in blobs.iter() {
         sha256.update(blob);
     }
-    Bytes32(sha256.finish())
+    Bytes32(sha256.finalize().into())
 }

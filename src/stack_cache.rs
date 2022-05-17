@@ -1,5 +1,4 @@
-use std::collections::hash_set::HashSet;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::bytes32::{hash_blob, hash_blobs, Bytes32};
 
@@ -91,7 +90,9 @@ impl StackCache {
 
     pub fn find_path(&self, id: &Bytes32, serialized_length: usize) -> Option<Vec<u8>> {
         let mut seen_ids = HashSet::<&Bytes32>::default();
-        if serialized_length < 3 { return None; }
+        if serialized_length < 3 {
+            return None;
+        }
         let max_bytes_for_path_encoding = serialized_length - 2; // 1 byte for 0xfe, 1 min byte for savings
         let max_path_length = max_bytes_for_path_encoding * 8 - 1;
         seen_ids.insert(id);

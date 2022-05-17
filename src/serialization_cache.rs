@@ -1,7 +1,5 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
-use crate::sha2::{Digest, Sha256};
-use std::collections::hash_set::HashSet;
-use std::collections::HashMap;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::hash::Hash;
 type HashFunction<T> = fn(&mut ObjectCache<T>, &Allocator, NodePtr) -> Option<T>;
 use crate::bytes32::{hash_blobs, Bytes32};
