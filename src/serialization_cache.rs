@@ -1,36 +1,56 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use std::hash::Hash;
-type HashFunction<T> = fn(&mut ObjectCache<T>, &Allocator, NodePtr) -> Option<T>;
+type CachedFunction<T> = fn(&mut ObjectCache<T>, &Allocator, NodePtr) -> Option<T>;
 use crate::bytes32::{hash_blobs, Bytes32};
 
 pub struct ObjectCache<'a, T> {
-    hash: HashMap<NodePtr, T>,
+    cache: Vec<Option<T>>,
     allocator: &'a Allocator,
-    f: HashFunction<T>,
+    f: CachedFunction<T>,
+}
+
+pub fn node_to_index(node: &NodePtr) -> usize {
+    let node = *node;
+    if node < 0 {
+        (-node - node - 1) as usize
+    } else {
+        (node + node) as usize
+    }
 }
 
 impl<'a, T: Clone> ObjectCache<'a, T> {
-    pub fn new(allocator: &'a Allocator, f: HashFunction<T>) -> Self {
-        let hash = HashMap::default();
-        Self { hash, allocator, f }
+    pub fn new(allocator: &'a Allocator, f: CachedFunction<T>) -> Self {
+        let cache = vec![];
+        Self {
+            cache,
+            allocator,
+            f,
+        }
     }
     pub fn get(&mut self, node: &NodePtr) -> Option<&T> {
         self.update(node);
-        self.hash.get(node)
+        self.get_raw(node)
     }
-}
-
-impl<'a, T: Hash + Eq + Clone> ObjectCache<'a, T> {
-    pub fn invert(&self) -> HashMap<&T, HashSet<&NodePtr>> {
-        invert_hashmap(&self.hash)
+    pub fn get_raw(&self, node: &NodePtr) -> Option<&T> {
+        let index = node_to_index(node);
+        if index < self.cache.len() {
+            self.cache[index].as_ref()
+        } else {
+            None
+        }
+    }
+    pub fn set(&mut self, node: &NodePtr, v: T) {
+        let index = node_to_index(node);
+        if index >= self.cache.len() {
+            self.cache.resize(index + 1, None);
+        }
+        self.cache[index] = Some(v)
     }
 }
 
 pub fn generate_cache<T>(
     allocator: &Allocator,
     root_node: NodePtr,
-    f: HashFunction<T>,
+    f: CachedFunction<T>,
 ) -> ObjectCache<T>
 where
     T: Clone,
@@ -49,7 +69,7 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
                     return;
                 }
                 Some(node) => {
-                    let v = self.hash.get(&node);
+                    let v = self.get_raw(&node);
                     match v {
                         Some(_) => {}
                         None => match (self.f)(self, self.allocator, node) {
@@ -62,7 +82,7 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
                                 _ => panic!("f returned `None` for atom"),
                             },
                             Some(v) => {
-                                self.hash.insert(node, v);
+                                self.set(&node, v);
                             }
                         },
                     }
@@ -78,11 +98,10 @@ pub fn treehash(
     node: NodePtr,
 ) -> Option<Bytes32> {
     match allocator.sexp(node) {
-        SExp::Pair(left, right) => match cache.hash.get(&left) {
+        SExp::Pair(left, right) => match cache.get_raw(&left) {
             None => None,
             Some(left_value) => cache
-                .hash
-                .get(&right)
+                .get_raw(&right)
                 .map(|right_value| hash_blobs(&[&[2], &left_value.0, &right_value.0])),
         },
         SExp::Atom(atom_buf) => Some(hash_blobs(&[&[1], allocator.buf(&atom_buf)])),
@@ -95,11 +114,10 @@ pub fn serialized_length(
     node: NodePtr,
 ) -> Option<usize> {
     match allocator.sexp(node) {
-        SExp::Pair(left, right) => match cache.hash.get(&left) {
+        SExp::Pair(left, right) => match cache.get_raw(&left) {
             None => None,
             Some(left_value) => cache
-                .hash
-                .get(&right)
+                .get_raw(&right)
                 .map(|right_value| 1 + left_value + right_value),
         },
         SExp::Atom(atom_buf) => {
@@ -120,37 +138,4 @@ pub fn serialized_length(
             })
         }
     }
-}
-
-pub fn parent_path(
-    cache: &mut ObjectCache<HashSet<(NodePtr, i8)>>,
-    allocator: &Allocator,
-    node: NodePtr,
-) -> Option<HashSet<(NodePtr, i8)>> {
-    match allocator.sexp(node) {
-        SExp::Pair(left, right) => {
-            if cache.hash.contains_key(&left) && cache.hash.contains_key(&right) {
-                let left_value = cache.hash.get_mut(&left).unwrap();
-                left_value.insert((node, 0));
-                let right_value = cache.hash.get_mut(&right).unwrap();
-                right_value.insert((node, 0));
-                Some(HashSet::default())
-            } else {
-                None
-            }
-        }
-        SExp::Atom(_atom_buf) => Some(HashSet::default()),
-    }
-}
-
-pub fn invert_hashmap<K: Hash + Eq, V: Hash + Eq>(map: &HashMap<K, V>) -> HashMap<&V, HashSet<&K>> {
-    let mut hm = HashMap::default();
-    for (k, v) in map.iter() {
-        if !hm.contains_key(v) {
-            hm.insert(v, HashSet::default());
-        }
-        let hs = hm.get_mut(v).unwrap();
-        hs.insert(k);
-    }
-    hm
 }
