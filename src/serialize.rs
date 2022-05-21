@@ -284,10 +284,11 @@ fn push_encoded_atom(r: &mut Vec<u8>, atom: &[u8]) {
     r.extend_from_slice(atom);
 }
 
-pub fn sexp_to_u8_v2(allocator: &Allocator, node: NodePtr) -> Vec<u8> {
+pub fn node_to_stream_backrefs(node: &Node, /*, f: &mut dyn Write*/) -> io::Result<Vec<u8>> {
+    let allocator = node.allocator;
     let mut r = vec![];
     let mut read_op_stack: Vec<ReadOp> = vec![ReadOp::Parse];
-    let mut write_stack: Vec<NodePtr> = vec![node];
+    let mut write_stack: Vec<NodePtr> = vec![node.node];
 
     let mut stack_cache = StackCache::new();
 
@@ -331,7 +332,11 @@ pub fn sexp_to_u8_v2(allocator: &Allocator, node: NodePtr) -> Vec<u8> {
             stack_cache.pop2_and_cons();
         }
     }
-    r
+    Ok(r)
+}
+
+pub fn node_to_bytes_backrefs(node: &Node) -> Vec<u8> {
+    node_to_stream_backrefs(node).unwrap()
 }
 
 #[test]

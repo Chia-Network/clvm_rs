@@ -29,5 +29,5 @@ clap = { version = "3.0", features = ["derive"] }
 #rustc-hash = "=1.1.0"
 
 [[bin]]
-name = "cldump"
-path = "src/cmds/main.rs"
+name = "swbr"
+path = "src/cmds/swbr.rs"
