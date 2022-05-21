@@ -248,45 +248,8 @@ pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
     Ok(f.position())
 }
 
-fn append_atom_encoding_prefix(v: &mut Vec<u8>, atom: &[u8]) {
-    let size = atom.len();
-    if size == 0 {
-        v.push(0x80);
-        return;
-    }
-
-    if size == 1 && atom[0] < 0x80 {
-        return;
-    }
-
-    if size < 0x40 {
-        v.push(0x80 | (size as u8));
-    } else if size < 0x2000 {
-        v.push(0xc0 | (size >> 8) as u8);
-        v.push(size as u8);
-    } else if size < 0x100000 {
-        v.push(0xe0 | (size >> 15) as u8);
-        v.push((size >> 8) as u8);
-        v.push(size as u8);
-    } else if size < 0x8000000 {
-        v.push(0xf0 | (size >> 22) as u8);
-        v.push((size >> 16) as u8);
-        v.push((size >> 8) as u8);
-        v.push((size) as u8);
-    } else {
-        dbg!(size);
-        todo!();
-    }
-}
-
-fn push_encoded_atom(r: &mut Vec<u8>, atom: &[u8]) {
-    append_atom_encoding_prefix(r, atom);
-    r.extend_from_slice(atom);
-}
-
-pub fn node_to_stream_backrefs(node: &Node, /*, f: &mut dyn Write*/) -> io::Result<Vec<u8>> {
+pub fn node_to_stream_backrefs(node: &Node, f: &mut dyn io::Write) -> std::io::Result<()> {
     let allocator = node.allocator;
-    let mut r = vec![];
     let mut read_op_stack: Vec<ReadOp> = vec![ReadOp::Parse];
     let mut write_stack: Vec<NodePtr> = vec![node.node];
 
@@ -307,13 +270,13 @@ pub fn node_to_stream_backrefs(node: &Node, /*, f: &mut dyn Write*/) -> io::Resu
         let node_tree_hash = thc.get(&node_to_write).expect("can't get treehash");
         match stack_cache.find_path(node_tree_hash, node_serialized_length) {
             Some(path) => {
-                r.push(BACK_REFERENCE);
-                push_encoded_atom(&mut r, &path);
+                f.write_all(&[BACK_REFERENCE])?;
+                write_atom(f, &path)?;
                 stack_cache.push(node_tree_hash.clone());
             }
             None => match allocator.sexp(node_to_write) {
                 SExp::Pair(left, right) => {
-                    r.push(CONS_BOX_MARKER);
+                    f.write_all(&[CONS_BOX_MARKER])?;
                     write_stack.push(right);
                     write_stack.push(left);
                     read_op_stack.push(ReadOp::Cons);
@@ -322,7 +285,7 @@ pub fn node_to_stream_backrefs(node: &Node, /*, f: &mut dyn Write*/) -> io::Resu
                 }
                 SExp::Atom(atom_buf) => {
                     let atom = allocator.buf(&atom_buf);
-                    push_encoded_atom(&mut r, atom);
+                    write_atom(f, atom)?;
                     stack_cache.push(node_tree_hash.clone());
                 }
             },
@@ -332,11 +295,15 @@ pub fn node_to_stream_backrefs(node: &Node, /*, f: &mut dyn Write*/) -> io::Resu
             stack_cache.pop2_and_cons();
         }
     }
-    Ok(r)
+    Ok(())
 }
 
-pub fn node_to_bytes_backrefs(node: &Node) -> Vec<u8> {
-    node_to_stream_backrefs(node).unwrap()
+pub fn node_to_bytes_backrefs(node: &Node) -> std::io::Result<Vec<u8>> {
+    let mut buffer = Cursor::new(Vec::new());
+
+    node_to_stream_backrefs(node, &mut buffer)?;
+    let vec = buffer.into_inner();
+    Ok(vec)
 }
 
 #[test]

@@ -24,7 +24,7 @@ fn main() {
     //println!("{:?}", thc.invert());
     //let mut slc = ObjectCache::new(&allocator, serialized_length);
     //println!("{:?}", slc.get(&node).unwrap());
-    let t = node_to_bytes_backrefs(&Node::new(&allocator, node_ptr));
+    let t = node_to_bytes_backrefs(&Node::new(&allocator, node_ptr)).unwrap();
     println!("{:?}", encode(t));
     //let mut pc = ObjectCache::new(&allocator, parent_path);
     //println!("{:?}", pc.get(&node).unwrap());
