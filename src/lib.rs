@@ -1,6 +1,7 @@
 pub mod allocator;
 pub mod bytes32;
 pub mod chia_dialect;
+pub mod compressor;
 pub mod core_ops;
 pub mod cost;
 pub mod dialect;
