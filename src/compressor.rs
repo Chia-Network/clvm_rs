@@ -4,7 +4,7 @@ use crate::reduction::EvalErr;
 use crate::serialize::node_from_bytes;
 use crate::serialize::node_to_bytes_backrefs;
 
-pub fn compress_with_backrefs<'a>(
+pub fn compress_with_backrefs(
     allocator: &mut Allocator,
     node_ptr: NodePtr,
 ) -> Result<NodePtr, EvalErr> {

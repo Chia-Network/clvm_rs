@@ -1,31 +1,51 @@
 use clap::Parser;
-use clvmr::allocator::Allocator;
+use clvmr::allocator::{Allocator, NodePtr};
+use clvmr::compressor::compress_with_backrefs;
 use clvmr::node::Node;
-use clvmr::serialize::{node_from_bytes, node_to_bytes_backrefs};
+use clvmr::serialize::{node_from_bytes_backrefs, node_to_bytes, node_to_bytes_backrefs};
 use hex::{decode, encode};
-//use std::env::args;
+use std::error::Error;
+
+struct AllocatorNode {
+    allocator: Allocator,
+    node_ptr: NodePtr,
+}
+
+fn node_from_hex(s: &str) -> Result<AllocatorNode, Box<dyn Error + Send + Sync + 'static>> {
+    let input_program = decode(s)?;
+    let mut allocator = Allocator::new();
+    let node_ptr = node_from_bytes_backrefs(&mut allocator, &input_program)?;
+    Ok(AllocatorNode {
+        allocator,
+        node_ptr,
+    })
+}
 
 #[derive(Parser)]
 struct Cli {
-    // #[clap(parse(from_hex))]
-    input_program_string: String,
+    #[clap(parse(try_from_str = node_from_hex))]
+    input_program: AllocatorNode,
 
-    #[clap(short, long, parse(from_occurrences))]
-    allow_backreferences: usize,
+    #[clap(short, long)]
+    disallow_input_backreferences: bool,
+
+    #[clap(short, long)]
+    include_deserialize_program: bool,
 }
 
 fn main() {
     let args = Cli::parse();
-    let input_program = decode(args.input_program_string).expect("can't parse hex");
-    let mut allocator = Allocator::new();
-    let node_ptr = node_from_bytes(&mut allocator, &input_program).expect("can't deserialize");
-    //let mut thc = ObjectCache::new(&allocator, treehash);
-    //println!("{:?}", encode(thc.get(&node).unwrap()));
-    //println!("{:?}", thc.invert());
-    //let mut slc = ObjectCache::new(&allocator, serialized_length);
-    //println!("{:?}", slc.get(&node).unwrap());
-    let t = node_to_bytes_backrefs(&Node::new(&allocator, node_ptr)).unwrap();
-    println!("{:?}", encode(t));
-    //let mut pc = ObjectCache::new(&allocator, parent_path);
-    //println!("{:?}", pc.get(&node).unwrap());
+
+    let mut allocator = args.input_program.allocator;
+    let node_ptr = args.input_program.node_ptr;
+    let blob = if args.include_deserialize_program {
+        let t1 = compress_with_backrefs(&mut allocator, node_ptr).expect("compression failed");
+        node_to_bytes(&Node::new(&allocator, t1))
+    } else {
+        node_to_bytes_backrefs(&Node::new(&allocator, node_ptr))
+    }
+    .expect("bad serialization");
+
+    let output = encode(blob);
+    println!("{}", output);
 }
