@@ -4,7 +4,7 @@ use std::io::{Cursor, ErrorKind, Read, Seek, SeekFrom};
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::node::Node;
 use crate::object_cache::{serialized_length, treehash, ObjectCache};
-use crate::stack_cache::StackCache;
+use crate::read_cache_lookup::ReadCacheLookup;
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const BACK_REFERENCE: u8 = 0xfe;
@@ -253,7 +253,7 @@ pub fn node_to_stream_backrefs(node: &Node, f: &mut dyn io::Write) -> std::io::R
     let mut read_op_stack: Vec<ReadOp> = vec![ReadOp::Parse];
     let mut write_stack: Vec<NodePtr> = vec![node.node];
 
-    let mut stack_cache = StackCache::new();
+    let mut read_cache_lookup = ReadCacheLookup::new();
 
     let mut thc = ObjectCache::new(allocator, treehash);
     let mut slc = ObjectCache::new(allocator, serialized_length);
@@ -268,11 +268,11 @@ pub fn node_to_stream_backrefs(node: &Node, f: &mut dyn io::Write) -> std::io::R
             .get(&node_to_write)
             .expect("couldn't calculate serialized length");
         let node_tree_hash = thc.get(&node_to_write).expect("can't get treehash");
-        match stack_cache.find_path(node_tree_hash, node_serialized_length) {
+        match read_cache_lookup.find_path(node_tree_hash, node_serialized_length) {
             Some(path) => {
                 f.write_all(&[BACK_REFERENCE])?;
                 write_atom(f, &path)?;
-                stack_cache.push(node_tree_hash.clone());
+                read_cache_lookup.push(node_tree_hash.clone());
             }
             None => match allocator.sexp(node_to_write) {
                 SExp::Pair(left, right) => {
@@ -286,13 +286,13 @@ pub fn node_to_stream_backrefs(node: &Node, f: &mut dyn io::Write) -> std::io::R
                 SExp::Atom(atom_buf) => {
                     let atom = allocator.buf(&atom_buf);
                     write_atom(f, atom)?;
-                    stack_cache.push(node_tree_hash.clone());
+                    read_cache_lookup.push(node_tree_hash.clone());
                 }
             },
         }
         while !read_op_stack.is_empty() && read_op_stack[read_op_stack.len() - 1] == ReadOp::Cons {
             read_op_stack.pop();
-            stack_cache.pop2_and_cons();
+            read_cache_lookup.pop2_and_cons();
         }
     }
     Ok(())

@@ -11,12 +11,12 @@ pub mod node;
 pub mod number;
 pub mod object_cache;
 pub mod op_utils;
+pub mod read_cache_lookup;
 pub mod reduction;
 pub mod run_program;
 pub mod runtime_dialect;
 pub mod serialize;
 pub mod sha2;
-pub mod stack_cache;
 
 #[cfg(test)]
 mod tests;

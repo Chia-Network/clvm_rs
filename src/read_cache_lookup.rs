@@ -3,20 +3,20 @@ use std::collections::{HashMap, HashSet};
 use crate::bytes32::{hash_blob, hash_blobs, Bytes32};
 
 #[derive(Debug)]
-pub struct StackCache {
+pub struct ReadCacheLookup {
     root_hash: Bytes32,
     read_stack: Vec<(Bytes32, Bytes32)>,
     count: HashMap<Bytes32, usize>,
     parent_lookup: HashMap<Bytes32, Vec<(Bytes32, u8)>>,
 }
 
-impl Default for StackCache {
+impl Default for ReadCacheLookup {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl StackCache {
+impl ReadCacheLookup {
     pub fn new() -> Self {
         let root_hash = hash_blob(&[1]);
         let read_stack = vec![];
