@@ -60,7 +60,16 @@ pub fn op_listp(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response 
 
 pub fn op_raise(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
-    args.err("clvm raise")
+    // Quexington requested single argument raise to return the single argument
+    // rather than the full list of arguments.  brun also used to behave this
+    // way... it does make sense to ensure that the full context of the exception
+    // is passed on rather than a more cryptic error in the case of more arguments
+    // though (IMO).
+    if args.rest().map(|r| r.nullp()).unwrap_or_else(|_| false) {
+        args.first()?.err("clvm raise")
+    } else {
+        args.err("clvm raise")
+    }
 }
 
 pub fn op_eq(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
