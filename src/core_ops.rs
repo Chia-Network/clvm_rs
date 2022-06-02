@@ -60,26 +60,23 @@ pub fn op_listp(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response 
 
 pub fn op_raise(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
-    // Quexington requested single argument raise to return the single argument
-    // rather than the full list of arguments.  brun also used to behave this
-    // way... it does make sense to ensure that the full context of the exception
-    // is passed on rather than a more cryptic error in the case of more arguments
-    // though (IMO).  We restrict the single argument case to atoms since it
-    // ensures that a single argument with a pair is distinguishable from multiple
-    // independent arguments (as new, re: richard).
+    // if given a single argument we should raise the single argument rather
+    // than the full list of arguments. brun also used to behave this way.
+    // if the single argument here is a pair then don't throw it unwrapped
+    // as it'd potentially look the same as a throw of multiple arguments.
     let throw_value = args
         .pair()
         .as_ref()
         .and_then(|(_first, _rest)| {
-            _first.atom().map(|_| {
+            _first.atom().and_then(|_| {
                 if _rest.nullp() {
-                    args.first().unwrap()
+                    Some(args.first().unwrap())
                 } else {
-                    args.clone()
+                    None
                 }
             })
         })
-        .unwrap_or_else(|| args);
+        .unwrap_or(args);
 
     throw_value.err("clvm raise")
 }
