@@ -64,12 +64,24 @@ pub fn op_raise(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response 
     // rather than the full list of arguments.  brun also used to behave this
     // way... it does make sense to ensure that the full context of the exception
     // is passed on rather than a more cryptic error in the case of more arguments
-    // though (IMO).
-    if args.rest().map(|r| r.nullp()).unwrap_or_else(|_| false) {
-        args.first()?.err("clvm raise")
-    } else {
-        args.err("clvm raise")
-    }
+    // though (IMO).  We restrict the single argument case to atoms since it
+    // ensures that a single argument with a pair is distinguishable from multiple
+    // independent arguments (as new, re: richard).
+    let throw_value = args
+        .pair()
+        .as_ref()
+        .and_then(|(_first, _rest)| {
+            _first.atom().map(|_| {
+                if _rest.nullp() {
+                    args.first().unwrap()
+                } else {
+                    args.clone()
+                }
+            })
+        })
+        .unwrap_or_else(|| args);
+
+    throw_value.err("clvm raise")
 }
 
 pub fn op_eq(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {

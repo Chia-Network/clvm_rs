@@ -7,7 +7,7 @@ use crate::more_ops::{
     op_point_add, op_pubkey_for_exp, op_sha256, op_softfork, op_strlen, op_substr, op_subtract,
 };
 use crate::number::{ptr_from_number, Number};
-use crate::reduction::{Reduction, Response, EvalErr};
+use crate::reduction::{EvalErr, Reduction, Response};
 use hex::FromHex;
 use num_traits::Num;
 use std::cmp::min;
@@ -1163,7 +1163,7 @@ fn test_ops() {
 }
 
 #[test]
-fn test_single_argument_raise() {
+fn test_single_argument_raise_atom() {
     let mut allocator = Allocator::new();
     let a1 = allocator.new_atom(&[65]).unwrap();
     let args = allocator.new_pair(a1, allocator.null()).unwrap();
@@ -1172,11 +1172,28 @@ fn test_single_argument_raise() {
 }
 
 #[test]
+fn test_single_argument_raise_pair() {
+    let mut allocator = Allocator::new();
+    let a1 = allocator.new_atom(&[65]).unwrap();
+    let a2 = allocator.new_atom(&[66]).unwrap();
+    // (a2)
+    let mut args = allocator.new_pair(a2, allocator.null()).unwrap();
+    // (a1 a2)
+    args = allocator.new_pair(a1, args).unwrap();
+    // ((a1 a2))
+    args = allocator.new_pair(args, allocator.null()).unwrap();
+    let result = op_raise(&mut allocator, args, 100000);
+    assert_eq!(result, Err(EvalErr(args, "clvm raise".to_string())));
+}
+
+#[test]
 fn test_multi_argument_raise() {
     let mut allocator = Allocator::new();
     let a1 = allocator.new_atom(&[65]).unwrap();
     let a2 = allocator.new_atom(&[66]).unwrap();
+    // (a1)
     let mut args = allocator.new_pair(a2, allocator.null()).unwrap();
+    // (a1 a2)
     args = allocator.new_pair(a1, args).unwrap();
     let result = op_raise(&mut allocator, args, 100000);
     assert_eq!(result, Err(EvalErr(args, "clvm raise".to_string())));
