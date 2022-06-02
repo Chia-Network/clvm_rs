@@ -60,7 +60,25 @@ pub fn op_listp(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response 
 
 pub fn op_raise(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
-    args.err("clvm raise")
+    // if given a single argument we should raise the single argument rather
+    // than the full list of arguments. brun also used to behave this way.
+    // if the single argument here is a pair then don't throw it unwrapped
+    // as it'd potentially look the same as a throw of multiple arguments.
+    let throw_value = args
+        .pair()
+        .as_ref()
+        .and_then(|(_first, _rest)| {
+            _first.atom().and_then(|_| {
+                if _rest.nullp() {
+                    Some(args.first().unwrap())
+                } else {
+                    None
+                }
+            })
+        })
+        .unwrap_or(args);
+
+    throw_value.err("clvm raise")
 }
 
 pub fn op_eq(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
