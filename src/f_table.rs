@@ -1,6 +1,11 @@
 use std::collections::HashMap;
 
 use crate::allocator::{Allocator, NodePtr};
+use crate::bls_ops::{
+    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
+    op_bls_g2_negate, op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
+    op_bls_pairing_identity, op_bls_verify,
+};
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
 use crate::more_ops::{
@@ -15,7 +20,7 @@ type OpFn = fn(&mut Allocator, NodePtr, Cost) -> Response;
 pub type FLookup = [Option<OpFn>; 256];
 
 pub fn opcode_by_name(name: &str) -> Option<OpFn> {
-    let opcode_lookup: [(OpFn, &str); 29] = [
+    let opcode_lookup: [(OpFn, &str); 40] = [
         (op_if, "op_if"),
         (op_cons, "op_cons"),
         (op_first, "op_first"),
@@ -45,6 +50,17 @@ pub fn opcode_by_name(name: &str) -> Option<OpFn> {
         (op_any, "op_any"),
         (op_all, "op_all"),
         (op_div, "op_div"),
+        (op_bls_g1_subtract, "op_g1_subtract"),
+        (op_bls_g1_multiply, "op_g1_multiply"),
+        (op_bls_g1_negate, "op_g1_negate"),
+        (op_bls_g2_add, "op_g2_add"),
+        (op_bls_g2_subtract, "op_g2_subtract"),
+        (op_bls_g2_multiply, "op_g2_multiply"),
+        (op_bls_g2_negate, "op_g2_negate"),
+        (op_bls_map_to_g1, "op_g1_map"),
+        (op_bls_map_to_g2, "op_g2_map"),
+        (op_bls_pairing_identity, "op_bls_pairing_identity"),
+        (op_bls_verify, "op_bls_verify"),
     ];
     let name: &[u8] = name.as_ref();
     for (f, op) in opcode_lookup.iter() {

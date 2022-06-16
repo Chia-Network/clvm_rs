@@ -1,4 +1,9 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
+use crate::bls_ops::{
+    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
+    op_bls_g2_negate, op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
+    op_bls_pairing_identity, op_bls_verify,
+};
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
 use crate::more_ops::{
@@ -80,6 +85,18 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
             "softfork" => a.new_atom(&[36]).unwrap(),
 
             "coinid" => a.new_atom(&[48]).unwrap(),
+
+            "g1_subtract" => a.new_atom(&[49]).unwrap(),
+            "g1_multiply" => a.new_atom(&[50]).unwrap(),
+            "g1_negate" => a.new_atom(&[51]).unwrap(),
+            "g2_add" => a.new_atom(&[52]).unwrap(),
+            "g2_subtract" => a.new_atom(&[53]).unwrap(),
+            "g2_multiply" => a.new_atom(&[54]).unwrap(),
+            "g2_negate" => a.new_atom(&[55]).unwrap(),
+            "g1_map" => a.new_atom(&[56]).unwrap(),
+            "g2_map" => a.new_atom(&[57]).unwrap(),
+            "bls_pairing_identity" => a.new_atom(&[58]).unwrap(),
+            "bls_verify" => a.new_atom(&[59]).unwrap(),
             _ => {
                 panic!("atom not supported \"{}\"", v);
             }
@@ -239,8 +256,19 @@ fn test_ops(#[case] filename: &str) {
         ("not", op_not as Opf),
         ("any", op_any as Opf),
         ("all", op_all as Opf),
-        // part of the BLS extension
+        //the BLS extension
         ("coinid", op_coinid as Opf),
+        ("g1_subtract", op_bls_g1_subtract as Opf),
+        ("g1_multiply", op_bls_g1_multiply as Opf),
+        ("g1_negate", op_bls_g1_negate as Opf),
+        ("g2_add", op_bls_g2_add as Opf),
+        ("g2_subtract", op_bls_g2_subtract as Opf),
+        ("g2_multiply", op_bls_g2_multiply as Opf),
+        ("g2_negate", op_bls_g2_negate as Opf),
+        ("g1_map", op_bls_map_to_g1 as Opf),
+        ("g2_map", op_bls_map_to_g2 as Opf),
+        ("bls_pairing_identity", op_bls_pairing_identity as Opf),
+        ("bls_verify", op_bls_verify as Opf),
     ]);
 
     println!("Test cases from: {filename}");

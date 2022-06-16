@@ -5,21 +5,17 @@ use std::ops::BitAndAssign;
 use std::ops::BitOrAssign;
 use std::ops::BitXorAssign;
 
-use lazy_static::lazy_static;
-
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::{check_cost, Cost};
 use crate::err_utils::err;
 use crate::node::Node;
 use crate::number::Number;
 use crate::op_utils::{
-    arg_count, atom, atom_len, check_arg_count, i32_atom, int_atom, two_ints, u32_from_u8,
+    arg_count, atom, atom_len, check_arg_count, i32_atom, int_atom, mod_group_order,
+    new_atom_and_cost, number_to_scalar, two_ints, u32_from_u8, MALLOC_COST_PER_BYTE,
 };
 use crate::reduction::{Reduction, Response};
 use crate::sha2::{Digest, Sha256};
-
-// We ascribe some additional cost per byte for operations that allocate new atoms
-const MALLOC_COST_PER_BYTE: Cost = 10;
 
 const ARITH_BASE_COST: Cost = 99;
 const ARITH_COST_PER_ARG: Cost = 320;
@@ -142,11 +138,6 @@ fn test_limbs_for_int() {
     limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0, 0]);
     limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0]);
-}
-
-fn new_atom_and_cost(a: &mut Allocator, cost: Cost, buf: &[u8]) -> Response {
-    let c = buf.len() as Cost * MALLOC_COST_PER_BYTE;
-    Ok(Reduction(cost + c, a.new_atom(buf)?))
 }
 
 fn malloc_cost(a: &Allocator, cost: Cost, ptr: NodePtr) -> Reduction {
@@ -772,39 +763,6 @@ pub fn op_all(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     }
     let total: Node = args.from_bool(is_all);
     Ok(Reduction(cost, total.node))
-}
-
-lazy_static! {
-    static ref GROUP_ORDER: Number = {
-        let order_as_bytes = &[
-            0x73, 0xed, 0xa7, 0x53, 0x29, 0x9d, 0x7d, 0x48, 0x33, 0x39, 0xd8, 0x08, 0x09, 0xa1,
-            0xd8, 0x05, 0x53, 0xbd, 0xa4, 0x02, 0xff, 0xfe, 0x5b, 0xfe, 0xff, 0xff, 0xff, 0xff,
-            0x00, 0x00, 0x00, 0x01,
-        ];
-        let n = BigUint::from_bytes_be(order_as_bytes);
-        n.into()
-    };
-}
-
-fn mod_group_order(n: Number) -> Number {
-    let order = GROUP_ORDER.clone();
-    let mut remainder = n.mod_floor(&order);
-    if remainder.sign() == Sign::Minus {
-        remainder += order;
-    }
-    remainder
-}
-
-fn number_to_scalar(n: Number) -> Scalar {
-    let (sign, as_u8): (Sign, Vec<u8>) = n.to_bytes_le();
-    let mut scalar_array: [u8; 32] = [0; 32];
-    scalar_array[..as_u8.len()].clone_from_slice(&as_u8[..]);
-    let exp: Scalar = Scalar::from_bytes(&scalar_array).unwrap();
-    if sign == Sign::Minus {
-        exp.neg()
-    } else {
-        exp
-    }
 }
 
 pub fn op_pubkey_for_exp(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
