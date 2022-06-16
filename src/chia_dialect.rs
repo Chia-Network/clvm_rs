@@ -7,8 +7,8 @@ use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_concat, op_div, op_div_deprecated, op_divmod, op_gr,
     op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not,
     op_point_add, op_pubkey_for_exp, op_sha256, op_softfork, op_strlen, op_substr, op_subtract,
-    op_unknown, op_bls_g1_subtract, op_bls_g1_multiply, op_bls_g2_add, op_bls_g2_subtract,
-    op_bls_g2_multiply, op_bls_g2_negate, op_pow,
+    op_unknown, op_bls_g1_subtract, op_bls_g1_multiply, op_bls_g1_negate, op_bls_g2_add,
+    op_bls_g2_subtract, op_bls_g2_multiply, op_bls_g2_negate, op_pow,
 };
 use crate::reduction::Response;
 
@@ -88,7 +88,7 @@ impl Dialect for ChiaDialect {
             36 => op_softfork,
             37 => op_bls_g1_subtract,
             38 => op_bls_g1_multiply,
-            39 => op_bls_g1_multiply,
+            39 => op_bls_g1_negate,
             40 => op_bls_g2_add,
             41 => op_bls_g2_subtract,
             42 => op_bls_g2_multiply,
