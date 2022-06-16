@@ -1,4 +1,9 @@
 use crate::allocator::{Allocator, NodePtr};
+use crate::bls_ops::{
+    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
+    op_bls_g2_negate, op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
+    op_bls_pairing_identity, op_bls_verify,
+};
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
@@ -112,7 +117,17 @@ impl Dialect for ChiaDialect {
                 {
                     match b[0] {
                         48 => op_coinid,
-                        // TODO: add BLS operators here
+                        49 => op_bls_g1_subtract,
+                        50 => op_bls_g1_multiply,
+                        51 => op_bls_g1_negate,
+                        52 => op_bls_g2_add,
+                        53 => op_bls_g2_subtract,
+                        54 => op_bls_g2_multiply,
+                        55 => op_bls_g2_negate,
+                        56 => op_bls_map_to_g1,
+                        57 => op_bls_map_to_g2,
+                        58 => op_bls_pairing_identity,
+                        59 => op_bls_verify,
                         _ => {
                             return unknown_operator(
                                 allocator,
