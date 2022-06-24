@@ -8,7 +8,8 @@ use crate::more_ops::{
     op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not,
     op_point_add, op_pubkey_for_exp, op_sha256, op_softfork, op_strlen, op_substr, op_subtract,
     op_bls_g1_subtract, op_bls_g1_multiply, op_bls_g1_negate, op_bls_g2_add, op_bls_g2_subtract,
-    op_bls_g2_multiply, op_bls_g2_negate, op_pow,
+    op_bls_g2_multiply, op_bls_g2_negate, op_bls_gt_add, op_bls_gt_subtract, op_bls_gt_multiply,
+    op_bls_gt_negate, op_bls_pairing, op_pow,
 };
 use crate::reduction::Response;
 
@@ -17,7 +18,7 @@ type OpFn = fn(&mut Allocator, NodePtr, Cost) -> Response;
 pub type FLookup = [Option<OpFn>; 256];
 
 pub fn opcode_by_name(name: &str) -> Option<OpFn> {
-    let opcode_lookup: [(OpFn, &str); 39] = [
+    let opcode_lookup: [(OpFn, &str); 44] = [
         (op_if, "op_if"),
         (op_cons, "op_cons"),
         (op_first, "op_first"),
@@ -56,6 +57,11 @@ pub fn opcode_by_name(name: &str) -> Option<OpFn> {
         (op_bls_g2_subtract, "op_bls_g2_subtract"),
         (op_bls_g2_multiply, "op_bls_g2_multiply"),
         (op_bls_g2_negate, "op_bls_g2_negate"),
+        (op_bls_gt_add, "op_bls_gt_add"),
+        (op_bls_gt_subtract, "op_bls_gt_subtract"),
+        (op_bls_gt_multiply, "op_bls_gt_multiply"),
+        (op_bls_gt_negate, "op_bls_gt_negate"),
+        (op_bls_pairing, "op_bls_pairing"),
         (op_pow, "op_pow"),
     ];
     let name: &[u8] = name.as_ref();

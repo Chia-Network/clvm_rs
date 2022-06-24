@@ -8,7 +8,8 @@ use crate::more_ops::{
     op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not,
     op_point_add, op_pubkey_for_exp, op_sha256, op_softfork, op_strlen, op_substr, op_subtract,
     op_unknown, op_bls_g1_subtract, op_bls_g1_multiply, op_bls_g1_negate, op_bls_g2_add,
-    op_bls_g2_subtract, op_bls_g2_multiply, op_bls_g2_negate, op_pow,
+    op_bls_g2_subtract, op_bls_g2_multiply, op_bls_g2_negate, op_bls_gt_add, op_bls_gt_subtract,
+    op_bls_gt_multiply, op_bls_gt_negate, op_bls_pairing, op_pow,
 };
 use crate::reduction::Response;
 
@@ -92,8 +93,15 @@ impl Dialect for ChiaDialect {
             40 => op_bls_g2_add,
             41 => op_bls_g2_subtract,
             42 => op_bls_g2_multiply,
-            42 => op_bls_g2_negate,
-            44 => op_pow,
+            43 => op_bls_g2_negate,
+            44 => op_bls_gt_add,
+            45 => op_bls_gt_subtract,
+            46 => op_bls_gt_multiply,
+            47 => op_bls_gt_negate,
+            48 => op_bls_pairing,
+            // 48 => op_bls_map_to_g1,
+            // 48 => op_bls_map_to_g2,
+            51 => op_pow,
             _ => {
                 if (self.flags & NO_UNKNOWN_OPS) != 0 {
                     return err(o, "unimplemented operator");

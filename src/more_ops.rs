@@ -1,4 +1,4 @@
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective, Scalar};
+use bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective, Scalar, Gt, pairing};
 use num_bigint::{BigUint, Sign};
 use num_integer::Integer;
 use std::convert::TryFrom;
@@ -94,6 +94,16 @@ const BLS_G2_MULTIPLY_BASE_COST: Cost = 101094;
 const BLS_G2_MULTIPLY_COST_PER_ARG: Cost = 1343980;
 const BLS_G2_NEGATE_BASE_COST: Cost = 101094;
 const BLS_G2_NEGATE_COST_PER_ARG: Cost = 1343980;
+const BLS_GT_ADD_BASE_COST: Cost = 101094;
+const BLS_GT_ADD_COST_PER_ARG: Cost = 1343980;
+const BLS_GT_SUBTRACT_BASE_COST: Cost = 101094;
+const BLS_GT_SUBTRACT_COST_PER_ARG: Cost = 1343980;
+const BLS_GT_MULTIPLY_BASE_COST: Cost = 101094;
+const BLS_GT_MULTIPLY_COST_PER_ARG: Cost = 1343980;
+const BLS_GT_NEGATE_BASE_COST: Cost = 101094;
+const BLS_GT_NEGATE_COST_PER_ARG: Cost = 1343980;
+const BLS_PAIRING_BASE_COST: Cost = 101094;
+const BLS_PAIRING_COST_PER_ARG: Cost = 1343980;
 const POW_BASE_COST: Cost = 92;
 const POW_COST_PER_OP: Cost = 885;
 const POW_LINEAR_COST_PER_BYTE: Cost = 6;
@@ -1118,7 +1128,7 @@ pub fn op_bls_g2_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
         } else {
             let v0 = int_atom(&arg, "bls_g2_multiply")?;
             total *= number_to_scalar(number_from_u8(v0));
-            cost += BLS_G1_MULTIPLY_COST_PER_ARG;
+            cost += BLS_G2_MULTIPLY_COST_PER_ARG;
         }
     }
     let total: G2Affine = total.into();
@@ -1150,6 +1160,190 @@ pub fn op_bls_g2_negate(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Re
             let msg = format!("bls_g2_negate expects blob, got {}: Length of bytes object not equal to G2Element::SIZE", blob);
             return args.err(&msg);
         }
+    }
+    new_atom_and_cost(a, cost, &total.to_compressed())
+}
+
+pub fn op_bls_gt_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+    let args = Node::new(a, input);
+    let mut cost = BLS_GT_ADD_BASE_COST;
+    let mut total: Gt = Gt::identity();
+    for arg in &args {
+        let blob = atom(&arg, "bls_gt_add")?;
+        let mut is_ok: bool = blob.len() == 288;
+        if is_ok {
+            let mut as_array: [u8; 288] = [0; 288];
+            as_array.clone_from_slice(&blob[0..288]);
+            let v = Gt::from_compressed(&as_array);
+            is_ok = v.is_some().into();
+            if is_ok {
+                let point = v.unwrap();
+                cost += BLS_GT_ADD_COST_PER_ARG;
+                check_cost(a, cost, max_cost)?;
+                total += &point;
+            }
+        }
+        if !is_ok {
+            let blob: String = hex::encode(node_to_bytes(&arg).unwrap());
+            let msg = format!("bls_gt_add expects blob, got {}: Length of bytes object not equal to GtElement::SIZE", blob);
+            return args.err(&msg);
+        }
+    }
+    new_atom_and_cost(a, cost, &total.to_compressed())
+}
+
+pub fn op_bls_gt_subtract(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+    let args = Node::new(a, input);
+    let mut cost = BLS_GT_SUBTRACT_BASE_COST;
+    let mut total: Gt = Gt::identity();
+    let mut is_first = true;
+    for arg in &args {
+        let blob = atom(&arg, "bls_gt_subtract")?;
+        let mut is_ok: bool = blob.len() == 288;
+        if is_ok {
+            let mut as_array: [u8; 288] = [0; 288];
+            as_array.clone_from_slice(&blob[0..288]);
+            let v = Gt::from_compressed(&as_array);
+            is_ok = v.is_some().into();
+            if is_ok {
+                let point = v.unwrap();
+                cost += BLS_GT_SUBTRACT_COST_PER_ARG;
+                check_cost(a, cost, max_cost)?;
+                if is_first {
+                    total += &point;
+                } else {
+                    total -= &point;
+                };
+                is_first = false;
+            }
+        }
+        if !is_ok {
+            let blob: String = hex::encode(node_to_bytes(&arg).unwrap());
+            let msg = format!("bls_gt_subtract expects blob, got {}: Length of bytes object not equal to GtElement::SIZE", blob);
+            return args.err(&msg);
+        }
+    }
+    new_atom_and_cost(a, cost, &total.to_compressed())
+}
+
+pub fn op_bls_gt_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+    let args = Node::new(a, input);
+    let mut cost = BLS_GT_MULTIPLY_BASE_COST;
+    let mut total: Gt = Gt::identity();
+    let mut first_iter: bool = true;
+    for arg in &args {
+        if first_iter {
+            let blob = atom(&arg, "bls_gt_multiply")?;
+            let mut is_ok: bool = blob.len() == 288;
+            if is_ok {
+                let mut as_array: [u8; 288] = [0; 288];
+                as_array.clone_from_slice(&blob[0..288]);
+                let v = Gt::from_compressed(&as_array);
+                is_ok = v.is_some().into();
+                if is_ok {
+                    let point = v.unwrap();
+                    cost += BLS_GT_MULTIPLY_COST_PER_ARG;
+                    check_cost(a, cost, max_cost)?;
+                    total = Gt::from(point);
+                    first_iter = false;
+                    continue;
+                }
+            }
+            if !is_ok {
+                let blob: String = hex::encode(node_to_bytes(&arg).unwrap());
+                let msg = format!("bls_gt_multiply expects blob, got {}: Length of bytes object not equal to G2Element::SIZE", blob);
+                return args.err(&msg);
+            }
+        } else {
+            let v0 = int_atom(&arg, "bls_gt_multiply")?;
+            total *= number_to_scalar(number_from_u8(v0));
+            cost += BLS_GT_MULTIPLY_COST_PER_ARG;
+        }
+    }
+    new_atom_and_cost(a, cost, &total.to_compressed())
+}
+
+pub fn op_bls_gt_negate(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+    let args = Node::new(a, input);
+    check_arg_count(&args, 1, "bls_gt_negate")?;
+    let mut cost = BLS_GT_NEGATE_BASE_COST;
+    let mut total: Gt = Gt::identity();
+    for arg in &args {
+        let blob = atom(&arg, "bls_gt_negate")?;
+        let mut is_ok: bool = blob.len() == 288;
+        if is_ok {
+            let mut as_array: [u8; 288] = [0; 288];
+            as_array.clone_from_slice(&blob[0..288]);
+            let v = Gt::from_compressed(&as_array);
+            is_ok = v.is_some().into();
+            if is_ok {
+                let point = v.unwrap();
+                cost += BLS_GT_NEGATE_COST_PER_ARG;
+                check_cost(a, cost, max_cost)?;
+                total = -point;
+            }
+        }
+        if !is_ok {
+            let blob: String = hex::encode(node_to_bytes(&arg).unwrap());
+            let msg = format!("bls_gt_negate expects blob, got {}: Length of bytes object not equal to GtElement::SIZE", blob);
+            return args.err(&msg);
+        }
+    }
+    new_atom_and_cost(a, cost, &total.to_compressed())
+}
+
+pub fn op_bls_pairing(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+    let args = Node::new(a, input);
+    let mut cost = BLS_PAIRING_BASE_COST;
+    let mut total: Gt = Gt::identity();
+    let mut i = 0;
+    let mut p = G1Affine::identity();
+    for arg in &args {
+        if i == 0 {
+            let blob = atom(&arg, "op_bls_pairing")?;
+            let mut is_ok: bool = blob.len() == 48;
+            if is_ok {
+                let mut as_array: [u8; 48] = [0; 48];
+                as_array.clone_from_slice(&blob[0..48]);
+                let v = G1Affine::from_compressed(&as_array);
+                is_ok = v.is_some().into();
+                if is_ok {
+                    let point = v.unwrap();
+                    cost += BLS_PAIRING_COST_PER_ARG;
+                    check_cost(a, cost, max_cost)?;
+                    p = point
+                }
+            }
+            if !is_ok {
+                let blob: String = hex::encode(node_to_bytes(&arg).unwrap());
+                let msg = format!("op_bls_pairing expects blob, got {}: Length of bytes object not equal to G1Element::SIZE", blob);
+                return args.err(&msg);
+            }
+        }
+
+        if i == 1 {
+            let blob = atom(&arg, "op_bls_pairing")?;
+            let mut is_ok: bool = blob.len() == 96;
+            if is_ok {
+                let mut as_array: [u8; 96] = [0; 96];
+                as_array.clone_from_slice(&blob[0..96]);
+                let v = G2Affine::from_compressed(&as_array);
+                is_ok = v.is_some().into();
+                if is_ok {
+                    let q = v.unwrap();
+                    cost += BLS_PAIRING_COST_PER_ARG;
+                    check_cost(a, cost, max_cost)?;
+                    total = pairing(&p, &q);
+                }
+            }
+            if !is_ok {
+                let blob: String = hex::encode(node_to_bytes(&arg).unwrap());
+                let msg = format!("op_bls_pairing expects blob, got {}: Length of bytes object not equal to G2Element::SIZE", blob);
+                return args.err(&msg);
+            }
+        }
+
+        i += 1;
     }
     new_atom_and_cost(a, cost, &total.to_compressed())
 }
