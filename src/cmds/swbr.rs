@@ -42,9 +42,9 @@ fn main() {
     let blob = if args.include_deserialize_program {
         compress_with_backrefs(&mut allocator, node_ptr)
     } else if args.uncompressed_output {
-        node_to_bytes_backrefs(&Node::new(&allocator, node_ptr))
-    } else {
         node_to_bytes(&Node::new(&allocator, node_ptr))
+    } else {
+        node_to_bytes_backrefs(&Node::new(&allocator, node_ptr))
     }
     .expect("bad serialization");
 
