@@ -83,7 +83,6 @@ fn write_atom(f: &mut dyn io::Write, atom: &[u8]) -> io::Result<()> {
     f.write_all(atom)
 }
 
-/// serialize a node
 pub fn node_to_stream(node: &Node, f: &mut dyn io::Write) -> io::Result<()> {
     let mut values: Vec<NodePtr> = vec![node.node];
     let a = node.allocator;
@@ -298,7 +297,7 @@ pub fn node_to_stream_backrefs(node: &Node, f: &mut dyn io::Write) -> std::io::R
     Ok(())
 }
 
-pub fn node_to_bytes_backrefs(node: &Node) -> std::io::Result<Vec<u8>> {
+pub fn node_to_bytes_backrefs(node: &Node) -> io::Result<Vec<u8>> {
     let mut buffer = Cursor::new(Vec::new());
 
     node_to_stream_backrefs(node, &mut buffer)?;
