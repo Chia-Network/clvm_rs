@@ -23,10 +23,9 @@ num-bigint = "=0.4.3"
 num-traits = "=0.2.15"
 num-integer = "=0.1.45"
 bls12_381 = "=0.7.0"
-sha2 = "=0.10.2"
+sha2 = { version = "=0.10.2", features = ["asm"] }
 openssl = { version = "=0.10.40", features = ["vendored"], optional = true }
 clap = { version = "3.0", features = ["derive"] }
-#rustc-hash = "=1.1.0"
 
 [[bin]]
 name = "swbr"

@@ -8,7 +8,7 @@ pub struct ObjectCache<'a, T> {
     f: CachedFunction<T>,
 }
 
-pub fn node_to_index(node: &NodePtr) -> usize {
+fn node_to_index(node: &NodePtr) -> usize {
     let node = *node;
     if node < 0 {
         (-node - node - 1) as usize
