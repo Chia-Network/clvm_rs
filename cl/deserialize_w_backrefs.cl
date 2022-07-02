@@ -80,10 +80,14 @@
   ; are implemented in the clvm interpreters theselves
   (defun get_bitcount (input_bits input_file)
     ; return `(string_length . input_file_new_start_point)`
-    (if (>s input_bits MAX_TWO_BYTE)
-      (if (>s input_bits MAX_THREE_BYTE)
-        (if (>s input_bits MAX_FOUR_BYTE)
-                (x)
+    (if (>s input_bits MAX_ONE_BYTE)
+      (if (>s input_bits MAX_TWO_BYTE)
+        (if (>s input_bits MAX_THREE_BYTE)
+          (if (>s input_bits MAX_FOUR_BYTE)
+                  (x)
+            ;four byte length prefix
+            (c (concat 0x00 (logand (quote 0x7) input_bits) (substr input_file 0 3)) (substr input_file 3))
+          )
           ;three byte length prefix
           (c (concat 0x00 (logand (quote 0xf) input_bits) (substr input_file 0 2)) (substr input_file 2))
         )
