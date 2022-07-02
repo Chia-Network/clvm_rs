@@ -4,15 +4,21 @@ use crate::node::Node;
 use crate::run_program::run_program;
 use crate::serialize::{node_from_bytes, node_to_bytes, node_to_bytes_backrefs};
 
-pub fn recompress_with_backrefs(input_program: &[u8]) -> Result<Vec<u8>, std::io::Error> {
+pub fn reserialize(
+    input_program: &[u8],
+    allow_backreferences_in_output: bool,
+) -> Result<Vec<u8>, std::io::Error> {
     let mut allocator = Allocator::new();
     let node_ptr = decompress(&mut allocator, input_program)?;
     let node = Node {
         allocator: &allocator,
         node: node_ptr,
     };
-
-    node_to_bytes_backrefs(&node)
+    if allow_backreferences_in_output {
+        node_to_bytes_backrefs(&node)
+    } else {
+        node_to_bytes(&node)
+    }
 }
 
 pub fn compress_with_backrefs(
