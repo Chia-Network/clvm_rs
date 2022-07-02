@@ -247,7 +247,7 @@ pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
     Ok(f.position())
 }
 
-pub fn node_to_stream_backrefs(node: &Node, f: &mut dyn io::Write) -> std::io::Result<()> {
+pub fn node_to_stream_backrefs(node: &Node, f: &mut dyn io::Write) -> io::Result<()> {
     let allocator = node.allocator;
     let mut read_op_stack: Vec<ReadOp> = vec![ReadOp::Parse];
     let mut write_stack: Vec<NodePtr> = vec![node.node];
