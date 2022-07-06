@@ -80,7 +80,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "clvm_rs"
-version = "0.1.20"
+version = "0.1.21"
 dependencies = [
  "clvmr",
  "pyo3",
@@ -88,7 +88,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_wasm"
-version = "0.1.20"
+version = "0.1.21"
 dependencies = [
  "clvmr",
  "wasm-bindgen",
@@ -97,7 +97,7 @@ dependencies = [
 
 [[package]]
 name = "clvmr"
-version = "0.1.20"
+version = "0.1.21"
 dependencies = [
  "bls12_381",
  "hex",

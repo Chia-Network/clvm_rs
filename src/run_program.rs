@@ -46,7 +46,7 @@ struct RunProgramContext<'a, D> {
     op_stack: Vec<Operation>,
 }
 
-impl<'a, 'h, D: Dialect> RunProgramContext<'a, D> {
+impl<'a, D: Dialect> RunProgramContext<'a, D> {
     pub fn pop(&mut self) -> Result<NodePtr, EvalErr> {
         let v: Option<NodePtr> = self.val_stack.pop();
         match v {

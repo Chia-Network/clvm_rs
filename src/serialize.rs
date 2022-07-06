@@ -1,42 +1,50 @@
-use crate::reduction::EvalErr;
-use std::io::Cursor;
-use std::io::Read;
-use std::io::Seek;
-use std::io::Write;
-use std::io::{Error, ErrorKind, SeekFrom};
+use std::io;
+use std::io::{Cursor, ErrorKind, Read, Seek, SeekFrom};
 
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::node::Node;
+use crate::reduction::EvalErr;
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const CONS_BOX_MARKER: u8 = 0xff;
 
-fn bad_encoding() -> std::io::Error {
-    Error::new(ErrorKind::InvalidInput, "bad encoding")
+fn bad_encoding() -> io::Error {
+    io::Error::new(ErrorKind::InvalidInput, "bad encoding")
 }
 
-fn internal_error() -> std::io::Error {
-    Error::new(ErrorKind::InvalidInput, "internal error")
+fn internal_error() -> io::Error {
+    io::Error::new(ErrorKind::InvalidInput, "internal error")
 }
 
-fn encode_size(f: &mut dyn Write, size: u64) -> std::io::Result<()> {
-    if size < 0x40 {
-        f.write_all(&[(0x80 | size) as u8])?;
+/// write the correct prefix for an atom of size `size` whose first byte is `atom_0`.
+/// If the atom is of size 0, use any placeholder first byte, as it's ignored anyway.
+
+fn write_atom_encoding_prefix_with_size(
+    f: &mut dyn io::Write,
+    atom_0: u8,
+    size: u64,
+) -> io::Result<()> {
+    if size == 0 {
+        f.write_all(&[0x80])
+    } else if size == 1 && atom_0 < 0x80 {
+        Ok(())
+    } else if size < 0x40 {
+        f.write_all(&[0x80 | (size as u8)])
     } else if size < 0x2000 {
-        f.write_all(&[(0xc0 | (size >> 8)) as u8, ((size) & 0xff) as u8])?;
+        f.write_all(&[0xc0 | (size >> 8) as u8, size as u8])
     } else if size < 0x10_0000 {
         f.write_all(&[
             (0xe0 | (size >> 16)) as u8,
             ((size >> 8) & 0xff) as u8,
             ((size) & 0xff) as u8,
-        ])?;
+        ])
     } else if size < 0x800_0000 {
         f.write_all(&[
             (0xf0 | (size >> 24)) as u8,
             ((size >> 16) & 0xff) as u8,
             ((size >> 8) & 0xff) as u8,
             ((size) & 0xff) as u8,
-        ])?;
+        ])
     } else if size < 0x4_0000_0000 {
         f.write_all(&[
             (0xf8 | (size >> 32)) as u8,
@@ -44,14 +52,29 @@ fn encode_size(f: &mut dyn Write, size: u64) -> std::io::Result<()> {
             ((size >> 16) & 0xff) as u8,
             ((size >> 8) & 0xff) as u8,
             ((size) & 0xff) as u8,
-        ])?;
+        ])
     } else {
-        return Err(Error::new(ErrorKind::InvalidData, "atom too big"));
+        Err(io::Error::new(ErrorKind::InvalidData, "atom too big"))
     }
-    Ok(())
 }
 
-pub fn node_to_stream(node: &Node, f: &mut dyn Write) -> std::io::Result<()> {
+/// all atoms serialize their contents verbatim. All expect those one-byte atoms
+/// from 0x00-0x7f also have a prefix encoding their length. This function
+/// encodes that length prefix.
+
+fn write_atom_encoding_prefix(f: &mut dyn io::Write, atom: &[u8]) -> io::Result<()> {
+    let u8_0 = if !atom.is_empty() { atom[0] } else { 0 };
+    write_atom_encoding_prefix_with_size(f, u8_0, atom.len() as u64)
+}
+
+/// serialize an atom
+fn write_atom(f: &mut dyn io::Write, atom: &[u8]) -> io::Result<()> {
+    write_atom_encoding_prefix(f, atom)?;
+    f.write_all(atom)
+}
+
+/// serialize a node
+pub fn node_to_stream(node: &Node, f: &mut dyn io::Write) -> io::Result<()> {
     let mut values: Vec<NodePtr> = vec![node.node];
     let a = node.allocator;
     while !values.is_empty() {
@@ -60,18 +83,7 @@ pub fn node_to_stream(node: &Node, f: &mut dyn Write) -> std::io::Result<()> {
         match n {
             SExp::Atom(atom_ptr) => {
                 let atom = a.buf(&atom_ptr);
-                let size = atom.len();
-                if size == 0 {
-                    f.write_all(&[0x80_u8])?;
-                } else {
-                    let atom0 = atom[0];
-                    if size == 1 && (atom0 <= MAX_SINGLE_BYTE) {
-                        f.write_all(&[atom0])?;
-                    } else {
-                        encode_size(f, size as u64)?;
-                        f.write_all(atom)?;
-                    }
-                }
+                write_atom(f, atom)?;
             }
             SExp::Pair(left, right) => {
                 f.write_all(&[CONS_BOX_MARKER as u8])?;
@@ -83,10 +95,10 @@ pub fn node_to_stream(node: &Node, f: &mut dyn Write) -> std::io::Result<()> {
     Ok(())
 }
 
-fn decode_size(f: &mut dyn Read, initial_b: u8) -> std::io::Result<u64> {
-    // this function decodes the length prefix for an atom. Atoms whose value
-    // fit in 7 bits don't have a length-prefix, so those should never be passed
-    // to this function.
+/// decode the length prefix for an atom. Atoms whose value fit in 7 bits
+/// don't have a length prefix, so those should be handled specially and
+/// never passed to this function.
+fn decode_size(f: &mut dyn io::Read, initial_b: u8) -> io::Result<u64> {
     debug_assert!((initial_b & 0x80) != 0);
     if (initial_b & 0x80) == 0 {
         return Err(internal_error());
@@ -127,16 +139,14 @@ enum ParseOp {
     Cons,
 }
 
-impl std::convert::From<EvalErr> for std::io::Error {
+impl From<EvalErr> for io::Error {
     fn from(v: EvalErr) -> Self {
         Self::new(ErrorKind::Other, v.1)
     }
 }
 
-pub fn node_from_stream(
-    allocator: &mut Allocator,
-    f: &mut Cursor<&[u8]>,
-) -> std::io::Result<NodePtr> {
+/// deserialize a clvm node from a `std::io::Cursor`
+pub fn node_from_stream(allocator: &mut Allocator, f: &mut Cursor<&[u8]>) -> io::Result<NodePtr> {
     let mut values: Vec<NodePtr> = Vec::new();
     let mut ops = vec![ParseOp::SExp];
 
@@ -180,12 +190,12 @@ pub fn node_from_stream(
     Ok(values.pop().unwrap())
 }
 
-pub fn node_from_bytes(allocator: &mut Allocator, b: &[u8]) -> std::io::Result<NodePtr> {
+pub fn node_from_bytes(allocator: &mut Allocator, b: &[u8]) -> io::Result<NodePtr> {
     let mut buffer = Cursor::new(b);
     node_from_stream(allocator, &mut buffer)
 }
 
-pub fn node_to_bytes(node: &Node) -> std::io::Result<Vec<u8>> {
+pub fn node_to_bytes(node: &Node) -> io::Result<Vec<u8>> {
     let mut buffer = Cursor::new(Vec::new());
 
     node_to_stream(node, &mut buffer)?;
@@ -193,7 +203,7 @@ pub fn node_to_bytes(node: &Node) -> std::io::Result<Vec<u8>> {
     Ok(vec)
 }
 
-pub fn serialized_length_from_bytes(b: &[u8]) -> std::io::Result<u64> {
+pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
     let mut f = Cursor::new(b);
     let mut ops = vec![ParseOp::SExp];
     let mut b = [0; 1];
@@ -269,6 +279,11 @@ fn test_serialized_length_from_bytes() {
         serialized_length_from_bytes(&[0x8f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).unwrap(),
         16
     );
+}
+
+#[cfg(test)]
+fn encode_size(f: &mut dyn io::Write, size: u64) -> io::Result<()> {
+    write_atom_encoding_prefix_with_size(f, 0xfe, size)
 }
 
 #[test]
@@ -349,5 +364,5 @@ fn test_truncated_decode_size() {
     let mut buffer = Cursor::new(&[0x4, 0, 0, 0]);
     let ret = decode_size(&mut buffer, first);
     let e = ret.unwrap_err();
-    assert_eq!(e.kind(), std::io::ErrorKind::UnexpectedEof);
+    assert_eq!(e.kind(), ErrorKind::UnexpectedEof);
 }
