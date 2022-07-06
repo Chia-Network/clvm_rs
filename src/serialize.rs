@@ -59,10 +59,18 @@ fn write_atom_encoding_prefix_with_size(
     }
 }
 
+/// all atoms serialize their contents verbatim. All expect those one-byte atoms
+/// from 0x00-0x7f also have a prefix encoding their length. This function
+/// encodes that length prefix.
+
+fn write_atom_encoding_prefix(f: &mut dyn io::Write, atom: &[u8]) -> io::Result<()> {
+    let u8_0 = if !atom.is_empty() { atom[0] } else { 0 };
+    write_atom_encoding_prefix_with_size(f, u8_0, atom.len() as u64)
+}
+
 /// serialize an atom
 fn write_atom(f: &mut dyn io::Write, atom: &[u8]) -> io::Result<()> {
-    let u8_0 = if !atom.is_empty() { atom[0] } else { 0 };
-    write_atom_encoding_prefix_with_size(f, u8_0, atom.len() as u64)?;
+    write_atom_encoding_prefix(f, atom)?;
     f.write_all(atom)
 }
 
@@ -266,6 +274,11 @@ fn test_serialized_length_from_bytes() {
         serialized_length_from_bytes(&[0x8f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).unwrap(),
         16
     );
+}
+
+#[cfg(test)]
+fn encode_size(f: &mut dyn io::Write, size: u64) -> io::Result<()> {
+    write_atom_encoding_prefix_with_size(f, 0xfe, size)
 }
 
 #[test]
