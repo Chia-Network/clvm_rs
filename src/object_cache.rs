@@ -1,3 +1,11 @@
+/// `ObjectCache` provides a way to calculate and cache values for each node
+/// in a clvm object tree. It can be used to calculate the sha256 tree hash
+/// for an object and save the hash for all the child objects for building
+/// usage tables, for example.
+///
+/// It also allows a function that's defined recursively on a clvm tree to
+/// have a non-recursive implementation (as it keeps a stack of uncached
+/// objects locally).
 use crate::allocator::{Allocator, NodePtr, SExp};
 type CachedFunction<T> = fn(&mut ObjectCache<T>, &Allocator, NodePtr) -> Option<T>;
 use crate::bytes32::{hash_blobs, Bytes32};
@@ -5,8 +13,19 @@ use crate::bytes32::{hash_blobs, Bytes32};
 pub struct ObjectCache<'a, T> {
     cache: Vec<Option<T>>,
     allocator: &'a Allocator,
+
+    /// The function `f` is expected to calculate its T value recursively based
+    /// on the T values for the left and right child for a pair. For an atom, the
+    /// function f must calculate the T value directly.
+    ///
+    /// If a pair is passed and one of the children does not have its T value cached
+    /// in `ObjectCache` yet, return `None` and f will be called with each child in turn.
+    /// Don't recurse in f; that's part of the point of this function.
     f: CachedFunction<T>,
 }
+
+/// turn a `NodePtr` into a `usize`. Positive values become even indices
+/// and negative values become odd indices.
 
 fn node_to_index(node: &NodePtr) -> usize {
     let node = *node;
@@ -30,7 +49,7 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
         self.update(node);
         self.get_raw(node)
     }
-    pub fn get_raw(&self, node: &NodePtr) -> Option<&T> {
+    fn get_raw(&self, node: &NodePtr) -> Option<&T> {
         let index = node_to_index(node);
         if index < self.cache.len() {
             self.cache[index].as_ref()
@@ -38,7 +57,7 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
             None
         }
     }
-    pub fn set(&mut self, node: &NodePtr, v: T) {
+    fn set(&mut self, node: &NodePtr, v: T) {
         let index = node_to_index(node);
         if index >= self.cache.len() {
             self.cache.resize(index + 1, None);
@@ -61,7 +80,9 @@ where
 }
 
 impl<'a, T: Clone> ObjectCache<'a, T> {
-    pub fn update(&mut self, root_node: &NodePtr) {
+    /// calculate the function's value for the given node, traversing uncached children
+    /// as necessary
+    fn update(&mut self, root_node: &NodePtr) {
         let mut obj_list = vec![*root_node];
         loop {
             match obj_list.pop() {
@@ -92,6 +113,8 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
     }
 }
 
+/// calculate the standard `sha256tree` has for a node
+
 pub fn treehash(
     cache: &mut ObjectCache<Bytes32>,
     allocator: &Allocator,
@@ -107,6 +130,9 @@ pub fn treehash(
         SExp::Atom(atom_buf) => Some(hash_blobs(&[&[1], allocator.buf(&atom_buf)])),
     }
 }
+
+/// calculate the serialized length (without backrefs) of a node. This is used
+/// to check if using backrefs is actually smaller.
 
 pub fn serialized_length(
     cache: &mut ObjectCache<usize>,
