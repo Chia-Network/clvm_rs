@@ -80,7 +80,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "clvm_rs"
-version = "0.1.20"
+version = "0.1.21"
 dependencies = [
  "clvmr",
  "pyo3",
@@ -88,7 +88,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_wasm"
-version = "0.1.20"
+version = "0.1.21"
 dependencies = [
  "clvmr",
  "wasm-bindgen",
@@ -97,7 +97,7 @@ dependencies = [
 
 [[package]]
 name = "clvmr"
-version = "0.1.20"
+version = "0.1.21"
 dependencies = [
  "bls12_381",
  "hex",
@@ -326,9 +326,9 @@ dependencies = [
 
 [[package]]
 name = "openssl-src"
-version = "111.15.0+1.1.1k"
+version = "111.22.0+1.1.1q"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1a5f6ae2ac04393b217ea9f700cd04fa9bf3d93fae2872069f3d15d908af70a"
+checksum = "8f31f0d509d1c1ae9cada2f9539ff8f37933831fd5098879e482aa687d659853"
 dependencies = [
  "cc",
 ]
