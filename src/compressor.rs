@@ -7,7 +7,7 @@ use crate::serialize::{node_from_bytes, node_to_bytes, node_to_bytes_backrefs};
 pub fn reserialize(
     input_program: &[u8],
     allow_backreferences_in_output: bool,
-) -> Result<Vec<u8>, std::io::Error> {
+) -> std::io::Result<Vec<u8>> {
     let mut allocator = Allocator::new();
     let node_ptr = decompress(&mut allocator, input_program)?;
     let node = Node {

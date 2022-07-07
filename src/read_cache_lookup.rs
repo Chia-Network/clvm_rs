@@ -15,7 +15,6 @@
 /// these objects that no longer exist, so we reference-count them.
 ///
 /// All hashes correspond to sha256 tree hashes.
-
 use std::collections::{HashMap, HashSet};
 
 use crate::bytes32::{hash_blob, hash_blobs, Bytes32};
@@ -159,7 +158,7 @@ impl ReadCacheLookup {
                     }
                 }
             }
-            if possible_responses.len() > 0 {
+            if !possible_responses.is_empty() {
                 break;
             }
             partial_paths = new_partial_paths;
@@ -170,7 +169,7 @@ impl ReadCacheLookup {
     /// If multiple paths exist, the lexigraphically smallest one will be returned.
     pub fn find_path(&self, id: &Bytes32, serialized_length: usize) -> Option<Vec<u8>> {
         let mut paths = self.find_paths(id, serialized_length);
-        if paths.len() > 0 {
+        if !paths.is_empty() {
             paths.sort();
             paths.truncate(1);
             paths.pop()
