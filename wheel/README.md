@@ -19,18 +19,18 @@ On UNIX-based platforms, you may get a speed boost on `sha256` operations by bui
 with OpenSSL.
 
 ```
-$ maturin develop --release --cargo-extra-args="--features=openssl"
+$ maturin develop --release --features=openssl
 ```
 
 
 To build the wheel, do
 
 ```
-$ maturin build --release --no-sdist
+$ maturin build --release
 ````
 
 or
 
 ```
-$ maturin build --release --no-sdist --cargo-extra-args="--features=openssl"
+$ maturin build --release --features=openssl
 ```
