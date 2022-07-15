@@ -3,7 +3,6 @@ use std::io::{Cursor, ErrorKind, Read, Seek, SeekFrom};
 
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::node::Node;
-use crate::reduction::EvalErr;
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const CONS_BOX_MARKER: u8 = 0xff;
@@ -131,12 +130,6 @@ fn decode_size(f: &mut dyn io::Read, initial_b: u8) -> io::Result<u64> {
 enum ParseOp {
     SExp,
     Cons,
-}
-
-impl From<EvalErr> for io::Error {
-    fn from(v: EvalErr) -> Self {
-        Self::new(ErrorKind::Other, v.1)
-    }
 }
 
 /// deserialize a clvm node from a `std::io::Cursor`
