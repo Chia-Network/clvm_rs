@@ -3,10 +3,10 @@ use std::io;
 use crate::allocator::NodePtr;
 use crate::cost::Cost;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EvalErr(pub NodePtr, pub String);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Reduction(pub Cost, pub NodePtr);
 
 pub type Response = Result<Reduction, EvalErr>;

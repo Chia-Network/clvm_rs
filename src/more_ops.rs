@@ -574,7 +574,7 @@ pub fn op_ash(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let l0 = b0.len();
     let rest = args.rest()?;
     let a1 = i32_atom(&rest.first()?, "ash")?;
-    if a1 > 65535 || a1 < -65535 {
+    if !(-65535..=65535).contains(&a1) {
         return args.rest()?.first()?.err("shift too large");
     }
 
@@ -651,7 +651,7 @@ pub fn op_lsh(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let l0 = b0.len();
     let rest = args.rest()?;
     let a1 = i32_atom(&rest.first()?, "lsh")?;
-    if a1 > 65535 || a1 < -65535 {
+    if !(-65535..=65535).contains(&a1) {
         return args.rest()?.first()?.err("shift too large");
     }
 
