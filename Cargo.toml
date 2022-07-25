@@ -1,6 +1,3 @@
-[workspace]
-members = ["wasm", "wheel"]
-
 [package]
 name = "clvmr"
 version = "0.1.21"
