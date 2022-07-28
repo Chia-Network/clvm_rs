@@ -5,9 +5,9 @@ use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_concat, op_div, op_div_deprecated, op_divmod, op_gr,
     op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not,
     op_point_add, op_pubkey_for_exp, op_sha256, op_softfork, op_strlen, op_substr, op_subtract,
-    op_bls_g1_subtract, op_bls_g1_multiply, op_bls_g1_negate, op_bls_g2_add, op_bls_g2_subtract,
-    op_bls_g2_multiply, op_bls_g2_negate, op_bls_gt_add, op_bls_gt_subtract, op_bls_gt_multiply,
-    op_bls_gt_negate, op_bls_pairing, op_pow,
+    op_bls_map_to_g1, op_bls_map_to_g2, op_bls_g1_subtract, op_bls_g1_multiply, op_bls_g1_negate,
+    op_bls_g2_add, op_bls_g2_subtract, op_bls_g2_multiply, op_bls_g2_negate, op_bls_gt_add,
+    op_bls_gt_subtract, op_bls_gt_multiply, op_bls_gt_negate, op_bls_pairing, op_pow,
 };
 use crate::number::{ptr_from_number, Number};
 use crate::reduction::{EvalErr, Reduction, Response};
@@ -1001,6 +1001,20 @@ bls_pairing 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae2
 bls_pairing 0 => FAIL
 bls_pairing ( 1 2 3 ) => FAIL
 
+; bls map to g1
+bls_map_to_g1 "abcdef0123456789" => 0x8dd8e3a9197ddefdc25dde980d219004d6aa130d1af9b1808f8b2b004ae94484ac62a08a739ec7843388019a79c437b0 | 733
+bls_map_to_g1 "abcdef01" "23456789" => 0x8dd8e3a9197ddefdc25dde980d219004d6aa130d1af9b1808f8b2b004ae94484ac62a08a739ec7843388019a79c437b0 | 867
+bls_map_to_g1 0x010203 => 0xadb922ec02a0bd4c2343c9c473b4c0e4780d608c72ee934421a14743ecf26594631484626ef620ee05aec38e3a3396ed | 707
+bls_map_to_g1 ( "hello" ) => FAIL
+bls_map_to_g1 ( "foo" "bar" ) => FAIL
+
+; bls map to g2
+bls_map_to_g2 "abcdef0123456789" => 0x8ee1ff66094b8975401c86ad424076d97fed9c2025db5f9dfde6ed455c7bff34b55e96379c1f9ee3c173633587f425e50aed3e807c6c7cd7bed35d40542eee99891955b2ea5321ebde37172e2c01155138494c2d725b03c02765828679bf011e | 1213
+bls_map_to_g2 "abcdef01" "23456789" => 0x8ee1ff66094b8975401c86ad424076d97fed9c2025db5f9dfde6ed455c7bff34b55e96379c1f9ee3c173633587f425e50aed3e807c6c7cd7bed35d40542eee99891955b2ea5321ebde37172e2c01155138494c2d725b03c02765828679bf011e | 1347
+bls_map_to_g2 0x010203 => 0x87f659cdaec686301669dad946d8631de1321cfd0e029bff3a63d8a348dc031fbad956eeee2578f400e6a8a26edadd7905c7dea8ab74b03bd21919e20ce90a2376952fd2bef0a525fe94cc9e6da0fe242604933efe5c5716ef2a51822fc5a4d4 | 1187
+bls_map_to_g2 ( "hello" ) => FAIL
+bls_map_to_g2 ( "foo" "bar" ) => FAIL
+
 ; power
 pow 2 3 => 8 | 999
 pow 2 3 6 => 2 | 1896
@@ -1108,6 +1122,8 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
             "bls_gt_multiply" => a.new_atom(&[46]).unwrap(),
             "bls_gt_negate" => a.new_atom(&[47]).unwrap(),
             "bls_pairing" => a.new_atom(&[48]).unwrap(),
+            "bls_map_to_g1" => a.new_atom(&[49]).unwrap(),
+            "bls_map_to_g2" => a.new_atom(&[50]).unwrap(),
             "pow" => a.new_atom(&[51]).unwrap(),
             _ => {
                 panic!("atom not supported \"{}\"", v);
@@ -1270,6 +1286,8 @@ fn test_ops() {
         ("bls_gt_multiply", op_bls_gt_multiply as Opf),
         ("bls_gt_negate", op_bls_gt_negate as Opf),
         ("bls_pairing", op_bls_pairing as Opf),
+        ("bls_map_to_g1", op_bls_map_to_g1 as Opf),
+        ("bls_map_to_g2", op_bls_map_to_g2 as Opf),
         ("pow", op_pow as Opf),
     ]);
 

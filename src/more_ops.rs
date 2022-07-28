@@ -1,7 +1,8 @@
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective, Scalar, Gt, pairing};
+use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve};
+use bls12_381::{pairing, G1Affine, G1Projective, G2Affine, G2Projective, Gt, Scalar};
 use num_bigint::{BigUint, Sign};
 use num_integer::Integer;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::ops::BitAndAssign;
 use std::ops::BitOrAssign;
 use std::ops::BitXorAssign;
@@ -104,6 +105,12 @@ const BLS_GT_NEGATE_BASE_COST: Cost = 101094;
 const BLS_GT_NEGATE_COST_PER_ARG: Cost = 1343980;
 const BLS_PAIRING_BASE_COST: Cost = 101094;
 const BLS_PAIRING_COST_PER_ARG: Cost = 1343980;
+const BLS_MAP_TO_G1_BASE_COST: Cost = 87;
+const BLS_MAP_TO_G1_COST_PER_ARG: Cost = 134;
+const BLS_MAP_TO_G1_COST_PER_BYTE: Cost = 2;
+const BLS_MAP_TO_G2_BASE_COST: Cost = 87;
+const BLS_MAP_TO_G2_COST_PER_ARG: Cost = 134;
+const BLS_MAP_TO_G2_COST_PER_BYTE: Cost = 2;
 const POW_BASE_COST: Cost = 92;
 const POW_COST_PER_OP: Cost = 885;
 const POW_LINEAR_COST_PER_BYTE: Cost = 6;
@@ -1347,6 +1354,63 @@ pub fn op_bls_pairing(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Resp
     }
     new_atom_and_cost(a, cost, &total.to_compressed())
 }
+
+pub fn op_bls_map_to_g1(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+    let args = Node::new(a, input);
+    let mut cost: Cost = BLS_MAP_TO_G1_BASE_COST;
+    let mut byte_count: usize = 0;
+    let mut msg = Vec::<u8>::new();
+    for arg in &args {
+        cost += BLS_MAP_TO_G1_COST_PER_ARG;
+        check_cost(
+            a,
+            cost + byte_count as Cost * BLS_MAP_TO_G1_COST_PER_BYTE,
+            max_cost,
+        )?;
+        let blob = atom(&arg, "BLS_MAP_TO_G1")?;
+        byte_count += blob.len();
+        msg.append(& mut blob.to_vec())
+    }
+
+    cost += byte_count as Cost * BLS_MAP_TO_G1_COST_PER_BYTE;
+    check_cost(a, cost, max_cost)?;
+
+    const DOMAIN: &[u8] = b"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_";
+    let point = <G1Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve(
+        msg,
+        DOMAIN,
+    );
+    new_atom_and_cost(a, cost, &G1Affine::from(point).to_compressed())
+}
+
+pub fn op_bls_map_to_g2(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+    let args = Node::new(a, input);
+    let mut cost: Cost = BLS_MAP_TO_G2_BASE_COST;
+    let mut byte_count: usize = 0;
+    let mut msg = Vec::<u8>::new();
+    for arg in &args {
+        cost += BLS_MAP_TO_G2_COST_PER_ARG;
+        check_cost(
+            a,
+            cost + byte_count as Cost * BLS_MAP_TO_G2_COST_PER_BYTE,
+            max_cost,
+        )?;
+        let blob = atom(&arg, "BLS_MAP_TO_G2")?;
+        byte_count += blob.len();
+        msg.append(& mut blob.to_vec())
+    }
+
+    cost += byte_count as Cost * BLS_MAP_TO_G2_COST_PER_BYTE;
+    check_cost(a, cost, max_cost)?;
+
+    const DOMAIN: &[u8] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
+    let point = <G2Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve(
+        msg,
+        DOMAIN,
+    );
+    new_atom_and_cost(a, cost, &G2Affine::from(point).to_compressed())
+}
+
 
 pub fn op_pow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let mut args = Node::new(a, input);
