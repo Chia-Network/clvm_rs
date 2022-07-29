@@ -1,37 +1,8 @@
 #[cfg(not(openssl))]
-use sha2::{Digest, Sha256 as Ctx};
+pub use sha2::{Digest, Sha256};
 
 #[cfg(openssl)]
-use openssl::sha;
-
-// WINDOWS PART
-
-#[cfg(not(openssl))]
-#[derive(Clone)]
-pub struct Sha256 {
-    ctx: Ctx,
-}
-
-#[cfg(not(openssl))]
-impl Sha256 {
-    pub fn new() -> Sha256 {
-        Sha256 { ctx: Ctx::new() }
-    }
-    pub fn update(&mut self, buf: &[u8]) {
-        self.ctx.update(buf);
-    }
-    pub fn finish(self) -> [u8; 32] {
-        self.ctx.finalize().into()
-    }
-}
-
-impl Default for Sha256 {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-// OPENSSL PART
+use openssl;
 
 #[cfg(openssl)]
 #[derive(Clone)]
@@ -43,13 +14,13 @@ pub struct Sha256 {
 impl Sha256 {
     pub fn new() -> Sha256 {
         Sha256 {
-            ctx: sha::Sha256::new(),
+            ctx: openssl::sha::Sha256::new(),
         }
     }
     pub fn update(&mut self, buf: &[u8]) {
         self.ctx.update(buf);
     }
-    pub fn finish(self) -> [u8; 32] {
+    pub fn finalize(self) -> [u8; 32] {
         self.ctx.finish()
     }
 }
@@ -66,21 +37,21 @@ fn test_sha256() {
 
     let mut ctx = Sha256::new();
     ctx.update(&[0x61, 0x62, 0x63]);
-    assert_eq!(&ctx.finish(), output);
+    assert_eq!(&ctx.finalize().as_slice(), output);
 
     let mut ctx = Sha256::new();
     ctx.update(&[0x61]);
     ctx.update(&[0x62]);
     ctx.update(&[0x63]);
-    assert_eq!(&ctx.finish(), output);
+    assert_eq!(&ctx.finalize().as_slice(), output);
 
     let mut ctx = Sha256::new();
     ctx.update(&[0x61, 0x62]);
     ctx.update(&[0x63]);
-    assert_eq!(&ctx.finish(), output);
+    assert_eq!(&ctx.finalize().as_slice(), output);
 
     let mut ctx = Sha256::new();
     ctx.update(&[0x61]);
     ctx.update(&[0x62, 0x63]);
-    assert_eq!(&ctx.finish(), output);
+    assert_eq!(&ctx.finalize().as_slice(), output);
 }
