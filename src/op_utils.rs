@@ -2,6 +2,14 @@ use crate::err_utils::err;
 use crate::node::Node;
 use crate::number::{number_from_u8, Number};
 use crate::reduction::EvalErr;
+use crate::cost::Cost;
+use crate::reduction::{Reduction, Response};
+use crate::allocator::Allocator;
+use num_bigint::Sign;
+use bls12_381::Scalar;
+
+// We ascribe some additional cost per byte for operations that allocate new atoms
+pub const MALLOC_COST_PER_BYTE: Cost = 10;
 
 pub fn check_arg_count(args: &Node, expected: usize, name: &str) -> Result<(), EvalErr> {
     if arg_count(args, expected) != expected {
@@ -242,4 +250,21 @@ impl<'a> Node<'a> {
     pub fn err<T>(&self, msg: &str) -> Result<T, EvalErr> {
         err(self.node, msg)
     }
+}
+
+pub fn number_to_scalar(n: Number) -> Scalar {
+    let (sign, as_u8): (Sign, Vec<u8>) = n.to_bytes_le();
+    let mut scalar_array: [u8; 32] = [0; 32];
+    scalar_array[..as_u8.len()].clone_from_slice(&as_u8[..]);
+    let exp: Scalar = Scalar::from_bytes(&scalar_array).unwrap();
+    if sign == Sign::Minus {
+        exp.neg()
+    } else {
+        exp
+    }
+}
+
+pub fn new_atom_and_cost(a: &mut Allocator, cost: Cost, buf: &[u8]) -> Response {
+    let c = buf.len() as Cost * MALLOC_COST_PER_BYTE;
+    Ok(Reduction(cost + c, a.new_atom(buf)?))
 }

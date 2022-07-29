@@ -14,6 +14,7 @@ pub mod run_program;
 pub mod runtime_dialect;
 pub mod serialize;
 pub mod sha2;
+pub mod bls_ops;
 
 #[cfg(test)]
 mod tests;

@@ -4,12 +4,14 @@ use crate::cost::Cost;
 use crate::dialect::Dialect;
 use crate::err_utils::err;
 use crate::more_ops::{
-    op_add, op_all, op_any, op_ash, op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract,
-    op_bls_g2_add, op_bls_g2_multiply, op_bls_g2_negate, op_bls_g2_subtract, op_bls_gt_add,
-    op_bls_gt_multiply, op_bls_gt_negate, op_bls_gt_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
-    op_bls_pairing, op_concat, op_div, op_div_deprecated, op_divmod, op_gr, op_gr_bytes, 
+    op_add, op_all, op_any, op_ash, op_concat, op_div, op_div_deprecated, op_divmod, op_gr, op_gr_bytes, 
     op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add, op_pow,
     op_pubkey_for_exp, op_sha256, op_softfork, op_strlen, op_substr, op_subtract, op_unknown,
+};
+use crate::bls_ops::{
+    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
+    op_bls_g2_negate, op_bls_g2_subtract, op_bls_gt_add, op_bls_gt_multiply, op_bls_gt_negate,
+    op_bls_gt_subtract, op_bls_map_to_g1, op_bls_map_to_g2, op_bls_pairing,
 };
 use crate::reduction::Response;
 
