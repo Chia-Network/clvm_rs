@@ -18,7 +18,7 @@ use crate::op_utils::{
 };
 use crate::reduction::{Reduction, Response};
 use crate::serialize::node_to_bytes;
-use crate::sha2::Sha256;
+use crate::sha2::{Digest, Sha256};
 
 // We ascribe some additional cost per byte for operations that allocate new atoms
 const MALLOC_COST_PER_BYTE: Cost = 10;
@@ -348,7 +348,7 @@ pub fn op_sha256(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
         hasher.update(blob);
     }
     cost += byte_count as Cost * SHA256_COST_PER_BYTE;
-    new_atom_and_cost(a, cost, &hasher.finish())
+    new_atom_and_cost(a, cost, &hasher.finalize())
 }
 
 pub fn op_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
