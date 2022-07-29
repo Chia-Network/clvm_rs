@@ -1,5 +1,5 @@
 use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve};
-use bls12_381::{pairing, G1Affine, G1Projective, G2Affine, G2Projective, Gt, Scalar};
+use bls12_381::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, Scalar};
 use num_bigint::{BigUint, Sign};
 use num_integer::Integer;
 use std::convert::{TryFrom, TryInto};
@@ -18,7 +18,7 @@ use crate::op_utils::{
     arg_count, atom, check_arg_count, i32_atom, int_atom, two_ints, u32_from_u8,
 };
 use crate::reduction::{Reduction, Response};
-use crate::serialize::node_to_bytes;
+use crate::serialize::{node_to_bytes, node_from_bytes};
 use crate::sha2::Sha256;
 
 // We ascribe some additional cost per byte for operations that allocate new atoms
@@ -1300,13 +1300,118 @@ pub fn op_bls_gt_negate(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Re
 }
 
 pub fn op_bls_pairing(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
-    let args = Node::new(a, input);
+    let mut args = Node::new(a, input);
     let mut cost = BLS_PAIRING_BASE_COST;
-    let mut total: Gt = Gt::identity();
-    let mut i = 0;
-    let mut p = G1Affine::identity();
-    for arg in &args {
-        if i == 0 {
+    let mut items = Vec::<(G1Affine, G2Prepared)>::new();
+    let ac = arg_count(&args, 2);
+    if !(1..=2).contains(&ac) {
+        return args.err("bls_pairing takes exactly 1 or 2 arguments");
+    }
+    let mut arg = args.nth(0).unwrap();
+
+    fn process_pair(left: &Node, right: &Node) -> Option<(G1Affine, G2Prepared)> {
+        let left = left.atom();
+        let is_ok = left.is_some().into();
+        if is_ok {
+            let left = left.unwrap();
+            let is_ok: bool = left.len() == 48;
+            if is_ok {
+                let mut as_array: [u8; 48] = [0; 48];
+                as_array.clone_from_slice(&left[0..48]);
+                let v = G1Affine::from_compressed(&as_array);
+                let is_ok = v.is_some().into();
+                if is_ok {
+                    let p = v.unwrap();
+                    println!("left: {}", hex::encode(left));
+                    let pair = right.pair();
+                    let is_ok = pair.is_some().into();
+                    if is_ok {
+                        let (left, right) = pair.unwrap();
+                        if !right.nullp() {
+                            // error right should be null
+                            println!("ERROR more atoms")
+                        }
+                        let left = left.atom();
+                        let is_ok = left.is_some().into();
+                        if is_ok {
+                            let left = left.unwrap();
+                            let is_ok: bool = left.len() == 96;
+                            if is_ok {
+                                let mut as_array: [u8; 96] = [0; 96];
+                                as_array.clone_from_slice(&left[0..96]);
+                                let v = G2Affine::from_compressed(&as_array);
+                                let is_ok = v.is_some().into();
+                                if is_ok {
+                                    let q = G2Prepared::from(v.unwrap());
+                                    println!("right: {}", hex::encode(left));
+                                    return Some((p, q));
+                                }
+                            } else {
+                                // error right is not G2 size
+                            }
+                        } else {
+                            // error right is not an atom
+                        }
+                    } else {
+                        // error not a pair
+                    }
+
+                } else {
+                    // error not g1
+                    println!("not a g1 point");
+                }
+            } else {
+                // error wrong size
+            }
+        } else {
+            // error not atom
+        }
+        return None
+    }
+
+    fn extract_points(node: &Node) -> Result<Vec::<(G1Affine, G2Prepared)>, String>{
+        let mut items = Vec::<(G1Affine, G2Prepared)>::new();
+        let pair = node.pair();
+        let is_ok = pair.is_some().into();
+        if is_ok {
+            let (left, right) = pair.unwrap();
+
+            if !left.nullp() {
+                let pair = left.pair();
+                if pair.is_some().into() {
+                    let (left, right) = pair.unwrap();
+                    let item = process_pair(&left, &right);
+                    if item.is_some().into() {
+                        items.push(item.unwrap());
+                    } else {
+                        return Err("list does not contain points".to_string());
+                    }
+                }
+            }
+
+            if !right.nullp() {
+                match extract_points(&right) {
+                    Ok(points) => items.extend(points),
+                    Err(e) => return Err(e),
+                }
+            }
+        } else {
+            return Err("unexpected atom".to_string());
+        }
+
+        return Ok(items);
+    }
+
+    match arg.sexp() {
+        SExp::Pair(_, __) => {
+           match extract_points(&arg) {
+            Ok(points) => items.extend(points),
+            Err(e) => {
+                println!("got error {}", e);
+            }
+           }
+        },
+        SExp::Atom(_) => {
             let blob = atom(&arg, "op_bls_pairing")?;
             let mut is_ok: bool = blob.len() == 48;
             if is_ok {
@@ -1315,43 +1420,52 @@ pub fn op_bls_pairing(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Resp
                 let v = G1Affine::from_compressed(&as_array);
                 is_ok = v.is_some().into();
                 if is_ok {
-                    let point = v.unwrap();
-                    cost += BLS_PAIRING_COST_PER_ARG;
-                    check_cost(a, cost, max_cost)?;
-                    p = point
+                    let p = v.unwrap();
+                    let mut v = args.nth(0);
+                    is_ok = v.is_some().into();
+                    if is_ok {
+                        arg = v.unwrap();
+                        cost += BLS_PAIRING_COST_PER_ARG;
+                        check_cost(a, cost, max_cost)?;
+
+                        let blob = atom(&arg, "op_bls_pairing")?;
+                        let mut is_ok: bool = blob.len() == 96;
+                        if is_ok {
+                            let mut as_array: [u8; 96] = [0; 96];
+                            as_array.clone_from_slice(&blob[0..96]);
+                            let v = G2Affine::from_compressed(&as_array);
+                            is_ok = v.is_some().into();
+                            if is_ok {
+                                let q = G2Prepared::from(v.unwrap());
+                                cost += BLS_PAIRING_COST_PER_ARG;
+                                check_cost(a, cost, max_cost)?;
+                                items.push((p, q));
+                            }
+                        }
+                        if !is_ok {
+                            let blob: String = hex::encode(node_to_bytes(&arg).unwrap());
+                            let msg = format!("op_bls_pairing expects arg 2 blob size, got {}: Length of bytes object not equal to G2Element::SIZE", blob);
+                            return args.err(&msg);
+                        }
+                    } else {
+                        let msg = format!("op_bls_pairing expects 2 args, got 1");
+                        return args.err(&msg);
+                    }
                 }
             }
             if !is_ok {
                 let blob: String = hex::encode(node_to_bytes(&arg).unwrap());
-                let msg = format!("op_bls_pairing expects blob, got {}: Length of bytes object not equal to G1Element::SIZE", blob);
+                let msg = format!("op_bls_pairing expects arg 1 blob size, got {}: Length of bytes object not equal to G1Element::SIZE", blob);
                 return args.err(&msg);
             }
         }
-
-        if i == 1 {
-            let blob = atom(&arg, "op_bls_pairing")?;
-            let mut is_ok: bool = blob.len() == 96;
-            if is_ok {
-                let mut as_array: [u8; 96] = [0; 96];
-                as_array.clone_from_slice(&blob[0..96]);
-                let v = G2Affine::from_compressed(&as_array);
-                is_ok = v.is_some().into();
-                if is_ok {
-                    let q = v.unwrap();
-                    cost += BLS_PAIRING_COST_PER_ARG;
-                    check_cost(a, cost, max_cost)?;
-                    total = pairing(&p, &q);
-                }
-            }
-            if !is_ok {
-                let blob: String = hex::encode(node_to_bytes(&arg).unwrap());
-                let msg = format!("op_bls_pairing expects blob, got {}: Length of bytes object not equal to G2Element::SIZE", blob);
-                return args.err(&msg);
-            }
-        }
-
-        i += 1;
     }
+
+    let mut item_refs = Vec::<(&G1Affine, &G2Prepared)>::new();
+    for (p, q) in items.iter() {
+        item_refs.push((&p, &q))
+    }
+    let total = multi_miller_loop(&item_refs).final_exponentiation();
     new_atom_and_cost(a, cost, &total.to_compressed())
 }
 
