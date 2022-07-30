@@ -1002,6 +1002,9 @@ bls_pairing 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae2
 bls_pairing 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4eee 0xb3e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8ee => FAIL
 bls_pairing 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4eee => FAIL
 bls_pairing 0 => FAIL
+bls_pairing 0 () => FAIL
+bls_pairing () () => FAIL
+bls_pairing () 0x010203 => FAIL
 bls_pairing ( 1 2 3 ) => FAIL
 
 ; bls map to g1
@@ -1010,6 +1013,7 @@ bls_map_to_g1 "abcdef0123456789" "BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_AUG_" =
 bls_map_to_g1 0x010203 => 0xadb922ec02a0bd4c2343c9c473b4c0e4780d608c72ee934421a14743ecf26594631484626ef620ee05aec38e3a3396ed | 573
 bls_map_to_g1 ( "hello" ) => FAIL
 bls_map_to_g1 ( "foo" "bar" ) => FAIL
+bls_map_to_g1 (()) => FAIL
 
 ; bls map to g2
 bls_map_to_g2 "abcdef0123456789" => 0x8ee1ff66094b8975401c86ad424076d97fed9c2025db5f9dfde6ed455c7bff34b55e96379c1f9ee3c173633587f425e50aed3e807c6c7cd7bed35d40542eee99891955b2ea5321ebde37172e2c01155138494c2d725b03c02765828679bf011e | 1079
@@ -1017,6 +1021,7 @@ bls_map_to_g2 "abcdef0123456789" "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_AUG_" =
 bls_map_to_g2 0x010203 => 0x87f659cdaec686301669dad946d8631de1321cfd0e029bff3a63d8a348dc031fbad956eeee2578f400e6a8a26edadd7905c7dea8ab74b03bd21919e20ce90a2376952fd2bef0a525fe94cc9e6da0fe242604933efe5c5716ef2a51822fc5a4d4 | 1053
 bls_map_to_g2 ( "hello" ) => FAIL
 bls_map_to_g2 ( "foo" "bar" ) => FAIL
+bls_map_to_g2 (()) => FAIL
 
 ; power
 pow 2 3 => 8 | 999

@@ -36,13 +36,11 @@ const BLS_GT_NEGATE_COST_PER_ARG: Cost = 1343980;
 const BLS_PAIRING_BASE_COST: Cost = 101094;
 const BLS_PAIRING_COST_PER_ARG: Cost = 1343980;
 const BLS_MAP_TO_G1_BASE_COST: Cost = 87;
-const BLS_MAP_TO_G1_COST_PER_ARG: Cost = 134;
 const BLS_MAP_TO_G1_COST_PER_BYTE: Cost = 2;
 const BLS_MAP_TO_G2_BASE_COST: Cost = 87;
-const BLS_MAP_TO_G2_COST_PER_ARG: Cost = 134;
 const BLS_MAP_TO_G2_COST_PER_BYTE: Cost = 2;
 
-fn node_to_g1(node: &Node) -> Result<G1Affine, EvalErr> {
+fn g1_atom(node: &Node) -> Result<G1Affine, EvalErr> {
     let atom = node.atom();
     if atom.is_some().into() {
         let blob = atom.unwrap();
@@ -63,7 +61,7 @@ fn node_to_g1(node: &Node) -> Result<G1Affine, EvalErr> {
     }
 }
 
-fn node_to_g2(node: &Node) -> Result<G2Affine, EvalErr> {
+fn g2_atom(node: &Node) -> Result<G2Affine, EvalErr> {
     let atom = node.atom();
     if atom.is_some().into() {
         let blob = atom.unwrap();
@@ -84,7 +82,7 @@ fn node_to_g2(node: &Node) -> Result<G2Affine, EvalErr> {
     }
 }
 
-fn node_to_gt(node: &Node) -> Result<Gt, EvalErr> {
+fn gt_atom(node: &Node) -> Result<Gt, EvalErr> {
     let atom = node.atom();
     if atom.is_some().into() {
         let blob = atom.unwrap();
@@ -111,7 +109,7 @@ pub fn op_bls_g1_subtract(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
     let mut total: G1Projective = G1Projective::identity();
     let mut is_first = true;
     for arg in &args {
-        let point = node_to_g1(&arg)?;
+        let point = g1_atom(&arg)?;
         cost += BLS_G1_SUBTRACT_COST_PER_ARG;
         check_cost(a, cost, max_cost)?;
         if is_first {
@@ -132,7 +130,7 @@ pub fn op_bls_g1_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
     let mut first_iter: bool = true;
     for arg in &args {
         if first_iter {
-            let point = node_to_g1(&arg)?;
+            let point = g1_atom(&arg)?;
             cost += BLS_G1_MULTIPLY_COST_PER_ARG;
             check_cost(a, cost, max_cost)?;
             total = G1Projective::from(point);
@@ -154,7 +152,7 @@ pub fn op_bls_g1_negate(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Re
     let mut cost = BLS_G1_NEGATE_BASE_COST;
     let mut total: G1Affine = G1Affine::identity();
     for arg in &args {
-        let point = node_to_g1(&arg)?;
+        let point = g1_atom(&arg)?;
         cost += BLS_G1_NEGATE_COST_PER_ARG;
         check_cost(a, cost, max_cost)?;
         total = -point;
@@ -167,7 +165,7 @@ pub fn op_bls_g2_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respo
     let mut cost = BLS_G2_ADD_BASE_COST;
     let mut total: G2Projective = G2Projective::identity();
     for arg in &args {
-        let point = node_to_g2(&arg)?;
+        let point = g2_atom(&arg)?;
         cost += BLS_G2_ADD_COST_PER_ARG;
         check_cost(a, cost, max_cost)?;
         total += &point;
@@ -182,7 +180,7 @@ pub fn op_bls_g2_subtract(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
     let mut total: G2Projective = G2Projective::identity();
     let mut is_first = true;
     for arg in &args {
-        let point = node_to_g2(&arg)?;
+        let point = g2_atom(&arg)?;
         cost += BLS_G2_SUBTRACT_COST_PER_ARG;
         check_cost(a, cost, max_cost)?;
         if is_first {
@@ -203,7 +201,7 @@ pub fn op_bls_g2_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
     let mut first_iter: bool = true;
     for arg in &args {
         if first_iter {
-            let point = node_to_g2(&arg)?;
+            let point = g2_atom(&arg)?;
             cost += BLS_G2_MULTIPLY_COST_PER_ARG;
             check_cost(a, cost, max_cost)?;
             total = G2Projective::from(point);
@@ -225,7 +223,7 @@ pub fn op_bls_g2_negate(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Re
     let mut cost = BLS_G2_NEGATE_BASE_COST;
     let mut total: G2Affine = G2Affine::identity();
     for arg in &args {
-        let point = node_to_g2(&arg)?;
+        let point = g2_atom(&arg)?;
         cost += BLS_G2_NEGATE_COST_PER_ARG;
         check_cost(a, cost, max_cost)?;
         total = -point;
@@ -238,7 +236,7 @@ pub fn op_bls_gt_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respo
     let mut cost = BLS_GT_ADD_BASE_COST;
     let mut total: Gt = Gt::identity();
     for arg in &args {
-        let point = node_to_gt(&arg)?;
+        let point = gt_atom(&arg)?;
         cost += BLS_GT_ADD_COST_PER_ARG;
         check_cost(a, cost, max_cost)?;
         total += &point;
@@ -252,7 +250,7 @@ pub fn op_bls_gt_subtract(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
     let mut total: Gt = Gt::identity();
     let mut is_first = true;
     for arg in &args {
-        let point = node_to_gt(&arg)?;
+        let point = gt_atom(&arg)?;
         cost += BLS_GT_SUBTRACT_COST_PER_ARG;
         check_cost(a, cost, max_cost)?;
         if is_first {
@@ -272,7 +270,7 @@ pub fn op_bls_gt_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
     let mut first_iter: bool = true;
     for arg in &args {
         if first_iter {
-            let point = node_to_gt(&arg)?;
+            let point = gt_atom(&arg)?;
             cost += BLS_GT_MULTIPLY_COST_PER_ARG;
             check_cost(a, cost, max_cost)?;
             total = Gt::from(point);
@@ -293,7 +291,7 @@ pub fn op_bls_gt_negate(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Re
     let mut cost = BLS_GT_NEGATE_BASE_COST;
     let mut total: Gt = Gt::identity();
     for arg in &args {
-        let point = node_to_gt(&arg)?;
+        let point = gt_atom(&arg)?;
         cost += BLS_GT_NEGATE_COST_PER_ARG;
         check_cost(a, cost, max_cost)?;
         total = -point;
@@ -317,8 +315,8 @@ pub fn op_bls_pairing(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Resp
             if !right.nullp() {
                 return right.err("too many arguments for pairing");
             }
-            let p = node_to_g1(&g1_node)?;
-            let q = node_to_g2(&g2_pair)?;
+            let p = g1_atom(&g1_node)?;
+            let q = g2_atom(&g2_pair)?;
             return Ok((p, G2Prepared::from(q)));
         } else {
             return g2_node.err("expected atom for G2 point");
@@ -343,6 +341,8 @@ pub fn op_bls_pairing(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Resp
                 } else {
                     return left.err("expected pair");
                 }
+            } else {
+                return left.err("unexpected null");
             }
 
             if !right.nullp() {
@@ -373,9 +373,9 @@ pub fn op_bls_pairing(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Resp
             }
             cost += BLS_PAIRING_COST_PER_ARG;
             check_cost(a, cost, max_cost)?;
-            let p = node_to_g1(&arg)?;
+            let p = g1_atom(&arg)?;
             let arg = args.next().unwrap();
-            let q = node_to_g2(&arg)?;
+            let q = g2_atom(&arg)?;
             items.push((p, G2Prepared::from(q)));
         }
     }
