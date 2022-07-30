@@ -49,15 +49,15 @@ fn g1_atom(node: &Node) -> Result<G1Affine, EvalErr> {
             as_array.clone_from_slice(&blob[0..48]);
             let v = G1Affine::from_compressed(&as_array);
             if v.is_some().into() {
-                return Ok(v.unwrap());
+                Ok(v.unwrap())
             } else {
-                return node.err("atom is not a G1 point");
+                node.err("atom is not a G1 point")
             }
         } else {
-            return node.err(&format!("atom is not G1 size, got {}: Length of bytes object not equal to 48", hex::encode(blob)));
+            node.err(&format!("atom is not G1 size, got {}: Length of bytes object not equal to 48", hex::encode(blob)))
         }
     } else {
-        return node.err("G1 point is not an atom");
+        node.err("G1 point is not an atom")
     }
 }
 
@@ -70,15 +70,15 @@ fn g2_atom(node: &Node) -> Result<G2Affine, EvalErr> {
             as_array.clone_from_slice(&blob[0..96]);
             let v = G2Affine::from_compressed(&as_array);
             if v.is_some().into() {
-                return Ok(v.unwrap());
+                Ok(v.unwrap())
             } else {
-                return node.err(&format!("atom is not a G2 point {}", hex::encode(blob)));
+                node.err(&format!("atom is not a G2 point {}", hex::encode(blob)))
             }
         } else {
-            return node.err(&format!("atom is not G2 size, got {}: Length of bytes object not equal to 96", hex::encode(blob)));
+            node.err(&format!("atom is not G2 size, got {}: Length of bytes object not equal to 96", hex::encode(blob)))
         }
     } else {
-         return node.err("G2 point is not an atom");
+         node.err("G2 point is not an atom")
     }
 }
 
@@ -91,15 +91,15 @@ fn gt_atom(node: &Node) -> Result<Gt, EvalErr> {
             as_array.clone_from_slice(&blob[0..288]);
             let v = Gt::from_compressed(&as_array);
             if v.is_some().into() {
-                return Ok(v.unwrap());
+                Ok(v.unwrap())
             } else {
-                return node.err(&format!("atom is not a Gt point {}", hex::encode(blob)));
+                node.err(&format!("atom is not a Gt point {}", hex::encode(blob)))
             }
         } else {
-            return node.err(&format!("atom is not Gt size, got {}: Length of bytes object not equal to 288", hex::encode(blob)));
+            node.err(&format!("atom is not Gt size, got {}: Length of bytes object not equal to 288", hex::encode(blob)))
         }
     } else {
-         return node.err("Gt point is not an atom");
+         node.err("Gt point is not an atom")
     }
 }
 
@@ -317,9 +317,9 @@ pub fn op_bls_pairing(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Resp
             }
             let p = g1_atom(&g1_node)?;
             let q = g2_atom(&g2_pair)?;
-            return Ok((p, G2Prepared::from(q)));
+            Ok((p, G2Prepared::from(q)))
         } else {
-            return g2_node.err("expected atom for G2 point");
+            g2_node.err("expected atom for G2 point")
         }
     }
 
@@ -355,7 +355,7 @@ pub fn op_bls_pairing(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Resp
             return node.err("expected pair");
         }
 
-        return Ok((items, cost));
+        Ok((items, cost))
     }
 
     let arg = args.next().unwrap();
@@ -382,7 +382,7 @@ pub fn op_bls_pairing(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Resp
 
     let mut item_refs = Vec::<(&G1Affine, &G2Prepared)>::new();
     for (p, q) in items.iter() {
-        item_refs.push((&p, &q))
+        item_refs.push((&p, &q));
     }
     let total = multi_miller_loop(&item_refs).final_exponentiation();
     new_atom_and_cost(a, cost, &total.to_compressed())
