@@ -6,7 +6,7 @@ use crate::reduction::EvalErr;
 use crate::node::Node;
 use crate::number::number_from_u8;
 use crate::op_utils::{
-    arg_count, atom, check_arg_count, int_atom, new_atom_and_cost, number_to_scalar
+    arg_count, atom, check_arg_count, int_atom, new_atom_and_cost, number_to_scalar, mod_group_order
 };
 use crate::reduction::Response;
 
@@ -125,6 +125,7 @@ pub fn op_bls_g1_subtract(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
 
 pub fn op_bls_g1_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let args = Node::new(a, input);
+    check_arg_count(&args, 2, "bls_g1_multiply")?;
     let mut cost = BLS_G1_MULTIPLY_BASE_COST;
     let mut total: G1Projective = G1Projective::identity();
     let mut first_iter: bool = true;
@@ -138,7 +139,7 @@ pub fn op_bls_g1_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
             continue;
         } else {
             let v0 = int_atom(&arg, "bls_g1_multiply")?;
-            total *= number_to_scalar(number_from_u8(v0));
+            total *= number_to_scalar(mod_group_order(number_from_u8(v0)));
             cost += BLS_G1_MULTIPLY_COST_PER_ARG;
         }
     }
@@ -196,6 +197,7 @@ pub fn op_bls_g2_subtract(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
 
 pub fn op_bls_g2_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let args = Node::new(a, input);
+    check_arg_count(&args, 2, "op_bls_g2_multiply")?;
     let mut cost = BLS_G2_MULTIPLY_BASE_COST;
     let mut total: G2Projective = G2Projective::identity();
     let mut first_iter: bool = true;
@@ -209,7 +211,7 @@ pub fn op_bls_g2_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
             continue;
         } else {
             let v0 = int_atom(&arg, "bls_g2_multiply")?;
-            total *= number_to_scalar(number_from_u8(v0));
+            total *= number_to_scalar(mod_group_order(number_from_u8(v0)));
             cost += BLS_G2_MULTIPLY_COST_PER_ARG;
         }
     }
@@ -265,6 +267,7 @@ pub fn op_bls_gt_subtract(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
 
 pub fn op_bls_gt_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let args = Node::new(a, input);
+    check_arg_count(&args, 2, "op_bls_gt_multiply")?;
     let mut cost = BLS_GT_MULTIPLY_BASE_COST;
     let mut total: Gt = Gt::identity();
     let mut first_iter: bool = true;
@@ -278,7 +281,7 @@ pub fn op_bls_gt_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
             continue;
         } else {
             let v0 = int_atom(&arg, "bls_gt_multiply")?;
-            total *= number_to_scalar(number_from_u8(v0));
+            total *= number_to_scalar(mod_group_order(number_from_u8(v0)));
             cost += BLS_GT_MULTIPLY_COST_PER_ARG;
         }
     }

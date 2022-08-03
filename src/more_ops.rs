@@ -6,8 +6,6 @@ use std::ops::BitAndAssign;
 use std::ops::BitOrAssign;
 use std::ops::BitXorAssign;
 
-use lazy_static::lazy_static;
-
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::{check_cost, Cost};
 use crate::err_utils::err;
@@ -16,7 +14,7 @@ use crate::number::{number_from_u8, ptr_from_number, Number};
 use crate::op_utils::{
     MALLOC_COST_PER_BYTE,
     arg_count, atom, check_arg_count, i32_atom, int_atom, two_ints, u32_from_u8,
-    number_to_scalar, new_atom_and_cost,
+    number_to_scalar, new_atom_and_cost, mod_group_order
 };
 use crate::reduction::{Reduction, Response};
 use crate::serialize::node_to_bytes;
@@ -821,27 +819,6 @@ pub fn op_softfork(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respons
         }
         _ => args.err("softfork takes at least 1 argument"),
     }
-}
-
-lazy_static! {
-    static ref GROUP_ORDER: Number = {
-        let order_as_bytes = &[
-            0x73, 0xed, 0xa7, 0x53, 0x29, 0x9d, 0x7d, 0x48, 0x33, 0x39, 0xd8, 0x08, 0x09, 0xa1,
-            0xd8, 0x05, 0x53, 0xbd, 0xa4, 0x02, 0xff, 0xfe, 0x5b, 0xfe, 0xff, 0xff, 0xff, 0xff,
-            0x00, 0x00, 0x00, 0x01,
-        ];
-        let n = BigUint::from_bytes_be(order_as_bytes);
-        n.into()
-    };
-}
-
-fn mod_group_order(n: Number) -> Number {
-    let order = GROUP_ORDER.clone();
-    let mut remainder = n.mod_floor(&order);
-    if remainder.sign() == Sign::Minus {
-        remainder += order;
-    }
-    remainder
 }
 
 pub fn op_pubkey_for_exp(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {

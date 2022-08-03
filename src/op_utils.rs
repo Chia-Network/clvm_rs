@@ -5,8 +5,10 @@ use crate::reduction::EvalErr;
 use crate::cost::Cost;
 use crate::reduction::{Reduction, Response};
 use crate::allocator::Allocator;
-use num_bigint::Sign;
+use num_bigint::{BigUint, Sign};
+use num_integer::Integer;
 use bls12_381::Scalar;
+use lazy_static::lazy_static;
 
 // We ascribe some additional cost per byte for operations that allocate new atoms
 pub const MALLOC_COST_PER_BYTE: Cost = 10;
@@ -267,4 +269,25 @@ pub fn number_to_scalar(n: Number) -> Scalar {
 pub fn new_atom_and_cost(a: &mut Allocator, cost: Cost, buf: &[u8]) -> Response {
     let c = buf.len() as Cost * MALLOC_COST_PER_BYTE;
     Ok(Reduction(cost + c, a.new_atom(buf)?))
+}
+
+pub fn mod_group_order(n: Number) -> Number {
+    let order = GROUP_ORDER.clone();
+    let mut remainder = n.mod_floor(&order);
+    if remainder.sign() == Sign::Minus {
+        remainder += order;
+    }
+    remainder
+}
+
+lazy_static! {
+    static ref GROUP_ORDER: Number = {
+        let order_as_bytes = &[
+            0x73, 0xed, 0xa7, 0x53, 0x29, 0x9d, 0x7d, 0x48, 0x33, 0x39, 0xd8, 0x08, 0x09, 0xa1,
+            0xd8, 0x05, 0x53, 0xbd, 0xa4, 0x02, 0xff, 0xfe, 0x5b, 0xfe, 0xff, 0xff, 0xff, 0xff,
+            0x00, 0x00, 0x00, 0x01,
+        ];
+        let n = BigUint::from_bytes_be(order_as_bytes);
+        n.into()
+    };
 }
