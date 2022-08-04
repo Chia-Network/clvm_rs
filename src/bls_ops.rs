@@ -16,15 +16,14 @@ const BLS_G1_SUBTRACT_BASE_COST: Cost = 132332;
 const BLS_G1_SUBTRACT_COST_PER_ARG: Cost = 1362553;
 const BLS_G1_MULTIPLY_BASE_COST: Cost = 2154347;
 const BLS_G1_MULTIPLY_COST_PER_BYTE: Cost = 12;
-const BLS_G1_NEGATE_BASE_COST: Cost = 101094;
-const BLS_G1_NEGATE_COST_PER_ARG: Cost = 1343980;
-const BLS_G2_ADD_BASE_COST: Cost = 101094;
-const BLS_G2_ADD_COST_PER_ARG: Cost = 1343980;
-const BLS_G2_SUBTRACT_BASE_COST: Cost = 101094;
-const BLS_G2_SUBTRACT_COST_PER_ARG: Cost = 1343980;
+const BLS_G1_NEGATE_BASE_COST: Cost = 470779;
+const BLS_G2_ADD_BASE_COST: Cost = 45440;
+const BLS_G2_ADD_COST_PER_ARG: Cost = 5544581;
+const BLS_G2_SUBTRACT_BASE_COST: Cost = 146290;
+const BLS_G2_SUBTRACT_COST_PER_ARG: Cost = 5495272;
 const BLS_G2_MULTIPLY_BASE_COST: Cost = 101094;
 const BLS_G2_MULTIPLY_COST_PER_ARG: Cost = 1343980;
-const BLS_G2_NEGATE_BASE_COST: Cost = 101094;
+const BLS_G2_NEGATE_BASE_COST: Cost = 1893189;
 const BLS_G2_NEGATE_COST_PER_ARG: Cost = 1343980;
 const BLS_GT_ADD_BASE_COST: Cost = 101094;
 const BLS_GT_ADD_COST_PER_ARG: Cost = 1343980;
@@ -220,16 +219,13 @@ pub fn op_bls_g2_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
 }
 
 pub fn op_bls_g2_negate(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
-    let args = Node::new(a, input);
+    let mut args = Node::new(a, input);
     check_arg_count(&args, 1, "bls_g2_negate")?;
-    let mut cost = BLS_G2_NEGATE_BASE_COST;
-    let mut total: G2Affine = G2Affine::identity();
-    for arg in &args {
-        let point = g2_atom(&arg)?;
-        cost += BLS_G2_NEGATE_COST_PER_ARG;
-        check_cost(a, cost, max_cost)?;
-        total = -point;
-    }
+    let cost = BLS_G2_NEGATE_BASE_COST;
+    check_cost(a, cost, max_cost)?;
+    let arg = args.next().unwrap();
+    let point = g2_atom(&arg)?;
+    let total = -point;
     new_atom_and_cost(a, cost, &total.to_compressed())
 }
 
@@ -289,16 +285,13 @@ pub fn op_bls_gt_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
 }
 
 pub fn op_bls_gt_negate(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
-    let args = Node::new(a, input);
+    let mut args = Node::new(a, input);
     check_arg_count(&args, 1, "bls_gt_negate")?;
-    let mut cost = BLS_GT_NEGATE_BASE_COST;
-    let mut total: Gt = Gt::identity();
-    for arg in &args {
-        let point = gt_atom(&arg)?;
-        cost += BLS_GT_NEGATE_COST_PER_ARG;
-        check_cost(a, cost, max_cost)?;
-        total = -point;
-    }
+    let cost = BLS_G2_NEGATE_BASE_COST;
+    check_cost(a, cost, max_cost)?;
+    let arg = args.next().unwrap();
+    let point = gt_atom(&arg)?;
+    let total = -point;
     new_atom_and_cost(a, cost, &total.to_compressed())
 }
 
