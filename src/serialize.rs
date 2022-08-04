@@ -94,13 +94,13 @@ pub fn node_to_stream(node: &Node, f: &mut dyn io::Write) -> io::Result<()> {
 #[derive(Debug, PartialEq, Eq)]
 pub enum ParsedTriple {
     Atom {
-        start: usize,
-        end: usize,
+        start: u64,
+        end: u64,
         atom_offset: u32,
     },
     Pair {
-        start: usize,
-        end: usize,
+        start: u64,
+        end: u64,
         right_index: u32,
     },
 }
@@ -111,8 +111,8 @@ enum ParseOpRef {
     SaveIndex(usize),
 }
 
-fn skip_bytes<R: io::Read>(f: &mut R, skip_size: usize) -> io::Result<u64> {
-    io::copy(&mut f.by_ref().take(skip_size as u64), &mut io::sink())
+fn skip_bytes<R: io::Read>(f: &mut R, skip_size: u64) -> io::Result<u64> {
+    io::copy(&mut f.by_ref().take(skip_size), &mut io::sink())
 }
 
 /// parse a serialized clvm object tree to an array of `ParsedTriple` objects
@@ -131,7 +131,7 @@ fn skip_bytes<R: io::Read>(f: &mut R, skip_size: usize) -> io::Result<u64> {
 pub fn parse_triples<R: io::Read>(f: &mut R) -> io::Result<Vec<ParsedTriple>> {
     let mut r = Vec::new();
     let mut op_stack = vec![ParseOpRef::ParseObj];
-    let mut cursor: usize = 0;
+    let mut cursor: u64 = 0;
     loop {
         match op_stack.pop() {
             None => {
@@ -141,7 +141,7 @@ pub fn parse_triples<R: io::Read>(f: &mut R) -> io::Result<Vec<ParsedTriple>> {
                 ParseOpRef::ParseObj => {
                     let mut b: [u8; 1] = [0];
                     f.read_exact(&mut b)?;
-                    let start = cursor;
+                    let start = cursor as u64;
                     cursor += 1;
                     let b = b[0];
                     if b == CONS_BOX_MARKER {
@@ -163,7 +163,7 @@ pub fn parse_triples<R: io::Read>(f: &mut R) -> io::Result<Vec<ParsedTriple>> {
                             } else {
                                 let (atom_offset, atom_size) = decode_size(f, b)?;
                                 skip_bytes(f, atom_size)?;
-                                let end = start + atom_offset + atom_size;
+                                let end = start + (atom_offset as u64) + (atom_size as u64);
                                 (start, end, atom_offset as u32)
                             }
                         };
@@ -213,7 +213,7 @@ pub fn parse_triples<R: io::Read>(f: &mut R) -> io::Result<Vec<ParsedTriple>> {
 /// decode the length prefix for an atom. Atoms whose value fit in 7 bits
 /// don't have a length prefix, so those should be handled specially and
 /// never passed to this function.
-fn decode_size<R: io::Read>(f: &mut R, initial_b: u8) -> io::Result<(usize, usize)> {
+fn decode_size<R: io::Read>(f: &mut R, initial_b: u8) -> io::Result<(u8, u64)> {
     debug_assert!((initial_b & 0x80) != 0);
     if (initial_b & 0x80) == 0 {
         return Err(internal_error());
@@ -235,18 +235,18 @@ fn decode_size<R: io::Read>(f: &mut R, initial_b: u8) -> io::Result<(usize, usiz
         f.read_exact(remaining_buffer)?;
     }
     // need to convert size_blob to an int
-    let mut atom_size: usize = 0;
+    let mut atom_size: u64 = 0;
     if size_blob.len() > 6 {
         return Err(bad_encoding());
     }
     for b in &size_blob {
         atom_size <<= 8;
-        atom_size += *b as usize;
+        atom_size += *b as u64;
     }
     if atom_size >= 0x400000000 {
         return Err(bad_encoding());
     }
-    Ok((atom_start_offset, atom_size))
+    Ok((atom_start_offset as u8, atom_size))
 }
 
 enum ParseOp {
@@ -280,7 +280,7 @@ pub fn node_from_stream(allocator: &mut Allocator, f: &mut Cursor<&[u8]>) -> io:
                     values.push(allocator.new_atom(&b)?);
                 } else {
                     let (_prefix_size, blob_size) = decode_size(f, b[0])?;
-                    if (f.get_ref().len()) < blob_size {
+                    if (f.get_ref().len()) < blob_size as usize {
                         return Err(bad_encoding());
                     }
                     let mut blob: Vec<u8> = vec![0; blob_size as usize];
@@ -395,7 +395,7 @@ pub fn tree_hash_from_stream(f: &mut Cursor<&[u8]>) -> io::Result<[u8; 32]> {
                 } else {
                     let (_, blob_size) = decode_size(f, b[0])?;
                     let blob = &f.get_ref()[f.position() as usize..];
-                    if blob.len() < blob_size {
+                    if blob.len() < blob_size as usize {
                         return Err(bad_encoding());
                     }
                     let blob_size = blob_size as u64;

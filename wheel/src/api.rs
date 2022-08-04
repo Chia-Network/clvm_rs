@@ -19,12 +19,12 @@ fn tuple_for_parsed_triple(py: Python<'_>, p: &ParsedTriple) -> PyObject {
             start,
             end,
             atom_offset,
-        } => PyTuple::new(py, [*start, *end, *atom_offset as usize]),
+        } => PyTuple::new(py, [*start, *end, *atom_offset as u64]),
         ParsedTriple::Pair {
             start,
             end,
             right_index,
-        } => PyTuple::new(py, [*start, *end, *right_index as usize]),
+        } => PyTuple::new(py, [*start, *end, *right_index as u64]),
     };
     tuple.into_py(py)
 }
