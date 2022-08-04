@@ -9,12 +9,13 @@ use crate::op_utils::{
     arg_count, atom, check_arg_count, int_atom, new_atom_and_cost, number_to_scalar, mod_group_order
 };
 use crate::reduction::Response;
+use std::convert::TryFrom;
 
 // TODO get cost models
-const BLS_G1_SUBTRACT_BASE_COST: Cost = 101094;
-const BLS_G1_SUBTRACT_COST_PER_ARG: Cost = 1343980;
-const BLS_G1_MULTIPLY_BASE_COST: Cost = 101094;
-const BLS_G1_MULTIPLY_COST_PER_ARG: Cost = 1343980;
+const BLS_G1_SUBTRACT_BASE_COST: Cost = 132332;
+const BLS_G1_SUBTRACT_COST_PER_ARG: Cost = 1362553;
+const BLS_G1_MULTIPLY_BASE_COST: Cost = 2154347;
+const BLS_G1_MULTIPLY_COST_PER_BYTE: Cost = 12;
 const BLS_G1_NEGATE_BASE_COST: Cost = 101094;
 const BLS_G1_NEGATE_COST_PER_ARG: Cost = 1343980;
 const BLS_G2_ADD_BASE_COST: Cost = 101094;
@@ -106,6 +107,7 @@ fn gt_atom(node: &Node) -> Result<Gt, EvalErr> {
 pub fn op_bls_g1_subtract(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     let mut cost = BLS_G1_SUBTRACT_BASE_COST;
+    check_cost(a, cost, max_cost)?;
     let mut total: G1Projective = G1Projective::identity();
     let mut is_first = true;
     for arg in &args {
@@ -126,13 +128,13 @@ pub fn op_bls_g1_subtract(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
 pub fn op_bls_g1_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 2, "bls_g1_multiply")?;
-    let mut cost = BLS_G1_MULTIPLY_BASE_COST;
+    let mut cost = 0;
     let mut total: G1Projective = G1Projective::identity();
     let mut first_iter: bool = true;
     for arg in &args {
         if first_iter {
             let point = g1_atom(&arg)?;
-            cost += BLS_G1_MULTIPLY_COST_PER_ARG;
+            cost = BLS_G1_MULTIPLY_BASE_COST;
             check_cost(a, cost, max_cost)?;
             total = G1Projective::from(point);
             first_iter = false;
@@ -140,7 +142,8 @@ pub fn op_bls_g1_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
         } else {
             let v0 = int_atom(&arg, "bls_g1_multiply")?;
             total *= number_to_scalar(mod_group_order(number_from_u8(v0)));
-            cost += BLS_G1_MULTIPLY_COST_PER_ARG;
+            cost += v0.len() as Cost * BLS_G1_MULTIPLY_COST_PER_BYTE;
+            check_cost(a, cost, max_cost)?;
         }
     }
     let total: G1Affine = total.into();
@@ -148,16 +151,13 @@ pub fn op_bls_g1_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
 }
 
 pub fn op_bls_g1_negate(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
-    let args = Node::new(a, input);
+    let mut args = Node::new(a, input);
     check_arg_count(&args, 1, "bls_g1_negate")?;
-    let mut cost = BLS_G1_NEGATE_BASE_COST;
-    let mut total: G1Affine = G1Affine::identity();
-    for arg in &args {
-        let point = g1_atom(&arg)?;
-        cost += BLS_G1_NEGATE_COST_PER_ARG;
-        check_cost(a, cost, max_cost)?;
-        total = -point;
-    }
+    let cost = BLS_G1_NEGATE_BASE_COST;
+    check_cost(a, cost, max_cost)?;
+    let arg = args.next().unwrap();
+    let point = g1_atom(&arg)?;
+    let total = -point;
     new_atom_and_cost(a, cost, &total.to_compressed())
 }
 
