@@ -81,8 +81,8 @@ pub fn run_clvm(program: &[u8], args: &[u8]) -> Vec<u8> {
  *
  * @example
  * const result = run_chia_program(...); // Uint8Array
- * const cost = vec_u8_to_u64(result.subarray(0, 4)) // BigInt;
- * const serialized_node = result.subarray(4); // Uint8Array
+ * const cost = vec_u8_to_u64(result.subarray(0, 8)) // BigInt;
+ * const serialized_node = result.subarray(8); // Uint8Array
  */
 pub fn run_chia_program(
     program: &[u8],
