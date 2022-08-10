@@ -6,7 +6,6 @@ use clvmr::chia_dialect::NO_NEG_DIV as _no_neg_div;
 use clvmr::chia_dialect::NO_UNKNOWN_OPS as _no_unknown_ops;
 use clvmr::cost::Cost;
 use clvmr::node::Node;
-use clvmr::reduction::Response;
 use clvmr::run_program::run_program;
 use clvmr::serialize::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
 
@@ -33,38 +32,21 @@ pub fn serialized_length(program: &[u8]) -> u64 {
     serialized_length_from_bytes(program).unwrap()
 }
 
-fn _run_program(
-    allocator: &mut Allocator,
-    program: &[u8],
-    args: &[u8],
-    max_cost: Cost,
-    flag: u32,
-) -> Response {
-    let program = node_from_bytes(allocator, program).unwrap();
-    let args = node_from_bytes(allocator, args).unwrap();
-    let dialect = ChiaDialect::new(flag);
-
-    run_program(
-        allocator,
-        &dialect,
-        program,
-        args,
-        max_cost,
-        None,
-    )
-}
-
 #[wasm_bindgen]
 pub fn run_clvm(program: &[u8], args: &[u8]) -> Vec<u8> {
     let max_cost: Cost = 1_000_000_000_000_000;
 
     let mut allocator = Allocator::new();
-    let r = _run_program(
+    let program = node_from_bytes(&mut allocator, program).unwrap();
+    let args = node_from_bytes(&mut allocator, args).unwrap();
+
+    let r = run_program(
         &mut allocator,
+        &ChiaDialect::new(0),
         program,
         args,
         max_cost,
-        0,
+        None,
     );
     match r {
         Ok(reduction) => node_to_bytes(&Node::new(&allocator, reduction.1)).unwrap(),
@@ -91,12 +73,17 @@ pub fn run_chia_program(
     flag: u32,
 ) -> Vec<u8> {
     let mut allocator = Allocator::new();
-    let r = _run_program(
+    let program = node_from_bytes(&mut allocator, program).unwrap();
+    let args = node_from_bytes(&mut allocator, args).unwrap();
+    let dialect = ChiaDialect::new(flag);
+
+    let r = run_program(
         &mut allocator,
+        &dialect,
         program,
         args,
         max_cost,
-        flag,
+        None,
     );
     match r {
         Ok(reduction) => {
