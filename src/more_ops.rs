@@ -76,12 +76,6 @@ const POINT_ADD_BASE_COST: Cost = 101094;
 // increased from 419994 to better model Raspberry PI
 const POINT_ADD_COST_PER_ARG: Cost = 1343980;
 
-// TODO get cost models
-const POW_BASE_COST: Cost = 92;
-const POW_COST_PER_OP: Cost = 885;
-const POW_LINEAR_COST_PER_BYTE: Cost = 6;
-const POW_SQUARE_COST_PER_BYTE_DIVIDER: Cost = 128;
-
 // Raspberry PI 4 is about 2.833543 / 0.447859 = 6.32686 times slower
 // in the pubkey benchmark
 
@@ -865,51 +859,3 @@ pub fn op_point_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respon
     new_atom_and_cost(a, cost, &total.to_compressed())
 }
 
-pub fn op_pow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
-    let mut args = Node::new(a, input);
-    let ac = arg_count(&args, 3);
-    if !(2..=3).contains(&ac) {
-        return args.err("pow takes exactly 2 or 3 arguments");
-    }
-
-    let mut cost: Cost = POW_BASE_COST;
-    let mut iters = 0;
-    let mut total: Number = 1.into();
-    let mut l0: usize = 0;
-    for arg in &args {
-        iters += 1;
-        check_cost(a, cost, max_cost)?;
-        let blob = int_atom(&arg, "pow")?;
-        if iters == 1 {
-            l0 = blob.len();
-            total = number_from_u8(blob);
-            continue;
-        }
-        let l1 = blob.len();
-        let v0 = u32_from_u8(blob);
-        let is_ok = v0.is_some().into();
-        if is_ok {
-            if iters == 2 {
-                if ac == 2 {
-                    total = total.pow(v0.unwrap());
-                }
-            } else {
-                let exparg = args.nth(iters-2).unwrap();
-                let expblob = int_atom(&exparg, "pow")?;
-                total = total.modpow(&number_from_u8(expblob), &number_from_u8(blob));
-            }
-
-            cost += POW_COST_PER_OP;
-            cost += (l0 + l1) as Cost * POW_LINEAR_COST_PER_BYTE;
-            cost += (l0 * l1) as Cost / POW_SQUARE_COST_PER_BYTE_DIVIDER;
-
-            l0 = limbs_for_int(&total);
-        } else {
-            let blob: String = hex::encode(node_to_bytes(&arg).unwrap());
-            let msg = format!("pow expects blob, got {}: Length of bytes object not equal to u32::SIZE", blob);
-            return args.err(&msg);
-        }
-    }
-    let total = ptr_from_number(a, &total)?;
-    Ok(malloc_cost(a, cost, total))
-}

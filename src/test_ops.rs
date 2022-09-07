@@ -5,7 +5,6 @@ use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_concat, op_div, op_div_deprecated, op_divmod, op_gr,
     op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not,
     op_point_add, op_pubkey_for_exp, op_sha256, op_softfork, op_strlen, op_substr, op_subtract,
-    op_pow,
 };
 use crate::bls_ops::{
     op_bls_map_to_g1, op_bls_map_to_g2, op_bls_g1_subtract, op_bls_g1_multiply, op_bls_g1_negate,
@@ -1026,14 +1025,6 @@ bls_map_to_g2 ( "hello" ) => FAIL
 bls_map_to_g2 ( "foo" "bar" ) => FAIL
 bls_map_to_g2 (()) => FAIL
 
-; power
-pow 2 3 => 8 | 999
-pow 2 3 6 => 2 | 1896
-pow 2 => FAIL
-pow ( 2 ) => FAIL
-pow 1 ( 2 ) => FAIL
-pow ( 2 ) 1 => FAIL
-
 pubkey_for_exp 1 => 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb | 1326248
 pubkey_for_exp 2 => 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e | 1326248
 pubkey_for_exp 3 => 0x89ece308f9d1f0131765212deca99697b112d61f9be9a5f1f3780a51335b3ff981747a0b2ca2179b96d2c0c9024e5224 | 1326248
@@ -1135,7 +1126,6 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
             "bls_pairing" => a.new_atom(&[48]).unwrap(),
             "bls_map_to_g1" => a.new_atom(&[49]).unwrap(),
             "bls_map_to_g2" => a.new_atom(&[50]).unwrap(),
-            "pow" => a.new_atom(&[51]).unwrap(),
             _ => {
                 panic!("atom not supported \"{}\"", v);
             }
@@ -1299,7 +1289,6 @@ fn test_ops() {
         ("bls_pairing", op_bls_pairing as Opf),
         ("bls_map_to_g1", op_bls_map_to_g1 as Opf),
         ("bls_map_to_g2", op_bls_map_to_g2 as Opf),
-        ("pow", op_pow as Opf),
     ]);
 
     for t in TEST_CASES.split("\n") {
