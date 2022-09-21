@@ -50,8 +50,11 @@ class Program(CLVMObject):
         cls, blob: bytes, cursor: int
     ) -> Tuple[Program, int]:
         tree = CLVMTree.from_bytes(blob)
-        new_cursor = tree[-1][1]
-        obj = cls.wrap(tree)
+        if tree.atom is not None:
+            obj = cls.new_atom(tree.atom)
+        else:
+            obj = cls.wrap(tree)
+        new_cursor = len(bytes(tree)) + cursor
         return obj, new_cursor
 
     @classmethod
