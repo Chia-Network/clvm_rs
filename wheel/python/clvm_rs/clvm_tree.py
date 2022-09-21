@@ -1,4 +1,4 @@
-from clvm_rs import deserialize_as_triples
+from .deser import deserialize_as_triples
 
 
 from typing import List, Optional, Tuple

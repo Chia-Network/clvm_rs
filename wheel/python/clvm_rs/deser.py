@@ -1,6 +1,4 @@
-from typing import Tuple
-
-from .clvm_tree import CLVMTree
+from typing import List, Tuple
 
 MAX_SINGLE_BYTE = 0x7F
 CONS_BOX_MARKER = 0xFF
@@ -10,7 +8,9 @@ CONS_BOX_MARKER = 0xFF
 # PAIR: serialize_offset, serialize_end, right_index
 
 
-def deserialized_in_place(blob: bytes, cursor: int = 0) -> CLVMTree:
+def deserialize_as_triples(
+    blob: bytes, cursor: int = 0
+) -> List[Tuple[int, int, int]]:
     def save_cursor(index, blob, cursor, obj_list, op_stack):
         obj_list[index] = (obj_list[index][0], cursor, obj_list[index][2])
         return cursor
@@ -40,9 +40,7 @@ def deserialized_in_place(blob: bytes, cursor: int = 0) -> CLVMTree:
     while op_stack:
         f = op_stack.pop()
         cursor = f(blob, cursor, obj_list, op_stack)
-
-    v = CLVMTree(blob, obj_list, 0)
-    return v
+    return obj_list
 
 
 def _atom_size_from_cursor(blob, cursor) -> Tuple[int, int]:
