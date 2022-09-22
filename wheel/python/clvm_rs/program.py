@@ -249,27 +249,26 @@ class Program(CLVMObject):
             fixed_args = [4, (1, arg), fixed_args]
         return Program.to([2, (1, self), fixed_args])
 
-    def uncurry(self) -> Optional[Tuple[Program, Program]]:
+    def uncurry(self) -> Tuple[Program, Optional[Program]]:
         if (
-            self.at("f").atom != A_KW
-            or self.at("rf").atom != Q_KW
-            or self.at("rrr").atom != NULL
+            self.at("f") != A_KW
+            or self.at("rff") != Q_KW
+            or self.at("rrr") != NULL
         ):
-            return None
-        uncurried_function = self.at("rr")
+            return self, None
+        uncurried_function = self.at("rfr")
         core_items = []
         core = self.at("rrf")
-        while core.atom != ONE:
+        while core != ONE:
             if (
-                core.at("f").atom != C_KW
-                or core.at("rf").atom != Q_KW
-                or core.at("rrr").atom != NULL
+                core.at("f") != C_KW
+                or core.at("rff") != Q_KW
+                or core.at("rrr") != NULL
             ):
-                return None
-            new_item = core.at("rr")
+                return self, None
+            new_item = core.at("rfr")
             core_items.append(new_item)
             core = core.at("rrf")
-        core_items.reverse()
         return uncurried_function, core_items
 
     def as_int(self) -> int:
@@ -346,7 +345,7 @@ def _replace(program: Program, **kwargs) -> Program:
     new_f = _replace(pair[0], **args_by_prefix.get("f", {}))
     new_r = _replace(pair[1], **args_by_prefix.get("r", {}))
 
-    return program.new_pair((new_f, new_r))
+    return program.new_pair(Program.to(new_f), Program.to(new_r))
 
 
 def int_from_bytes(blob):
