@@ -183,7 +183,9 @@ class AsPythonTest(unittest.TestCase):
 
         # these fail because the lists are not null-terminated
         self.assertEqual(list(Program.to(1).as_iter()), [])
-        self.assertEqual(list(Program.to((1, (2, (3, (4, 5))))).as_iter()), [1, 2, 3, 4])
+        self.assertEqual(
+            list(Program.to((1, (2, (3, (4, 5))))).as_iter()), [1, 2, 3, 4]
+        )
 
     def test_eq(self):
         val = Program.to(1)
