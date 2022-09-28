@@ -4,26 +4,20 @@ from typing import Dict, Iterator, List, Tuple, Optional, Any
 
 # from clvm import Program
 from .base import CLVMObject
-from .casts import to_sexp_type
+from .casts import to_clvm_object
 from clvm_rs.clvm_rs import run_serialized_program
 from clvm_rs.serialize import sexp_from_stream, sexp_to_stream
 from clvm_rs.tree_hash import sha256_treehash
 from .clvm_tree import CLVMTree
 from .bytes32 import bytes32
+from .keywords import NULL, ONE, TWO, Q_KW, A_KW, C_KW
 
 # from chia.util.hash import std_hash
 # from chia.util.byte_types import hexstr_to_bytes
 # from chia.types.spend_bundle_conditions import SpendBundleConditions
 
 
-INFINITE_COST = 0x7FFFFFFFFFFFFFFF
-
-NULL = bytes.fromhex("")
-ONE = bytes.fromhex("01")
-TWO = bytes.fromhex("02")
-Q_KW = bytes.fromhex("01")
-A_KW = bytes.fromhex("02")
-C_KW = bytes.fromhex("04")
+MAX_COST = 0x7FFFFFFFFFFFFFFF
 
 
 class Program(CLVMObject):
@@ -68,9 +62,15 @@ class Program(CLVMObject):
 
     # high level casting with `.to`
 
+    def __init__(self) -> Program:
+        self.atom = b""
+        self.pair = None
+        self.wrapped = self
+        self._cached_sha256_treehash = None
+
     @classmethod
     def to(cls, v: Any) -> Program:
-        return to_sexp_type(v, cls.new_atom, cls.new_pair)
+        return cls.wrap(to_clvm_object(v, cls.new_atom, cls.new_pair))
 
     @classmethod
     def wrap(cls, v: CLVMObject) -> Program:
@@ -79,7 +79,11 @@ class Program(CLVMObject):
         o = cls()
         o.atom = v.atom
         o.pair = v.pair
+        o.wrapped = v
         return o
+
+    def unwrap(self) -> CLVMObject:
+        return self.wrapped
 
     # new object creation on the python heap
 
@@ -215,16 +219,18 @@ class Program(CLVMObject):
         return _replace(self, **kwargs)
 
     def tree_hash(self) -> bytes32:
-        return sha256_treehash(bytes(self))
+        return sha256_treehash(self.unwrap())
 
-    def run_with_cost(self, max_cost: int, args) -> Tuple[int, "Program"]:
+    def run_with_cost(
+        self, args, max_cost: int = MAX_COST
+    ) -> Tuple[int, "Program"]:
         prog_bytes = bytes(self)
         args_bytes = bytes(self.to(args))
         cost, r = run_serialized_program(prog_bytes, args_bytes, max_cost, 0)
         return cost, Program.to(r)
 
     def run(self, args) -> "Program":
-        cost, r = self.run_with_cost(INFINITE_COST, args)
+        cost, r = self.run_with_cost(args, MAX_COST)
         return r
 
     # Replicates the curry function from clvm_tools, taking advantage of *args
@@ -311,7 +317,7 @@ class Program(CLVMObject):
         return type(self).from_bytes(bytes(self))
 
 
-NULL_PROGRAM = Program.from_bytes(b"\x80")
+NULL_PROGRAM = Program.fromhex("80")
 
 
 def _replace(program: Program, **kwargs) -> Program:

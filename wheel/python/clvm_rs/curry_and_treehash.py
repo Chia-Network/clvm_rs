@@ -1,15 +1,8 @@
 from typing import List
 
 from .bytes32 import bytes32
+from .keywords import NULL, ONE, TWO, Q_KW, A_KW, C_KW
 from .tree_hash import shatree_atom, shatree_pair
-
-
-NULL = bytes.fromhex("")
-ONE = bytes.fromhex("01")
-TWO = bytes.fromhex("02")
-Q_KW = bytes.fromhex("01")
-A_KW = bytes.fromhex("02")
-C_KW = bytes.fromhex("04")
 
 
 Q_KW_TREEHASH = shatree_atom(Q_KW)
