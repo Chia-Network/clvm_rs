@@ -9,6 +9,8 @@ use pyo3::types::{PyBytes, PyTuple};
 pub struct LazyNode {
     allocator: Rc<Allocator>,
     node: NodePtr,
+    #[pyo3(get, set)]
+    _cached_sha256_treehash: PyObject,
 }
 
 impl ToPyObject for LazyNode {
@@ -25,8 +27,8 @@ impl LazyNode {
     pub fn pair(&self, py: Python) -> PyResult<Option<PyObject>> {
         match &self.allocator.sexp(self.node) {
             SExp::Pair(p1, p2) => {
-                let r1 = Self::new(self.allocator.clone(), *p1);
-                let r2 = Self::new(self.allocator.clone(), *p2);
+                let r1 = Self::new(py, self.allocator.clone(), *p1);
+                let r2 = Self::new(py, self.allocator.clone(), *p2);
                 let v: &PyTuple = PyTuple::new(py, &[r1, r2]);
                 Ok(Some(v.into()))
             }
@@ -44,10 +46,11 @@ impl LazyNode {
 }
 
 impl LazyNode {
-    pub const fn new(a: Rc<Allocator>, n: NodePtr) -> Self {
+    pub fn new(py: Python, a: Rc<Allocator>, n: NodePtr) -> Self {
         Self {
             allocator: a,
             node: n,
+            _cached_sha256_treehash: py.None(),
         }
     }
 }
