@@ -10,7 +10,7 @@ from clvm_rs.serialize import sexp_from_stream, sexp_to_stream
 from clvm_rs.tree_hash import sha256_treehash
 from .clvm_tree import CLVMTree
 from .bytes32 import bytes32
-from .keywords import NULL, ONE, TWO, Q_KW, A_KW, C_KW
+from .keywords import NULL, ONE, Q_KW, A_KW, C_KW
 
 # from chia.util.hash import std_hash
 # from chia.util.byte_types import hexstr_to_bytes
