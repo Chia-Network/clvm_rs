@@ -1,5 +1,8 @@
 from typing import List, Tuple
 
+from .tree_hash import shatree_atom, shatree_pair
+
+
 MAX_SINGLE_BYTE = 0x7F
 CONS_BOX_MARKER = 0xFF
 
@@ -8,11 +11,20 @@ CONS_BOX_MARKER = 0xFF
 # PAIR: serialize_offset, serialize_end, right_index
 
 
-def deserialize_as_triples(
+def deserialize_as_tuples(
     blob: bytes, cursor: int = 0
-) -> List[Tuple[int, int, int]]:
+) -> List[Tuple[int, int, int, bytes]]:
     def save_cursor(index, blob, cursor, obj_list, op_stack):
-        obj_list[index] = (obj_list[index][0], cursor, obj_list[index][2])
+        assert blob[obj_list[index][0]] == 0xFF
+        left_hash = obj_list[index + 1][3]
+        right_hash = obj_list[obj_list[index][2]][3]
+        my_hash = shatree_pair(left_hash, right_hash)
+        obj_list[index] = (
+            obj_list[index][0],
+            cursor,
+            obj_list[index][2],
+            my_hash,
+        )
         return cursor
 
     def save_index(index, blob, cursor, obj_list, op_stack):
@@ -32,7 +44,8 @@ def deserialize_as_triples(
             op_stack.append(parse_obj)
             return cursor + 1
         atom_offset, new_cursor = _atom_size_from_cursor(blob, cursor)
-        obj_list.append((cursor, new_cursor, atom_offset))
+        my_hash = shatree_atom(blob[cursor + atom_offset : new_cursor])
+        obj_list.append((cursor, new_cursor, atom_offset, my_hash))
         return new_cursor
 
     obj_list = []
@@ -58,7 +71,6 @@ def _atom_size_from_cursor(blob, cursor) -> Tuple[int, int]:
         bit_mask >>= 1
     size_blob = bytes([b])
     if bit_count > 1:
-        breakpoint()
         size_blob += blob[cursor + 1 : cursor + bit_count]
     size = int.from_bytes(size_blob, "big")
     if size >= 0x400000000:

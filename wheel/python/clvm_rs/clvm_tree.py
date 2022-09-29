@@ -1,4 +1,4 @@
-from .deser import deserialize_as_triples
+from .deser import deserialize_as_tuples
 
 
 from typing import List, Optional, Tuple
@@ -8,7 +8,7 @@ class CLVMTree:
     """
     This object conforms with the `CLVMObject` protocol. It's optimized for
     deserialization, and keeps a reference to the serialized blob and to a
-    list of triples of integers, each of which corresponds to a subtree.
+    list of tuples of integers, each of which corresponds to a subtree.
 
     It turns out every atom serialized to a blob contains a substring that
     exactly matches that atom, so it ends up being not very wasteful to
@@ -32,42 +32,46 @@ class CLVMTree:
     triple[2]:triple[1]]`)
 
     Since each `CLVMTree` subtree keeps a reference to the original
-    serialized data and the list of triples, no memory is released until all
+    serialized data and the list of tuples, no memory is released until all
     objects in the tree are garbage-collected. This happens pretty naturally
     in well-behaved python code.
     """
 
     @classmethod
     def from_bytes(cls, blob: bytes) -> "CLVMTree":
-        return cls(memoryview(blob), deserialize_as_triples(blob), 0)
+        return cls(memoryview(blob), deserialize_as_tuples(blob), 0)
 
     def __init__(
-        self, blob: bytes, int_triples: List[Tuple[int, int, int]], index: int
+        self,
+        blob: bytes,
+        int_tuples: List[Tuple[int, int, int, bytes]],
+        index: int,
     ):
         self.blob = blob
-        self.int_triples = int_triples
+        self.int_tuples = int_tuples
         self.index = index
+        self._cached_sha256_treehash = int_tuples[index][3]
 
     @property
     def atom(self) -> Optional[bytes]:
         if not hasattr(self, "_atom"):
-            start, end, atom_offset = self.int_triples[self.index]
+            start, end, atom_offset, hash = self.int_tuples[self.index]
             # if `self.blob[start]` is 0xff, it's a pair
             if self.blob[start] == 0xFF:
                 self._atom = None
             else:
-                self._atom = bytes(self.blob[start + atom_offset:end])
+                self._atom = self.blob[start + atom_offset : end]
         return self._atom
 
     @property
     def pair(self) -> Optional[Tuple["CLVMTree", "CLVMTree"]]:
         if not hasattr(self, "_pair"):
-            triples = self.int_triples
-            start, end, right_index = triples[self.index]
+            tuples = self.int_tuples
+            start, end, right_index, hash = tuples[self.index]
             # if `self.blob[start]` is 0xff, it's a pair
             if self.blob[start] == 0xFF:
-                left = self.__class__(self.blob, triples, self.index + 1)
-                right = self.__class__(self.blob, triples, right_index)
+                left = self.__class__(self.blob, tuples, self.index + 1)
+                right = self.__class__(self.blob, tuples, right_index)
                 self._pair = (left, right)
             else:
                 self._pair = None
@@ -75,7 +79,7 @@ class CLVMTree:
 
     @property
     def _cached_serialization(self) -> bytes:
-        start, end, _ = self.int_triples[self.index]
+        start, end, _, _ = self.int_tuples[self.index]
         return self.blob[start:end]
 
     def __bytes__(self) -> bytes:
