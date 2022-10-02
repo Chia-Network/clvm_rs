@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use wasm_bindgen::prelude::*;
 
 use clvmr::allocator::Allocator;
@@ -20,15 +21,16 @@ pub struct Flag;
 
 #[wasm_bindgen]
 impl Flag {
-    #[wasm_bindgen(getter)]
-    pub fn no_neg_div(&self) -> u32 { _no_neg_div }
+    #[wasm_bindgen]
+    pub fn no_neg_div() -> u32 { _no_neg_div }
 
-    #[wasm_bindgen(getter)]
-    pub fn no_unknown_ops(&self) -> u32 { _no_unknown_ops }
+    #[wasm_bindgen]
+    pub fn no_unknown_ops() -> u32 { _no_unknown_ops }
 }
 
 #[wasm_bindgen]
-pub fn serialized_length(program: &[u8]) -> u64 {
+pub fn serialized_length(program: &[u8]) -> u64
+{
     serialized_length_from_bytes(program).unwrap()
 }
 
@@ -88,47 +90,18 @@ pub fn run_chia_program(
     match r {
         Ok(reduction) => {
             let cost = reduction.0;
-            let node_bytes = node_to_bytes(
+            let mut node_bytes = node_to_bytes(
                 &Node::new(&allocator, reduction.1)
             ).unwrap();
 
-            [
-                u64_to_vec_u8(cost),
-                node_bytes,
-            ].concat()
+            node_bytes.splice(0..0, cost.to_be_bytes().to_vec());
+            node_bytes
         },
         Err(_eval_err) => format!("{:?}", _eval_err).into(),
     }
 }
 
 #[wasm_bindgen]
-pub fn u64_to_vec_u8(num: u64) -> Vec<u8> {
-    let u8_vec = vec![
-        ((num & 0xff000000_00000000) >> 56) as u8,
-        ((num & 0x00ff0000_00000000) >> 48) as u8,
-        ((num & 0x0000ff00_00000000) >> 40) as u8,
-        ((num & 0x000000ff_00000000) >> 32) as u8,
-        ((num & 0xff000000) >> 24) as u8,
-        ((num & 0x00ff0000) >> 16) as u8,
-        ((num & 0x0000ff00) >> 8) as u8,
-        ((num & 0x000000ff) >> 0) as u8,
-    ];
-
-    u8_vec
-}
-
-#[wasm_bindgen]
 pub fn vec_u8_to_u64(nums: &[u8]) -> u64 {
-    let u64_value =
-        ((nums[0] as u64) << 56)
-            + ((nums[1] as u64) << 48)
-            + ((nums[2] as u64) << 40)
-            + ((nums[3] as u64) << 32)
-            + ((nums[4] as u64) << 24)
-            + ((nums[5] as u64) << 16)
-            + ((nums[6] as u64) << 8)
-            + (nums[7] as u64)
-        ;
-
-    u64_value
+    u64::from_be_bytes(nums.try_into().expect("not enough bytes"))
 }
