@@ -6,8 +6,7 @@ from blspy import G1Element
 
 
 class dummy_class:
-    def __init__(self):
-        self.i = 0
+    pass
 
 
 def gen_tree(depth: int) -> Program:
@@ -41,9 +40,19 @@ class AsPythonTest(unittest.TestCase):
             for size in range(1, 5):
                 self.check_as_atom_list([bytes([_])] * size)
 
+    def test_non_list(self):
+        v = Program.to([1, 2, 3, (5, 6), 7])
+        p1 = v.as_atom_list()
+        expected = [Program.to(_).atom for _ in [1, 2, 3]]
+        self.assertEqual(p1, expected)
+
     def test_int(self):
         v = Program.to(42)
         self.assertEqual(v.atom, bytes([42]))
+        self.assertEqual(v.as_int(), 42)
+        v = Program.to(0)
+        self.assertEqual(v.atom, bytes([]))
+        self.assertEqual(v.as_int(), 0)
 
     def test_none(self):
         v = Program.to(None)
@@ -149,10 +158,10 @@ class AsPythonTest(unittest.TestCase):
 
     def test_invalid_tuple(self):
         with self.assertRaises(ValueError):
-            s = Program.to((dummy_class, dummy_class))
+            Program.to((dummy_class, dummy_class))
 
         with self.assertRaises(ValueError):
-            s = Program.to((dummy_class, dummy_class, dummy_class))
+            Program.to((dummy_class, dummy_class, dummy_class))
 
     def test_clvm_object_tuple(self):
         o1 = Program.to(b"foo")

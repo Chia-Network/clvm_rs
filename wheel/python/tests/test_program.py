@@ -1,5 +1,6 @@
 from unittest import TestCase
 
+from clvm_rs import CLVMObject
 from clvm_rs.program import Program
 from clvm_rs.EvalError import EvalError
 
@@ -43,6 +44,38 @@ class TestProgram(TestCase):
         p1 = Program.to([100, 200, 300])
         self.assertRaises(ValueError, lambda: p1.replace(q=105))
         self.assertRaises(ValueError, lambda: p1.replace(rq=105))
+
+    def test_protocol(self):
+        nil = Program.to(0)
+        self.assertRaises(NotImplementedError, lambda: CLVMObject.new_atom(nil))
+        self.assertRaises(NotImplementedError, lambda: CLVMObject.new_pair(nil, nil))
+
+    def test_first_rest(self):
+        p = Program.to([4, 5])
+        self.assertEqual(p.first(), 4)
+        self.assertEqual(p.rest(), [5])
+        p = Program.to(4)
+        self.assertEqual(p.as_pair(), None)
+        self.assertEqual(p.first(), None)
+        self.assertEqual(p.rest(), None)
+
+    def test_simple_run(self):
+        p = Program.fromhex("ff10ff02ff0580")  # `(+ 2 5)`
+        args = Program.fromhex("ff32ff3c80")  # `(50 60)`
+        r = p.run(args)
+        self.assertEqual(r, 110)
+
+    def test_run_exception(self):
+        p = Program.fromhex(
+            "ff08ffff0183666f6fffff018362617280"
+        )  # `(x (q . foo) (q . bar))`
+        err = None
+        try:
+            p.run(p)
+        except EvalError as ee:
+            err = ee
+        self.assertEqual(err.args, ("clvm raise",))
+        self.assertEqual(err._sexp, ["foo", "bar"])
 
 
 def check_idempotency(p, *args):

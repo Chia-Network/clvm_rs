@@ -1,7 +1,7 @@
 from typing import Optional, Protocol, Tuple
 
 
-class CLVMObjectStore(Protocol):
+class CLVMObject(Protocol):
     atom: Optional[bytes]
     pair: Optional[Tuple["CLVMObjectStore", "CLVMObjectStore"]]
 
@@ -12,10 +12,3 @@ class CLVMObjectStore(Protocol):
     @classmethod
     def new_pair(cls, p1, p2) -> "CLVMObjectStore":
         raise NotImplementedError()
-
-
-CLVMObject = CLVMObjectStore
-
-
-class PythonHeapCLVMObject(CLVMObjectStore):
-    pass

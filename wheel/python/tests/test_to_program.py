@@ -117,6 +117,9 @@ class ToProgramTest(unittest.TestCase):
         tree = Program.to(GeneratedTree(3, 10))
         assert print_leaves(tree) == "10 11 12 13 14 15 16 17 "
 
+        # this is just for `coverage`
+        assert print_leaves(Program.to(0)) == "() "
+
     def test_looks_like_clvm_object(self):
 
         # this function can't look at the values, that would cause a cascade of
@@ -174,9 +177,14 @@ class ToProgramTest(unittest.TestCase):
         assert convert_atom_to_bytes(None) == b""
         assert convert_atom_to_bytes([]) == b""
 
-        assert convert_atom_to_bytes([1, 2, 3]) == None
+        assert convert_atom_to_bytes([1, 2, 3]) is None
 
-        assert convert_atom_to_bytes((1, 2)) == None
+        assert convert_atom_to_bytes((1, 2)) is None
 
         with self.assertRaises(ValueError):
             assert convert_atom_to_bytes({})
+
+    def test_to_nil(self):
+        self.assertEqual(Program.to([]), 0)
+        self.assertEqual(Program.to(0), 0)
+        self.assertEqual(Program.to(b""), 0)

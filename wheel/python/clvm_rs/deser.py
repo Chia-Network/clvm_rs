@@ -73,6 +73,7 @@ def _atom_size_from_cursor(blob, cursor) -> Tuple[int, int]:
     if bit_count > 1:
         size_blob += blob[cursor + 1 : cursor + bit_count]
     size = int.from_bytes(size_blob, "big")
-    if size >= 0x400000000:
-        raise ValueError("blob too large")
-    return bit_count, cursor + size + bit_count
+    new_cursor = cursor + size + bit_count
+    if new_cursor > len(blob):
+        raise ValueError("end of stream")
+    return bit_count, new_cursor

@@ -31,6 +31,10 @@ class SerializeTest(unittest.TestCase):
     def check_serde(self, s):
         v = Program.to(s)
         b = bytes(v)
+        f = io.BytesIO()
+        v.stream(f)
+        b1 = f.getvalue()
+        self.assertEqual(b, b1)
         v1 = Program.parse(io.BytesIO(b))
         if v != v1:
             print("%s: %d %s %s" % (v, len(b), b, v1))
@@ -73,8 +77,7 @@ class SerializeTest(unittest.TestCase):
 
     def test_blob_limit(self):
         with self.assertRaises(ValueError):
-            for b in atom_to_byte_iterator(LargeAtom()):
-                print("%02x" % b)
+            next(atom_to_byte_iterator(LargeAtom()))
 
     def test_very_long_blobs(self):
         for size in [0x40, 0x2000, 0x100000, 0x8000000]:
@@ -124,3 +127,21 @@ class SerializeTest(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             Program.parse(InfiniteStream(bytes_in))
+
+    def test_repr_clvm_tree(self):
+        o = Program.fromhex("ff8080")
+        self.assertEqual(repr(o.unwrap()), "<CLVMTree: ff8080>")
+
+    def test_bad_blob(self):
+        self.assertRaises(ValueError, lambda: Program.fromhex("ff"))
+
+    def test_large_atom(self):
+        s = "foo" * 100
+        p = Program.to(s)
+        blob = bytes(p)
+        p1 = Program.from_bytes(blob)
+        self.assertEqual(p, p1)
+
+    def test_too_large_atom(self):
+        self.assertRaises(ValueError, lambda: Program.fromhex("fc"))
+        self.assertRaises(ValueError, lambda: Program.fromhex("fc8000000000"))

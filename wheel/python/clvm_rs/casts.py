@@ -27,8 +27,7 @@ def int_to_bytes(v):
     r = v.to_bytes(byte_count, "big", signed=True)
     # make sure the string returned is minimal
     # ie. no leading 00 or ff bytes that are unnecessary
-    while len(r) > 1 and r[0] == (0xFF if r[1] & 0x80 else 0):
-        r = r[1:]
+    assert not (len(r) > 1 and r[0] == (0xFF if r[1] & 0x80 else 0))
     return r
 
 
@@ -46,8 +45,6 @@ def to_atom_type(v: AtomCastableType) -> bytes:
     if hasattr(v, "__bytes__"):
         return bytes(v)
     if v is None:
-        return NULL
-    if v == []:
         return NULL
 
     raise ValueError("can't cast %s (%s) to bytes" % (type(v), v))
@@ -121,8 +118,7 @@ def to_clvm_object(
             stack.append(obj)
             continue
     # there's exactly one item left at this point
-    if len(stack) != 1:
-        raise ValueError("internal error")
+    assert len(stack) == 1
 
     # stack[0] implements the clvm object protocol
     return stack[0]

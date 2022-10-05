@@ -5,8 +5,9 @@ from typing import Dict, Iterator, List, Tuple, Optional, Any
 # from clvm import Program
 from .base import CLVMObject
 from .casts import to_clvm_object
+from .EvalError import EvalError
 from clvm_rs.clvm_rs import run_serialized_program
-from clvm_rs.serialize import sexp_from_stream, sexp_to_stream
+from clvm_rs.serialize import sexp_from_stream, sexp_to_stream, sexp_to_bytes
 from clvm_rs.tree_hash import sha256_treehash
 from .clvm_tree import CLVMTree
 from .bytes32 import bytes32
@@ -56,9 +57,7 @@ class Program(CLVMObject):
         return cls.from_bytes(bytes.fromhex(hexstr))
 
     def __bytes__(self) -> bytes:
-        f = io.BytesIO()
-        self.stream(f)  # noqa
-        return f.getvalue()
+        return sexp_to_bytes(self)
 
     # high level casting with `.to`
 
@@ -227,7 +226,10 @@ class Program(CLVMObject):
         prog_bytes = bytes(self)
         args_bytes = bytes(self.to(args))
         cost, r = run_serialized_program(prog_bytes, args_bytes, max_cost, 0)
-        return cost, Program.to(r)
+        r = Program.to(r)
+        if isinstance(cost, str):
+            raise EvalError(cost, r)
+        return cost, r
 
     def run(self, args) -> "Program":
         cost, r = self.run_with_cost(args, MAX_COST)
@@ -312,9 +314,6 @@ class Program(CLVMObject):
         and always return SOMETHING.
         """
         return list(self.as_atom_iter())
-
-    def __deepcopy__(self, memo):
-        return type(self).from_bytes(bytes(self))
 
 
 NULL_PROGRAM = Program.fromhex("80")
