@@ -13,6 +13,7 @@ pub mod reduction;
 pub mod run_program;
 pub mod runtime_dialect;
 pub mod serde;
+pub mod serialize;
 pub mod sha2;
 pub mod traverse_path;
 
