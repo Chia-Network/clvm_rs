@@ -16,5 +16,6 @@ path = "src/lib.rs"
 
 [dependencies]
 clvmr = { path = "..", features = [] }
-wasm-bindgen = "=0.2.75"
+wasm-bindgen = "=0.2.83"
 wasm-bindgen-test = "=0.3.25"
+js-sys = "0.3.60"
