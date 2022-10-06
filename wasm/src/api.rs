@@ -1,6 +1,8 @@
-use std::convert::TryInto;
+use std::rc::Rc;
 use wasm_bindgen::prelude::*;
+use js_sys::{Array};
 
+use crate::lazy_node::LazyNode;
 use clvmr::allocator::Allocator;
 use clvmr::chia_dialect::ChiaDialect;
 use clvmr::chia_dialect::NO_NEG_DIV as _no_neg_div;
@@ -57,23 +59,12 @@ pub fn run_clvm(program: &[u8], args: &[u8]) -> Vec<u8> {
 }
 
 #[wasm_bindgen]
-/**
- * Return serialized result of clvm program with cost
- *
- * cost will be available at the first 8 bytes of returned Vec<u8>(=Uint8Array).
- * bytes of node will be available from 8th byte offset of returned Vec<u8>.
- *
- * @example
- * const result = run_chia_program(...); // Uint8Array
- * const cost = vec_u8_to_u64(result.subarray(0, 8)) // BigInt;
- * const serialized_node = result.subarray(8); // Uint8Array
- */
 pub fn run_chia_program(
     program: &[u8],
     args: &[u8],
     max_cost: Cost, // Expecting `BigInt` to be passed from JavaScript world
     flag: u32,
-) -> Vec<u8> {
+) -> Result<Array, String> {
     let mut allocator = Allocator::new();
     let program = node_from_bytes(&mut allocator, program).unwrap();
     let args = node_from_bytes(&mut allocator, args).unwrap();
@@ -89,19 +80,15 @@ pub fn run_chia_program(
     );
     match r {
         Ok(reduction) => {
-            let cost = reduction.0;
-            let mut node_bytes = node_to_bytes(
-                &Node::new(&allocator, reduction.1)
-            ).unwrap();
+            let cost = JsValue::from(reduction.0);
+            let node = LazyNode::new(Rc::new(allocator), reduction.1);
+            let val = JsValue::from(node);
 
-            node_bytes.splice(0..0, cost.to_be_bytes().to_vec());
-            node_bytes
+            let tuple = Array::new_with_length(2);
+            tuple.set(0, cost);
+            tuple.set(1, val);
+            Ok(tuple)
         },
-        Err(_eval_err) => format!("{:?}", _eval_err).into(),
+        Err(_eval_err) => Err(format!("{:?}", _eval_err).into()),
     }
-}
-
-#[wasm_bindgen]
-pub fn vec_u8_to_u64(nums: &[u8]) -> u64 {
-    u64::from_be_bytes(nums.try_into().expect("not enough bytes"))
 }
