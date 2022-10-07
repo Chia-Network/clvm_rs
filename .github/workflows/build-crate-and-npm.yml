@@ -46,12 +46,6 @@ jobs:
     - name: dry-run of `cargo publish`
       run: cargo publish --dry-run
 
-    - name: Upload crate artifacts
-      uses: actions/upload-artifact@v2
-      with:
-        name: crate
-        path: ./target/package/clvm_rs-*.crate
-
     - name: install wasm-pack
       run: cargo install wasm-pack
 
