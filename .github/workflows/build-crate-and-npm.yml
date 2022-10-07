@@ -56,7 +56,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: npm-pkg
-        path: ./wasm/pkg/clvm_rs-*.tgz
+        path: ./wasm/pkg/clvm_wasm-*.tgz
 
     # this has not been tested, so probably needs to be debugged next time a tag is created
     - name: publish to crates.io if tagged
