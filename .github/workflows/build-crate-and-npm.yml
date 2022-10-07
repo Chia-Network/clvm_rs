@@ -56,7 +56,7 @@ jobs:
       run: cargo install wasm-pack
 
     - name: wasm-pack build and pack
-      run: wasm-pack build wasm && wasm-pack pack wasm
+      run: wasm-pack build --release --target=nodejs wasm && wasm-pack pack wasm
 
     - name: Upload npm pkg artifacts
       uses: actions/upload-artifact@v2

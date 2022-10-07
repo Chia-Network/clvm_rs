@@ -15,5 +15,5 @@ $ cargo install wasm-pack
 Then build with
 
 ```
-$ wasm-pack build --release
+$ wasm-pack build --release --target=nodejs
 ```
