@@ -1,5 +1,8 @@
 from clvm_rs.program import Program
-from clvm_rs.curry_and_treehash import calculate_hash_of_quoted_mod_hash, curry_and_treehash
+from clvm_rs.curry_and_treehash import (
+    calculate_hash_of_quoted_mod_hash,
+    curry_and_treehash,
+)
 
 
 def test_curry_and_treehash() -> None:

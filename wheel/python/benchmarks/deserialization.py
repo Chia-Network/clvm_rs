@@ -4,7 +4,6 @@ import time
 from clvm_rs.program import Program
 
 
-
 def bench(f, name: str):
     start = time.time()
     r = f()
@@ -15,17 +14,19 @@ def bench(f, name: str):
     return r
 
 
-
 sha_prog = Program.fromhex("ff0bff0180")
 
 print(sha_prog.run("food"))
-#breakpoint()
+# breakpoint()
 
 
 obj = bench(lambda: Program.parse(open("block-2500014.compressed.bin", "rb")), "parse")
 bench(lambda: bytes(obj), "to_bytes")
 
-obj1 = bench(lambda: Program.from_bytes(open("block-2500014.compressed.bin", "rb").read()), "from_bytes")
+obj1 = bench(
+    lambda: Program.from_bytes(open("block-2500014.compressed.bin", "rb").read()),
+    "from_bytes",
+)
 bench(lambda: bytes(obj1), "to_bytes")
 
 cost, output = bench(lambda: obj.run_with_cost(0), "run")
@@ -37,7 +38,16 @@ blob = bench(lambda: bytes(output), "serialize LazyNode again")
 bench(lambda: print(output.tree_hash().hex()), "print run tree hash LazyNode")
 bench(lambda: print(output.tree_hash().hex()), "print run tree hash again LazyNode")
 
-des_output = bench(lambda: Program.from_bytes(blob), "from_bytes output")
+des_output = bench(
+    lambda: Program.from_bytes(blob), "from_bytes output (with tree hashing)"
+)
+bench(lambda: print(des_output.tree_hash().hex()), "print from_bytes tree hash")
+bench(lambda: print(des_output.tree_hash().hex()), "print from_bytes tree hash again")
+
+des_output = bench(
+    lambda: Program.from_bytes(blob, calculate_tree_hash=False),
+    "from_bytes output (with no tree hashing)",
+)
 bench(lambda: print(des_output.tree_hash().hex()), "print from_bytes tree hash")
 bench(lambda: print(des_output.tree_hash().hex()), "print from_bytes tree hash again")
 

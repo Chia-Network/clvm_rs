@@ -12,7 +12,7 @@ CONS_BOX_MARKER = 0xFF
 
 
 def deserialize_as_tuples(
-    blob: bytes, cursor: int = 0, calculate_tree_hash: bool = True
+    blob: bytes, cursor: int, calculate_tree_hash: bool
 ) -> Tuple[List[Tuple[int, int, int]], List[Optional[bytes]]]:
     def save_cursor(index, blob, cursor, obj_list, op_stack):
         assert blob[obj_list[index][0]] == 0xFF
