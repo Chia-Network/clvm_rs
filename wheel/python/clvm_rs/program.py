@@ -30,13 +30,17 @@ class Program(CLVMObject):
         sexp_to_stream(self, f)
 
     @classmethod
-    def from_bytes(cls, blob: bytes) -> Program:
-        obj, cursor = cls.from_bytes_with_cursor(blob, 0)
+    def from_bytes(cls, blob: bytes, calculate_tree_hash: bool = True) -> Program:
+        obj, cursor = cls.from_bytes_with_cursor(
+            blob, 0, calculate_tree_hash=calculate_tree_hash
+        )
         return obj
 
     @classmethod
-    def from_bytes_with_cursor(cls, blob: bytes, cursor: int) -> Tuple[Program, int]:
-        tree = CLVMTree.from_bytes(blob)
+    def from_bytes_with_cursor(
+        cls, blob: bytes, cursor: int, calculate_tree_hash: bool = True
+    ) -> Tuple[Program, int]:
+        tree = CLVMTree.from_bytes(blob, calculate_tree_hash=calculate_tree_hash)
         if tree.atom is not None:
             obj = cls.new_atom(tree.atom)
         else:

@@ -38,8 +38,10 @@ class CLVMTree:
     """
 
     @classmethod
-    def from_bytes(cls, blob: bytes) -> "CLVMTree":
-        int_tuples, tree_hashes = deserialize_as_tuples(blob)
+    def from_bytes(cls, blob: bytes, calculate_tree_hash: bool = True) -> "CLVMTree":
+        int_tuples, tree_hashes = deserialize_as_tuples(
+            blob, 0, calculate_tree_hash=calculate_tree_hash
+        )
         return cls(memoryview(blob), int_tuples, tree_hashes, 0)
 
     def __init__(
