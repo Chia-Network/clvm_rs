@@ -1,8 +1,6 @@
 from __future__ import annotations
-import io
 from typing import Dict, Iterator, List, Tuple, Optional, Any
 
-# from clvm import Program
 from .base import CLVMObject
 from .casts import to_clvm_object
 from .EvalError import EvalError
@@ -12,10 +10,6 @@ from clvm_rs.tree_hash import sha256_treehash
 from .clvm_tree import CLVMTree
 from .bytes32 import bytes32
 from .keywords import NULL, ONE, Q_KW, A_KW, C_KW
-
-# from chia.util.hash import std_hash
-# from chia.util.byte_types import hexstr_to_bytes
-# from chia.types.spend_bundle_conditions import SpendBundleConditions
 
 
 MAX_COST = 0x7FFFFFFFFFFFFFFF
@@ -41,9 +35,7 @@ class Program(CLVMObject):
         return obj
 
     @classmethod
-    def from_bytes_with_cursor(
-        cls, blob: bytes, cursor: int
-    ) -> Tuple[Program, int]:
+    def from_bytes_with_cursor(cls, blob: bytes, cursor: int) -> Tuple[Program, int]:
         tree = CLVMTree.from_bytes(blob)
         if tree.atom is not None:
             obj = cls.new_atom(tree.atom)
@@ -220,9 +212,7 @@ class Program(CLVMObject):
     def tree_hash(self) -> bytes32:
         return sha256_treehash(self.unwrap())
 
-    def run_with_cost(
-        self, args, max_cost: int = MAX_COST
-    ) -> Tuple[int, "Program"]:
+    def run_with_cost(self, args, max_cost: int = MAX_COST) -> Tuple[int, "Program"]:
         prog_bytes = bytes(self)
         args_bytes = bytes(self.to(args))
         cost, r = run_serialized_program(prog_bytes, args_bytes, max_cost, 0)
@@ -258,21 +248,13 @@ class Program(CLVMObject):
         return Program.to([2, (1, self), fixed_args])
 
     def uncurry(self) -> Tuple[Program, Optional[Program]]:
-        if (
-            self.at("f") != A_KW
-            or self.at("rff") != Q_KW
-            or self.at("rrr") != NULL
-        ):
+        if self.at("f") != A_KW or self.at("rff") != Q_KW or self.at("rrr") != NULL:
             return self, None
         uncurried_function = self.at("rfr")
         core_items = []
         core = self.at("rrf")
         while core != ONE:
-            if (
-                core.at("f") != C_KW
-                or core.at("rff") != Q_KW
-                or core.at("rrr") != NULL
-            ):
+            if core.at("f") != C_KW or core.at("rff") != Q_KW or core.at("rrr") != NULL:
                 return self, None
             new_item = core.at("rfr")
             core_items.append(new_item)
@@ -337,9 +319,7 @@ def _replace(program: Program, **kwargs) -> Program:
     for k, v in kwargs.items():
         c = k[0]
         if c not in "fr":
-            raise ValueError(
-                f"bad path containing {c}: must only contain `f` and `r`"
-            )
+            raise ValueError(f"bad path containing {c}: must only contain `f` and `r`")
         args_by_prefix.setdefault(c, dict())[k[1:]] = v
 
     pair = program.pair

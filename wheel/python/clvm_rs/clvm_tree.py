@@ -39,23 +39,26 @@ class CLVMTree:
 
     @classmethod
     def from_bytes(cls, blob: bytes) -> "CLVMTree":
-        return cls(memoryview(blob), deserialize_as_tuples(blob), 0)
+        int_tuples, tree_hashes = deserialize_as_tuples(blob)
+        return cls(memoryview(blob), int_tuples, tree_hashes, 0)
 
     def __init__(
         self,
         blob: bytes,
-        int_tuples: List[Tuple[int, int, int, bytes]],
+        int_tuples: List[Tuple[int, int, int]],
+        tree_hashes: List[Optional[bytes]],
         index: int,
     ):
         self.blob = blob
         self.int_tuples = int_tuples
+        self.tree_hashes = tree_hashes
         self.index = index
-        self._cached_sha256_treehash = int_tuples[index][3]
+        self._cached_sha256_treehash = self.tree_hashes[index]
 
     @property
     def atom(self) -> Optional[bytes]:
         if not hasattr(self, "_atom"):
-            start, end, atom_offset, hash = self.int_tuples[self.index]
+            start, end, atom_offset = self.int_tuples[self.index]
             # if `self.blob[start]` is 0xff, it's a pair
             if self.blob[start] == 0xFF:
                 self._atom = None
@@ -66,12 +69,12 @@ class CLVMTree:
     @property
     def pair(self) -> Optional[Tuple["CLVMTree", "CLVMTree"]]:
         if not hasattr(self, "_pair"):
-            tuples = self.int_tuples
-            start, end, right_index, hash = tuples[self.index]
+            tuples, tree_hashes = self.int_tuples, self.tree_hashes
+            start, end, right_index = tuples[self.index]
             # if `self.blob[start]` is 0xff, it's a pair
             if self.blob[start] == 0xFF:
-                left = self.__class__(self.blob, tuples, self.index + 1)
-                right = self.__class__(self.blob, tuples, right_index)
+                left = self.__class__(self.blob, tuples, tree_hashes, self.index + 1)
+                right = self.__class__(self.blob, tuples, tree_hashes, right_index)
                 self._pair = (left, right)
             else:
                 self._pair = None
@@ -79,7 +82,7 @@ class CLVMTree:
 
     @property
     def _cached_serialization(self) -> bytes:
-        start, end, _, _ = self.int_tuples[self.index]
+        start, end, _ = self.int_tuples[self.index]
         return self.blob[start:end]
 
     def __bytes__(self) -> bytes:

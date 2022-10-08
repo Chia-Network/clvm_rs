@@ -47,9 +47,7 @@ def atom_to_byte_iterator(as_atom):
     elif size < 0x2000:
         size_blob = bytes([0xC0 | (size >> 8), (size >> 0) & 0xFF])
     elif size < 0x100000:
-        size_blob = bytes(
-            [0xE0 | (size >> 16), (size >> 8) & 0xFF, (size >> 0) & 0xFF]
-        )
+        size_blob = bytes([0xE0 | (size >> 16), (size >> 8) & 0xFF, (size >> 0) & 0xFF])
     elif size < 0x8000000:
         size_blob = bytes(
             [

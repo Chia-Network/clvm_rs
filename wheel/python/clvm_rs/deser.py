@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from .tree_hash import shatree_atom, shatree_pair
 
@@ -12,18 +12,19 @@ CONS_BOX_MARKER = 0xFF
 
 
 def deserialize_as_tuples(
-    blob: bytes, cursor: int = 0
-) -> List[Tuple[int, int, int, bytes]]:
+    blob: bytes, cursor: int = 0, calculate_tree_hash: bool = True
+) -> Tuple[List[Tuple[int, int, int]], List[Optional[bytes]]]:
     def save_cursor(index, blob, cursor, obj_list, op_stack):
         assert blob[obj_list[index][0]] == 0xFF
-        left_hash = obj_list[index + 1][3]
-        right_hash = obj_list[obj_list[index][2]][3]
-        my_hash = shatree_pair(left_hash, right_hash)
+        left_hash = tree_hash_list[index + 1]
+        right_hash = tree_hash_list[obj_list[index][2]]
+        tree_hash_list[index] = None
+        if calculate_tree_hash:
+            tree_hash_list[index] = shatree_pair(left_hash, right_hash)
         obj_list[index] = (
             obj_list[index][0],
             cursor,
             obj_list[index][2],
-            my_hash,
         )
         return cursor
 
@@ -37,6 +38,7 @@ def deserialize_as_tuples(
 
         if blob[cursor] == CONS_BOX_MARKER:
             index = len(obj_list)
+            tree_hash_list.append(None)
             obj_list.append([cursor, None, None])
             op_stack.append(lambda *args: save_cursor(index, *args))
             op_stack.append(parse_obj)
@@ -44,16 +46,20 @@ def deserialize_as_tuples(
             op_stack.append(parse_obj)
             return cursor + 1
         atom_offset, new_cursor = _atom_size_from_cursor(blob, cursor)
-        my_hash = shatree_atom(blob[cursor + atom_offset : new_cursor])
-        obj_list.append((cursor, new_cursor, atom_offset, my_hash))
+        my_hash = None
+        if calculate_tree_hash:
+            my_hash = shatree_atom(blob[cursor + atom_offset : new_cursor])
+        tree_hash_list.append(my_hash)
+        obj_list.append((cursor, new_cursor, atom_offset))
         return new_cursor
 
     obj_list = []
+    tree_hash_list = []
     op_stack = [parse_obj]
     while op_stack:
         f = op_stack.pop()
         cursor = f(blob, cursor, obj_list, op_stack)
-    return obj_list
+    return obj_list, tree_hash_list
 
 
 def _atom_size_from_cursor(blob, cursor) -> Tuple[int, int]:
