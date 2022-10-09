@@ -122,4 +122,4 @@ test_case("Test div and NO_NEG_DIV flag", function(){
     expect_throw(function(){
         wasm.run_chia_program(prog, arg, max_cost, flag);
     });
-})
+});
