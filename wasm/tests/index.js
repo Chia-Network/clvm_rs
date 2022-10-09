@@ -20,46 +20,106 @@ function expect_throw(callback){
     }
 }
 
-// (q . 127)
-let prog1 = Uint8Array.from(Buffer.from("ff017f", "hex"));
-// ()
-let arg1 = Uint8Array.from(Buffer.from("80", "hex"));
-// 100,000,000,000
-let max_cost1 = BigInt("100000000000");
-let flag1 = 0;
-let [cost1, sexp1] = wasm.run_chia_program(prog1, arg1, max_cost1, flag1);
-expect_equal(sexp1.atom.toString(), "127");
+function bytesFromHex(hex){
+    return Uint8Array.from(Buffer.from(hex, "hex"));
+}
 
-// (+ 1 (q . 3))
-let prog2 = Uint8Array.from(Buffer.from("ff10ff01ffff010380", "hex"));
-// 2
-let arg2 = Uint8Array.from(Buffer.from("02", "hex"));;
-// 100,000,000,000
-let max_cost2 = BigInt("100000000000");
-let flag2 = 0;
-let [cost2, sexp2] = wasm.run_chia_program(prog2, arg2, max_cost2, flag2);
-expect_equal(sexp2.atom.toString(), "5");
+function numsToByteStr(numArray){
+    return Uint8Array.from(numArray).toString();
+}
 
-// (q . 147)
-let prog3 = Uint8Array.from(Buffer.from("ff017f", "hex"));
-// ()
-let arg3 = Uint8Array.from(Buffer.from("80", "hex"));
-let max_cost3 = BigInt("1");
-let flag3 = 0;
-expect_throw(function(){
-    wasm.run_chia_program(prog3, arg3, max_cost3, flag3);
+let current_test_number = 0;
+function test_case(testTitle, test){
+    const testNo = ++current_test_number;
+    console.log(`Case#${testNo} ${testTitle}`);
+    try{
+        test();
+        console.log(`✓ Successfully finished case#${testNo}`);
+    }
+    catch(e){
+        console.error(`❌ Failed Case#${testNo}`);
+        console.error(`${e.name}: ${e.message}`);
+        process.exit(1);
+    }
+}
+
+// ----------------------------------------------------- //
+
+test_case("Test '(q . 127)' '()'", function(){
+    // (q . 127)
+    const prog = bytesFromHex("ff017f");
+    // ()
+    const arg = bytesFromHex("80");
+    // 100,000,000,000
+    const max_cost = BigInt("100000000000");
+    const flag = 0;
+    const [cost, sexp] = wasm.run_chia_program(prog, arg, max_cost, flag);
+    expect_equal(sexp.atom.toString(), "127");
 });
 
-// (/ (q . 5) (q . -3))
-let prog4 = Uint8Array.from(Buffer.from("ff13ffff0105ffff0181fd80", "hex"));
-// ()
-let arg4 = Uint8Array.from(Buffer.from("80", "hex"));
-// 100,000,000,000
-let max_cost4 = BigInt("100000000000");
-let flag4 = 0;
-let [cost4, sexp4] = wasm.run_chia_program(prog4, arg4, max_cost4, flag4);
-expect_equal(sexp4.atom.toString(), Uint8Array.from([-2]).toString());
-let flag5 = wasm.Flag.no_neg_div();
-expect_throw(function(){
-    wasm.run_chia_program(prog4, arg4, max_cost4, flag5);
+test_case("Test '(+ 1 (q . 3))' '2'", function(){
+    // (+ 1 (q . 3))
+    const prog = bytesFromHex("ff10ff01ffff010380");
+    // 2
+    const arg = bytesFromHex("02");
+    // 100,000,000,000
+    const max_cost = BigInt("100000000000");
+    const flag = 0;
+    const [cost, sexp] = wasm.run_chia_program(prog, arg, max_cost, flag);
+    expect_equal(sexp.atom.toString(), "5");
 });
+
+test_case("Test '(+ 7 (q . 3))' '(() . (() . 2))'", function(){
+    // (+ 7 (q . 3))
+    const prog = bytesFromHex("ff10ff07ffff010380");
+    // (() . (() . 2))
+    const arg = bytesFromHex("ff80ff8002");
+    // 100,000,000,000
+    const max_cost = BigInt("100000000000");
+    const flag = 0;
+    const [cost, sexp] = wasm.run_chia_program(prog, arg, max_cost, flag);
+    expect_equal(sexp.atom.toString(), "5");
+});
+
+test_case("Test max_cost too low", function(){
+    // (q . 127)
+    const prog = bytesFromHex("ff017f");
+    // ()
+    const arg = bytesFromHex("80");
+    // MaxCost too low
+    const max_cost = BigInt("1");
+    const flag = 0;
+    expect_throw(function(){
+        wasm.run_chia_program(prog, arg, max_cost, flag);
+    });
+});
+
+test_case("Test divmod", function(){
+    // (divmod (q . 5) (q . -3))
+    const prog = bytesFromHex("ff14ffff0105ffff0181fd80");
+    // ()
+    const arg = bytesFromHex("80");
+    // 100,000,000,000
+    const max_cost = BigInt("100000000000");
+    const flag = 0;
+    const [cost, sexp] = wasm.run_chia_program(prog, arg, max_cost, flag);
+    expect_equal(sexp.pair[0].atom.toString(), numsToByteStr([-2]));
+    expect_equal(sexp.pair[1].atom.toString(), numsToByteStr([-1]));
+});
+
+test_case("Test div and NO_NEG_DIV flag", function(){
+    // (/ (q . 5) (q . -3))
+    const prog = bytesFromHex("ff13ffff0105ffff0181fd80");
+    // ()
+    const arg = bytesFromHex("80");
+    // 100,000,000,000
+    const max_cost = BigInt("100000000000");
+    let flag = 0;
+    const [cost, sexp] = wasm.run_chia_program(prog, arg, max_cost, flag);
+    expect_equal(sexp.atom.toString(), numsToByteStr([-2]));
+    // NO_NEG_DIV flag set
+    flag = wasm.Flag.no_neg_div();
+    expect_throw(function(){
+        wasm.run_chia_program(prog, arg, max_cost, flag);
+    });
+})
