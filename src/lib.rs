@@ -2,6 +2,7 @@ pub mod allocator;
 pub mod chia_dialect;
 pub mod core_ops;
 pub mod cost;
+pub mod deserialize_tree;
 pub mod dialect;
 pub mod err_utils;
 pub mod f_table;
@@ -13,7 +14,6 @@ pub mod reduction;
 pub mod run_program;
 pub mod runtime_dialect;
 pub mod serde;
-pub mod serialize;
 pub mod sha2;
 pub mod traverse_path;
 
