@@ -61,9 +61,13 @@ fn tuple_for_parsed_triple(py: Python<'_>, p: &CLVMTreeBoundary) -> PyObject {
 }
 
 #[pyfunction]
-fn deserialize_as_tree(py: Python, blob: &[u8]) -> PyResult<Vec<PyObject>> {
+fn deserialize_as_tree(
+    py: Python,
+    blob: &[u8],
+    calculate_tree_hashes: bool,
+) -> PyResult<Vec<PyObject>> {
     let mut cursor = io::Cursor::new(blob);
-    let r = deserialize_tree(&mut cursor)?;
+    let (r, _tree_hashes) = deserialize_tree(&mut cursor, calculate_tree_hashes)?;
     let r = r.iter().map(|pt| tuple_for_parsed_triple(py, pt)).collect();
     Ok(r)
 }
