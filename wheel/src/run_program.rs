@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::adapt_response::adapt_response_to_py;
 use crate::lazy_node::LazyNode;
 use clvmr::allocator::Allocator;
-use clvmr::chia_dialect::ChiaDialect;
+use clvmr::chia_dialect::{ChiaDialect, LIMIT_HEAP};
 use clvmr::cost::Cost;
 use clvmr::reduction::Response;
 use clvmr::run_program::run_program;
@@ -53,7 +53,10 @@ pub fn deserialize_and_run_program2(
     max_cost: Cost,
     flags: u32,
 ) -> PyResult<(Cost, LazyNode)> {
-    let mut allocator = Allocator::new();
+    let mut allocator = if flags & LIMIT_HEAP != 0
+        { Allocator::new_limited(500000000, 62500000, 62500000) }
+    else
+        { Allocator::new() };
     let r = run_serialized_program(
         py,
         &mut allocator,
@@ -76,7 +79,10 @@ pub fn run_chia_program(
     max_cost: Cost,
     flags: u32,
 ) -> PyResult<(Cost, LazyNode)> {
-    let mut allocator = Allocator::new();
+    let mut allocator = if flags & LIMIT_HEAP != 0
+        { Allocator::new_limited(500000000, 62500000, 62500000) }
+    else
+        { Allocator::new() };
 
     let r: Response = (|| -> PyResult<Response> {
         let program = node_from_bytes(&mut allocator, program)?;

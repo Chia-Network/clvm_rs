@@ -7,4 +7,5 @@ pub trait Dialect {
     fn apply_kw(&self) -> &[u8];
     fn op(&self, allocator: &mut Allocator, op: NodePtr, args: NodePtr, max_cost: Cost)
         -> Response;
+    fn val_stack_limit(&self) -> usize;
 }
