@@ -44,6 +44,7 @@ struct RunProgramContext<'a, D> {
     posteval_stack: Vec<Box<PostEval>>,
     val_stack: Vec<NodePtr>,
     op_stack: Vec<Operation>,
+    val_stack_limit: usize,
 }
 
 impl<'a, D: Dialect> RunProgramContext<'a, D> {
@@ -57,8 +58,12 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             Some(k) => Ok(k),
         }
     }
-    pub fn push(&mut self, node: NodePtr) {
+    pub fn push(&mut self, node: NodePtr) -> Result<(), EvalErr> {
+        if self.val_stack.len() == self.val_stack_limit {
+            return err(node, "value stack limit reached");
+        }
         self.val_stack.push(node);
+        Ok(())
     }
 }
 
@@ -144,6 +149,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             posteval_stack: Vec::new(),
             val_stack: Vec::new(),
             op_stack: Vec::new(),
+            val_stack_limit: dialect.val_stack_limit(),
         }
     }
 
@@ -152,7 +158,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let v1 = self.pop()?;
         let v2 = self.pop()?;
         let p = self.allocator.new_pair(v1, v2)?;
-        self.push(p);
+        self.push(p)?;
         Ok(0)
     }
 }
@@ -168,11 +174,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let op_atom = self.allocator.buf(op_buf);
         // special case check for quote
         if op_atom == self.dialect.quote_kw() {
-            self.push(operand_list);
+            self.push(operand_list)?;
             Ok(QUOTE_COST)
         } else {
             self.op_stack.push(Operation::Apply);
-            self.push(operator_node);
+            self.push(operator_node)?;
             let mut operands: NodePtr = operand_list;
             loop {
                 match self.allocator.sexp(operands) {
@@ -194,13 +200,13 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                         // the new list at the top of the stack for the next
                         // pair to be evaluated.
                         self.op_stack.push(Operation::SwapEval);
-                        self.push(args);
-                        self.push(first);
+                        self.push(args)?;
+                        self.push(first)?;
                         operands = rest;
                     }
                 }
             }
-            self.push(self.allocator.null());
+            self.push(self.allocator.null())?;
             Ok(OP_COST)
         }
     }
@@ -211,7 +217,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             // the program is just a bitfield path through the args tree
             SExp::Atom(path) => {
                 let r: Reduction = traverse_path(self.allocator, self.allocator.buf(&path), args)?;
-                self.push(r.1);
+                self.push(r.1)?;
                 return Ok(r.0);
             }
             // the program is an operator and a list of operands
@@ -222,8 +228,8 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             SExp::Pair(new_operator, must_be_nil) => {
                 if let SExp::Atom(_) = self.allocator.sexp(new_operator) {
                     if Node::new(self.allocator, must_be_nil).nullp() {
-                        self.push(new_operator);
-                        self.push(op_list);
+                        self.push(new_operator)?;
+                        self.push(op_list)?;
                         self.op_stack.push(Operation::Apply);
                         return Ok(APPLY_COST);
                     }
@@ -241,7 +247,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let v2 = self.pop()?;
         let program: NodePtr = self.pop()?;
         let args: NodePtr = self.pop()?;
-        self.push(v2);
+        self.push(v2)?;
 
         // on the way back, build a list from the values
         self.op_stack.push(Operation::Cons);
@@ -314,7 +320,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             let r = self
                 .dialect
                 .op(self.allocator, operator, operand_list, max_cost)?;
-            self.push(r.1);
+            self.push(r.1)?;
             Ok(r.0)
         }
     }
