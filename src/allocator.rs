@@ -183,3 +183,154 @@ impl Allocator {
         -2
     }
 }
+
+#[test]
+fn test_null() {
+    let a = Allocator::new();
+    assert_eq!(a.atom(a.null()), b"");
+    assert_eq!(
+        match a.sexp(a.null()) {
+            SExp::Atom(b) => a.buf(&b),
+            SExp::Pair(_, _) => panic!("unexpected"),
+        },
+        b""
+    );
+}
+
+#[test]
+fn test_one() {
+    let a = Allocator::new();
+    assert_eq!(a.atom(a.one()), b"\x01");
+    assert_eq!(
+        match a.sexp(a.one()) {
+            SExp::Atom(b) => a.buf(&b),
+            SExp::Pair(_, _) => panic!("unexpected"),
+        },
+        b"\x01"
+    );
+}
+
+#[test]
+fn test_allocate_atom() {
+    let mut a = Allocator::new();
+    let atom = a.new_atom(b"foobar").unwrap();
+    assert_eq!(a.atom(atom), b"foobar");
+    assert_eq!(
+        match a.sexp(atom) {
+            SExp::Atom(b) => a.buf(&b),
+            SExp::Pair(_, _) => panic!("unexpected"),
+        },
+        b"foobar"
+    );
+}
+
+#[test]
+fn test_allocate_pair() {
+    let mut a = Allocator::new();
+    let atom1 = a.new_atom(b"foo").unwrap();
+    let atom2 = a.new_atom(b"bar").unwrap();
+    let pair = a.new_pair(atom1, atom2).unwrap();
+
+    assert_eq!(
+        match a.sexp(pair) {
+            SExp::Atom(_) => panic!("unexpected"),
+            SExp::Pair(left, right) => (left, right),
+        },
+        (atom1, atom2)
+    );
+}
+
+#[test]
+fn test_substr() {
+    let mut a = Allocator::new();
+    let atom = a.new_atom(b"foobar").unwrap();
+
+    let sub = a.new_substr(atom, 0, 1).unwrap();
+    assert_eq!(a.atom(sub), b"f");
+    let sub = a.new_substr(atom, 1, 6).unwrap();
+    assert_eq!(a.atom(sub), b"oobar");
+    let sub = a.new_substr(atom, 1, 1).unwrap();
+    assert_eq!(a.atom(sub), b"");
+    let sub = a.new_substr(atom, 0, 0).unwrap();
+    assert_eq!(a.atom(sub), b"");
+
+    assert_eq!(
+        a.new_substr(atom, 1, 0).unwrap_err().1,
+        "substr invalid bounds"
+    );
+    assert_eq!(
+        a.new_substr(atom, 7, 7).unwrap_err().1,
+        "substr start out of bounds"
+    );
+    assert_eq!(
+        a.new_substr(atom, 0, 7).unwrap_err().1,
+        "substr end out of bounds"
+    );
+    assert_eq!(
+        a.new_substr(atom, u32::MAX, 4).unwrap_err().1,
+        "substr start out of bounds"
+    );
+}
+
+#[test]
+fn test_concat() {
+    let mut a = Allocator::new();
+    let atom1 = a.new_atom(b"f").unwrap();
+    let atom2 = a.new_atom(b"o").unwrap();
+    let atom3 = a.new_atom(b"o").unwrap();
+    let atom4 = a.new_atom(b"b").unwrap();
+    let atom5 = a.new_atom(b"a").unwrap();
+    let atom6 = a.new_atom(b"r").unwrap();
+    let pair = a.new_pair(atom1, atom2).unwrap();
+
+    let cat = a
+        .new_concat(6, &[atom1, atom2, atom3, atom4, atom5, atom6])
+        .unwrap();
+    assert_eq!(a.atom(cat), b"foobar");
+
+    let cat = a.new_concat(12, &[cat, cat]).unwrap();
+    assert_eq!(a.atom(cat), b"foobarfoobar");
+
+    assert_eq!(
+        a.new_concat(11, &[cat, cat]).unwrap_err().1,
+        "(internal error) concat passed invalid new_size"
+    );
+    assert_eq!(
+        a.new_concat(13, &[cat, cat]).unwrap_err().1,
+        "(internal error) concat passed invalid new_size"
+    );
+    assert_eq!(
+        a.new_concat(12, &[atom3, pair]).unwrap_err().1,
+        "(internal error) concat expected atom, got pair"
+    );
+}
+
+#[test]
+fn test_sexp() {
+    let mut a = Allocator::new();
+    let atom1 = a.new_atom(b"f").unwrap();
+    let atom2 = a.new_atom(b"o").unwrap();
+    let pair = a.new_pair(atom1, atom2).unwrap();
+
+    assert_eq!(
+        match a.sexp(atom1) {
+            SExp::Atom(_) => 0,
+            SExp::Pair(_, _) => 1,
+        },
+        0
+    );
+    assert_eq!(
+        match a.sexp(atom2) {
+            SExp::Atom(_) => 0,
+            SExp::Pair(_, _) => 1,
+        },
+        0
+    );
+    assert_eq!(
+        match a.sexp(pair) {
+            SExp::Atom(_) => 0,
+            SExp::Pair(_, _) => 1,
+        },
+        1
+    );
+}
