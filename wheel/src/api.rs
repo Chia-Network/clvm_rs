@@ -8,12 +8,15 @@ use super::run_program::{
 };
 use clvmr::chia_dialect::{NO_NEG_DIV, NO_UNKNOWN_OPS};
 
+pub const MEMPOOL_MODE: u32 = NO_NEG_DIV | NO_UNKNOWN_OPS;
+
 #[pymodule]
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(deserialize_and_run_program2, m)?)?;
     m.add_function(wrap_pyfunction!(run_chia_program, m)?)?;
     m.add("NO_NEG_DIV", NO_NEG_DIV)?;
     m.add("NO_UNKNOWN_OPS", NO_UNKNOWN_OPS)?;
+    m.add("MEMPOOL_MODE", MEMPOOL_MODE)?;
     m.add_class::<LazyNode>()?;
 
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
