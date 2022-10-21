@@ -1,4 +1,8 @@
+use std::rc::Rc; // Allows move closures to tear off a reference and move it.
+use std::cell::RefCell; // Allows interior mutability inside Fn traits.
+
 use crate::allocator::{Allocator, NodePtr, SExp};
+use crate::chia_dialect::{ChiaDialect, NO_NEG_DIV, NO_UNKNOWN_OPS};
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
 use crate::more_ops::{
@@ -8,6 +12,7 @@ use crate::more_ops::{
 };
 use crate::number::{ptr_from_number, Number};
 use crate::reduction::{EvalErr, Reduction, Response};
+use crate::run_program::run_program;
 use hex::FromHex;
 use num_traits::Num;
 use std::cmp::min;
@@ -1197,4 +1202,120 @@ fn test_multi_argument_raise() {
     args = allocator.new_pair(a1, args).unwrap();
     let result = op_raise(&mut allocator, args, 100000);
     assert_eq!(result, Err(EvalErr(args, "clvm raise".to_string())));
+}
+
+const COST_LIMIT: u64 = 1000000000;
+
+struct EvalFTracker {
+    pub prog: NodePtr,
+    pub args: NodePtr,
+    pub outcome: Option<NodePtr>
+}
+
+fn equal_sexp(allocator: &Allocator, s1: NodePtr, s2: NodePtr) -> bool {
+    match (allocator.sexp(s1), allocator.sexp(s2)) {
+        (SExp::Pair(s1a,s1b), SExp::Pair(s2a,s2b)) => {
+            equal_sexp(allocator, s1a, s2a) && equal_sexp(allocator, s1b, s2b)
+        },
+        (SExp::Atom(b1), SExp::Atom(b2)) => {
+            let abuf1 = allocator.buf(&b1);
+            let abuf2 = allocator.buf(&b2);
+            abuf1 == abuf2
+        },
+        _ => false
+    }
+}
+
+// Ensure pre_eval_f and post_eval_f are working as expected.
+#[test]
+fn test_pre_eval_and_post_eval() {
+    let mut allocator = Allocator::new();
+
+    let a1 = allocator.new_atom(&[1]).unwrap();
+    let a2 = allocator.new_atom(&[2]).unwrap();
+    let a4 = allocator.new_atom(&[4]).unwrap();
+    let a5 = allocator.new_atom(&[5]).unwrap();
+
+    let a99 = allocator.new_atom(&[99]).unwrap();
+    let a101 = allocator.new_atom(&[101]).unwrap();
+
+    // (a (q . (f (c 2 5))) (q 99 101))
+    let arg_tail = allocator.new_pair(a101, allocator.null()).unwrap();
+    let arg_mid = allocator.new_pair(a99, arg_tail).unwrap();
+    let args = allocator.new_pair(a1, arg_mid).unwrap();
+
+    let cons_tail = allocator.new_pair(a5, allocator.null()).unwrap();
+    let cons_args = allocator.new_pair(a2, cons_tail).unwrap();
+    let cons_expr = allocator.new_pair(a4, cons_args).unwrap();
+
+    let f_tail = allocator.new_pair(cons_expr, allocator.null()).unwrap();
+    let f_expr = allocator.new_pair(a5, f_tail).unwrap();
+    let f_quoted = allocator.new_pair(a1, f_expr).unwrap();
+
+    let a_tail = allocator.new_pair(args, allocator.null()).unwrap();
+    let a_args = allocator.new_pair(f_quoted, a_tail).unwrap();
+    let program = allocator.new_pair(a2, a_args).unwrap();
+
+    let tracking = Rc::new(RefCell::new(HashMap::new()));
+    let pre_eval_tracking = tracking.clone();
+    let pre_eval_f: Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<(dyn Fn(Option<NodePtr>))>>, EvalErr>> = Box::new(move |_allocator, prog, args| {
+        let tracking_key = pre_eval_tracking.borrow().len();
+        // Ensure lifetime of mutable borrow is contained.
+        // It must end before the lifetime of the following closure.
+        {
+            let mut tracking_mutable = pre_eval_tracking.borrow_mut();
+            tracking_mutable.insert(tracking_key, EvalFTracker { prog, args, outcome: None });
+        }
+        let post_eval_tracking = pre_eval_tracking.clone();
+        let post_eval_f: Box<dyn Fn(Option<NodePtr>)> = Box::new(move |outcome| {
+            let mut tracking_mutable = post_eval_tracking.borrow_mut();
+            tracking_mutable.insert(tracking_key, EvalFTracker { prog, args, outcome });
+        });
+        Ok(Some(post_eval_f))
+    });
+
+    let allocator_null = allocator.null();
+    let result = run_program(
+        &mut allocator,
+        &ChiaDialect::new(NO_NEG_DIV | NO_UNKNOWN_OPS),
+        program,
+        allocator_null,
+        COST_LIMIT,
+        Some(pre_eval_f)
+    ).unwrap();
+
+    assert!(equal_sexp(&allocator, result.1, a99));
+
+    // Should produce these:
+    // (q 99 101) => (99 101)
+    // (q . (f (c 2 5))) => (f (c 2 5))
+    // 2 (99 101) => 99
+    // 5 (99 101) => 101
+    // (c 2 5) (99 101) => (99 . 101)
+    // (f (c 2 5)) (99 101) => 99
+    // (a (q 5 (c 2 5))) () => 99
+
+    // args consed
+    let args_consed = allocator.new_pair(a99, a101).unwrap();
+
+    let mut desired_outcomes = Vec::new(); // Not in order.
+    desired_outcomes.push((args, allocator_null, arg_mid));
+    desired_outcomes.push((f_quoted, allocator_null, f_expr));
+    desired_outcomes.push((a2, arg_mid, a99));
+    desired_outcomes.push((a5, arg_mid, a101));
+    desired_outcomes.push((cons_expr, arg_mid, args_consed));
+    desired_outcomes.push((f_expr, arg_mid, a99));
+    desired_outcomes.push((program, allocator_null, a99));
+
+    let tracking_examine = tracking.borrow();
+    for (_,v) in tracking_examine.iter() {
+        let found = desired_outcomes.iter().position(|(p,a,o)| {
+            equal_sexp(&allocator, *p, v.prog)
+                && equal_sexp(&allocator, *a, v.args)
+                && equal_sexp(&allocator, v.outcome.unwrap(), *o)
+        });
+        assert!(found.is_some());
+    }
+
+    assert_eq!(tracking_examine.len(), desired_outcomes.len());
 }
