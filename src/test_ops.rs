@@ -1,5 +1,5 @@
-use std::rc::Rc; // Allows move closures to tear off a reference and move it.
-use std::cell::RefCell; // Allows interior mutability inside Fn traits.
+use std::cell::RefCell;
+use std::rc::Rc; // Allows move closures to tear off a reference and move it. // Allows interior mutability inside Fn traits.
 
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::chia_dialect::{ChiaDialect, NO_NEG_DIV, NO_UNKNOWN_OPS};
@@ -1209,20 +1209,20 @@ const COST_LIMIT: u64 = 1000000000;
 struct EvalFTracker {
     pub prog: NodePtr,
     pub args: NodePtr,
-    pub outcome: Option<NodePtr>
+    pub outcome: Option<NodePtr>,
 }
 
 fn equal_sexp(allocator: &Allocator, s1: NodePtr, s2: NodePtr) -> bool {
     match (allocator.sexp(s1), allocator.sexp(s2)) {
-        (SExp::Pair(s1a,s1b), SExp::Pair(s2a,s2b)) => {
+        (SExp::Pair(s1a, s1b), SExp::Pair(s2a, s2b)) => {
             equal_sexp(allocator, s1a, s2a) && equal_sexp(allocator, s1b, s2b)
-        },
+        }
         (SExp::Atom(b1), SExp::Atom(b2)) => {
             let abuf1 = allocator.buf(&b1);
             let abuf2 = allocator.buf(&b2);
             abuf1 == abuf2
-        },
-        _ => false
+        }
+        _ => false,
     }
 }
 
@@ -1258,18 +1258,38 @@ fn test_pre_eval_and_post_eval() {
 
     let tracking = Rc::new(RefCell::new(HashMap::new()));
     let pre_eval_tracking = tracking.clone();
-    let pre_eval_f: Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<(dyn Fn(Option<NodePtr>))>>, EvalErr>> = Box::new(move |_allocator, prog, args| {
+    let pre_eval_f: Box<
+        dyn Fn(
+            &mut Allocator,
+            NodePtr,
+            NodePtr,
+        ) -> Result<Option<Box<(dyn Fn(Option<NodePtr>))>>, EvalErr>,
+    > = Box::new(move |_allocator, prog, args| {
         let tracking_key = pre_eval_tracking.borrow().len();
         // Ensure lifetime of mutable borrow is contained.
         // It must end before the lifetime of the following closure.
         {
             let mut tracking_mutable = pre_eval_tracking.borrow_mut();
-            tracking_mutable.insert(tracking_key, EvalFTracker { prog, args, outcome: None });
+            tracking_mutable.insert(
+                tracking_key,
+                EvalFTracker {
+                    prog,
+                    args,
+                    outcome: None,
+                },
+            );
         }
         let post_eval_tracking = pre_eval_tracking.clone();
         let post_eval_f: Box<dyn Fn(Option<NodePtr>)> = Box::new(move |outcome| {
             let mut tracking_mutable = post_eval_tracking.borrow_mut();
-            tracking_mutable.insert(tracking_key, EvalFTracker { prog, args, outcome });
+            tracking_mutable.insert(
+                tracking_key,
+                EvalFTracker {
+                    prog,
+                    args,
+                    outcome,
+                },
+            );
         });
         Ok(Some(post_eval_f))
     });
@@ -1281,8 +1301,9 @@ fn test_pre_eval_and_post_eval() {
         program,
         allocator_null,
         COST_LIMIT,
-        Some(pre_eval_f)
-    ).unwrap();
+        Some(pre_eval_f),
+    )
+    .unwrap();
 
     assert!(equal_sexp(&allocator, result.1, a99));
 
@@ -1308,8 +1329,8 @@ fn test_pre_eval_and_post_eval() {
     desired_outcomes.push((program, allocator_null, a99));
 
     let tracking_examine = tracking.borrow();
-    for (_,v) in tracking_examine.iter() {
-        let found = desired_outcomes.iter().position(|(p,a,o)| {
+    for (_, v) in tracking_examine.iter() {
+        let found = desired_outcomes.iter().position(|(p, a, o)| {
             equal_sexp(&allocator, *p, v.prog)
                 && equal_sexp(&allocator, *a, v.args)
                 && equal_sexp(&allocator, v.outcome.unwrap(), *o)
