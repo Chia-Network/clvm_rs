@@ -123,3 +123,18 @@ test_case("Test div and NO_NEG_DIV flag", function(){
         wasm.run_chia_program(prog, arg, max_cost, flag);
     });
 });
+
+test_case("Test serialized_length", function(){
+    // (q . 127)
+    const prog = bytesFromHex("ff017f");
+    expect_equal(wasm.serialized_length(prog), BigInt("3"));
+    expect_throw(function(){
+        wasm.serialized_length(bytesFromHex("abcdef0123"));
+    });
+    try {
+        wasm.serialized_length(bytesFromHex("abcdef0123"));
+    }
+    catch (e) {
+        expect_equal(e, "bad encoding");
+    }
+});

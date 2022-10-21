@@ -31,9 +31,11 @@ impl Flag {
 }
 
 #[wasm_bindgen]
-pub fn serialized_length(program: &[u8]) -> u64
-{
-    serialized_length_from_bytes(program).unwrap()
+pub fn serialized_length(program: &[u8]) -> Result<u64, String> {
+    match serialized_length_from_bytes(program) {
+        Ok(length) => Ok(length),
+        Err(err) => Err(err.to_string()),
+    }
 }
 
 #[wasm_bindgen]
