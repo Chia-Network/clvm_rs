@@ -188,13 +188,12 @@ impl Allocator {
 fn test_null() {
     let a = Allocator::new();
     assert_eq!(a.atom(a.null()), b"");
-    assert_eq!(
-        match a.sexp(a.null()) {
-            SExp::Atom(b) => a.buf(&b),
-            SExp::Pair(_, _) => panic!("unexpected"),
-        },
-        b""
-    );
+
+    let buf = match a.sexp(a.null()) {
+        SExp::Atom(b) => a.buf(&b),
+        SExp::Pair(_, _) => panic!("unexpected"),
+    };
+    assert_eq!(buf, b"");
 }
 
 #[test]
@@ -237,6 +236,15 @@ fn test_allocate_pair() {
             SExp::Pair(left, right) => (left, right),
         },
         (atom1, atom2)
+    );
+
+    let pair2 = a.new_pair(pair, pair).unwrap();
+    assert_eq!(
+        match a.sexp(pair2) {
+            SExp::Atom(_) => panic!("unexpected"),
+            SExp::Pair(left, right) => (left, right),
+        },
+        (pair, pair)
     );
 }
 
