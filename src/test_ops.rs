@@ -16,7 +16,7 @@ use crate::run_program::run_program;
 use hex::FromHex;
 use num_traits::Num;
 use std::cmp::min;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 // the format of these test cases is the following. expected-cost is optional
 // and is not relevant for FAIL cases
@@ -1328,6 +1328,7 @@ fn test_pre_eval_and_post_eval() {
     desired_outcomes.push((f_expr, arg_mid, a99));
     desired_outcomes.push((program, allocator_null, a99));
 
+    let mut found_outcomes = HashSet::new();
     let tracking_examine = tracking.borrow();
     for (_, v) in tracking_examine.iter() {
         let found = desired_outcomes.iter().position(|(p, a, o)| {
@@ -1335,8 +1336,10 @@ fn test_pre_eval_and_post_eval() {
                 && equal_sexp(&allocator, *a, v.args)
                 && equal_sexp(&allocator, v.outcome.unwrap(), *o)
         });
+        found_outcomes.insert(found);
         assert!(found.is_some());
     }
 
     assert_eq!(tracking_examine.len(), desired_outcomes.len());
+    assert_eq!(tracking_examine.len(), found_outcomes.len());
 }
