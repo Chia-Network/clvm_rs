@@ -30,7 +30,7 @@ enum Operation {
     Apply,
     Cons,
     Eval,
-    Swap,
+    SwapEval,
     PostEval,
 }
 
@@ -147,15 +147,6 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    fn swap_op(&mut self) -> Result<Cost, EvalErr> {
-        /* Swap the top two operands. */
-        let v2 = self.pop()?;
-        let v1 = self.pop()?;
-        self.push(v2);
-        self.push(v1);
-        Ok(0)
-    }
-
     fn cons_op(&mut self) -> Result<Cost, EvalErr> {
         /* Join the top two operands. */
         let v1 = self.pop()?;
@@ -184,17 +175,27 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             self.push(operator_node);
             let mut operands: NodePtr = operand_list;
             loop {
-                if Node::new(self.allocator, operands).nullp() {
-                    break;
-                }
-                self.op_stack.push(Operation::Cons);
-                self.op_stack.push(Operation::Eval);
-                self.op_stack.push(Operation::Swap);
                 match self.allocator.sexp(operands) {
-                    SExp::Atom(_) => return err(operand_list, "bad operand list"),
+                    SExp::Atom(b) => {
+                        if b.is_empty() {
+                            break;
+                        }
+                        return err(operand_list, "bad operand list");
+                    }
                     SExp::Pair(first, rest) => {
-                        let new_pair = self.allocator.new_pair(first, args)?;
-                        self.push(new_pair);
+                        // We evaluate every entry in the argument list (passing
+                        // the environment, args). The resulting return values
+                        // are arranged in a list. the top item on the stack is
+                        // the resulting list, and below it is the next pair to
+                        // evaluated.
+                        // each evaluation pops both, pushes the result list
+                        // back, evaluates and the executes the Cons operation
+                        // to add the most recent result to the list. Leaving
+                        // the new list at the top of the stack for the next
+                        // pair to be evaluated.
+                        self.op_stack.push(Operation::SwapEval);
+                        self.push(args);
+                        self.push(first);
                         operands = rest;
                     }
                 }
@@ -236,6 +237,27 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         self.eval_op_atom(&op_atom, op_node, op_list, args)
     }
 
+    fn swap_eval_op(&mut self) -> Result<Cost, EvalErr> {
+        let v2 = self.pop()?;
+        let program: NodePtr = self.pop()?;
+        let args: NodePtr = self.pop()?;
+        self.push(v2);
+
+        let post_eval = match self.pre_eval {
+            None => None,
+            Some(ref pre_eval) => pre_eval(self.allocator, program, args)?,
+        };
+        if let Some(post_eval) = post_eval {
+            self.posteval_stack.push(post_eval);
+            self.op_stack.push(Operation::PostEval);
+        };
+
+        // on the way back, build a list from the values
+        self.op_stack.push(Operation::Cons);
+
+        self.eval_pair(program, args)
+    }
+
     fn eval_op(&mut self) -> Result<Cost, EvalErr> {
         /*
         Pop the top value and treat it as a (program, args) pair, and manipulate
@@ -273,10 +295,18 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 let new_operator = operand_list.first()?;
                 let new_program = new_operator.node;
                 let new_args = operand_list.rest()?.first()?.node;
-                let new_pair = self.allocator.new_pair(new_program, new_args)?;
-                self.push(new_pair);
-                self.op_stack.push(Operation::Eval);
-                Ok(APPLY_COST)
+
+                let post_eval = match self.pre_eval {
+                    None => None,
+                    Some(ref pre_eval) => pre_eval(self.allocator, new_program, new_args)?,
+                };
+                if let Some(post_eval) = post_eval {
+                    self.posteval_stack.push(post_eval);
+                    self.op_stack.push(Operation::PostEval);
+                };
+
+                self.eval_pair(new_program, new_args)
+                    .map(|c| c + APPLY_COST)
             } else {
                 operand_list.err("apply requires exactly 2 parameters")
             }
@@ -314,7 +344,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 }
                 Operation::Cons => self.cons_op()?,
                 Operation::Eval => augment_cost_errors(self.eval_op(), max_cost_ptr)?,
-                Operation::Swap => self.swap_op()?,
+                Operation::SwapEval => augment_cost_errors(self.swap_eval_op(), max_cost_ptr)?,
                 Operation::PostEval => {
                     let f = self.posteval_stack.pop().unwrap();
                     let peek: Option<NodePtr> = self.val_stack.last().copied();
