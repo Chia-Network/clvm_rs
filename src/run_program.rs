@@ -243,6 +243,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let args: NodePtr = self.pop()?;
         self.push(v2);
 
+        // on the way back, build a list from the values
+        self.op_stack.push(Operation::Cons);
+
         let post_eval = match self.pre_eval {
             None => None,
             Some(ref pre_eval) => pre_eval(self.allocator, program, args)?,
@@ -251,9 +254,6 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             self.posteval_stack.push(post_eval);
             self.op_stack.push(Operation::PostEval);
         };
-
-        // on the way back, build a list from the values
-        self.op_stack.push(Operation::Cons);
 
         self.eval_pair(program, args)
     }
