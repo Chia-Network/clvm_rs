@@ -133,14 +133,14 @@ jobs:
       run: |
         . ./activate
         cd clvm
-        python -m py.test tests
+        pytest tests
 
     - name: Run tests from clvm_tools
       continue-on-error: true
       run: |
         . ./activate
         cd clvm_tools
-        python -m py.test tests
+        pytest tests
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
