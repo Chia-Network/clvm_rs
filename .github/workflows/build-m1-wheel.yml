@@ -78,14 +78,14 @@ jobs:
       run: |
         . ./venv/bin/activate
         cd clvm
-        arch -arm64 python -m py.test tests
+        arch -arm64 pytest tests
 
     - name: Run tests from clvm_tools
       continue-on-error: true
       run: |
         . ./venv/bin/activate
         cd clvm_tools
-        arch -arm64 python -m py.test tests
+        arch -arm64 pytest tests
 
     - name: Upload wheels
       uses: actions/upload-artifact@v2
