@@ -11,7 +11,7 @@ When interpreting atoms as integers in the conditions output from a SpendBundle,
 leading zeroes as well as sign-extending `0xff` bytes are allowed.
 
 As an optimization, all negative integers are either immediate failures (e.g. as
-a coin value) or turns the condition into a tautolgy (always true) (e.g. as a
+a coin value) or turn the condition into a tautology (always true) (e.g. as a
 height or time condition). In the latter case, the whole condition can just be
 ignored.
 
