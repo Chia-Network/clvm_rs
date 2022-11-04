@@ -127,6 +127,7 @@ fn decode_size(f: &mut dyn io::Read, initial_b: u8) -> io::Result<u64> {
     Ok(v)
 }
 
+#[repr(u8)]
 enum ParseOp {
     SExp,
     Cons,
@@ -158,12 +159,13 @@ pub fn node_from_stream(allocator: &mut Allocator, f: &mut Cursor<&[u8]>) -> io:
                     values.push(allocator.new_atom(&b)?);
                 } else {
                     let blob_size = decode_size(f, b[0])?;
-                    if (f.get_ref().len() as u64) < blob_size {
+                    let pos = f.position() as usize;
+                    if f.get_ref().len() < pos + blob_size as usize {
                         return Err(bad_encoding());
                     }
-                    let mut blob: Vec<u8> = vec![0; blob_size as usize];
-                    f.read_exact(&mut blob)?;
-                    values.push(allocator.new_atom(&blob)?);
+                    let blob = &f.get_ref()[pos..(pos + blob_size as usize)];
+                    f.seek(SeekFrom::Current(blob_size as i64))?;
+                    values.push(allocator.new_atom(blob)?);
                 }
             }
             ParseOp::Cons => {
@@ -235,14 +237,14 @@ use crate::sha2::{Digest, Sha256};
 
 fn hash_atom(buf: &[u8]) -> [u8; 32] {
     let mut ctx = Sha256::new();
-    ctx.update(&[1_u8]);
+    ctx.update([1_u8]);
     ctx.update(buf);
     ctx.finalize().into()
 }
 
 fn hash_pair(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
     let mut ctx = Sha256::new();
-    ctx.update(&[2_u8]);
+    ctx.update([2_u8]);
     ctx.update(left);
     ctx.update(right);
     ctx.finalize().into()
