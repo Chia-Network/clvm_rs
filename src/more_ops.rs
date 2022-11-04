@@ -203,10 +203,10 @@ pub fn op_unknown(
     let mut cost = match cost_function {
         0 => 1,
         1 => {
-            let mut cost = ARITH_BASE_COST as u64;
+            let mut cost = ARITH_BASE_COST;
             let mut byte_count: u64 = 0;
             for arg in Node::new(allocator, args) {
-                cost += ARITH_COST_PER_ARG as u64;
+                cost += ARITH_COST_PER_ARG;
                 let blob = int_atom(&arg, "unknown op")?;
                 byte_count += blob.len() as u64;
                 check_cost(
@@ -215,10 +215,10 @@ pub fn op_unknown(
                     max_cost,
                 )?;
             }
-            cost + (byte_count * ARITH_COST_PER_BYTE as u64)
+            cost + (byte_count * ARITH_COST_PER_BYTE)
         }
         2 => {
-            let mut cost = MUL_BASE_COST as u64;
+            let mut cost = MUL_BASE_COST;
             let mut first_iter: bool = true;
             let mut l0: u64 = 0;
             for arg in Node::new(allocator, args) {
@@ -229,19 +229,19 @@ pub fn op_unknown(
                     continue;
                 }
                 let l1 = blob.len() as u64;
-                cost += MUL_COST_PER_OP as u64;
-                cost += (l0 + l1) * MUL_LINEAR_COST_PER_BYTE as u64;
-                cost += (l0 * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER as u64;
+                cost += MUL_COST_PER_OP;
+                cost += (l0 + l1) * MUL_LINEAR_COST_PER_BYTE;
+                cost += (l0 * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
                 l0 += l1;
                 check_cost(allocator, cost, max_cost)?;
             }
             cost
         }
         3 => {
-            let mut cost = CONCAT_BASE_COST as u64;
+            let mut cost = CONCAT_BASE_COST;
             let mut total_size: u64 = 0;
             for arg in Node::new(allocator, args) {
-                cost += CONCAT_COST_PER_ARG as u64;
+                cost += CONCAT_COST_PER_ARG;
                 let blob = atom(&arg, "unknown op")?;
                 total_size += blob.len() as u64;
                 check_cost(
@@ -250,7 +250,7 @@ pub fn op_unknown(
                     max_cost,
                 )?;
             }
-            cost + total_size * CONCAT_COST_PER_BYTE as u64
+            cost + total_size * CONCAT_COST_PER_BYTE
         }
         _ => 1,
     };
