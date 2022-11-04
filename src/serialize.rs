@@ -79,7 +79,7 @@ pub fn node_to_stream(node: &Node, f: &mut dyn io::Write) -> io::Result<()> {
                 write_atom(f, atom)?;
             }
             SExp::Pair(left, right) => {
-                f.write_all(&[CONS_BOX_MARKER as u8])?;
+                f.write_all(&[CONS_BOX_MARKER])?;
                 values.push(right);
                 values.push(left);
             }
