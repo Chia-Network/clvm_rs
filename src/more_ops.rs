@@ -17,7 +17,7 @@ use crate::op_utils::{
     arg_count, atom, check_arg_count, i32_atom, int_atom, two_ints, u32_from_u8,
 };
 use crate::reduction::{Reduction, Response};
-use crate::serialize::node_to_bytes;
+use crate::serde::node_to_bytes;
 use crate::sha2::{Digest, Sha256};
 
 // We ascribe some additional cost per byte for operations that allocate new atoms

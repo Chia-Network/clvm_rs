@@ -12,7 +12,7 @@ pub mod op_utils;
 pub mod reduction;
 pub mod run_program;
 pub mod runtime_dialect;
-pub mod serialize;
+pub mod serde;
 pub mod sha2;
 
 #[cfg(test)]

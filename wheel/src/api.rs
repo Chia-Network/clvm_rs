@@ -6,7 +6,7 @@ use super::run_program::{
     __pyo3_get_function_deserialize_and_run_program2, __pyo3_get_function_run_chia_program,
     __pyo3_get_function_serialized_length,
 };
-use clvmr::chia_dialect::{NO_NEG_DIV, NO_UNKNOWN_OPS, LIMIT_HEAP};
+use clvmr::chia_dialect::{LIMIT_HEAP, NO_NEG_DIV, NO_UNKNOWN_OPS};
 
 pub const MEMPOOL_MODE: u32 = NO_NEG_DIV | NO_UNKNOWN_OPS | LIMIT_HEAP;
 

@@ -1,7 +1,7 @@
 use super::allocator::{Allocator, NodePtr, SExp};
 use super::node::Node;
-use super::serialize::node_from_bytes;
-use super::serialize::node_to_bytes;
+use super::serde::node_from_bytes;
+use super::serde::node_to_bytes;
 
 impl<'a> PartialEq for Node<'a> {
     fn eq(&self, other: &Self) -> bool {
