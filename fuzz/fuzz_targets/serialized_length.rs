@@ -1,5 +1,5 @@
 #![no_main]
-use clvmr::serialize::serialized_length_from_bytes;
+use clvmr::serde::serialized_length_from_bytes;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

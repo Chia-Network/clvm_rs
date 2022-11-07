@@ -6,7 +6,7 @@ use clvmr::chia_dialect::ChiaDialect;
 use clvmr::cost::Cost;
 use clvmr::reduction::Reduction;
 use clvmr::run_program::run_program;
-use clvmr::serialize::node_from_bytes;
+use clvmr::serde::node_from_bytes;
 
 fuzz_target!(|data: &[u8]| {
     let mut allocator = Allocator::new();

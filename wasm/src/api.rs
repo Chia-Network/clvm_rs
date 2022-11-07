@@ -10,7 +10,7 @@ use clvmr::chia_dialect::NO_UNKNOWN_OPS as _no_unknown_ops;
 use clvmr::cost::Cost;
 use clvmr::node::Node;
 use clvmr::run_program::run_program;
-use clvmr::serialize::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
+use clvmr::serde::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
