@@ -91,7 +91,7 @@ pub fn node_to_stream(node: &Node, f: &mut dyn io::Write) -> io::Result<()> {
 /// decode the length prefix for an atom. Atoms whose value fit in 7 bits
 /// don't have a length prefix, so those should be handled specially and
 /// never passed to this function.
-fn decode_size(f: &mut dyn io::Read, initial_b: u8) -> io::Result<u64> {
+fn decode_size(f: &mut Cursor<&[u8]>, initial_b: u8) -> io::Result<u64> {
     debug_assert!((initial_b & 0x80) != 0);
     if (initial_b & 0x80) == 0 {
         return Err(internal_error());
@@ -560,12 +560,12 @@ fn test_write_atom() {
 #[test]
 fn test_decode_size() {
     // single-byte length prefix
-    let mut buffer = Cursor::new(&[]);
+    let mut buffer = Cursor::<&[u8]>::new(&[]);
     assert_eq!(decode_size(&mut buffer, 0x80 | 0x20).unwrap(), 0x20);
 
     // two-byte length prefix
     let first = 0b11001111;
-    let mut buffer = Cursor::new(&[0xaa]);
+    let mut buffer = Cursor::<&[u8]>::new(&[0xaa]);
     assert_eq!(decode_size(&mut buffer, first).unwrap(), 0xfaa);
 }
 
@@ -575,7 +575,7 @@ fn test_large_decode_size() {
     // We don't support atoms this large and we should fail before attempting to
     // allocate this much memory
     let first = 0b11111110;
-    let mut buffer = Cursor::new(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
+    let mut buffer = Cursor::<&[u8]>::new(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
     let ret = decode_size(&mut buffer, first);
     let e = ret.unwrap_err();
     assert_eq!(e.kind(), bad_encoding().kind());
@@ -583,7 +583,7 @@ fn test_large_decode_size() {
 
     // this is still too large
     let first = 0b11111100;
-    let mut buffer = Cursor::new(&[0x4, 0, 0, 0, 0]);
+    let mut buffer = Cursor::<&[u8]>::new(&[0x4, 0, 0, 0, 0]);
     let ret = decode_size(&mut buffer, first);
     let e = ret.unwrap_err();
     assert_eq!(e.kind(), bad_encoding().kind());
@@ -592,7 +592,7 @@ fn test_large_decode_size() {
     // But this is *just* within what we support
     // Still a very large blob, probably enough for a DoS attack
     let first = 0b11111100;
-    let mut buffer = Cursor::new(&[0x3, 0xff, 0xff, 0xff, 0xff]);
+    let mut buffer = Cursor::<&[u8]>::new(&[0x3, 0xff, 0xff, 0xff, 0xff]);
     assert_eq!(decode_size(&mut buffer, first).unwrap(), 0x3ffffffff);
 }
 
@@ -600,7 +600,7 @@ fn test_large_decode_size() {
 fn test_truncated_decode_size() {
     // the stream is truncated
     let first = 0b11111100;
-    let mut buffer = Cursor::new(&[0x4, 0, 0, 0]);
+    let mut buffer = Cursor::<&[u8]>::new(&[0x4, 0, 0, 0]);
     let ret = decode_size(&mut buffer, first);
     let e = ret.unwrap_err();
     assert_eq!(e.kind(), ErrorKind::UnexpectedEof);
