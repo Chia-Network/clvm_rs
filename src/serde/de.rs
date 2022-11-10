@@ -17,7 +17,7 @@ fn internal_error() -> io::Error {
 /// decode the length prefix for an atom. Atoms whose value fit in 7 bits
 /// don't have a length prefix, so those should be handled specially and
 /// never passed to this function.
-fn decode_size(f: &mut dyn io::Read, initial_b: u8) -> io::Result<u64> {
+fn decode_size<R: io::Read>(f: &mut R, initial_b: u8) -> io::Result<u64> {
     debug_assert!((initial_b & 0x80) != 0);
     if (initial_b & 0x80) == 0 {
         return Err(internal_error());
