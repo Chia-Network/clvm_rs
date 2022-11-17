@@ -76,6 +76,12 @@ pub fn parse_atom(
 #[cfg(test)]
 use std::io::ErrorKind;
 
+#[cfg(test)]
+use hex;
+
+#[cfg(test)]
+use super::write_atom::write_atom;
+
 #[test]
 fn test_decode_size() {
     // single-byte length prefix
@@ -119,8 +125,67 @@ fn test_large_decode_size() {
 fn test_truncated_decode_size() {
     // the stream is truncated
     let first = 0b11111100;
-    let mut buffer = Cursor::new(&[0x4, 0, 0, 0]);
-    let ret = decode_size(&mut buffer, first);
+    let mut cursor = Cursor::new(&[0x4, 0, 0, 0]);
+    let ret = decode_size(&mut cursor, first);
     let e = ret.unwrap_err();
     assert_eq!(e.kind(), ErrorKind::UnexpectedEof);
+}
+
+#[cfg(test)]
+fn check_parse_atom(blob: &[u8], expected_atom: &[u8]) {
+    let mut cursor = Cursor::<&[u8]>::new(&blob);
+    let mut first: [u8; 1] = [0];
+    cursor.read(&mut first).unwrap();
+    let first = first[0];
+
+    let mut allocator = Allocator::new();
+    let atom_node = parse_atom(&mut allocator, first, &mut cursor).unwrap();
+
+    let atom_ptr = allocator.atom(atom_node);
+
+    assert_eq!(expected_atom, atom_ptr);
+}
+
+#[cfg(test)]
+fn check_parse_atom_str(blob_hex: &str, expected_atom_hex: &str) {
+    let blob = hex::decode(blob_hex).unwrap();
+    let expected_atom: &[u8] = &hex::decode(expected_atom_hex).unwrap();
+    check_parse_atom(&blob, &expected_atom);
+}
+
+#[test]
+fn test_parse_atom() {
+    check_parse_atom_str("80", "");
+    // try "00", "01", "02", ..., "7f"
+    for idx in 0..128 {
+        check_parse_atom(&[idx], &[idx]);
+    }
+
+    // check a short atom
+    check_parse_atom_str("83666f6f", "666f6f");
+
+    // check long atoms near boundary conditions
+    let n = 3;
+    let base_lengths = [0, 0x40 - n, 0x2000 - n, 0x100000 - n, 0x08000000 - n];
+    let mut atom_vec = vec![];
+    for base_length in base_lengths.iter() {
+        for size_offset in 0..6 {
+            let size = base_length + size_offset;
+            atom_vec.resize(size, 0x66);
+            let mut buffer: Vec<u8> = vec![];
+            let mut cursor = Cursor::new(&mut buffer);
+            write_atom(&mut cursor, &atom_vec).unwrap();
+        }
+    }
+}
+
+#[test]
+fn test_truncated_parse_atom() {
+    // the stream is truncated
+    let first = 0b11111100;
+    let mut cursor = Cursor::<&[u8]>::new(&[0x4, 0, 0, 0]);
+    let mut allocator = Allocator::new();
+    let ret = parse_atom(&mut allocator, first, &mut cursor);
+    let err = ret.unwrap_err();
+    assert_eq!(err.kind(), ErrorKind::UnexpectedEof);
 }
