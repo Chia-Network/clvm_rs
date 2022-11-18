@@ -14,6 +14,7 @@ pub mod run_program;
 pub mod runtime_dialect;
 pub mod serde;
 pub mod sha2;
+pub mod traverse_path;
 
 #[cfg(test)]
 mod tests;
