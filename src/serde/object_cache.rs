@@ -230,8 +230,7 @@ fn test_depths_cache() {
 
 #[test]
 fn test_treehash() {
-    let check =
-        |a, b| check_cached_function(a, Bytes32(<[u8; 32]>::from_hex(&b).unwrap()), treehash);
+    let check = |a, b| check_cached_function(a, Bytes32::from_hex(&b).unwrap(), treehash);
     check(
         "ff83666f6f83626172",
         "c518e45ae6a7b4146017b7a1d81639051b132f1f5572ce3088a3898a9ed1280b",
