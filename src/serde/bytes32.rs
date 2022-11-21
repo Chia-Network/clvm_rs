@@ -6,7 +6,7 @@ use hex::encode;
 use crate::sha2::{Digest, Sha256};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub struct Bytes32([u8; 32]);
+pub struct Bytes32(pub [u8; 32]);
 
 impl Deref for Bytes32 {
     type Target = [u8];

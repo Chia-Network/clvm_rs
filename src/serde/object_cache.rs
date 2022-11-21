@@ -162,6 +162,9 @@ pub fn serialized_length(
 use std::cmp::max;
 
 #[cfg(test)]
+use std::fmt::Debug;
+
+#[cfg(test)]
 use std::io::Cursor;
 
 #[cfg(test)]
@@ -190,35 +193,70 @@ fn calculate_depth_simple(
 }
 
 #[cfg(test)]
-fn check_depths_cache(obj_as_hex: &str, expected_depth: usize) {
+fn check_cached_function<T>(obj_as_hex: &str, expected_value: T, f: CachedFunction<T>)
+where
+    T: Clone + Eq + Debug,
+{
     let mut allocator = Allocator::new();
     let blob: Vec<u8> = Vec::from_hex(obj_as_hex).unwrap().into();
     let mut cursor: Cursor<&[u8]> = Cursor::new(&blob);
     let obj = node_from_stream(&mut allocator, &mut cursor).unwrap();
-    let mut oc = ObjectCache::new(&allocator, calculate_depth_simple);
+    let mut oc = ObjectCache::new(&allocator, f);
 
     assert_eq!(oc.get_from_cache(&obj), None);
 
     oc.calculate(&obj);
 
-    assert_eq!(oc.get_from_cache(&obj), Some(&expected_depth));
+    assert_eq!(oc.get_from_cache(&obj), Some(&expected_value));
 
-    assert_eq!(oc.get_or_calculate(&obj).unwrap().clone(), expected_depth);
+    assert_eq!(oc.get_or_calculate(&obj).unwrap().clone(), expected_value);
 
-    assert_eq!(oc.get_from_cache(&obj), Some(&expected_depth));
+    assert_eq!(oc.get_from_cache(&obj), Some(&expected_value));
 
     // do it again, but the simple way
-    let mut oc = ObjectCache::new(&allocator, calculate_depth_simple);
-    assert_eq!(oc.get_or_calculate(&obj).unwrap().clone(), expected_depth);
+    let mut oc = ObjectCache::new(&allocator, f);
+    assert_eq!(oc.get_or_calculate(&obj).unwrap().clone(), expected_value);
 }
 
 #[test]
 fn test_depths_cache() {
-    check_depths_cache("01", 0); // 1
-    check_depths_cache("ff83666f6f83626172", 1); // (foo . bar)
-    check_depths_cache("ff83666f6fff8362617280", 2); // (foo bar)
-    check_depths_cache("ffff0102ff0304", 2); // ((1 . 2) . (3 . 4))
-    check_depths_cache("ff01ff02ff03ff04ff05ff0680", 6); // (1 2 3 4 5 6)
+    let check = |a, b| check_cached_function(a, b, calculate_depth_simple);
+    check("01", 0); // 1
+    check("ff83666f6f83626172", 1); // (foo . bar)
+    check("ff83666f6fff8362617280", 2); // (foo bar)
+    check("ffff0102ff0304", 2); // ((1 . 2) . (3 . 4))
+    check("ff01ff02ff03ff04ff05ff0680", 6); // (1 2 3 4 5 6)
+}
+
+#[test]
+fn test_treehash() {
+    let check =
+        |a, b| check_cached_function(a, Bytes32(<[u8; 32]>::from_hex(&b).unwrap()), treehash);
+    check(
+        "ff83666f6f83626172",
+        "c518e45ae6a7b4146017b7a1d81639051b132f1f5572ce3088a3898a9ed1280b",
+    ); // (foo . bar)
+    check(
+        "ff83666f6fff8362617280",
+        "c97d97cc81100a4980080ba81ff1ba3985f7cff1db9d41d904b9d512bb875144",
+    ); // (foo bar)
+    check(
+        "ffff0102ff0304",
+        "2824018d148bc6aed0847e2c86aaa8a5407b916169f15b12cea31fa932fc4c8d",
+    ); // ((1 . 2) . (3 . 4))
+    check(
+        "ff01ff02ff03ff04ff05ff0680",
+        "65de5098d18bebd62aee37de32f0b62d1803d9c7c48f10dca25501243d7a0392",
+    ); // (1 2 3 4 5 6)
+}
+
+#[test]
+fn test_serialized_length() {
+    let check = |a, b| check_cached_function(a, b, serialized_length);
+    check("ff83666f6f83626172", 9); // (foo . bar)
+    check("ff83666f6fff8362617280", 11); // (foo bar)
+    check("ffff0102ff0304", 7); // ((1 . 2) . (3 . 4))
+    check("ff01ff02ff03ff04ff05ff0680", 13); // (1 2 3 4 5 6)
 }
 
 #[test]
