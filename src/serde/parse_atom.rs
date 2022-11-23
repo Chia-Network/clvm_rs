@@ -45,7 +45,26 @@ pub fn decode_size<R: Read>(f: &mut R, initial_b: u8) -> Result<u64> {
     Ok(v)
 }
 
-/// parse an atom from the stream
+/// parse an atom from the stream and return a pointer to it
+/// the first byte has already been read
+
+fn parse_atom_ptr<'a>(f: &'a mut Cursor<&[u8]>, first_byte: u8) -> Result<&'a [u8]> {
+    let blob = if first_byte <= MAX_SINGLE_BYTE {
+        let pos = f.position() as usize;
+        &f.get_ref()[pos - 1..pos]
+    } else {
+        let blob_size = decode_size(f, first_byte)?;
+        let pos = f.position() as usize;
+        if f.get_ref().len() < pos + blob_size as usize {
+            return Err(bad_encoding());
+        }
+        f.seek(SeekFrom::Current(blob_size as i64))?;
+        &f.get_ref()[pos..(pos + blob_size as usize)]
+    };
+    Ok(blob)
+}
+
+/// parse an atom from the stream into the allocator
 /// At this point, the first byte has already been read to ensure it's
 /// not a special code like `CONS_BOX_MARKER` = 0xff, so it must be
 /// passed in too
@@ -59,18 +78,18 @@ pub fn parse_atom(
         Ok(allocator.one())
     } else if first_byte == 0x80 {
         Ok(allocator.null())
-    } else if first_byte <= MAX_SINGLE_BYTE {
-        Ok(allocator.new_atom(&[first_byte])?)
     } else {
-        let blob_size = decode_size(f, first_byte)?;
-        let pos = f.position() as usize;
-        if f.get_ref().len() < pos + blob_size as usize {
-            return Err(bad_encoding());
-        }
-        let blob = &f.get_ref()[pos..(pos + blob_size as usize)];
-        f.seek(SeekFrom::Current(blob_size as i64))?;
+        let blob = parse_atom_ptr(f, first_byte)?;
         Ok(allocator.new_atom(blob)?)
     }
+}
+
+/// parse an atom from the stream and return a pointer to it
+
+pub fn parse_path<'a>(f: &'a mut Cursor<&[u8]>) -> Result<&'a [u8]> {
+    let mut buf1: [u8; 1] = [0];
+    f.read_exact(&mut buf1)?;
+    parse_atom_ptr(f, buf1[0])
 }
 
 #[cfg(test)]

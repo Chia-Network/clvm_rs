@@ -1,13 +1,11 @@
 use std::io;
-use std::io::{Cursor, Read, Seek, SeekFrom};
+use std::io::{Cursor, Read};
 
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::traverse_path::traverse_path;
 
-use super::errors::bad_encoding;
-use super::parse_atom::{decode_size, parse_atom};
+use super::parse_atom::{parse_atom, parse_path};
 
-const MAX_SINGLE_BYTE: u8 = 0x7f;
 const BACK_REFERENCE: u8 = 0xfe;
 const CONS_BOX_MARKER: u8 = 0xff;
 
@@ -15,26 +13,6 @@ const CONS_BOX_MARKER: u8 = 0xff;
 enum ParseOp {
     SExp,
     Cons,
-}
-
-fn parse_path(f: &mut Cursor<&[u8]>) -> io::Result<Vec<u8>> {
-    let mut buf1: [u8; 1] = [0];
-    f.read_exact(&mut buf1)?;
-    let first_byte = buf1[0];
-    if first_byte == 0x80 {
-        Ok(vec![])
-    } else if first_byte <= MAX_SINGLE_BYTE {
-        Ok(vec![first_byte])
-    } else {
-        let blob_size = decode_size(f, first_byte)?;
-        let pos = f.position() as usize;
-        if f.get_ref().len() < pos + blob_size as usize {
-            return Err(bad_encoding());
-        }
-        let blob = &f.get_ref()[pos..(pos + blob_size as usize)];
-        f.seek(SeekFrom::Current(blob_size as i64))?;
-        Ok(blob.into())
-    }
 }
 
 /// deserialize a clvm node from a `std::io::Cursor`
