@@ -266,3 +266,32 @@ fn test_node_to_index() {
     assert_eq!(node_to_index(&-1), 1);
     assert_eq!(node_to_index(&-2), 3);
 }
+
+
+// this test takes a very long time (>60s) in debug mode, so it only runs in release mode
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn test_very_long_list() {
+    // in this test, we check that `treehash` and `serialized_length` can handle very deep trees that
+    // would normally blow out the stack. It's expensive to create such a long list, so we do both
+    // tests here so we only have to to create the list once
+
+    const LIST_SIZE: usize = 20_000_000;
+    let mut allocator = Allocator::new();
+    let mut top = allocator.null();
+    for _ in 0..LIST_SIZE {
+        let atom = allocator.one();
+        top = allocator.new_pair(atom, top).unwrap();
+    }
+
+    let expected_value = LIST_SIZE * 2 + 1;
+    let mut oc = ObjectCache::new(&allocator, serialized_length);
+    assert_eq!(oc.get_or_calculate(&top).unwrap().clone(), expected_value);
+
+    let expected_value =
+        <[u8; 32]>::from_hex("a168fce695099a30c0745075e6db3722ed7f059e0d7cc4d7e7504e215db5017b")
+            .unwrap();
+    let mut oc = ObjectCache::new(&allocator, treehash);
+    assert_eq!(oc.get_or_calculate(&top).unwrap().clone(), expected_value);
+}
