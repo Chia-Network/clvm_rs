@@ -10,6 +10,9 @@ mod ser_br;
 mod tools;
 mod write_atom;
 
+#[cfg(test)]
+mod test;
+
 pub use de::node_from_bytes;
 pub use de_br::node_from_bytes_backrefs;
 pub use ser::node_to_bytes;

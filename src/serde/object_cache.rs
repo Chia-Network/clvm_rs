@@ -267,7 +267,6 @@ fn test_node_to_index() {
     assert_eq!(node_to_index(&-2), 3);
 }
 
-
 // this test takes a very long time (>60s) in debug mode, so it only runs in release mode
 
 #[cfg(not(debug_assertions))]
