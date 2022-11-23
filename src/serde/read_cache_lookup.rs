@@ -45,7 +45,7 @@ impl ReadCacheLookup {
         let root_hash = hash_blob(&[1]);
         let read_stack = vec![];
         let mut count = HashMap::default();
-        count.insert(root_hash.clone(), 1);
+        count.insert(root_hash, 1);
         let parent_lookup = HashMap::default();
         Self {
             root_hash,
@@ -62,20 +62,20 @@ impl ReadCacheLookup {
 
         let new_root_hash = hash_blobs(&[&[2], &id, &self.root_hash]);
 
-        self.read_stack.push((id.clone(), self.root_hash.clone()));
+        self.read_stack.push((id, self.root_hash));
 
-        *self.count.entry(id.clone()).or_insert(0) += 1;
-        *self.count.entry(new_root_hash.clone()).or_insert(0) += 1;
+        *self.count.entry(id).or_insert(0) += 1;
+        *self.count.entry(new_root_hash).or_insert(0) += 1;
 
-        let new_parent_to_old_root = (new_root_hash.clone(), 0);
+        let new_parent_to_old_root = (new_root_hash, 0);
         self.parent_lookup
             .entry(id)
             .or_default()
             .push(new_parent_to_old_root);
 
-        let new_parent_to_id = (new_root_hash.clone(), 1);
+        let new_parent_to_id = (new_root_hash, 1);
         self.parent_lookup
-            .entry(self.root_hash.clone())
+            .entry(self.root_hash)
             .or_default()
             .push(new_parent_to_id);
 
@@ -87,9 +87,9 @@ impl ReadCacheLookup {
     /// the new root hash
     fn pop(&mut self) -> (Bytes32, Bytes32) {
         let item = self.read_stack.pop().expect("stack empty");
-        *self.count.entry(item.0.clone()).or_insert(0) -= 1;
-        *self.count.entry(self.root_hash.clone()).or_insert(0) -= 1;
-        self.root_hash = item.1.clone();
+        *self.count.entry(item.0).or_insert(0) -= 1;
+        *self.count.entry(self.root_hash).or_insert(0) -= 1;
+        self.root_hash = item.1;
         item
     }
 
@@ -100,20 +100,20 @@ impl ReadCacheLookup {
         let right = self.pop();
         let left = self.pop();
 
-        *self.count.entry(left.0.clone()).or_insert(0) += 1;
-        *self.count.entry(right.0.clone()).or_insert(0) += 1;
+        *self.count.entry(left.0).or_insert(0) += 1;
+        *self.count.entry(right.0).or_insert(0) += 1;
 
         let new_root_hash = hash_blobs(&[&[2], &left.0, &right.0]);
 
         self.parent_lookup
             .entry(left.0)
             .or_default()
-            .push((new_root_hash.clone(), 0));
+            .push((new_root_hash, 0));
 
         self.parent_lookup
             .entry(right.0)
             .or_default()
-            .push((new_root_hash.clone(), 1));
+            .push((new_root_hash, 1));
 
         self.push(new_root_hash);
     }
@@ -129,7 +129,7 @@ impl ReadCacheLookup {
         let max_bytes_for_path_encoding = serialized_length - 2; // 1 byte for 0xfe, 1 min byte for savings
         let max_path_length = max_bytes_for_path_encoding * 8 - 1;
         seen_ids.insert(id);
-        let mut partial_paths = vec![(id.clone(), vec![])];
+        let mut partial_paths = vec![(*id, vec![])];
 
         loop {
             if partial_paths.is_empty() {
@@ -152,7 +152,7 @@ impl ReadCacheLookup {
                             if new_path.len() > max_path_length {
                                 return possible_responses;
                             }
-                            new_partial_paths.push((parent.clone(), new_path));
+                            new_partial_paths.push((*parent, new_path));
                         }
                         seen_ids.insert(parent);
                     }

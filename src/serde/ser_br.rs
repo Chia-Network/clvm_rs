@@ -51,7 +51,7 @@ pub fn node_to_stream_backrefs<W: io::Write>(node: &Node, f: &mut W) -> io::Resu
             Some(path) => {
                 f.write_all(&[BACK_REFERENCE])?;
                 write_atom(f, &path)?;
-                read_cache_lookup.push(node_tree_hash.clone());
+                read_cache_lookup.push(*node_tree_hash);
             }
             None => match allocator.sexp(node_to_write) {
                 SExp::Pair(left, right) => {
@@ -65,7 +65,7 @@ pub fn node_to_stream_backrefs<W: io::Write>(node: &Node, f: &mut W) -> io::Resu
                 SExp::Atom(atom_buf) => {
                     let atom = allocator.buf(&atom_buf);
                     write_atom(f, atom)?;
-                    read_cache_lookup.push(node_tree_hash.clone());
+                    read_cache_lookup.push(*node_tree_hash);
                 }
             },
         }
