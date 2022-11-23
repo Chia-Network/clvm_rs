@@ -140,7 +140,7 @@ pub fn serialized_length(
         },
         SExp::Atom(atom_buf) => {
             let buf = allocator.buf(&atom_buf);
-            let lb = buf.len();
+            let lb = atom_buf.len();
             Some(if lb == 0 || (lb == 1 && buf[0] < 128) {
                 1
             } else if lb < 0x40 {
