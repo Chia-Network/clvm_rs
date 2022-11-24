@@ -38,6 +38,12 @@ test = false
 doc = false
 
 [[bin]]
+name = "fuzz_deserialize_br"
+path = "fuzz_targets/deserialize_br.rs"
+test = false
+doc = false
+
+[[bin]]
 name = "fuzz_tree_hash"
 path = "fuzz_targets/tree_hash.rs"
 test = false
