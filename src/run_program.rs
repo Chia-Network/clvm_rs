@@ -24,7 +24,6 @@ pub type PostEval = dyn Fn(Option<NodePtr>);
 enum Operation {
     Apply,
     Cons,
-    Eval,
     SwapEval,
     PostEval,
 }
@@ -198,30 +197,6 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         self.eval_pair(program, args)
     }
 
-    fn eval_op(&mut self) -> Result<Cost, EvalErr> {
-        /*
-        Pop the top value and treat it as a (program, args) pair, and manipulate
-        the op & value stack to evaluate all the arguments and apply the operator.
-        */
-
-        let pair: NodePtr = self.pop()?;
-        match self.allocator.sexp(pair) {
-            SExp::Atom(_) => err(pair, "pair expected"),
-            SExp::Pair(program, args) => {
-                let post_eval = match self.pre_eval {
-                    None => None,
-                    Some(ref pre_eval) => pre_eval(self.allocator, program, args)?,
-                };
-                if let Some(post_eval) = post_eval {
-                    self.posteval_stack.push(post_eval);
-                    self.op_stack.push(Operation::PostEval);
-                };
-
-                self.eval_pair(program, args)
-            }
-        }
-    }
-
     fn apply_op(&mut self, max_cost: Cost) -> Result<Cost, EvalErr> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
@@ -260,8 +235,8 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     }
 
     pub fn run_program(&mut self, program: NodePtr, args: NodePtr, max_cost: Cost) -> Response {
-        self.val_stack = vec![self.allocator.new_pair(program, args)?];
-        self.op_stack = vec![Operation::Eval];
+        self.val_stack = vec![];
+        self.op_stack = vec![];
 
         // max_cost is always in effect, and necessary to prevent wrap-around of
         // the cost integer.
@@ -272,7 +247,21 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
         let mut cost: Cost = 0;
 
+        let post_eval = match self.pre_eval {
+            None => None,
+            Some(ref pre_eval) => pre_eval(self.allocator, program, args)?,
+        };
+        if let Some(post_eval) = post_eval {
+            self.posteval_stack.push(post_eval);
+            self.op_stack.push(Operation::PostEval);
+        };
+
+        cost += self.eval_pair(program, args)?;
+
         loop {
+            if cost > max_cost {
+                return err(max_cost_ptr, "cost exceeded");
+            }
             let top = self.op_stack.pop();
             let op = match top {
                 Some(f) => f,
@@ -283,7 +272,6 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                     augment_cost_errors(self.apply_op(max_cost - cost), max_cost_ptr)?
                 }
                 Operation::Cons => self.cons_op()?,
-                Operation::Eval => augment_cost_errors(self.eval_op(), max_cost_ptr)?,
                 Operation::SwapEval => augment_cost_errors(self.swap_eval_op(), max_cost_ptr)?,
                 Operation::PostEval => {
                     let f = self.posteval_stack.pop().unwrap();
@@ -292,9 +280,6 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                     0
                 }
             };
-            if cost > max_cost {
-                return err(max_cost_ptr, "cost exceeded");
-            }
         }
         Ok(Reduction(cost, self.pop()?))
     }
