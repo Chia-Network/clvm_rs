@@ -6,6 +6,8 @@
 /// It also allows a function that's defined recursively on a clvm tree to
 /// have a non-recursive implementation (as it keeps a stack of uncached
 /// objects locally).
+use std::convert::TryInto;
+
 use crate::allocator::{Allocator, NodePtr, SExp};
 type CachedFunction<T> = fn(&mut ObjectCache<T>, &Allocator, NodePtr) -> Option<T>;
 use super::bytes32::{hash_blobs, Bytes32};
@@ -127,20 +129,22 @@ pub fn treehash(
 /// to check if using backrefs is actually smaller.
 
 pub fn serialized_length(
-    cache: &mut ObjectCache<usize>,
+    cache: &mut ObjectCache<u64>,
     allocator: &Allocator,
     node: NodePtr,
-) -> Option<usize> {
+) -> Option<u64> {
     match allocator.sexp(node) {
         SExp::Pair(left, right) => match cache.get_from_cache(&left) {
             None => None,
-            Some(left_value) => cache
-                .get_from_cache(&right)
-                .map(|right_value| 1 + left_value + right_value),
+            Some(left_value) => cache.get_from_cache(&right).map(|right_value| {
+                1_u64
+                    .saturating_add(*left_value)
+                    .saturating_add(*right_value)
+            }),
         },
         SExp::Atom(atom_buf) => {
             let buf = allocator.buf(&atom_buf);
-            let lb = atom_buf.len();
+            let lb: u64 = atom_buf.len().try_into().unwrap_or(u64::MAX);
             Some(if lb == 0 || (lb == 1 && buf[0] < 128) {
                 1
             } else if lb < 0x40 {

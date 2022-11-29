@@ -38,7 +38,7 @@ pub fn node_from_stream_backrefs(
                     ops.push(ParseOp::SExp);
                 } else if b[0] == BACK_REFERENCE {
                     let path = parse_path(f)?;
-                    let reduction = traverse_path(allocator, &path, values)?;
+                    let reduction = traverse_path(allocator, path, values)?;
                     let back_reference = reduction.1;
                     values = allocator.new_pair(back_reference, values)?;
                 } else {

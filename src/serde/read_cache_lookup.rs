@@ -16,6 +16,7 @@
 ///
 /// All hashes correspond to sha256 tree hashes.
 use std::collections::{HashMap, HashSet};
+use std::convert::TryInto;
 
 use super::bytes32::{hash_blob, hash_blobs, Bytes32};
 
@@ -28,7 +29,7 @@ pub struct ReadCacheLookup {
     /// the tree hashes of the contents on the left and right
     read_stack: Vec<(Bytes32, Bytes32)>,
 
-    count: HashMap<Bytes32, usize>,
+    count: HashMap<Bytes32, u32>,
 
     /// a mapping of tree hashes to `(parent, is_right)` tuples
     parent_lookup: HashMap<Bytes32, Vec<(Bytes32, u8)>>,
@@ -120,14 +121,17 @@ impl ReadCacheLookup {
 
     /// return the list of minimal-length paths to the given hash which will serialize to no larger
     /// than the given size (or an empty list if no such path exists)
-    pub fn find_paths(&self, id: &Bytes32, serialized_length: usize) -> Vec<Vec<u8>> {
+    pub fn find_paths(&self, id: &Bytes32, serialized_length: u64) -> Vec<Vec<u8>> {
         let mut seen_ids = HashSet::<&Bytes32>::default();
         let mut possible_responses = vec![];
         if serialized_length < 3 {
             return possible_responses;
         }
+        assert!(serialized_length > 2);
         let max_bytes_for_path_encoding = serialized_length - 2; // 1 byte for 0xfe, 1 min byte for savings
-        let max_path_length = max_bytes_for_path_encoding * 8 - 1;
+        let max_path_length: usize = (max_bytes_for_path_encoding.saturating_mul(8) - 1)
+            .try_into()
+            .unwrap_or(usize::MAX);
         seen_ids.insert(id);
         let mut partial_paths = vec![(*id, vec![])];
 
@@ -167,7 +171,7 @@ impl ReadCacheLookup {
     }
 
     /// If multiple paths exist, the lexigraphically smallest one will be returned.
-    pub fn find_path(&self, id: &Bytes32, serialized_length: usize) -> Option<Vec<u8>> {
+    pub fn find_path(&self, id: &Bytes32, serialized_length: u64) -> Option<Vec<u8>> {
         let mut paths = self.find_paths(id, serialized_length);
         if !paths.is_empty() {
             paths.sort();
