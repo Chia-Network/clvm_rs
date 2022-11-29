@@ -145,13 +145,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     }
 
     fn eval_pair(&mut self, program: NodePtr, args: NodePtr) -> Result<Cost, EvalErr> {
-        let post_eval = match self.pre_eval {
-            None => None,
-            Some(ref pre_eval) => pre_eval(self.allocator, program, args)?,
-        };
-        if let Some(post_eval) = post_eval {
-            self.posteval_stack.push(post_eval);
-            self.op_stack.push(Operation::PostEval);
+        if let Some(pre_eval) = &self.pre_eval {
+            if let Some(post_eval) = pre_eval(self.allocator, program, args)? {
+                self.posteval_stack.push(post_eval);
+                self.op_stack.push(Operation::PostEval);
+            }
         };
 
         // put a bunch of ops on op_stack
