@@ -145,6 +145,15 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     }
 
     fn eval_pair(&mut self, program: NodePtr, args: NodePtr) -> Result<Cost, EvalErr> {
+        let post_eval = match self.pre_eval {
+            None => None,
+            Some(ref pre_eval) => pre_eval(self.allocator, program, args)?,
+        };
+        if let Some(post_eval) = post_eval {
+            self.posteval_stack.push(post_eval);
+            self.op_stack.push(Operation::PostEval);
+        };
+
         // put a bunch of ops on op_stack
         let (op_node, op_list) = match self.allocator.sexp(program) {
             // the program is just a bitfield path through the args tree
@@ -185,15 +194,6 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         // on the way back, build a list from the values
         self.op_stack.push(Operation::Cons);
 
-        let post_eval = match self.pre_eval {
-            None => None,
-            Some(ref pre_eval) => pre_eval(self.allocator, program, args)?,
-        };
-        if let Some(post_eval) = post_eval {
-            self.posteval_stack.push(post_eval);
-            self.op_stack.push(Operation::PostEval);
-        };
-
         self.eval_pair(program, args)
     }
 
@@ -210,15 +210,6 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 let new_operator = operand_list.first()?;
                 let new_program = new_operator.node;
                 let new_args = operand_list.rest()?.first()?.node;
-
-                let post_eval = match self.pre_eval {
-                    None => None,
-                    Some(ref pre_eval) => pre_eval(self.allocator, new_program, new_args)?,
-                };
-                if let Some(post_eval) = post_eval {
-                    self.posteval_stack.push(post_eval);
-                    self.op_stack.push(Operation::PostEval);
-                };
 
                 self.eval_pair(new_program, new_args)
                     .map(|c| c + APPLY_COST)
@@ -246,15 +237,6 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let max_cost_ptr = ptr_from_number(self.allocator, &max_cost_number)?;
 
         let mut cost: Cost = 0;
-
-        let post_eval = match self.pre_eval {
-            None => None,
-            Some(ref pre_eval) => pre_eval(self.allocator, program, args)?,
-        };
-        if let Some(post_eval) = post_eval {
-            self.posteval_stack.push(post_eval);
-            self.op_stack.push(Operation::PostEval);
-        };
 
         cost += self.eval_pair(program, args)?;
 
