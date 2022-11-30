@@ -62,15 +62,13 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 }
 
 fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Cost, EvalErr> {
-    if r.is_ok() {
-        return r;
-    }
-    let e = r.unwrap_err();
-    if &e.1 != "cost exceeded" {
-        Err(e)
-    } else {
-        Err(EvalErr(max_cost, e.1))
-    }
+    r.map_err(|e| {
+        if &e.1 != "cost exceeded" {
+            e
+        } else {
+            EvalErr(max_cost, e.1)
+        }
+    })
 }
 
 impl<'a, D: Dialect> RunProgramContext<'a, D> {
