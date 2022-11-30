@@ -17,8 +17,8 @@ use crate::op_utils::{
     number_to_scalar, new_atom_and_cost, mod_group_order
 };
 use crate::reduction::{Reduction, Response};
-use crate::serialize::node_to_bytes;
-use crate::sha2::Sha256;
+use crate::serde::node_to_bytes;
+use crate::sha2::{Digest, Sha256};
 
 const ARITH_BASE_COST: Cost = 99;
 const ARITH_COST_PER_ARG: Cost = 320;
@@ -195,10 +195,10 @@ pub fn op_unknown(
     let mut cost = match cost_function {
         0 => 1,
         1 => {
-            let mut cost = ARITH_BASE_COST as u64;
+            let mut cost = ARITH_BASE_COST;
             let mut byte_count: u64 = 0;
             for arg in Node::new(allocator, args) {
-                cost += ARITH_COST_PER_ARG as u64;
+                cost += ARITH_COST_PER_ARG;
                 let blob = int_atom(&arg, "unknown op")?;
                 byte_count += blob.len() as u64;
                 check_cost(
@@ -207,10 +207,10 @@ pub fn op_unknown(
                     max_cost,
                 )?;
             }
-            cost + (byte_count * ARITH_COST_PER_BYTE as u64)
+            cost + (byte_count * ARITH_COST_PER_BYTE)
         }
         2 => {
-            let mut cost = MUL_BASE_COST as u64;
+            let mut cost = MUL_BASE_COST;
             let mut first_iter: bool = true;
             let mut l0: u64 = 0;
             for arg in Node::new(allocator, args) {
@@ -221,19 +221,19 @@ pub fn op_unknown(
                     continue;
                 }
                 let l1 = blob.len() as u64;
-                cost += MUL_COST_PER_OP as u64;
-                cost += (l0 + l1) * MUL_LINEAR_COST_PER_BYTE as u64;
-                cost += (l0 * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER as u64;
+                cost += MUL_COST_PER_OP;
+                cost += (l0 + l1) * MUL_LINEAR_COST_PER_BYTE;
+                cost += (l0 * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
                 l0 += l1;
                 check_cost(allocator, cost, max_cost)?;
             }
             cost
         }
         3 => {
-            let mut cost = CONCAT_BASE_COST as u64;
+            let mut cost = CONCAT_BASE_COST;
             let mut total_size: u64 = 0;
             for arg in Node::new(allocator, args) {
-                cost += CONCAT_COST_PER_ARG as u64;
+                cost += CONCAT_COST_PER_ARG;
                 let blob = atom(&arg, "unknown op")?;
                 total_size += blob.len() as u64;
                 check_cost(
@@ -242,7 +242,7 @@ pub fn op_unknown(
                     max_cost,
                 )?;
             }
-            cost + total_size * CONCAT_COST_PER_BYTE as u64
+            cost + total_size * CONCAT_COST_PER_BYTE
         }
         _ => 1,
     };
@@ -340,7 +340,7 @@ pub fn op_sha256(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
         hasher.update(blob);
     }
     cost += byte_count as Cost * SHA256_COST_PER_BYTE;
-    new_atom_and_cost(a, cost, &hasher.finish())
+    new_atom_and_cost(a, cost, &hasher.finalize())
 }
 
 pub fn op_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
@@ -566,7 +566,7 @@ pub fn op_ash(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let l0 = b0.len();
     let rest = args.rest()?;
     let a1 = i32_atom(&rest.first()?, "ash")?;
-    if a1 > 65535 || a1 < -65535 {
+    if !(-65535..=65535).contains(&a1) {
         return args.rest()?.first()?.err("shift too large");
     }
 
@@ -643,7 +643,7 @@ pub fn op_lsh(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let l0 = b0.len();
     let rest = args.rest()?;
     let a1 = i32_atom(&rest.first()?, "lsh")?;
-    if a1 > 65535 || a1 < -65535 {
+    if !(-65535..=65535).contains(&a1) {
         return args.rest()?.first()?.err("shift too large");
     }
 

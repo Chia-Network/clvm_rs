@@ -59,4 +59,8 @@ impl Dialect for RuntimeDialect {
     fn apply_kw(&self) -> &[u8] {
         &self.apply_kw
     }
+
+    fn val_stack_limit(&self) -> usize {
+        usize::MAX
+    }
 }

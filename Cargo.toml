@@ -1,9 +1,6 @@
-[workspace]
-members = ["wasm", "wheel"]
-
 [package]
 name = "clvmr"
-version = "0.1.20"
+version = "0.1.24"
 authors = ["Richard Kiss <him@richardkiss.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -22,12 +19,12 @@ lto = true
 [dependencies]
 hex = "=0.4.3"
 lazy_static = "=1.4.0"
-num-bigint = "=0.4.0"
-num-traits = "=0.2.14"
-num-integer = "=0.1.44"
+num-bigint = "=0.4.3"
+num-traits = "=0.2.15"
+num-integer = "=0.1.45"
 bls12_381 = { version = "0.7.0", features = ["experimental"] }
 sha2 = "=0.9.5"
-openssl = { version = "0.10.35", features = ["vendored"], optional = true }
+openssl = { version = "0.10.40", features = ["vendored"], optional = true }
 
 [patch.crates-io]
 bls12_381 = { version = "0.7.0", git = "https://github.com/cameroncooper/bls12_381", rev = "a789b4da7fccb4815f865b30a30218c1ceea2d4e" }

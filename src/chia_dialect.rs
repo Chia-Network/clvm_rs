@@ -22,6 +22,10 @@ pub const NO_NEG_DIV: u32 = 0x0001;
 // (otherwise they are no-ops with well defined cost)
 pub const NO_UNKNOWN_OPS: u32 = 0x0002;
 
+// When set, limits the number of atom-bytes allowed to be allocated, as well as
+// the number of pairs
+pub const LIMIT_HEAP: u32 = 0x0004;
+
 pub struct ChiaDialect {
     flags: u32,
 }
@@ -120,5 +124,13 @@ impl Dialect for ChiaDialect {
 
     fn apply_kw(&self) -> &[u8] {
         &[2]
+    }
+
+    fn val_stack_limit(&self) -> usize {
+        if (self.flags & LIMIT_HEAP) != 0 {
+            10000000
+        } else {
+            usize::MAX
+        }
     }
 }

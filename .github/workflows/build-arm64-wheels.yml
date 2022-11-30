@@ -55,14 +55,14 @@ jobs:
             if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
             . ./activate && \
             pip install maturin && \
-            CC=gcc maturin build -m wheel/Cargo.toml --no-sdist --release --strip --manylinux 2014 --cargo-extra-args="--features=openssl" \
+            CC=gcc maturin build -m wheel/Cargo.toml --release --strip --manylinux 2014 --features=openssl \
           '
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
       with:
         name: wheels
-        path: target/wheels/
+        path: wheel/target/wheels/
 
     - name: Install Twine
       run: |
@@ -92,18 +92,7 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.pypi_password }}
       run: |
         . ./activate
-        twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
-
-    - name: publish (Test PyPi)
-      if: steps.check_secrets.outputs.HAS_SECRET
-      env:
-        TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
-        TWINE_USERNAME: __token__
-        TWINE_NON_INTERACTIVE: 1
-        TWINE_PASSWORD: ${{ secrets.test_pypi_password }}
-      run: |
-        . ./activate
-        twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
+        twine upload --non-interactive --skip-existing --verbose 'wheel/target/wheels/*'
 
     - name: Clean up AMR64
       if: startsWith(matrix.os, 'ARM64')

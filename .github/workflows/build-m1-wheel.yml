@@ -43,13 +43,13 @@ jobs:
         . ./venv/bin/activate
         export PATH=~/.cargo/bin:$PATH
         arch -arm64 pip install maturin
-        arch -arm64 maturin build -m wheel/Cargo.toml --no-sdist -i python --release --strip --cargo-extra-args="--features=openssl"
+        arch -arm64 maturin build -m wheel/Cargo.toml -i python --release --strip --features=openssl
 
     - name: Install clvm_rs wheel
       run: |
         . ./venv/bin/activate
-        ls target/wheels/
-        arch -arm64 pip install ./target/wheels/clvm_rs*.whl
+        ls ./wheel/target/wheels/
+        arch -arm64 pip install ./wheel/target/wheels/clvm_rs*.whl
 
     - name: Install other wheels
       run: |
@@ -78,20 +78,20 @@ jobs:
       run: |
         . ./venv/bin/activate
         cd clvm
-        arch -arm64 python -m py.test tests
+        arch -arm64 pytest tests
 
     - name: Run tests from clvm_tools
       continue-on-error: true
       run: |
         . ./venv/bin/activate
         cd clvm_tools
-        arch -arm64 python -m py.test tests
+        arch -arm64 pytest tests
 
     - name: Upload wheels
       uses: actions/upload-artifact@v2
       with:
         name: wheels
-        path: ./target/wheels
+        path: ./wheel/target/wheels
 
     - name: Test for secrets access
       id: check_secrets
@@ -116,15 +116,4 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.pypi_password }}
       run: |
         . ./venv/bin/activate
-        arch -arm64 twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
-
-    - name: Publish distribution to Test PyPI
-      if: steps.check_secrets.outputs.HAS_SECRET
-      env:
-        TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
-        TWINE_USERNAME: __token__
-        TWINE_NON_INTERACTIVE: 1
-        TWINE_PASSWORD: ${{ secrets.test_pypi_password }}
-      run: |
-        . ./venv/bin/activate
-        arch -arm64 twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
+        arch -arm64 twine upload --non-interactive --skip-existing --verbose 'wheel/target/wheels/*'
