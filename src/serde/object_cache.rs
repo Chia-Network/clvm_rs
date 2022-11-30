@@ -280,7 +280,7 @@ fn test_very_long_list() {
     // would normally blow out the stack. It's expensive to create such a long list, so we do both
     // tests here so we only have to to create the list once
 
-    const LIST_SIZE: usize = 20_000_000;
+    const LIST_SIZE: u64 = 20_000_000;
     let mut allocator = Allocator::new();
     let mut top = allocator.null();
     for _ in 0..LIST_SIZE {
