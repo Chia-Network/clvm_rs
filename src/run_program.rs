@@ -96,7 +96,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         op_buf: &AtomBuf,
         operator_node: NodePtr,
         operand_list: NodePtr,
-        args: NodePtr,
+        env: NodePtr,
     ) -> Result<Cost, EvalErr> {
         let op_atom = self.allocator.buf(op_buf);
         // special case check for quote
@@ -117,7 +117,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                     }
                     SExp::Pair(first, rest) => {
                         // We evaluate every entry in the argument list (passing
-                        // the environment, args). The resulting return values
+                        // the environment, env). The resulting return values
                         // are arranged in a list. the top item on the stack is
                         // the resulting list, and below it is the next pair to
                         // evaluated.
@@ -127,7 +127,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                         // the new list at the top of the stack for the next
                         // pair to be evaluated.
                         self.op_stack.push(Operation::SwapEval);
-                        self.push(args)?;
+                        self.push(env)?;
                         self.push(first)?;
                         operands = rest;
                     }
@@ -138,9 +138,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    fn eval_pair(&mut self, program: NodePtr, args: NodePtr) -> Result<Cost, EvalErr> {
+    fn eval_pair(&mut self, program: NodePtr, env: NodePtr) -> Result<Cost, EvalErr> {
         if let Some(pre_eval) = &self.pre_eval {
-            if let Some(post_eval) = pre_eval(self.allocator, program, args)? {
+            if let Some(post_eval) = pre_eval(self.allocator, program, env)? {
                 self.posteval_stack.push(post_eval);
                 self.op_stack.push(Operation::PostEval);
             }
@@ -148,9 +148,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
         // put a bunch of ops on op_stack
         let (op_node, op_list) = match self.allocator.sexp(program) {
-            // the program is just a bitfield path through the args tree
+            // the program is just a bitfield path through the env tree
             SExp::Atom(path) => {
-                let r: Reduction = traverse_path(self.allocator, self.allocator.buf(&path), args)?;
+                let r: Reduction = traverse_path(self.allocator, self.allocator.buf(&path), env)?;
                 self.push(r.1)?;
                 return Ok(r.0);
             }
@@ -169,20 +169,20 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 self.op_stack.push(Operation::Apply);
                 Ok(APPLY_COST)
             }
-            SExp::Atom(op_atom) => self.eval_op_atom(&op_atom, op_node, op_list, args),
+            SExp::Atom(op_atom) => self.eval_op_atom(&op_atom, op_node, op_list, env),
         }
     }
 
     fn swap_eval_op(&mut self) -> Result<Cost, EvalErr> {
         let v2 = self.pop()?;
         let program: NodePtr = self.pop()?;
-        let args: NodePtr = self.pop()?;
+        let env: NodePtr = self.pop()?;
         self.push(v2)?;
 
         // on the way back, build a list from the values
         self.op_stack.push(Operation::Cons);
 
-        self.eval_pair(program, args)
+        self.eval_pair(program, env)
     }
 
     fn apply_op(&mut self, max_cost: Cost) -> Result<Cost, EvalErr> {
@@ -199,11 +199,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             }
 
             let new_operator = operand_list.first()?.node;
-            let new_args = operand_list.rest()?.first()?.node;
+            let env = operand_list.rest()?.first()?.node;
 
-            Ok(self
-                .eval_pair(new_operator, new_args)
-                .map(|c| c + APPLY_COST)?)
+            Ok(self.eval_pair(new_operator, env).map(|c| c + APPLY_COST)?)
         } else {
             let r = self
                 .dialect
@@ -213,7 +211,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    pub fn run_program(&mut self, program: NodePtr, args: NodePtr, max_cost: Cost) -> Response {
+    pub fn run_program(&mut self, program: NodePtr, env: NodePtr, max_cost: Cost) -> Response {
         self.val_stack = vec![];
         self.op_stack = vec![];
 
@@ -226,7 +224,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
         let mut cost: Cost = 0;
 
-        cost += self.eval_pair(program, args)?;
+        cost += self.eval_pair(program, env)?;
 
         loop {
             if cost > max_cost {
@@ -259,12 +257,12 @@ pub fn run_program<'a, D: Dialect>(
     allocator: &'a mut Allocator,
     dialect: &'a D,
     program: NodePtr,
-    args: NodePtr,
+    env: NodePtr,
     max_cost: Cost,
     pre_eval: Option<PreEval>,
 ) -> Response {
     let mut rpc = RunProgramContext::new(allocator, dialect, pre_eval);
-    rpc.run_program(program, args, max_cost)
+    rpc.run_program(program, env, max_cost)
 }
 
 #[cfg(test)]
