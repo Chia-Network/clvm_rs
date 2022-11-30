@@ -41,6 +41,16 @@ struct RunProgramContext<'a, D> {
     val_stack_limit: usize,
 }
 
+fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Cost, EvalErr> {
+    r.map_err(|e| {
+        if &e.1 != "cost exceeded" {
+            e
+        } else {
+            EvalErr(max_cost, e.1)
+        }
+    })
+}
+
 impl<'a, D: Dialect> RunProgramContext<'a, D> {
     pub fn pop(&mut self) -> Result<NodePtr, EvalErr> {
         let v: Option<NodePtr> = self.val_stack.pop();
@@ -59,19 +69,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         self.val_stack.push(node);
         Ok(())
     }
-}
 
-fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Cost, EvalErr> {
-    r.map_err(|e| {
-        if &e.1 != "cost exceeded" {
-            e
-        } else {
-            EvalErr(max_cost, e.1)
-        }
-    })
-}
-
-impl<'a, D: Dialect> RunProgramContext<'a, D> {
     fn new(allocator: &'a mut Allocator, dialect: &'a D, pre_eval: Option<PreEval>) -> Self {
         RunProgramContext {
             allocator,
@@ -92,9 +90,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         self.push(p)?;
         Ok(0)
     }
-}
 
-impl<'a, D: Dialect> RunProgramContext<'a, D> {
     fn eval_op_atom(
         &mut self,
         op_buf: &AtomBuf,
