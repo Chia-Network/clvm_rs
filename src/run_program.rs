@@ -164,7 +164,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             SExp::Pair(operator_node, operand_list) => (operator_node, operand_list),
         };
 
-        let op_atom = match self.allocator.sexp(op_node) {
+        match self.allocator.sexp(op_node) {
             SExp::Pair(new_operator, must_be_nil) => {
                 if let SExp::Atom(_) = self.allocator.sexp(new_operator) {
                     if Node::new(self.allocator, must_be_nil).nullp() {
@@ -177,10 +177,8 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 return Node::new(self.allocator, program)
                     .err("in ((X)...) syntax X must be lone atom");
             }
-            SExp::Atom(op_atom) => op_atom,
-        };
-
-        self.eval_op_atom(&op_atom, op_node, op_list, args)
+            SExp::Atom(op_atom) => self.eval_op_atom(&op_atom, op_node, op_list, args),
+        }
     }
 
     fn swap_eval_op(&mut self) -> Result<Cost, EvalErr> {
