@@ -107,34 +107,29 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             self.op_stack.push(Operation::Apply);
             self.push(operator_node)?;
             let mut operands: NodePtr = operand_list;
-            loop {
-                match self.allocator.sexp(operands) {
-                    SExp::Atom(b) => {
-                        if b.is_empty() {
-                            break;
-                        }
-                        return err(operand_list, "bad operand list");
-                    }
-                    SExp::Pair(first, rest) => {
-                        // We evaluate every entry in the argument list (passing
-                        // the environment, env). The resulting return values
-                        // are arranged in a list. the top item on the stack is
-                        // the resulting list, and below it is the next pair to
-                        // evaluated.
-                        // each evaluation pops both, pushes the result list
-                        // back, evaluates and the executes the Cons operation
-                        // to add the most recent result to the list. Leaving
-                        // the new list at the top of the stack for the next
-                        // pair to be evaluated.
-                        self.op_stack.push(Operation::SwapEval);
-                        self.push(env)?;
-                        self.push(first)?;
-                        operands = rest;
-                    }
-                }
+            while let SExp::Pair(first, rest) = self.allocator.sexp(operands) {
+                // We evaluate every entry in the argument list (passing
+                // the environment, env). The resulting return values
+                // are arranged in a list. the top item on the stack is
+                // the resulting list, and below it is the next pair to
+                // evaluated.
+                // each evaluation pops both, pushes the result list
+                // back, evaluates and the executes the Cons operation
+                // to add the most recent result to the list. Leaving
+                // the new list at the top of the stack for the next
+                // pair to be evaluated.
+                self.op_stack.push(Operation::SwapEval);
+                self.push(env)?;
+                self.push(first)?;
+                operands = rest;
             }
-            self.push(self.allocator.null())?;
-            Ok(OP_COST)
+            // ensure a correct null terminator
+            if !self.allocator.atom(operands).is_empty() {
+                err(operand_list, "bad operand list")
+            } else {
+                self.push(self.allocator.null())?;
+                Ok(OP_COST)
+            }
         }
     }
 
