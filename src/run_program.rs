@@ -165,17 +165,15 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         };
 
         match self.allocator.sexp(op_node) {
-            SExp::Pair(new_operator, must_be_nil) => {
-                if let SExp::Atom(_) = self.allocator.sexp(new_operator) {
-                    if Node::new(self.allocator, must_be_nil).nullp() {
-                        self.push(new_operator)?;
-                        self.push(op_list)?;
-                        self.op_stack.push(Operation::Apply);
-                        return Ok(APPLY_COST);
-                    }
+            SExp::Pair(new_operator, _) => {
+                let op_node = Node::new(self.allocator, op_node);
+                if !op_node.arg_count_is(1) || op_node.first()?.atom().is_none() {
+                    return err(program, "in ((X)...) syntax X must be lone atom");
                 }
-                return Node::new(self.allocator, program)
-                    .err("in ((X)...) syntax X must be lone atom");
+                self.push(new_operator)?;
+                self.push(op_list)?;
+                self.op_stack.push(Operation::Apply);
+                Ok(APPLY_COST)
             }
             SExp::Atom(op_atom) => self.eval_op_atom(&op_atom, op_node, op_list, args),
         }
@@ -196,26 +194,26 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     fn apply_op(&mut self, max_cost: Cost) -> Result<Cost, EvalErr> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
-        if let SExp::Pair(_, _) = self.allocator.sexp(operator) {
-            return err(operator, "internal error");
-        }
-        let op_atom = self.allocator.atom(operator);
+        let operand_list = Node::new(self.allocator, operand_list);
+        let operator = Node::new(self.allocator, operator);
+        let op_atom = operator
+            .atom()
+            .ok_or_else(|| EvalErr(operator.node, "internal error".into()))?;
         if op_atom == self.dialect.apply_kw() {
-            let operand_list = Node::new(self.allocator, operand_list);
-            if operand_list.arg_count_is(2) {
-                let new_operator = operand_list.first()?;
-                let new_program = new_operator.node;
-                let new_args = operand_list.rest()?.first()?.node;
-
-                self.eval_pair(new_program, new_args)
-                    .map(|c| c + APPLY_COST)
-            } else {
-                operand_list.err("apply requires exactly 2 parameters")
+            if !operand_list.arg_count_is(2) {
+                return operand_list.err("apply requires exactly 2 parameters");
             }
+
+            let new_operator = operand_list.first()?.node;
+            let new_args = operand_list.rest()?.first()?.node;
+
+            Ok(self
+                .eval_pair(new_operator, new_args)
+                .map(|c| c + APPLY_COST)?)
         } else {
             let r = self
                 .dialect
-                .op(self.allocator, operator, operand_list, max_cost)?;
+                .op(self.allocator, operator.node, operand_list.node, max_cost)?;
             self.push(r.1)?;
             Ok(r.0)
         }
