@@ -37,6 +37,7 @@ struct RunProgramContext<'a, D> {
     pre_eval: Option<PreEval>,
     posteval_stack: Vec<Box<PostEval>>,
     val_stack: Vec<NodePtr>,
+    env_stack: Vec<NodePtr>,
     op_stack: Vec<Operation>,
     val_stack_limit: usize,
 }
@@ -77,6 +78,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             pre_eval,
             posteval_stack: Vec::new(),
             val_stack: Vec::new(),
+            env_stack: Vec::new(),
             op_stack: Vec::new(),
             val_stack_limit: dialect.val_stack_limit(),
         }
@@ -104,22 +106,23 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             self.push(operand_list)?;
             Ok(QUOTE_COST)
         } else {
+            self.env_stack.push(env);
             self.op_stack.push(Operation::Apply);
             self.push(operator_node)?;
             let mut operands: NodePtr = operand_list;
             while let SExp::Pair(first, rest) = self.allocator.sexp(operands) {
-                // We evaluate every entry in the argument list (passing
-                // the environment, env). The resulting return values
-                // are arranged in a list. the top item on the stack is
+                // We evaluate every entry in the argument list (using the
+                // environment at the top of the env_stack) The resulting return
+                // values are arranged in a list. the top item on the stack is
                 // the resulting list, and below it is the next pair to
                 // evaluated.
+                //
                 // each evaluation pops both, pushes the result list
                 // back, evaluates and the executes the Cons operation
                 // to add the most recent result to the list. Leaving
                 // the new list at the top of the stack for the next
                 // pair to be evaluated.
                 self.op_stack.push(Operation::SwapEval);
-                self.push(env)?;
                 self.push(first)?;
                 operands = rest;
             }
@@ -159,6 +162,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 if !op_node.arg_count_is(1) || op_node.first()?.atom().is_none() {
                     return err(program, "in ((X)...) syntax X must be lone atom");
                 }
+                self.env_stack.push(env);
                 self.push(new_operator)?;
                 self.push(op_list)?;
                 self.op_stack.push(Operation::Apply);
@@ -171,7 +175,10 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     fn swap_eval_op(&mut self) -> Result<Cost, EvalErr> {
         let v2 = self.pop()?;
         let program: NodePtr = self.pop()?;
-        let env: NodePtr = self.pop()?;
+        let env: NodePtr = *self
+            .env_stack
+            .last()
+            .ok_or_else(|| EvalErr(program, "runtime error: env stack empty".into()))?;
         self.push(v2)?;
 
         // on the way back, build a list from the values
@@ -188,6 +195,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let op_atom = operator
             .atom()
             .ok_or_else(|| EvalErr(operator.node, "internal error".into()))?;
+        self.env_stack
+            .pop()
+            .ok_or_else(|| EvalErr(operator.node, "runtime error: env stack empty".into()))?;
         if op_atom == self.dialect.apply_kw() {
             if !operand_list.arg_count_is(2) {
                 return operand_list.err("apply requires exactly 2 parameters");
