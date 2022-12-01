@@ -240,4 +240,4 @@ jobs:
             toolchain: stable
             components: rustfmt, clippy
       - name: cargo test
-        run: cargo test
+        run: cargo test && cargo test --release
