@@ -62,7 +62,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "clvm_wasm"
-version = "0.1.24"
+version = "0.2.0"
 dependencies = [
  "clvmr",
  "js-sys",
@@ -72,7 +72,7 @@ dependencies = [
 
 [[package]]
 name = "clvmr"
-version = "0.1.24"
+version = "0.2.0"
 dependencies = [
  "bls12_381",
  "hex",
