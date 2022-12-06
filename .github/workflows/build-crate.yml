@@ -1,0 +1,53 @@
+name: Build rust crate
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    tags:
+        - '**'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  build_crate:
+    name: Crate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up rusts
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt, clippy
+
+    - name: Set up rust (stable)
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt, clippy
+
+    - name: fmt (stable)
+      run: cargo +stable fmt -- --files-with-diff --check
+    - name: clippy (stable)
+      run: cargo +stable clippy
+    - name: tests
+      run: cargo test && cargo test --release
+    - name: build
+      run: cargo build --release
+    - name: dry-run of `cargo publish`
+      run: cargo publish --dry-run
+
+    - name: publish to crates.io if tagged
+      if: startsWith(github.event.ref, 'refs/tags')
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ secrets.cargo_registry_token }}
+      run: cargo publish
