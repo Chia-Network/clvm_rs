@@ -14,6 +14,10 @@ const QUOTE_COST: Cost = 20;
 const APPLY_COST: Cost = 90;
 // mandatory base cost for every operator we execute
 const OP_COST: Cost = 1;
+// this is the minimum cost of evaluating an operator argument
+// we charge this cost up-front, when pushing the expression onto
+// the stack
+const EARLY_EVAL_COST: Cost = 20;
 
 pub type PreEval =
     Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<PostEval>>, EvalErr>>;
@@ -106,6 +110,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             self.push(operand_list)?;
             Ok(QUOTE_COST)
         } else {
+            let mut cost = OP_COST;
             self.env_stack.push(env);
             self.op_stack.push(Operation::Apply);
             self.push(operator_node)?;
@@ -124,6 +129,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 // pair to be evaluated.
                 self.op_stack.push(Operation::SwapEval);
                 self.push(first)?;
+                cost += EARLY_EVAL_COST;
                 operands = rest;
             }
             // ensure a correct null terminator
@@ -131,7 +137,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 err(operand_list, "bad operand list")
             } else {
                 self.push(self.allocator.null())?;
-                Ok(OP_COST)
+                Ok(cost)
             }
         }
     }
@@ -184,7 +190,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         // on the way back, build a list from the values
         self.op_stack.push(Operation::Cons);
 
-        self.eval_pair(program, env)
+        self.eval_pair(program, env).map(|c| c - EARLY_EVAL_COST)
     }
 
     fn apply_op(&mut self, max_cost: Cost) -> Result<Cost, EvalErr> {
