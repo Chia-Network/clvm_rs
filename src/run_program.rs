@@ -18,9 +18,6 @@ const OP_COST: Cost = 1;
 // we charge this cost up-front, when pushing the expression onto
 // the stack
 const EARLY_EVAL_COST: Cost = 20;
-// this is the minimum cost for executing any operator (including apply)
-// we charge this cost early when pushing Apply onto the op_stack
-const EARLY_APPLY_COST: Cost = 30;
 
 pub type PreEval =
     Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<PostEval>>, EvalErr>>;
@@ -115,7 +112,6 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         } else {
             let mut cost = OP_COST;
             self.env_stack.push(env);
-            cost += EARLY_APPLY_COST;
             self.op_stack.push(Operation::Apply);
             self.push(operator_node)?;
             let mut operands: NodePtr = operand_list;
@@ -176,7 +172,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 self.push(new_operator)?;
                 self.push(op_list)?;
                 self.op_stack.push(Operation::Apply);
-                Ok(APPLY_COST + EARLY_APPLY_COST)
+                Ok(APPLY_COST)
             }
             SExp::Atom(op_atom) => self.eval_op_atom(&op_atom, op_node, op_list, env),
         }
@@ -216,18 +212,13 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             let new_operator = operand_list.first()?.node;
             let env = operand_list.rest()?.first()?.node;
 
-            Ok(self
-                .eval_pair(new_operator, env)
-                .map(|c| c + APPLY_COST - EARLY_APPLY_COST)?)
+            Ok(self.eval_pair(new_operator, env).map(|c| c + APPLY_COST)?)
         } else {
-            let r = self.dialect.op(
-                self.allocator,
-                operator.node,
-                operand_list.node,
-                max_cost + EARLY_APPLY_COST,
-            )?;
+            let r = self
+                .dialect
+                .op(self.allocator, operator.node, operand_list.node, max_cost)?;
             self.push(r.1)?;
-            Ok(r.0 - EARLY_APPLY_COST)
+            Ok(r.0)
         }
     }
 
