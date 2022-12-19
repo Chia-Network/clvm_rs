@@ -22,6 +22,9 @@ pub const NO_UNKNOWN_OPS: u32 = 0x0002;
 // the number of pairs
 pub const LIMIT_HEAP: u32 = 0x0004;
 
+// When set, enforce a stack size limit for CLVM programs
+pub const LIMIT_STACK: u32 = 0x0008;
+
 pub struct ChiaDialect {
     flags: u32,
 }
@@ -108,8 +111,8 @@ impl Dialect for ChiaDialect {
         &[2]
     }
 
-    fn val_stack_limit(&self) -> usize {
-        if (self.flags & LIMIT_HEAP) != 0 {
+    fn stack_limit(&self) -> usize {
+        if (self.flags & LIMIT_STACK) != 0 {
             10000000
         } else {
             usize::MAX

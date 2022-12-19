@@ -60,7 +60,7 @@ impl Dialect for RuntimeDialect {
         &self.apply_kw
     }
 
-    fn val_stack_limit(&self) -> usize {
+    fn stack_limit(&self) -> usize {
         usize::MAX
     }
 }

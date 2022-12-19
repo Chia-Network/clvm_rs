@@ -39,7 +39,7 @@ struct RunProgramContext<'a, D> {
     val_stack: Vec<NodePtr>,
     env_stack: Vec<NodePtr>,
     op_stack: Vec<Operation>,
-    val_stack_limit: usize,
+    stack_limit: usize,
 }
 
 fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Cost, EvalErr> {
@@ -64,10 +64,18 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
     pub fn push(&mut self, node: NodePtr) -> Result<(), EvalErr> {
-        if self.val_stack.len() == self.val_stack_limit {
+        if self.val_stack.len() == self.stack_limit {
             return err(node, "value stack limit reached");
         }
         self.val_stack.push(node);
+        Ok(())
+    }
+
+    pub fn push_env(&mut self, env: NodePtr) -> Result<(), EvalErr> {
+        if self.env_stack.len() == self.stack_limit {
+            return err(env, "environment stack limit reached");
+        }
+        self.env_stack.push(env);
         Ok(())
     }
 
@@ -80,7 +88,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             val_stack: Vec::new(),
             env_stack: Vec::new(),
             op_stack: Vec::new(),
-            val_stack_limit: dialect.val_stack_limit(),
+            stack_limit: dialect.stack_limit(),
         }
     }
 
@@ -106,7 +114,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             self.push(operand_list)?;
             Ok(QUOTE_COST)
         } else {
-            self.env_stack.push(env);
+            self.push_env(env)?;
             self.op_stack.push(Operation::Apply);
             self.push(operator_node)?;
             let mut operands: NodePtr = operand_list;
@@ -162,7 +170,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 if !op_node.arg_count_is(1) || op_node.first()?.atom().is_none() {
                     return err(program, "in ((X)...) syntax X must be lone atom");
                 }
-                self.env_stack.push(env);
+                self.push_env(env)?;
                 self.push(new_operator)?;
                 self.push(op_list)?;
                 self.op_stack.push(Operation::Apply);

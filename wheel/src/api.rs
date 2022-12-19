@@ -6,9 +6,9 @@ use super::run_program::{
     __pyo3_get_function_deserialize_and_run_program2, __pyo3_get_function_run_chia_program,
     __pyo3_get_function_serialized_length,
 };
-use clvmr::chia_dialect::{LIMIT_HEAP, NO_NEG_DIV, NO_UNKNOWN_OPS};
+use clvmr::chia_dialect::{LIMIT_HEAP, NO_NEG_DIV, NO_UNKNOWN_OPS, LIMIT_STACK};
 
-pub const MEMPOOL_MODE: u32 = NO_NEG_DIV | NO_UNKNOWN_OPS | LIMIT_HEAP;
+pub const MEMPOOL_MODE: u32 = NO_NEG_DIV | NO_UNKNOWN_OPS | LIMIT_HEAP | LIMIT_STACK;
 
 #[pymodule]
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -17,6 +17,7 @@ fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add("NO_NEG_DIV", NO_NEG_DIV)?;
     m.add("NO_UNKNOWN_OPS", NO_UNKNOWN_OPS)?;
     m.add("LIMIT_HEAP", LIMIT_HEAP)?;
+    m.add("LIMIT_STACK", LIMIT_STACK)?;
     m.add("MEMPOOL_MODE", MEMPOOL_MODE)?;
     m.add_class::<LazyNode>()?;
 
