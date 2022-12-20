@@ -892,7 +892,7 @@ pub fn op_point_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respon
         }
         if !is_ok {
             let blob: String = hex::encode(node_to_bytes(&arg).unwrap());
-            let msg = format!("point_add expects blob, got {}: Length of bytes object not equal to G1Element::SIZE", blob);
+            let msg = format!("point_add expects blob, got {blob}: Length of bytes object not equal to G1Element::SIZE");
             return args.err(&msg);
         }
     }
