@@ -69,7 +69,7 @@ fn test_arg_count() {
 pub fn int_atom<'a>(args: &'a Node, op_name: &str) -> Result<&'a [u8], EvalErr> {
     match args.atom() {
         Some(a) => Ok(a),
-        _ => args.err(&format!("{} requires int args", op_name)),
+        _ => args.err(&format!("{op_name} requires int args")),
     }
 }
 
@@ -77,7 +77,7 @@ pub fn int_atom<'a>(args: &'a Node, op_name: &str) -> Result<&'a [u8], EvalErr> 
 pub fn atom<'a>(args: &'a Node, op_name: &str) -> Result<&'a [u8], EvalErr> {
     match args.atom() {
         Some(a) => Ok(a),
-        _ => args.err(&format!("{} on list", op_name)),
+        _ => args.err(&format!("{op_name} on list")),
     }
 }
 
@@ -212,14 +212,13 @@ pub fn i32_atom(args: &Node, op_name: &str) -> Result<i32, EvalErr> {
     let buf = match args.atom() {
         Some(a) => a,
         _ => {
-            return args.err(&format!("{} requires int32 args", op_name));
+            return args.err(&format!("{op_name} requires int32 args"));
         }
     };
     match i32_from_u8(buf) {
         Some(v) => Ok(v),
         _ => args.err(&format!(
-            "{} requires int32 args (with no leading zeros)",
-            op_name
+            "{op_name} requires int32 args (with no leading zeros)"
         )),
     }
 }

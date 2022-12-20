@@ -64,7 +64,7 @@ pub fn f_lookup_for_hashmap(opcode_lookup_by_name: HashMap<String, Vec<u8>>) -> 
         if idx.len() == 1 {
             let index = idx[0];
             let op = opcode_by_name(name);
-            assert!(op.is_some(), "can't find native operator {:?}", name);
+            assert!(op.is_some(), "can't find native operator {name}");
             f_lookup[index as usize] = op;
         }
     }

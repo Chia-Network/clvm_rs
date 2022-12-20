@@ -2,7 +2,7 @@
 name = "clvm_wasm"
 version = "0.2.1"
 authors = ["Richard Kiss <him@richardkiss.com>"]
-edition = "2018"
+edition = "2021"
 license = "Apache-2.0"
 description = "Implementation of `clvm` for Chia Network's cryptocurrency"
 homepage = "https://github.com/Chia-Network/clvm_rs/"
