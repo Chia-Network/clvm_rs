@@ -202,7 +202,7 @@ jobs:
   # leaving out Windows fuzzing for now though it seems supported
   # https://llvm.org/docs/LibFuzzer.html#q-does-libfuzzer-support-windows
   fuzz_targets:
-    name: Build fuzz targets
+    name: Run fuzz targets
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -220,7 +220,7 @@ jobs:
       - name: cargo-fuzz
         run: cargo +nightly install cargo-fuzz
       - name: build
-        run: cargo +nightly fuzz build
+        run: cargo fuzz list | xargs -I "%" sh -c "cargo +nightly fuzz run % -- -max_total_time=30 || exit 255"
 
   unit_tests:
     name: Unit tests
