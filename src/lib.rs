@@ -16,6 +16,16 @@ pub mod serde;
 pub mod sha2;
 pub mod traverse_path;
 
+pub use allocator::Allocator;
+pub use chia_dialect::ChiaDialect;
+pub use run_program::run_program;
+
+#[cfg(feature = "counters")]
+pub use run_program::run_program_with_counters;
+
+#[cfg(feature = "counters")]
+pub use run_program::Counters;
+
 #[cfg(test)]
 mod tests;
 
