@@ -28,6 +28,31 @@ enum Operation {
     PostEval,
 }
 
+#[cfg(feature = "counters")]
+#[derive(Debug)]
+pub struct Counters {
+    pub val_stack_usage: usize,
+    pub env_stack_usage: usize,
+    pub op_stack_usage: usize,
+    pub atom_count: u32,
+    pub pair_count: u32,
+    pub heap_size: u32,
+}
+
+#[cfg(feature = "counters")]
+impl Counters {
+    fn new() -> Self {
+        Counters {
+            val_stack_usage: 0,
+            env_stack_usage: 0,
+            op_stack_usage: 0,
+            atom_count: 0,
+            pair_count: 0,
+            heap_size: 0,
+        }
+    }
+}
+
 // `run_program` has two stacks: the operand stack (of `Node` objects) and the
 // operator stack (of Operation)
 
@@ -40,6 +65,8 @@ struct RunProgramContext<'a, D> {
     env_stack: Vec<NodePtr>,
     op_stack: Vec<Operation>,
     stack_limit: usize,
+    #[cfg(feature = "counters")]
+    pub counters: Counters,
 }
 
 fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Cost, EvalErr> {
@@ -53,6 +80,39 @@ fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Co
 }
 
 impl<'a, D: Dialect> RunProgramContext<'a, D> {
+    #[cfg(feature = "counters")]
+    #[inline(always)]
+    fn account_val_push(&mut self) {
+        self.counters.val_stack_usage =
+            std::cmp::max(self.counters.val_stack_usage, self.val_stack.len());
+    }
+
+    #[cfg(feature = "counters")]
+    #[inline(always)]
+    fn account_env_push(&mut self) {
+        self.counters.env_stack_usage =
+            std::cmp::max(self.counters.env_stack_usage, self.env_stack.len());
+    }
+
+    #[cfg(feature = "counters")]
+    #[inline(always)]
+    fn account_op_push(&mut self) {
+        self.counters.op_stack_usage =
+            std::cmp::max(self.counters.op_stack_usage, self.op_stack.len());
+    }
+
+    #[cfg(not(feature = "counters"))]
+    #[inline(always)]
+    fn account_val_push(&mut self) {}
+
+    #[cfg(not(feature = "counters"))]
+    #[inline(always)]
+    fn account_env_push(&mut self) {}
+
+    #[cfg(not(feature = "counters"))]
+    #[inline(always)]
+    fn account_op_push(&mut self) {}
+
     pub fn pop(&mut self) -> Result<NodePtr, EvalErr> {
         let v: Option<NodePtr> = self.val_stack.pop();
         match v {
@@ -68,6 +128,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             return err(node, "value stack limit reached");
         }
         self.val_stack.push(node);
+        self.account_val_push();
         Ok(())
     }
 
@@ -76,6 +137,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             return err(env, "environment stack limit reached");
         }
         self.env_stack.push(env);
+        self.account_env_push();
         Ok(())
     }
 
@@ -89,6 +151,8 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             env_stack: Vec::new(),
             op_stack: Vec::new(),
             stack_limit: dialect.stack_limit(),
+            #[cfg(feature = "counters")]
+            counters: Counters::new(),
         }
     }
 
@@ -116,6 +180,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         } else {
             self.push_env(env)?;
             self.op_stack.push(Operation::Apply);
+            self.account_op_push();
             self.push(operator_node)?;
             let mut operands: NodePtr = operand_list;
             while let SExp::Pair(first, rest) = self.allocator.sexp(operands) {
@@ -131,6 +196,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 // the new list at the top of the stack for the next
                 // pair to be evaluated.
                 self.op_stack.push(Operation::SwapEval);
+                self.account_op_push();
                 self.push(first)?;
                 operands = rest;
             }
@@ -174,6 +240,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 self.push(new_operator)?;
                 self.push(op_list)?;
                 self.op_stack.push(Operation::Apply);
+                self.account_op_push();
                 Ok(APPLY_COST)
             }
             SExp::Atom(op_atom) => self.eval_op_atom(&op_atom, op_node, op_list, env),
@@ -191,6 +258,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
         // on the way back, build a list from the values
         self.op_stack.push(Operation::Cons);
+        self.account_op_push();
 
         self.eval_pair(program, env)
     }
@@ -276,6 +344,23 @@ pub fn run_program<'a, D: Dialect>(
 ) -> Response {
     let mut rpc = RunProgramContext::new(allocator, dialect, pre_eval);
     rpc.run_program(program, env, max_cost)
+}
+
+#[cfg(feature = "counters")]
+pub fn run_program_with_counters<'a, D: Dialect>(
+    allocator: &'a mut Allocator,
+    dialect: &'a D,
+    program: NodePtr,
+    env: NodePtr,
+    max_cost: Cost,
+    pre_eval: Option<PreEval>,
+) -> (Counters, Response) {
+    let mut rpc = RunProgramContext::new(allocator, dialect, pre_eval);
+    let ret = rpc.run_program(program, env, max_cost);
+    rpc.counters.atom_count = rpc.allocator.atom_count() as u32;
+    rpc.counters.pair_count = rpc.allocator.pair_count() as u32;
+    rpc.counters.heap_size = rpc.allocator.heap_size() as u32;
+    (rpc.counters, ret)
 }
 
 #[cfg(test)]
@@ -636,4 +721,28 @@ fn test_run_program() {
             }
         }
     }
+}
+
+#[cfg(feature = "counters")]
+#[test]
+fn test_counters() {
+    use crate::chia_dialect::ChiaDialect;
+
+    let mut a = Allocator::new();
+
+    let program = check(parse_exp(&mut a, "(a (q 2 2 (c 2 (c 5 (c 11 ())))) (c (q 2 (i (= 11 ()) (q 1 . 1) (q 18 5 (a 2 (c 2 (c 5 (c (- 11 (q . 1)) ())))))) 1) 1))"));
+    let args = check(parse_exp(&mut a, "(5033 1000)"));
+    let cost = 15073165;
+
+    let (counters, result) =
+        run_program_with_counters(&mut a, &ChiaDialect::new(0), program, args, cost, None);
+
+    assert_eq!(counters.val_stack_usage, 3015);
+    assert_eq!(counters.env_stack_usage, 1005);
+    assert_eq!(counters.op_stack_usage, 3014);
+    assert_eq!(counters.atom_count, 2040);
+    assert_eq!(counters.pair_count, 22077);
+    assert_eq!(counters.heap_size, 771884);
+
+    assert_eq!(result.unwrap().0, cost);
 }

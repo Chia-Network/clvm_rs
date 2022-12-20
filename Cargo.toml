@@ -13,6 +13,11 @@ readme = "README.md"
 name = "clvmr"
 crate-type = ["rlib"]
 
+[features]
+# when enabling the "counters" features, the CLVM interpreter is instrumented to
+# collect counters about the programs it executes
+counters = []
+
 [profile.release]
 lto = true
 

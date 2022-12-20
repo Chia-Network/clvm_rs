@@ -216,6 +216,21 @@ impl Allocator {
     pub fn one(&self) -> NodePtr {
         -2
     }
+
+    #[cfg(feature = "counters")]
+    pub fn atom_count(&self) -> usize {
+        self.atom_vec.len()
+    }
+
+    #[cfg(feature = "counters")]
+    pub fn pair_count(&self) -> usize {
+        self.pair_vec.len()
+    }
+
+    #[cfg(feature = "counters")]
+    pub fn heap_size(&self) -> usize {
+        self.u8_vec.len()
+    }
 }
 
 #[test]
