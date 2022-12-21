@@ -1,8 +1,4 @@
-use std::cell::RefCell;
-use std::rc::Rc; // Allows move closures to tear off a reference and move it. // Allows interior mutability inside Fn traits.
-
 use crate::allocator::{Allocator, NodePtr, SExp};
-use crate::chia_dialect::{ChiaDialect, NO_NEG_DIV, NO_UNKNOWN_OPS};
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
 use crate::more_ops::{
@@ -12,11 +8,11 @@ use crate::more_ops::{
 };
 use crate::number::{ptr_from_number, Number};
 use crate::reduction::{EvalErr, Reduction, Response};
-use crate::run_program::run_program;
+
 use hex::FromHex;
 use num_traits::Num;
 use std::cmp::min;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 // the format of these test cases is the following. expected-cost is optional
 // and is not relevant for FAIL cases
@@ -1204,14 +1200,17 @@ fn test_multi_argument_raise() {
     assert_eq!(result, Err(EvalErr(args, "clvm raise".to_string())));
 }
 
+#[cfg(feature = "pre-eval")]
 const COST_LIMIT: u64 = 1000000000;
 
+#[cfg(feature = "pre-eval")]
 struct EvalFTracker {
     pub prog: NodePtr,
     pub args: NodePtr,
     pub outcome: Option<NodePtr>,
 }
 
+#[cfg(feature = "pre-eval")]
 fn equal_sexp(allocator: &Allocator, s1: NodePtr, s2: NodePtr) -> bool {
     match (allocator.sexp(s1), allocator.sexp(s2)) {
         (SExp::Pair(s1a, s1b), SExp::Pair(s2a, s2b)) => {
@@ -1226,7 +1225,22 @@ fn equal_sexp(allocator: &Allocator, s1: NodePtr, s2: NodePtr) -> bool {
     }
 }
 
+#[cfg(feature = "pre-eval")]
+use crate::chia_dialect::{ChiaDialect, NO_NEG_DIV, NO_UNKNOWN_OPS};
+#[cfg(feature = "pre-eval")]
+use crate::run_program::run_program;
+#[cfg(feature = "pre-eval")]
+use std::cell::RefCell;
+#[cfg(feature = "pre-eval")]
+use std::collections::HashSet;
+
+// Allows move closures to tear off a reference and move it. // Allows interior
+// mutability inside Fn traits.
+#[cfg(feature = "pre-eval")]
+use std::rc::Rc;
+
 // Ensure pre_eval_f and post_eval_f are working as expected.
+#[cfg(feature = "pre-eval")]
 #[test]
 fn test_pre_eval_and_post_eval() {
     let mut allocator = Allocator::new();

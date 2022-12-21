@@ -18,6 +18,10 @@ crate-type = ["rlib"]
 # collect counters about the programs it executes
 counters = []
 
+# when enabled, pre-eval and post-eval callbacks are enabled. This is useful for
+# debugging and tracing of programs.
+pre-eval = []
+
 [profile.release]
 lto = true
 

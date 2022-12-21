@@ -239,7 +239,12 @@ jobs:
         with:
             toolchain: stable
             components: rustfmt, clippy
+
       - name: cargo test (default)
         run: cargo test && cargo test --release
+
       - name: cargo test (counters)
         run: cargo test --features=counters && cargo test --features=counters --release
+
+      - name: cargo test (pre-eval)
+        run: cargo test --features=pre-eval && cargo test --features=pre-eval --release
