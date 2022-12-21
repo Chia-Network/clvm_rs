@@ -25,6 +25,10 @@ pub const LIMIT_HEAP: u32 = 0x0004;
 // When set, enforce a stack size limit for CLVM programs
 pub const LIMIT_STACK: u32 = 0x0008;
 
+// The default mode when running grnerators in mempool-mode (i.e. the stricter
+// mode)
+pub const MEMPOOL_MODE: u32 = NO_NEG_DIV | NO_UNKNOWN_OPS | LIMIT_HEAP | LIMIT_STACK;
+
 pub struct ChiaDialect {
     flags: u32,
 }

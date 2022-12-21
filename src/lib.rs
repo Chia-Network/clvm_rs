@@ -20,6 +20,8 @@ pub use allocator::Allocator;
 pub use chia_dialect::ChiaDialect;
 pub use run_program::run_program;
 
+pub use chia_dialect::{LIMIT_HEAP, LIMIT_STACK, MEMPOOL_MODE, NO_NEG_DIV, NO_UNKNOWN_OPS};
+
 #[cfg(feature = "counters")]
 pub use run_program::run_program_with_counters;
 
