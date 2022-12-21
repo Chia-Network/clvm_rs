@@ -25,6 +25,8 @@ enum Operation {
     Apply,
     Cons,
     SwapEval,
+
+    #[cfg(feature = "pre-eval")]
     PostEval,
 }
 
@@ -59,14 +61,17 @@ impl Counters {
 struct RunProgramContext<'a, D> {
     allocator: &'a mut Allocator,
     dialect: &'a D,
-    pre_eval: Option<PreEval>,
-    posteval_stack: Vec<Box<PostEval>>,
     val_stack: Vec<NodePtr>,
     env_stack: Vec<NodePtr>,
     op_stack: Vec<Operation>,
     stack_limit: usize,
     #[cfg(feature = "counters")]
     pub counters: Counters,
+
+    #[cfg(feature = "pre-eval")]
+    pre_eval: Option<PreEval>,
+    #[cfg(feature = "pre-eval")]
+    posteval_stack: Vec<Box<PostEval>>,
 }
 
 fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Cost, EvalErr> {
@@ -141,18 +146,20 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         Ok(())
     }
 
-    fn new(allocator: &'a mut Allocator, dialect: &'a D, pre_eval: Option<PreEval>) -> Self {
+    fn new(allocator: &'a mut Allocator, dialect: &'a D, _pre_eval: Option<PreEval>) -> Self {
         RunProgramContext {
             allocator,
             dialect,
-            pre_eval,
-            posteval_stack: Vec::new(),
             val_stack: Vec::new(),
             env_stack: Vec::new(),
             op_stack: Vec::new(),
             stack_limit: dialect.stack_limit(),
             #[cfg(feature = "counters")]
             counters: Counters::new(),
+            #[cfg(feature = "pre-eval")]
+            pre_eval: _pre_eval,
+            #[cfg(feature = "pre-eval")]
+            posteval_stack: Vec::new(),
         }
     }
 
@@ -211,6 +218,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     }
 
     fn eval_pair(&mut self, program: NodePtr, env: NodePtr) -> Result<Cost, EvalErr> {
+        #[cfg(feature = "pre-eval")]
         if let Some(pre_eval) = &self.pre_eval {
             if let Some(post_eval) = pre_eval(self.allocator, program, env)? {
                 self.posteval_stack.push(post_eval);
@@ -322,6 +330,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 }
                 Operation::Cons => self.cons_op()?,
                 Operation::SwapEval => augment_cost_errors(self.swap_eval_op(), max_cost_ptr)?,
+                #[cfg(feature = "pre-eval")]
                 Operation::PostEval => {
                     let f = self.posteval_stack.pop().unwrap();
                     let peek: Option<NodePtr> = self.val_stack.last().copied();
