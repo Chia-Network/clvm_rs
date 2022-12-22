@@ -32,6 +32,15 @@ pub struct IntPair {
     rest: NodePtr,
 }
 
+// this represents a specific (former) state of an allocator. This can be used
+// to restore an allocator to a previous state. It cannot be used to re-create
+// the state from some other allocator.
+pub struct Checkpoint {
+    u8s: usize,
+    pairs: usize,
+    atoms: usize,
+}
+
 #[derive(Debug)]
 pub struct Allocator {
     // this is effectively a grow-only stack where atoms are allocated. Atoms
@@ -98,6 +107,23 @@ impl Allocator {
         // Preallocated 1
         r.atom_vec.push(AtomBuf { start: 0, end: 1 });
         r
+    }
+
+    // create a checkpoint for the current state of the allocator. This can be
+    // used to go back to an earlier allocator state by passing the Checkpoint
+    // to restore_checkpoint().
+    pub fn checkpoint(&self) -> Checkpoint {
+        Checkpoint {
+            u8s: self.u8_vec.len(),
+            pairs: self.pair_vec.len(),
+            atoms: self.atom_vec.len(),
+        }
+    }
+
+    pub fn restore_checkpoint(&mut self, cp: &Checkpoint) {
+        self.u8_vec.truncate(cp.u8s);
+        self.pair_vec.truncate(cp.pairs);
+        self.atom_vec.truncate(cp.atoms);
     }
 
     pub fn new_atom(&mut self, v: &[u8]) -> Result<NodePtr, EvalErr> {
@@ -444,4 +470,32 @@ fn test_concat_limit() {
     );
     let cat = a.new_concat(2, &[atom1, atom2]).unwrap();
     assert_eq!(a.atom(cat), b"fo");
+}
+
+#[test]
+fn test_checkpoints() {
+    let mut a = Allocator::new();
+
+    let atom1 = a.new_atom(&[1, 2, 3]).unwrap();
+    assert!(a.atom(atom1) == &[1, 2, 3]);
+
+    let checkpoint = a.checkpoint();
+
+    let atom2 = a.new_atom(&[4, 5, 6]).unwrap();
+    assert!(a.atom(atom1) == &[1, 2, 3]);
+    assert!(a.atom(atom2) == &[4, 5, 6]);
+
+    // at this point we have two atoms and a checkpoint from before the second
+    // atom was created
+
+    // now, restoring the checkpoint state will make atom2 disappear
+
+    a.restore_checkpoint(&checkpoint);
+
+    assert!(a.atom(atom1) == &[1, 2, 3]);
+    let atom3 = a.new_atom(&[6, 7, 8]).unwrap();
+    assert!(a.atom(atom3) == &[6, 7, 8]);
+
+    // since atom2 was removed, atom3 should actually be using that slot
+    assert_eq!(atom2, atom3);
 }
