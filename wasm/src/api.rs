@@ -52,7 +52,6 @@ pub fn run_clvm(program: &[u8], args: &[u8]) -> Vec<u8> {
         program,
         args,
         max_cost,
-        None,
     );
     match r {
         Ok(reduction) => node_to_bytes(&Node::new(&allocator, reduction.1)).unwrap(),
@@ -78,7 +77,6 @@ pub fn run_chia_program(
         program,
         args,
         max_cost,
-        None,
     );
     match r {
         Ok(reduction) => {

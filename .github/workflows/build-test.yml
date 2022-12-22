@@ -248,3 +248,6 @@ jobs:
 
       - name: cargo test (pre-eval)
         run: cargo test --features=pre-eval && cargo test --features=pre-eval --release
+
+      - name: cargo test (pre-eval and counters)
+        run: cargo test --features=pre-eval,counters && cargo test --features=pre-eval,counters --release

@@ -23,6 +23,9 @@ pub use run_program::run_program;
 #[cfg(feature = "counters")]
 pub use run_program::run_program_with_counters;
 
+#[cfg(feature = "pre-eval")]
+pub use run_program::run_program_with_pre_eval;
+
 #[cfg(feature = "counters")]
 pub use run_program::Counters;
 
