@@ -1228,7 +1228,7 @@ fn equal_sexp(allocator: &Allocator, s1: NodePtr, s2: NodePtr) -> bool {
 #[cfg(feature = "pre-eval")]
 use crate::chia_dialect::{ChiaDialect, NO_NEG_DIV, NO_UNKNOWN_OPS};
 #[cfg(feature = "pre-eval")]
-use crate::run_program::run_program;
+use crate::run_program::run_program_with_pre_eval;
 #[cfg(feature = "pre-eval")]
 use std::cell::RefCell;
 #[cfg(feature = "pre-eval")]
@@ -1309,7 +1309,7 @@ fn test_pre_eval_and_post_eval() {
     });
 
     let allocator_null = allocator.null();
-    let result = run_program(
+    let result = run_program_with_pre_eval(
         &mut allocator,
         &ChiaDialect::new(NO_NEG_DIV | NO_UNKNOWN_OPS),
         program,

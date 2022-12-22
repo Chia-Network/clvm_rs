@@ -25,6 +25,9 @@ pub use chia_dialect::{LIMIT_HEAP, LIMIT_STACK, MEMPOOL_MODE, NO_NEG_DIV, NO_UNK
 #[cfg(feature = "counters")]
 pub use run_program::run_program_with_counters;
 
+#[cfg(feature = "pre-eval")]
+pub use run_program::run_program_with_pre_eval;
+
 #[cfg(feature = "counters")]
 pub use run_program::Counters;
 

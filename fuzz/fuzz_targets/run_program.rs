@@ -25,7 +25,6 @@ fuzz_target!(|data: &[u8]| {
         program,
         args,
         12000000000 as Cost,
-        None,
     ) {
         Err(_) => {
             return;

@@ -33,7 +33,7 @@ pub fn run_serialized_program(
         flags,
     );
 
-    Ok(py.allow_threads(|| run_program(allocator, &dialect, program, args, max_cost, None)))
+    Ok(py.allow_threads(|| run_program(allocator, &dialect, program, args, max_cost)))
 }
 
 #[pyfunction]
@@ -92,7 +92,7 @@ pub fn run_chia_program(
         let dialect = ChiaDialect::new(flags);
 
         Ok(py
-            .allow_threads(|| run_program(&mut allocator, &dialect, program, args, max_cost, None)))
+            .allow_threads(|| run_program(&mut allocator, &dialect, program, args, max_cost)))
     })()?;
     adapt_response_to_py(py, allocator, r)
 }
