@@ -117,7 +117,7 @@ impl Dialect for ChiaDialect {
 
     fn stack_limit(&self) -> usize {
         if (self.flags & LIMIT_STACK) != 0 {
-            10000000
+            20000000
         } else {
             usize::MAX
         }
