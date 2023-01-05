@@ -9,40 +9,44 @@ const MAX_SINGLE_BYTE: u8 = 0x7f;
 /// decode the length prefix for an atom. Atoms whose value fit in 7 bits
 /// don't have a length prefix, so those should be handled specially and
 /// never passed to this function.
-pub fn decode_size<R: Read>(f: &mut R, initial_b: u8) -> Result<u64> {
+pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> Result<(u8, u64)> {
     debug_assert!((initial_b & 0x80) != 0);
     if (initial_b & 0x80) == 0 {
         return Err(internal_error());
     }
 
-    let mut bit_count = 0;
+    let mut atom_start_offset = 0;
     let mut bit_mask: u8 = 0x80;
     let mut b = initial_b;
     while b & bit_mask != 0 {
-        bit_count += 1;
+        atom_start_offset += 1;
         b &= 0xff ^ bit_mask;
         bit_mask >>= 1;
     }
     let mut size_blob: Vec<u8> = Vec::new();
-    size_blob.resize(bit_count, 0);
+    size_blob.resize(atom_start_offset, 0);
     size_blob[0] = b;
-    if bit_count > 1 {
-        let remaining_buffer = &mut size_blob[1..];
+    if atom_start_offset > 1 {
+        let remaining_buffer = &mut size_blob[1..atom_start_offset];
         f.read_exact(remaining_buffer)?;
     }
     // need to convert size_blob to an int
-    let mut v: u64 = 0;
+    let mut atom_size: u64 = 0;
     if size_blob.len() > 6 {
         return Err(bad_encoding());
     }
     for b in &size_blob {
-        v <<= 8;
-        v += *b as u64;
+        atom_size <<= 8;
+        atom_size += *b as u64;
     }
-    if v >= 0x400000000 {
+    if atom_size >= 0x400000000 {
         return Err(bad_encoding());
     }
-    Ok(v)
+    Ok((atom_start_offset as u8, atom_size))
+}
+
+pub fn decode_size<R: Read>(f: &mut R, initial_b: u8) -> Result<u64> {
+    decode_size_with_offset(f, initial_b).map(|v| v.1)
 }
 
 /// parse an atom from the stream and return a pointer to it

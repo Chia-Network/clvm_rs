@@ -22,14 +22,14 @@ print(sha_prog.run("food"))
 # breakpoint()
 
 
-obj = bench(lambda: Program.parse(open("block-2500014.compressed.bin", "rb")), "parse")
-bench(lambda: bytes(obj), "to_bytes")
+obj = bench(lambda: Program.parse(open("block-2500014.compressed.bin", "rb")), "obj = Program.parse(open([file]))")
+bench(lambda: bytes(obj), "bytes(obj)")
 
 obj1 = bench(
     lambda: Program.from_bytes(open("block-2500014.compressed.bin", "rb").read()),
-    "from_bytes",
+    "obj = Program.from_bytes([blob])",
 )
-bench(lambda: bytes(obj1), "to_bytes")
+bench(lambda: bytes(obj1), "bytes(obj)")
 
 cost, output = bench(lambda: obj.run_with_cost(0), "run")
 
@@ -55,9 +55,9 @@ des_output = bench(
 bench(lambda: print(des_output.tree_hash().hex()), "print from_bytes tree hash")
 bench(lambda: print(des_output.tree_hash().hex()), "print from_bytes tree hash again")
 
-reparsed_output = bench(lambda: Program.parse(io.BytesIO(blob)), "parse output")
-bench(lambda: print(reparsed_output.tree_hash().hex()), "print parsed tree hash")
-bench(lambda: print(reparsed_output.tree_hash().hex()), "print parsed tree hash again")
+reparsed_output = bench(lambda: Program.parse(io.BytesIO(blob)), "reparse output")
+bench(lambda: print(reparsed_output.tree_hash().hex()), "print reparsed tree hash")
+bench(lambda: print(reparsed_output.tree_hash().hex()), "print reparsed tree hash again")
 
 
 foo = Program.to("foo")

@@ -5,11 +5,9 @@ use crate::adapt_response::adapt_response;
 use clvmr::allocator::Allocator;
 use clvmr::chia_dialect::ChiaDialect;
 use clvmr::cost::Cost;
-use clvmr::deserialize_tree::{deserialize_tree, CLVMTreeBoundary};
 use clvmr::reduction::Response;
 use clvmr::run_program::run_program;
-use clvmr::serde::{node_from_bytes, serialized_length_from_bytes};
-use clvmr::deserialize_tree::{parse_triples, ParsedTriple};
+use clvmr::serde::{node_from_bytes, parse_triples, serialized_length_from_bytes, ParsedTriple};
 use clvmr::{LIMIT_HEAP, LIMIT_STACK, MEMPOOL_MODE, NO_UNKNOWN_OPS};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
@@ -44,14 +42,14 @@ pub fn run_serialized_chia_program(
     adapt_response(py, allocator, r)
 }
 
-fn tuple_for_parsed_triple(py: Python<'_>, p: &CLVMTreeBoundary) -> PyObject {
+fn tuple_for_parsed_triple(py: Python<'_>, p: &ParsedTriple) -> PyObject {
     let tuple = match p {
-        CLVMTreeBoundary::Atom {
+        ParsedTriple::Atom {
             start,
             end,
             atom_offset,
         } => PyTuple::new(py, [*start, *end, *atom_offset as u64]),
-        CLVMTreeBoundary::Pair {
+        ParsedTriple::Pair {
             start,
             end,
             right_index,
@@ -67,7 +65,7 @@ fn deserialize_as_tree(
     calculate_tree_hashes: bool,
 ) -> PyResult<(Vec<PyObject>, Option<Vec<PyObject>>)> {
     let mut cursor = io::Cursor::new(blob);
-    let (r, tree_hashes) = deserialize_tree(&mut cursor, calculate_tree_hashes)?;
+    let (r, tree_hashes) = parse_triples(&mut cursor, calculate_tree_hashes)?;
     let r = r.iter().map(|pt| tuple_for_parsed_triple(py, pt)).collect();
     let s = tree_hashes.map(|ths| ths.iter().map(|b| PyBytes::new(py, b).into()).collect());
     Ok((r, s))
@@ -77,7 +75,7 @@ fn deserialize_as_tree(
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run_serialized_chia_program, m)?)?;
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
-    m.add_function(wrap_pyfunction!(deserialize_as_triples, m)?)?;
+    m.add_function(wrap_pyfunction!(deserialize_as_tree, m)?)?;
 
     m.add("NO_UNKNOWN_OPS", NO_UNKNOWN_OPS)?;
     m.add("LIMIT_HEAP", LIMIT_HEAP)?;

@@ -1,12 +1,11 @@
 use std::convert::TryInto;
-use std::io;
-use std::io::{Read, Write};
+use std::io::{copy, sink, Error, Read, Result, Write};
 
 use sha2::Digest;
 
 use crate::sha2::Sha256;
 
-use super::decode_size;
+use super::parse_atom::decode_size_with_offset;
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const CONS_BOX_MARKER: u8 = 0xff;
@@ -14,20 +13,20 @@ const CONS_BOX_MARKER: u8 = 0xff;
 struct ShaWrapper(Sha256);
 
 impl Write for ShaWrapper {
-    fn write(&mut self, blob: &[u8]) -> std::result::Result<usize, std::io::Error> {
+    fn write(&mut self, blob: &[u8]) -> std::result::Result<usize, Error> {
         self.0.update(blob);
         Ok(blob.len())
     }
-    fn flush(&mut self) -> std::result::Result<(), std::io::Error> {
+    fn flush(&mut self) -> std::result::Result<(), Error> {
         Ok(())
     }
 }
 
-/// This data structure is used with `deserialize_tree`, which returns a triple of
+/// This data structure is used with `parse_triples`, which returns a triple of
 /// integer values for each clvm object in a tree.
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum CLVMTreeBoundary {
+pub enum ParsedTriple {
     Atom {
         start: u64,
         end: u64,
@@ -65,21 +64,21 @@ fn tree_hash_for_byte(b: u8, calculate_tree_hashes: bool) -> Option<[u8; 32]> {
     }
 }
 
-fn skip_bytes<R: io::Read>(f: &mut R, skip_size: u64) -> io::Result<u64> {
-    io::copy(&mut f.by_ref().take(skip_size), &mut io::sink())
+fn skip_bytes<R: Read>(f: &mut R, skip_size: u64) -> Result<u64> {
+    copy(&mut f.by_ref().take(skip_size), &mut sink())
 }
 
-fn skip_or_sha_bytes<R: io::Read>(
+fn skip_or_sha_bytes<R: Read>(
     f: &mut R,
     skip_size: u64,
     calculate_tree_hashes: bool,
-) -> io::Result<Option<[u8; 32]>> {
+) -> Result<Option<[u8; 32]>> {
     if calculate_tree_hashes {
         let mut f = &mut f.by_ref().take(skip_size);
         let mut h = Sha256::new();
-        h.update(&[1]);
+        h.update([1]);
         let mut w = ShaWrapper(h);
-        io::copy(&mut f, &mut w)?;
+        copy(&mut f, &mut w)?;
         let r: [u8; 32] =
             w.0.finalize()
                 .as_slice()
@@ -92,7 +91,7 @@ fn skip_or_sha_bytes<R: io::Read>(
     }
 }
 
-/// parse a serialized clvm object tree to an array of `CLVMTreeBoundary` objects
+/// parse a serialized clvm object tree to an array of `ParsedTriple` objects
 
 /// This alternative mechanism of deserialization generates an array of
 /// references to each clvm object. A reference contains three values:
@@ -100,15 +99,17 @@ fn skip_or_sha_bytes<R: io::Read>(
 /// is either: an atom offset (relative to the start offset) where the atom
 /// data starts (and continues to the end offset); or an index in the array
 /// corresponding to the "right" element of the pair (in which case, the
-/// "left" element corresponds to the next index in the array).
+/// "left" element corresponds to the current index + 1).
 ///
 /// Since these values are offsets into the original buffer, that buffer needs
 /// to be kept around to get the original atoms.
 
-pub fn deserialize_tree<R: io::Read>(
+type ParsedTriplesOutput = (Vec<ParsedTriple>, Option<Vec<[u8; 32]>>);
+
+pub fn parse_triples<R: Read>(
     f: &mut R,
     calculate_tree_hashes: bool,
-) -> io::Result<(Vec<CLVMTreeBoundary>, Option<Vec<[u8; 32]>>)> {
+) -> Result<ParsedTriplesOutput> {
     let mut r = Vec::new();
     let mut tree_hashes = Vec::new();
     let mut op_stack = vec![ParseOpRef::ParseObj];
@@ -122,12 +123,12 @@ pub fn deserialize_tree<R: io::Read>(
                 ParseOpRef::ParseObj => {
                     let mut b: [u8; 1] = [0];
                     f.read_exact(&mut b)?;
-                    let start = cursor as u64;
+                    let start = cursor;
                     cursor += 1;
                     let b = b[0];
                     if b == CONS_BOX_MARKER {
                         let index = r.len();
-                        let new_obj = CLVMTreeBoundary::Pair {
+                        let new_obj = ParsedTriple::Pair {
                             start,
                             end: 0,
                             right_index: 0,
@@ -150,8 +151,8 @@ pub fn deserialize_tree<R: io::Read>(
                                     tree_hash_for_byte(b, calculate_tree_hashes),
                                 )
                             } else {
-                                let (atom_offset, atom_size) = decode_size(f, b)?;
-                                let end = start + (atom_offset as u64) + (atom_size as u64);
+                                let (atom_offset, atom_size) = decode_size_with_offset(f, b)?;
+                                let end = start + (atom_offset as u64) + atom_size;
                                 let h = skip_or_sha_bytes(f, atom_size, calculate_tree_hashes)?;
                                 (start, end, atom_offset as u32, h)
                             }
@@ -159,7 +160,7 @@ pub fn deserialize_tree<R: io::Read>(
                         if calculate_tree_hashes {
                             tree_hashes.push(tree_hash.expect("failed unwrap"))
                         }
-                        let new_obj = CLVMTreeBoundary::Atom {
+                        let new_obj = ParsedTriple::Atom {
                             start,
                             end,
                             atom_offset,
@@ -169,7 +170,7 @@ pub fn deserialize_tree<R: io::Read>(
                     }
                 }
                 ParseOpRef::SaveCursor(index) => {
-                    if let CLVMTreeBoundary::Pair {
+                    if let ParsedTriple::Pair {
                         start,
                         end: _,
                         right_index,
@@ -183,7 +184,7 @@ pub fn deserialize_tree<R: io::Read>(
                             ]);
                             tree_hashes[index] = h;
                         }
-                        r[index] = CLVMTreeBoundary::Pair {
+                        r[index] = ParsedTriple::Pair {
                             start,
                             end: cursor,
                             right_index,
@@ -191,13 +192,13 @@ pub fn deserialize_tree<R: io::Read>(
                     }
                 }
                 ParseOpRef::SaveIndex(index) => {
-                    if let CLVMTreeBoundary::Pair {
+                    if let ParsedTriple::Pair {
                         start,
                         end,
                         right_index: _,
                     } = r[index]
                     {
-                        r[index] = CLVMTreeBoundary::Pair {
+                        r[index] = ParsedTriple::Pair {
                             start,
                             end,
                             right_index: r.len() as u32,
@@ -224,17 +225,17 @@ use std::io::Cursor;
 use hex::FromHex;
 
 #[cfg(test)]
-fn check_parse_tree(h: &str, expected: Vec<CLVMTreeBoundary>, expected_sha_tree_hex: &str) -> () {
+fn check_parse_tree(h: &str, expected: Vec<ParsedTriple>, expected_sha_tree_hex: &str) -> () {
     let b = Vec::from_hex(h).unwrap();
     println!("{:?}", b);
     let mut f = Cursor::new(b);
-    let (p, tree_hash) = deserialize_tree(&mut f, false).unwrap();
+    let (p, tree_hash) = parse_triples(&mut f, false).unwrap();
     assert_eq!(p, expected);
     assert_eq!(tree_hash, None);
 
     let b = Vec::from_hex(h).unwrap();
     let mut f = Cursor::new(b);
-    let (p, tree_hash) = deserialize_tree(&mut f, true).unwrap();
+    let (p, tree_hash) = parse_triples(&mut f, true).unwrap();
     assert_eq!(p, expected);
 
     let est = Vec::from_hex(expected_sha_tree_hex).unwrap();
@@ -245,7 +246,7 @@ fn check_parse_tree(h: &str, expected: Vec<CLVMTreeBoundary>, expected_sha_tree_
 fn test_parse_tree() {
     check_parse_tree(
         "80",
-        vec![CLVMTreeBoundary::Atom {
+        vec![ParsedTriple::Atom {
             start: 0,
             end: 1,
             atom_offset: 1,
@@ -256,17 +257,17 @@ fn test_parse_tree() {
     check_parse_tree(
         "ff648200c8",
         vec![
-            CLVMTreeBoundary::Pair {
+            ParsedTriple::Pair {
                 start: 0,
                 end: 5,
                 right_index: 2,
             },
-            CLVMTreeBoundary::Atom {
+            ParsedTriple::Atom {
                 start: 1,
                 end: 2,
                 atom_offset: 0,
             },
-            CLVMTreeBoundary::Atom {
+            ParsedTriple::Atom {
                 start: 2,
                 end: 5,
                 atom_offset: 1,
@@ -278,37 +279,37 @@ fn test_parse_tree() {
     check_parse_tree(
         "ff83666f6fff83626172ff8362617a80", // `(foo bar baz)`
         vec![
-            CLVMTreeBoundary::Pair {
+            ParsedTriple::Pair {
                 start: 0,
                 end: 16,
                 right_index: 2,
             },
-            CLVMTreeBoundary::Atom {
+            ParsedTriple::Atom {
                 start: 1,
                 end: 5,
                 atom_offset: 1,
             },
-            CLVMTreeBoundary::Pair {
+            ParsedTriple::Pair {
                 start: 5,
                 end: 16,
                 right_index: 4,
             },
-            CLVMTreeBoundary::Atom {
+            ParsedTriple::Atom {
                 start: 6,
                 end: 10,
                 atom_offset: 1,
             },
-            CLVMTreeBoundary::Pair {
+            ParsedTriple::Pair {
                 start: 10,
                 end: 16,
                 right_index: 6,
             },
-            CLVMTreeBoundary::Atom {
+            ParsedTriple::Atom {
                 start: 11,
                 end: 15,
                 atom_offset: 1,
             },
-            CLVMTreeBoundary::Atom {
+            ParsedTriple::Atom {
                 start: 15,
                 end: 16,
                 atom_offset: 1,
@@ -320,7 +321,7 @@ fn test_parse_tree() {
     let s = "c0a0".to_owned() + &hex::encode([0x31u8; 160]);
     check_parse_tree(
         &s,
-        vec![CLVMTreeBoundary::Atom {
+        vec![ParsedTriple::Atom {
             start: 0,
             end: 162,
             atom_offset: 2,
