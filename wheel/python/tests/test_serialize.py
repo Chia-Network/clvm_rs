@@ -133,7 +133,7 @@ class SerializeTest(unittest.TestCase):
         self.assertEqual(repr(o.unwrap()), "<CLVMTree: ff8080>")
 
     def test_bad_blob(self):
-        self.assertRaises(ValueError, lambda: Program.fromhex("ff"))
+        self.assertRaises(OSError, lambda: Program.fromhex("ff"))
 
     def test_large_atom(self):
         s = "foo" * 100
@@ -143,5 +143,5 @@ class SerializeTest(unittest.TestCase):
         self.assertEqual(p, p1)
 
     def test_too_large_atom(self):
-        self.assertRaises(ValueError, lambda: Program.fromhex("fc"))
-        self.assertRaises(ValueError, lambda: Program.fromhex("fc8000000000"))
+        self.assertRaises(OSError, lambda: Program.fromhex("fc"))
+        self.assertRaises(OSError, lambda: Program.fromhex("fc8000000000"))

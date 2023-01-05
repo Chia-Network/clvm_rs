@@ -6,10 +6,9 @@ use super::errors::{bad_encoding, internal_error};
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 
-/// decode the length prefix for an atom, returning both the offset to the start
-/// of the atom and the full length of the atom.
-/// Atoms whose value fit in 7 bits don't have a length prefix, so those should
-/// be handled specially and never passed to this function.
+/// decode the length prefix for an atom. Atoms whose value fit in 7 bits
+/// don't have a length prefix, so those should be handled specially and
+/// never passed to this function.
 pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> Result<(u8, u64)> {
     debug_assert!((initial_b & 0x80) != 0);
     if (initial_b & 0x80) == 0 {
