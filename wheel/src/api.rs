@@ -10,8 +10,7 @@ use super::run_program::{
     __pyo3_get_function_serialized_length,
 };
 use clvmr::{LIMIT_HEAP, NO_NEG_DIV, NO_UNKNOWN_OPS, LIMIT_STACK, MEMPOOL_MODE};
-use clvmr::chia_dialect::{NO_NEG_DIV, NO_UNKNOWN_OPS};
-use clvmr::serialize::{parse_triples, ParsedTriple};
+use clvmr::serde::{parse_triples, ParsedTriple};
 
 fn tuple_for_parsed_triple(py: Python<'_>, p: &ParsedTriple) -> PyObject {
     let tuple = match p {
