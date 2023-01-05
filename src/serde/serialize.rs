@@ -1,16 +1,9 @@
-use std::io;
-use std::io::{ErrorKind, Read};
+use super::parse_atom::decode_size_with_offset;
+//use std::io;
+use std::io::{copy, sink, Read, Result};
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const CONS_BOX_MARKER: u8 = 0xff;
-
-fn bad_encoding() -> io::Error {
-    io::Error::new(ErrorKind::InvalidInput, "bad encoding")
-}
-
-fn internal_error() -> io::Error {
-    io::Error::new(ErrorKind::InvalidInput, "internal error")
-}
 
 /// This data structure is used with `parse_triples`, which returns a triple of
 /// integer values for each clvm object in a tree.
@@ -35,8 +28,8 @@ enum ParseOpRef {
     SaveIndex(usize),
 }
 
-fn skip_bytes<R: io::Read>(f: &mut R, skip_size: u64) -> io::Result<u64> {
-    io::copy(&mut f.by_ref().take(skip_size), &mut io::sink())
+fn skip_bytes<R: Read>(f: &mut R, skip_size: u64) -> Result<u64> {
+    copy(&mut f.by_ref().take(skip_size), &mut sink())
 }
 
 /// parse a serialized clvm object tree to an array of `ParsedTriple` objects
@@ -52,7 +45,7 @@ fn skip_bytes<R: io::Read>(f: &mut R, skip_size: u64) -> io::Result<u64> {
 /// Since these values are offsets into the original buffer, that buffer needs
 /// to be kept around to get the original atoms.
 
-pub fn parse_triples<R: io::Read>(f: &mut R) -> io::Result<Vec<ParsedTriple>> {
+pub fn parse_triples<R: Read>(f: &mut R) -> Result<Vec<ParsedTriple>> {
     let mut r = Vec::new();
     let mut op_stack = vec![ParseOpRef::ParseObj];
     let mut cursor: u64 = 0;
@@ -85,7 +78,7 @@ pub fn parse_triples<R: io::Read>(f: &mut R) -> io::Result<Vec<ParsedTriple>> {
                             if b <= MAX_SINGLE_BYTE {
                                 (start, start + 1, 0)
                             } else {
-                                let (atom_offset, atom_size) = decode_size(f, b)?;
+                                let (atom_offset, atom_size) = decode_size_with_offset(f, b)?;
                                 skip_bytes(f, atom_size)?;
                                 let end = start + (atom_offset as u64) + (atom_size);
                                 (start, end, atom_offset as u32)
@@ -132,45 +125,6 @@ pub fn parse_triples<R: io::Read>(f: &mut R) -> io::Result<Vec<ParsedTriple>> {
         }
     }
     Ok(r)
-}
-
-/// decode the length prefix for an atom. Atoms whose value fit in 7 bits
-/// don't have a length prefix, so those should be handled specially and
-/// never passed to this function.
-fn decode_size<R: io::Read>(f: &mut R, initial_b: u8) -> io::Result<(u8, u64)> {
-    debug_assert!((initial_b & 0x80) != 0);
-    if (initial_b & 0x80) == 0 {
-        return Err(internal_error());
-    }
-
-    let mut atom_start_offset = 0;
-    let mut bit_mask: u8 = 0x80;
-    let mut b = initial_b;
-    while b & bit_mask != 0 {
-        atom_start_offset += 1;
-        b &= 0xff ^ bit_mask;
-        bit_mask >>= 1;
-    }
-    let mut size_blob: Vec<u8> = Vec::new();
-    size_blob.resize(atom_start_offset, 0);
-    size_blob[0] = b;
-    if atom_start_offset > 1 {
-        let remaining_buffer = &mut size_blob[1..atom_start_offset];
-        f.read_exact(remaining_buffer)?;
-    }
-    // need to convert size_blob to an int
-    let mut atom_size: u64 = 0;
-    if size_blob.len() > 6 {
-        return Err(bad_encoding());
-    }
-    for b in &size_blob {
-        atom_size <<= 8;
-        atom_size += *b as u64;
-    }
-    if atom_size >= 0x400000000 {
-        return Err(bad_encoding());
-    }
-    Ok((atom_start_offset as u8, atom_size))
 }
 
 #[cfg(test)]
