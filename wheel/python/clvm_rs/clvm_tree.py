@@ -1,6 +1,5 @@
 from .deser import deserialize_as_tuples
 
-
 from typing import List, Optional, Tuple
 
 
@@ -65,7 +64,7 @@ class CLVMTree:
             if self.blob[start] == 0xFF:
                 self._atom = None
             else:
-                self._atom = self.blob[start + atom_offset : end]
+                self._atom = bytes(self.blob[start + atom_offset : end])
         return self._atom
 
     @property

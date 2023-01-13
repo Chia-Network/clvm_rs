@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Dict, Iterator, List, Tuple, Optional, Any
 
 from .base import CLVMObject
-from .casts import to_clvm_object
+from .casts import to_clvm_object, int_to_bytes
 from .EvalError import EvalError
 from clvm_rs.clvm_rs import run_serialized_program
 from clvm_rs.serialize import sexp_from_stream, sexp_to_stream, sexp_to_bytes
@@ -55,6 +55,20 @@ class Program(CLVMObject):
     def __bytes__(self) -> bytes:
         return sexp_to_bytes(self)
 
+    def __int__(self) -> int:
+        return self.as_int()
+
+    def __hash__(self):
+        return self.tree_hash().__hash__()
+
+    @classmethod
+    def int_from_bytes(cls, b: bytes) -> int:
+        return int_from_bytes(b)
+
+    @classmethod
+    def int_to_bytes(cls, i: int) -> bytes:
+        return int_to_bytes(i)
+
     # high level casting with `.to`
 
     def __init__(self) -> Program:
@@ -85,8 +99,9 @@ class Program(CLVMObject):
     @classmethod
     def new_atom(cls, v: bytes) -> Program:
         o = cls()
-        o.atom = v
+        o.atom = bytes(v)
         o.pair = None
+        o.wrapped = o
         return o
 
     @classmethod
@@ -94,6 +109,7 @@ class Program(CLVMObject):
         o = cls()
         o.atom = None
         o.pair = (left, right)
+        o.wrapped = o
         return o
 
     @classmethod
