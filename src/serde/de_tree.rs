@@ -6,7 +6,7 @@ use sha2::Digest;
 
 use crate::sha2::Sha256;
 
-use crate::serde::decode_size;
+use super::decode_size;
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const CONS_BOX_MARKER: u8 = 0xff;
