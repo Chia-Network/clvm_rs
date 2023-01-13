@@ -12,7 +12,7 @@ use clvmr::serde::{node_from_bytes, serialized_length_from_bytes};
 use clvmr::deserialize_tree::{parse_triples, ParsedTriple};
 use clvmr::{LIMIT_HEAP, LIMIT_STACK, MEMPOOL_MODE, NO_UNKNOWN_OPS};
 use pyo3::prelude::*;
-use pyo3::types::PyTuple;
+use pyo3::types::{PyBytes, PyTuple};
 use pyo3::wrap_pyfunction;
 
 #[pyfunction]
@@ -65,11 +65,12 @@ fn deserialize_as_tree(
     py: Python,
     blob: &[u8],
     calculate_tree_hashes: bool,
-) -> PyResult<Vec<PyObject>> {
+) -> PyResult<(Vec<PyObject>, Option<Vec<PyObject>>)> {
     let mut cursor = io::Cursor::new(blob);
-    let (r, _tree_hashes) = deserialize_tree(&mut cursor, calculate_tree_hashes)?;
+    let (r, tree_hashes) = deserialize_tree(&mut cursor, calculate_tree_hashes)?;
     let r = r.iter().map(|pt| tuple_for_parsed_triple(py, pt)).collect();
-    Ok(r)
+    let s = tree_hashes.map(|ths| ths.iter().map(|b| PyBytes::new(py, b).into()).collect());
+    Ok((r, s))
 }
 
 #[pymodule]

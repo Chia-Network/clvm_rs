@@ -27,7 +27,8 @@ def int_to_bytes(v):
     r = v.to_bytes(byte_count, "big", signed=True)
     # make sure the string returned is minimal
     # ie. no leading 00 or ff bytes that are unnecessary
-    assert not (len(r) > 1 and r[0] == (0xFF if r[1] & 0x80 else 0))
+    while len(r) > 1 and r[0] == (0xFF if r[1] & 0x80 else 0):
+        r = r[1:]
     return r
 
 
@@ -42,7 +43,7 @@ def to_atom_type(v: AtomCastableType) -> bytes:
         return v.encode()
     if isinstance(v, int):
         return int_to_bytes(v)
-    if hasattr(v, "__bytes__"):
+    if hasattr(v, "__bytes__") or isinstance(v, memoryview):
         return bytes(v)
     if v is None:
         return NULL

@@ -3,13 +3,15 @@ import time
 
 from clvm_rs.program import Program
 
+from clvm_rs.clvm_rs import serialized_length
+
 
 def bench(f, name: str):
     start = time.time()
     r = f()
     end = time.time()
     d = end - start
-    print(f"{name}: {end-start:1.4f} s")
+    print(f"{name}: {d:1.4f} s")
     print()
     return r
 
@@ -43,6 +45,8 @@ des_output = bench(
 )
 bench(lambda: print(des_output.tree_hash().hex()), "print from_bytes tree hash")
 bench(lambda: print(des_output.tree_hash().hex()), "print from_bytes tree hash again")
+
+bench(lambda: print(serialized_length(blob)), "print serialized_length")
 
 des_output = bench(
     lambda: Program.from_bytes(blob, calculate_tree_hash=False),
