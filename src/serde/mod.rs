@@ -1,6 +1,7 @@
 mod bytes32;
 mod de;
 mod de_br;
+mod de_tree;
 mod errors;
 mod object_cache;
 mod parse_atom;
@@ -17,5 +18,4 @@ pub use de::node_from_bytes;
 pub use de_br::node_from_bytes_backrefs;
 pub use ser::node_to_bytes;
 pub use ser_br::node_to_bytes_backrefs;
-pub use parse_atom::decode_size;
 pub use tools::{serialized_length_from_bytes, tree_hash_from_stream};

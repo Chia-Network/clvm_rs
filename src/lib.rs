@@ -2,7 +2,6 @@ pub mod allocator;
 pub mod chia_dialect;
 pub mod core_ops;
 pub mod cost;
-pub mod deserialize_tree;
 pub mod dialect;
 pub mod err_utils;
 pub mod f_table;
