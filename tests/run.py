@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
-from clvm_rs import run_chia_program
+from clvm.EvalError import EvalError
+
+from clvm_rs import run_serialized_chia_program
+
 
 def run_clvm(fn, env=None):
 
@@ -15,12 +18,16 @@ def run_clvm(fn, env=None):
     cost_per_byte = 12000
 
     max_cost -= (len(program_data) + len(env_data)) * cost_per_byte
-    return run_chia_program(
+    cost_or_err, r = run_serialized_chia_program(
         program_data,
         env_data,
         max_cost,
         0,
     )
+    if isinstance(cost_or_err, str):
+        raise EvalError(cost_or_err, r)
+    return cost_or_err, r
+
 
 def count_tree_size(tree) -> int:
     stack = [tree]
