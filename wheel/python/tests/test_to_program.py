@@ -1,16 +1,12 @@
 import unittest
 
 from typing import Optional, Tuple, Any
+from clvm_rs.base import CLVMStorage
 from clvm_rs.program import Program
 
 
 def convert_atom_to_bytes(castable: Any) -> Optional[bytes]:
     return Program.to(castable).atom
-
-
-def looks_like_clvm_object(o: Any) -> bool:
-    d = dir(o)
-    return "atom" in d and "pair" in d
 
 
 def validate_program(program):
@@ -21,8 +17,8 @@ def validate_program(program):
         if v.pair:
             assert isinstance(v.pair, tuple)
             v1, v2 = v.pair
-            assert looks_like_clvm_object(v1)
-            assert looks_like_clvm_object(v2)
+            assert isinstance(v1, CLVMStorage)
+            assert isinstance(v2, CLVMStorage)
             s1, s2 = v.as_pair()
             validate_stack.append(s1)
             validate_stack.append(s2)
@@ -67,7 +63,7 @@ class ToProgramTest(unittest.TestCase):
         validate_program(t1)
 
     def test_wrap_program(self):
-        # it's a bit of a layer violation that CLVMObject unwraps Program, but we
+        # it's a bit of a layer violation that CLVMStorage unwraps Program, but we
         # rely on that in a fair number of places for now. We should probably
         # work towards phasing that out
         o = Program.to(Program.to(1))
@@ -76,7 +72,7 @@ class ToProgramTest(unittest.TestCase):
     def test_arbitrary_underlying_tree(self):
 
         # Program provides a view on top of a tree of arbitrary types, as long as
-        # those types implement the CLVMObject protocol. This is an example of
+        # those types implement the CLVMStorage protocol. This is an example of
         # a tree that's generated
         class GeneratedTree:
 
@@ -87,6 +83,7 @@ class ToProgramTest(unittest.TestCase):
                 assert depth >= 0
                 self.depth = depth
                 self.val = val
+                self._cached_sha256_treehash = None
 
             @property
             def atom(self) -> Optional[bytes]:
@@ -128,18 +125,26 @@ class ToProgramTest(unittest.TestCase):
             pass
 
         obj = dummy()
-        obj.pair = None
         obj.atom = None
+        obj.pair = None
+        obj._cached_sha256_treehash = None
         print(dir(obj))
-        assert looks_like_clvm_object(obj)
+        assert isinstance(obj, CLVMStorage)
 
         obj = dummy()
         obj.pair = None
-        assert not looks_like_clvm_object(obj)
+        obj._cached_sha256_treehash = None
+        assert not isinstance(obj, CLVMStorage)
 
         obj = dummy()
         obj.atom = None
-        assert not looks_like_clvm_object(obj)
+        obj._cached_sha256_treehash = None
+        assert not isinstance(obj, CLVMStorage)
+
+        obj = dummy()
+        obj.atom = None
+        obj.pair = None
+        assert not isinstance(obj, CLVMStorage)
 
     def test_list_conversions(self):
         a = Program.to([1, 2, 3])

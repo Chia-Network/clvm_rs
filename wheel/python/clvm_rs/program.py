@@ -1,8 +1,8 @@
 from __future__ import annotations
 from typing import Dict, Iterator, List, Tuple, Optional, Any
 
-from .base import CLVMObject
-from .casts import to_clvm_object, int_to_bytes
+from .base import CLVMStorage
+from .casts import to_clvm_object, int_from_bytes, int_to_bytes
 from .EvalError import EvalError
 from clvm_rs.clvm_rs import run_serialized_program
 from clvm_rs.serialize import sexp_from_stream, sexp_to_stream, sexp_to_bytes
@@ -15,7 +15,7 @@ from .keywords import NULL, ONE, Q_KW, A_KW, C_KW
 MAX_COST = 0x7FFFFFFFFFFFFFFF
 
 
-class Program(CLVMObject):
+class Program(CLVMStorage):
     """
     A thin wrapper around s-expression data intended to be invoked with "eval".
     """
@@ -41,10 +41,7 @@ class Program(CLVMObject):
         cls, blob: bytes, cursor: int, calculate_tree_hash: bool = True
     ) -> Tuple[Program, int]:
         tree = CLVMTree.from_bytes(blob, calculate_tree_hash=calculate_tree_hash)
-        if tree.atom is not None:
-            obj = cls.new_atom(tree.atom)
-        else:
-            obj = cls.wrap(tree)
+        obj = cls.wrap(tree)
         new_cursor = len(bytes(tree)) + cursor
         return obj, new_cursor
 
@@ -71,28 +68,32 @@ class Program(CLVMObject):
 
     # high level casting with `.to`
 
-    def __init__(self) -> Program:
+    def __init__(self):
         self.atom = b""
-        self.pair = None
-        self.wrapped = self
+        self._pair = None
+        self._unwrapped_pair = None
         self._cached_sha256_treehash = None
+
+    @property
+    def pair(self) -> Optional[Tuple["Program", "Program"]]:
+        if self._pair is None and self.atom is None:
+            pair = self._unwrapped_pair
+            self._pair = (self.wrap(pair[0]), self.wrap(pair[1]))
+        return self._pair
 
     @classmethod
     def to(cls, v: Any) -> Program:
         return cls.wrap(to_clvm_object(v, cls.new_atom, cls.new_pair))
 
     @classmethod
-    def wrap(cls, v: CLVMObject) -> Program:
+    def wrap(cls, v: CLVMStorage) -> Program:
         if isinstance(v, Program):
             return v
         o = cls()
         o.atom = v.atom
-        o.pair = v.pair
-        o.wrapped = v
+        o._pair = None
+        o._unwrapped_pair = v.pair
         return o
-
-    def unwrap(self) -> CLVMObject:
-        return self.wrapped
 
     # new object creation on the python heap
 
@@ -100,16 +101,16 @@ class Program(CLVMObject):
     def new_atom(cls, v: bytes) -> Program:
         o = cls()
         o.atom = bytes(v)
-        o.pair = None
-        o.wrapped = o
+        o._pair = None
+        o._unwrapped_pair = None
         return o
 
     @classmethod
-    def new_pair(cls, left: CLVMObject, right: CLVMObject) -> Program:
+    def new_pair(cls, left: CLVMStorage, right: CLVMStorage) -> Program:
         o = cls()
         o.atom = None
-        o.pair = (left, right)
-        o.wrapped = o
+        o._pair = None
+        o._unwrapped_pair = (left, right)
         return o
 
     @classmethod
@@ -125,14 +126,18 @@ class Program(CLVMObject):
         return f"{self.__class__.__name__}({str(self)})"
 
     def __eq__(self, other) -> bool:
-        stack = [(self, Program.to(other))]
+        stack: List[Tuple[CLVMStorage, CLVMStorage]] = [(self, Program.to(other))]
         while stack:
             p1, p2 = stack.pop()
             if p1.atom is None:
                 if p2.atom is not None:
                     return False
-                stack.append((p1.pair[1], p2.pair[1]))
-                stack.append((p1.pair[0], p2.pair[0]))
+                pair_1 = p1.pair
+                pair_2 = p2.pair
+                assert pair_1 is not None
+                assert pair_2 is not None
+                stack.append((pair_1[1], pair_2[1]))
+                stack.append((pair_1[0], pair_2[0]))
             else:
                 if p1.atom != p2.atom:
                     return False
@@ -143,18 +148,16 @@ class Program(CLVMObject):
 
     def first(self) -> Optional[Program]:
         if self.pair:
-            return self.wrap(self.pair[0])
+            return self.pair[0]
         return None
 
     def rest(self) -> Optional[Program]:
         if self.pair:
-            return self.wrap(self.pair[1])
+            return self.pair[1]
         return None
 
     def as_pair(self) -> Optional[Tuple[Program, Program]]:
-        if self.pair:
-            return tuple(self.wrap(_) for _ in self.pair)
-        return None
+        return self.pair
 
     def as_atom(self) -> Optional[bytes]:
         return self.atom
@@ -167,13 +170,13 @@ class Program(CLVMObject):
 
     def list_len(self) -> int:
         c = 0
-        v = self
-        while v.pair:
+        v: CLVMStorage = self
+        while v.pair is not None:
             v = v.pair[1]
             c += 1
         return c
 
-    def at(self, position: str) -> "Program":
+    def at(self, position: str) -> Optional["Program"]:
         """
         Take a string of `f` and `r` characters and follow that path.
 
@@ -192,8 +195,10 @@ class Program(CLVMObject):
         ```
 
         """
-        v = self
+        v: Optional[Program] = self
         for c in position.lower():
+            if v is None:
+                return v
             if c == "f":
                 v = v.first()
             elif c == "r":
@@ -230,13 +235,13 @@ class Program(CLVMObject):
         return _replace(self, **kwargs)
 
     def tree_hash(self) -> bytes32:
-        return sha256_treehash(self.unwrap())
+        return sha256_treehash(self)
 
     def run_with_cost(self, args, max_cost: int = MAX_COST) -> Tuple[int, "Program"]:
         prog_bytes = bytes(self)
         args_bytes = bytes(self.to(args))
         cost, r = run_serialized_program(prog_bytes, args_bytes, max_cost, 0)
-        r = Program.to(r)
+        r = self.wrap(r)
         if isinstance(cost, str):
             raise EvalError(cost, r)
         return cost, r
@@ -245,38 +250,58 @@ class Program(CLVMObject):
         cost, r = self.run_with_cost(args, MAX_COST)
         return r
 
-    # Replicates the curry function from clvm_tools, taking advantage of *args
-    # being a list.  We iterate through args in reverse building the code to
-    # create a clvm list.
-    #
-    # Given arguments to a function addressable by the '1' reference in clvm
-    #
-    # fixed_args = 1
-    #
-    # Each arg is prepended as fixed_args = (c (q . arg) fixed_args)
-    #
-    # The resulting argument list is interpreted with apply (2)
-    #
-    # (2 (1 . self) rest)
-    #
-    # Resulting in a function which places its own arguments after those
-    # curried in in the form of a proper list.
+    """
+    Replicates the curry function from clvm_tools, taking advantage of *args
+    being a list.  We iterate through args in reverse building the code to
+    create a clvm list.
+
+    Given arguments to a function addressable by the '1' reference in clvm
+
+    fixed_args = 1
+
+    Each arg is prepended as fixed_args = (c (q . arg) fixed_args)
+
+    The resulting argument list is interpreted with apply (2)
+
+    (2 (1 . self) rest)
+
+    Resulting in a function which places its own arguments after those
+    curried in in the form of a proper list.
+    """
+
     def curry(self, *args) -> "Program":
         fixed_args: Any = 1
         for arg in reversed(args):
             fixed_args = [4, (1, arg), fixed_args]
-        return Program.to([2, (1, self), fixed_args])
+        return self.to([2, (1, self), fixed_args])
 
-    def uncurry(self) -> Tuple[Program, Optional[Program]]:
+    """
+    uncurry the given program
+
+    returns `mod, [arg1, arg2, ...]`
+
+    if the program is not a valid curry, return `self, NULL`
+
+    This distinguishes it from the case of a valid curry of 0 arguments
+    (which is rather pointless but possible), which returns `self, []`
+    """
+
+    def uncurry(self) -> Tuple[Program, Optional[List[Program]]]:
         if self.at("f") != A_KW or self.at("rff") != Q_KW or self.at("rrr") != NULL:
             return self, None
         uncurried_function = self.at("rfr")
+        if uncurried_function is None:
+            return self, None
         core_items = []
         core = self.at("rrf")
         while core != ONE:
+            if core is None:
+                return self, None
             if core.at("f") != C_KW or core.at("rff") != Q_KW or core.at("rrr") != NULL:
                 return self, None
             new_item = core.at("rfr")
+            if new_item is None:
+                return self, None
             core_items.append(new_item)
             core = core.at("rrf")
         return uncurried_function, core_items
@@ -335,12 +360,12 @@ def _replace(program: Program, **kwargs) -> Program:
     # Now split `kwargs` into two groups: those
     # that start with `f` and those that start with `r`
 
-    args_by_prefix: Dict[str, Program] = {}
+    args_by_prefix: Dict[str, Dict[str, Program]] = dict(f={}, r={})
     for k, v in kwargs.items():
         c = k[0]
         if c not in "fr":
             raise ValueError(f"bad path containing {c}: must only contain `f` and `r`")
-        args_by_prefix.setdefault(c, dict())[k[1:]] = v
+        args_by_prefix[c][k[1:]] = program.to(v)
 
     pair = program.pair
     if pair is None:
@@ -350,11 +375,4 @@ def _replace(program: Program, **kwargs) -> Program:
     new_f = _replace(pair[0], **args_by_prefix.get("f", {}))
     new_r = _replace(pair[1], **args_by_prefix.get("r", {}))
 
-    return program.new_pair(Program.to(new_f), Program.to(new_r))
-
-
-def int_from_bytes(blob):
-    size = len(blob)
-    if size == 0:
-        return 0
-    return int.from_bytes(blob, "big", signed=True)
+    return program.new_pair(new_f, new_r)

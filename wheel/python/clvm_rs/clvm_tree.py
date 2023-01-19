@@ -1,11 +1,12 @@
+from .base import CLVMStorage
 from .deser import deserialize_as_tuples
 
 from typing import List, Optional, Tuple
 
 
-class CLVMTree:
+class CLVMTree(CLVMStorage):
     """
-    This object conforms with the `CLVMObject` protocol. It's optimized for
+    This object conforms with the `CLVMStorage` protocol. It's optimized for
     deserialization, and keeps a reference to the serialized blob and to a
     list of tuples of integers, each of which corresponds to a subtree.
 
@@ -36,6 +37,8 @@ class CLVMTree:
     in well-behaved python code.
     """
 
+    _pair: Optional[Tuple["CLVMStorage", "CLVMStorage"]]
+
     @classmethod
     def from_bytes(cls, blob: bytes, calculate_tree_hash: bool = True) -> "CLVMTree":
         int_tuples, tree_hashes = deserialize_as_tuples(
@@ -55,20 +58,15 @@ class CLVMTree:
         self.tree_hashes = tree_hashes
         self.index = index
         self._cached_sha256_treehash = self.tree_hashes[index]
+        start, end, atom_offset = self.int_tuples[self.index]
+        if self.blob[start] == 0xFF:
+            self.atom = None
+        else:
+            self.atom = bytes(self.blob[start + atom_offset : end])
+            self._pair = None
 
     @property
-    def atom(self) -> Optional[bytes]:
-        if not hasattr(self, "_atom"):
-            start, end, atom_offset = self.int_tuples[self.index]
-            # if `self.blob[start]` is 0xff, it's a pair
-            if self.blob[start] == 0xFF:
-                self._atom = None
-            else:
-                self._atom = bytes(self.blob[start + atom_offset : end])
-        return self._atom
-
-    @property
-    def pair(self) -> Optional[Tuple["CLVMTree", "CLVMTree"]]:
+    def pair(self) -> Optional[Tuple["CLVMStorage", "CLVMStorage"]]:
         if not hasattr(self, "_pair"):
             tuples, tree_hashes = self.int_tuples, self.tree_hashes
             start, end, right_index = tuples[self.index]

@@ -7,8 +7,9 @@ have to worry about blowing out the python stack.
 """
 
 from hashlib import sha256
+from typing import List
 
-from clvm_rs import CLVMObject
+from clvm_rs.base import CLVMStorage
 
 bytes32 = bytes
 
@@ -32,43 +33,36 @@ def shatree_pair(left_hash: bytes32, right_hash: bytes32) -> bytes32:
     return bytes32(s.digest())
 
 
-def sha256_treehash(sexp: CLVMObject) -> bytes32:
-    def handle_sexp(sexp_stack, op_stack) -> None:
+def sha256_treehash(sexp: CLVMStorage) -> bytes32:
+    def handle_sexp(sexp_stack, hash_stack, op_stack) -> None:
         sexp = sexp_stack.pop()
         r = getattr(sexp, "_cached_sha256_treehash", None)
         if r is not None:
-            sexp_stack.append(r)
+            hash_stack.append(r)
+            return
         elif sexp.pair:
             p0, p1 = sexp.pair
             sexp_stack.append(p0)
             sexp_stack.append(p1)
             op_stack.append(handle_pair)
             op_stack.append(handle_sexp)
-            op_stack.append(roll)
             op_stack.append(handle_sexp)
         else:
             r = shatree_atom(sexp.atom)
-            sexp_stack.append(r)
-            if hasattr(sexp, "_cached_sha256_treehash"):
-                sexp._cached_sha256_treehash = r
-
-    def handle_pair(sexp_stack, op_stack) -> None:
-        p0 = sexp_stack.pop()
-        p1 = sexp_stack.pop()
-        r = shatree_pair(p0, p1)
-        sexp_stack.append(r)
-        if hasattr(sexp, "_cached_sha256_treehash"):
+            hash_stack.append(r)
             sexp._cached_sha256_treehash = r
 
-    def roll(sexp_stack, op_stack) -> None:
-        p0 = sexp_stack.pop()
-        p1 = sexp_stack.pop()
-        sexp_stack.append(p0)
-        sexp_stack.append(p1)
+    def handle_pair(sexp_stack, hash_stack, op_stack) -> None:
+        p0 = hash_stack.pop()
+        p1 = hash_stack.pop()
+        r = shatree_pair(p0, p1)
+        hash_stack.append(r)
+        sexp._cached_sha256_treehash = r
 
     sexp_stack = [sexp]
     op_stack = [handle_sexp]
+    hash_stack: List[bytes32] = []
     while len(op_stack) > 0:
         op = op_stack.pop()
-        op(sexp_stack, op_stack)
-    return bytes32(sexp_stack[0])
+        op(sexp_stack, hash_stack, op_stack)
+    return hash_stack[0]
