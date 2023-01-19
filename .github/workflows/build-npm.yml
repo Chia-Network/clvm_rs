@@ -38,7 +38,7 @@ jobs:
       run: node wasm/tests/index.js
 
     - name: Upload npm pkg artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: npm-pkg
         path: ./wasm/pkg/clvm_wasm-*.tgz

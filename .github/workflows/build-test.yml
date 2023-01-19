@@ -22,11 +22,11 @@ jobs:
         python: [3.7]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
-    - uses: actions/setup-python@v2
+    - uses: actions/setup-python@v4
       name: Install Python ${{ matrix.python }}
       with:
         python-version: ${{ matrix.python }}
@@ -143,7 +143,7 @@ jobs:
         pytest tests
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: wheels
         path: ./wheel/target/wheels/
@@ -173,7 +173,7 @@ jobs:
     runs-on: ubuntu-20.04
     name: cargo fmt
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: Install rust
@@ -188,7 +188,7 @@ jobs:
   clippy:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -210,7 +210,7 @@ jobs:
         os: [macos-latest, ubuntu-latest]
         python: [3.7]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: Install rust
@@ -231,7 +231,7 @@ jobs:
         os: [macos-latest, ubuntu-latest, windows-latest]
         python: [3.7]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: Install rust
