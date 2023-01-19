@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from clvm_rs import CLVMObject
+from clvm_rs.base import CLVMStorage
 from clvm_rs.program import Program
 from clvm_rs.EvalError import EvalError
 
@@ -44,11 +44,6 @@ class TestProgram(TestCase):
         p1 = Program.to([100, 200, 300])
         self.assertRaises(ValueError, lambda: p1.replace(q=105))
         self.assertRaises(ValueError, lambda: p1.replace(rq=105))
-
-    def test_protocol(self):
-        nil = Program.to(0)
-        self.assertRaises(NotImplementedError, lambda: CLVMObject.new_atom(nil))
-        self.assertRaises(NotImplementedError, lambda: CLVMObject.new_pair(nil, nil))
 
     def test_first_rest(self):
         p = Program.to([4, 5])

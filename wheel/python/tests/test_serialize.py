@@ -129,8 +129,9 @@ class SerializeTest(unittest.TestCase):
             Program.parse(InfiniteStream(bytes_in))
 
     def test_repr_clvm_tree(self):
-        o = Program.fromhex("ff8080")
-        self.assertEqual(repr(o.unwrap()), "<CLVMTree: ff8080>")
+        o = Program.fromhex("ff8085")
+        self.assertEqual(repr(o._unwrapped_pair[0]), "<CLVMTree: 80>")
+        self.assertEqual(repr(o._unwrapped_pair[1]), "<CLVMTree: 85>")
 
     def test_bad_blob(self):
         self.assertRaises(OSError, lambda: Program.fromhex("ff"))

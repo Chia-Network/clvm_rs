@@ -1,26 +1,32 @@
-from typing import Any, Tuple, Union
+from typing import Any, Callable, List, Optional, SupportsBytes, Tuple, Union
+
+from .base import CLVMStorage
 
 AtomCastableType = Union[
     bytes,
     str,
     int,
+    SupportsBytes,
     None,
 ]
 
 
 CastableType = Union[
     AtomCastableType,
-    list,
+    List["CastableType"],
     Tuple["CastableType", "CastableType"],
+    CLVMStorage,
 ]
 
 
-def looks_like_clvm_object(o: Any) -> bool:
-    d = dir(o)
-    return "atom" in d and "pair" in d
+def int_from_bytes(blob):
+    size = len(blob)
+    if size == 0:
+        return 0
+    return int.from_bytes(blob, "big", signed=True)
 
 
-def int_to_bytes(v):
+def int_to_bytes(v) -> bytes:
     byte_count = (v.bit_length() + 8) >> 3
     if v == 0:
         return b""
@@ -43,7 +49,7 @@ def to_atom_type(v: AtomCastableType) -> bytes:
         return v.encode()
     if isinstance(v, int):
         return int_to_bytes(v)
-    if hasattr(v, "__bytes__") or isinstance(v, memoryview):
+    if isinstance(v, (memoryview, SupportsBytes)):
         return bytes(v)
     if v is None:
         return NULL
@@ -53,32 +59,33 @@ def to_atom_type(v: AtomCastableType) -> bytes:
 
 def to_clvm_object(
     v: CastableType,
-    to_atom_f,
-    to_pair_f,
+    to_atom_f: Callable[[bytes], CLVMStorage],
+    to_pair_f: Callable[[CLVMStorage, CLVMStorage], CLVMStorage],
 ):
-    stack = [v]
-    ops = [(0, None)]  # convert
+    stack: List[CastableType] = [v]
+    ops: List[Tuple[int, Optional[CastableType]]] = [(0, None)]  # convert
 
     while len(ops) > 0:
         op, target = ops.pop()
         # convert value
         if op == 0:
-            if looks_like_clvm_object(stack[-1]):
-                obj = stack.pop()
-                if obj.pair is None:
-                    new_obj = to_atom_f(obj.atom)
+            v = stack.pop()
+            if isinstance(v, CLVMStorage):
+                if v.pair is None:
+                    atom = v.atom
+                    assert atom is not None
+                    new_obj = to_atom_f(to_atom_type(atom))
                 else:
-                    new_obj = to_pair_f(obj.pair[0], obj.pair[1])
+                    new_obj = to_pair_f(v.pair[0], v.pair[1])
                 stack.append(new_obj)
                 continue
-            v = stack.pop()
             if isinstance(v, tuple):
                 if len(v) != 2:
                     raise ValueError("can't cast tuple of size %d" % len(v))
                 left, right = v
                 target = len(stack)
-                ll_right = looks_like_clvm_object(right)
-                ll_left = looks_like_clvm_object(left)
+                ll_right = isinstance(right, CLVMStorage)
+                ll_left = isinstance(left, CLVMStorage)
                 if ll_right and ll_left:
                     stack.append(to_pair_f(left, right))
                 else:
@@ -97,14 +104,17 @@ def to_clvm_object(
                     ops.append((1, target))  # prepend list
                     # we only need to convert if it's not already the right
                     # type
-                    if not looks_like_clvm_object(_):
+                    if not isinstance(_, CLVMStorage):
                         ops.append((0, None))  # convert
                 continue
             stack.append(to_atom_f(to_atom_type(v)))
             continue
 
         if op == 1:  # prepend list
-            stack[target] = to_pair_f(stack.pop(), stack[target])
+            left = stack.pop()
+            assert isinstance(target, int)
+            right = stack[target]
+            stack[target] = to_pair_f(left, right)
             continue
         if op == 2:  # roll
             p1 = stack.pop()
