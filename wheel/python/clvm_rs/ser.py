@@ -1,3 +1,6 @@
+"""
+Serialize clvm.
+
 # decoding:
 # read a byte
 # if it's 0xfe, it's nil (which might be same as 0)
@@ -10,13 +13,21 @@
 # 0xe0-0xef is 3 bytes (`and` of first byte with 0xf)
 # 0xf0-0xf7 is 4 bytes (`and` of first byte with 0x7)
 # 0xf7-0xfb is 5 bytes (`and` of first byte with 0x3)
+"""
+
+from typing import BinaryIO, Iterator, List
+
+from .clvm_storage import CLVMStorage
 
 
 MAX_SINGLE_BYTE = 0x7F
 CONS_BOX_MARKER = 0xFF
 
 
-def sexp_to_byte_iterator(sexp):
+def sexp_to_byte_iterator(sexp: CLVMStorage) -> Iterator[bytes]:
+    """
+    Yields bytes that serialize the given clvm object. Non-recursive
+    """
     todo_stack = [sexp]
     while todo_stack:
         sexp = todo_stack.pop()
@@ -30,10 +41,15 @@ def sexp_to_byte_iterator(sexp):
             todo_stack.append(pair[1])
             todo_stack.append(pair[0])
         else:
-            yield from atom_to_byte_iterator(sexp.atom)
+            atom = sexp.atom
+            assert atom is not None
+            yield from atom_to_byte_iterator(atom)
 
 
-def atom_to_byte_iterator(as_atom):
+def atom_to_byte_iterator(as_atom: bytes) -> Iterator[bytes]:
+    """
+    Yield the serialization for a given blob (as a clvm atom).
+    """
     size = len(as_atom)
     if size == 0:
         yield b"\x80"
@@ -68,18 +84,21 @@ def atom_to_byte_iterator(as_atom):
             ]
         )
     else:
-        raise ValueError("sexp too long %s" % as_atom)
+        raise ValueError("sexp too long %r" % as_atom)
 
     yield size_blob
     yield as_atom
 
 
-def sexp_to_stream(sexp, f):
+def sexp_to_stream(sexp: CLVMStorage, f: BinaryIO) -> None:
+    """
+    Serialize to a file.
+    """
     for b in sexp_to_byte_iterator(sexp):
         f.write(b)
 
 
-def sexp_to_bytes(sexp) -> bytes:
+def sexp_to_bytes(sexp: CLVMStorage) -> bytes:
     b = bytearray()
     for _ in sexp_to_byte_iterator(sexp):
         b.extend(_)
@@ -99,15 +118,17 @@ def _op_read_sexp(op_stack, val_stack, f, new_pair_f, new_atom_f):
     val_stack.append(_atom_from_stream(f, b, new_atom_f))
 
 
-def _op_cons(op_stack, val_stack, f, new_pair_f, new_atom_f):
+def _op_cons(
+    op_stack, val_stack: List[CLVMStorage], f: BinaryIO, new_pair_f, new_atom_f
+):
     right = val_stack.pop()
     left = val_stack.pop()
     val_stack.append(new_pair_f(left, right))
 
 
-def sexp_from_stream(f, new_pair_f, new_atom_f):
+def sexp_from_stream(f: BinaryIO, new_pair_f, new_atom_f):
     op_stack = [_op_read_sexp]
-    val_stack = []
+    val_stack: List[CLVMStorage] = []
 
     while op_stack:
         func = op_stack.pop()
@@ -115,7 +136,7 @@ def sexp_from_stream(f, new_pair_f, new_atom_f):
     return val_stack.pop()
 
 
-def _atom_from_stream(f, b, new_atom_f):
+def _atom_from_stream(f: BinaryIO, b: int, new_atom_f):
     if b == 0x80:
         return new_atom_f(b"")
     if b <= MAX_SINGLE_BYTE:
@@ -128,10 +149,10 @@ def _atom_from_stream(f, b, new_atom_f):
         bit_mask >>= 1
     size_blob = bytes([b])
     if bit_count > 1:
-        b = f.read(bit_count - 1)
-        if len(b) != bit_count - 1:
+        blob = f.read(bit_count - 1)
+        if len(blob) != bit_count - 1:
             raise ValueError("bad encoding")
-        size_blob += b
+        size_blob += blob
     size = int.from_bytes(size_blob, "big")
     if size >= 0x400000000:
         raise ValueError("blob too large")

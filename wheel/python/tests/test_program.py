@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from clvm_rs.clvm_storage import CLVMStorage
 from clvm_rs.program import Program
-from clvm_rs.EvalError import EvalError
+from clvm_rs.eval_error import EvalError
 
 from clvm_rs.keywords import A_KW, C_KW, Q_KW
 

@@ -2,7 +2,7 @@ import io
 import unittest
 
 from clvm_rs.program import Program
-from clvm_rs.serialize import atom_to_byte_iterator
+from clvm_rs.ser import atom_to_byte_iterator
 
 
 TEXT = b"the quick brown fox jumps over the lazy dogs"
