@@ -9,7 +9,7 @@ have to worry about blowing out the python stack.
 from hashlib import sha256
 from typing import List
 
-from clvm_rs.base import CLVMStorage
+from clvm_rs.clvm_storage import CLVMStorage
 
 bytes32 = bytes
 
