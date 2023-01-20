@@ -3,7 +3,7 @@ from typing import Dict, Iterator, List, Tuple, Optional, Any
 
 from .clvm_storage import CLVMStorage
 from .casts import to_clvm_object, int_from_bytes, int_to_bytes
-from .EvalError import EvalError
+from .eval_error import EvalError
 from clvm_rs.clvm_rs import run_serialized_program
 from clvm_rs.serialize import sexp_from_stream, sexp_to_stream, sexp_to_bytes
 from clvm_rs.tree_hash import sha256_treehash
