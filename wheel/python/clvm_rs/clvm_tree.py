@@ -1,4 +1,4 @@
-from .base import CLVMStorage
+from .clvm_storage import CLVMStorage
 from .deser import deserialize_as_tuples
 
 from typing import List, Optional, Tuple

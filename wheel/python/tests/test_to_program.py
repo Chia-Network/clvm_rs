@@ -1,7 +1,7 @@
 import unittest
 
 from typing import Optional, Tuple, Any
-from clvm_rs.base import CLVMStorage
+from clvm_rs.clvm_storage import CLVMStorage
 from clvm_rs.program import Program
 
 

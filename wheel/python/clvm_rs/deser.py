@@ -1,6 +1,6 @@
 from typing import Callable, List, Optional, Tuple, Union
 
-from .base import CLVMStorage
+from .clvm_storage import CLVMStorage
 from .tree_hash import shatree_atom, shatree_pair
 
 try:

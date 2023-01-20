@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Dict, Iterator, List, Tuple, Optional, Any
 
-from .base import CLVMStorage
+from .clvm_storage import CLVMStorage
 from .casts import to_clvm_object, int_from_bytes, int_to_bytes
 from .EvalError import EvalError
 from clvm_rs.clvm_rs import run_serialized_program

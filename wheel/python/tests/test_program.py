@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from clvm_rs.base import CLVMStorage
+from clvm_rs.clvm_storage import CLVMStorage
 from clvm_rs.program import Program
 from clvm_rs.EvalError import EvalError
 

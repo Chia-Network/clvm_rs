@@ -1,6 +1,6 @@
 from typing import Any, Callable, List, Optional, SupportsBytes, Tuple, Union
 
-from .base import CLVMStorage
+from .clvm_storage import CLVMStorage
 
 AtomCastableType = Union[
     bytes,
