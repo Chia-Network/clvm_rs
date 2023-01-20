@@ -1,10 +1,9 @@
 from unittest import TestCase
 
+from clvm_rs.chia_dialect import A_KW, C_KW, Q_KW
 from clvm_rs.clvm_storage import CLVMStorage
 from clvm_rs.program import Program
 from clvm_rs.eval_error import EvalError
-
-from clvm_rs.keywords import A_KW, C_KW, Q_KW
 
 
 class TestProgram(TestCase):

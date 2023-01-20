@@ -3,10 +3,10 @@ from typing import Dict, Iterator, List, Tuple, Optional, Any
 
 from .bytes32 import bytes32
 from .casts import to_clvm_object, int_from_bytes, int_to_bytes
+from .chia_dialect import NULL, ONE, Q_KW, A_KW, C_KW
 from .clvm_rs import run_serialized_program
 from .clvm_storage import CLVMStorage
 from .clvm_tree import CLVMTree
-from .keywords import NULL, ONE, Q_KW, A_KW, C_KW
 from .eval_error import EvalError
 from .ser import sexp_from_stream, sexp_to_stream, sexp_to_bytes
 from .tree_hash import sha256_treehash
@@ -23,10 +23,10 @@ class Program(CLVMStorage):
     # serialization/deserialization
 
     @classmethod
-    def parse(cls, f) -> Program:
+    def parse(cls, f: BinaryIO) -> Program:
         return sexp_from_stream(f, cls.new_pair, cls.new_atom)
 
-    def stream(self, f):
+    def stream(self, f: BinaryIO) -> None:
         sexp_to_stream(self, f)
 
     @classmethod

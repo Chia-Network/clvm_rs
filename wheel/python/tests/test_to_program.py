@@ -149,6 +149,8 @@ class ToProgramTest(unittest.TestCase):
     def test_int_conversions(self):
         a = Program.to(1337)
         assert a.as_atom() == bytes([0x5, 0x39])
+        a = Program.to(-128)
+        assert a.as_atom() == bytes([0x80])
 
     def test_none_conversions(self):
         a = Program.to(None)
