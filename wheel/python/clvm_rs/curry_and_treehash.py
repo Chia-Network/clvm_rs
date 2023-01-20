@@ -1,7 +1,7 @@
 from typing import List
 
 from .bytes32 import bytes32
-from .keywords import NULL, ONE, Q_KW, A_KW, C_KW
+from .chia_dialect import NULL, ONE, Q_KW, A_KW, C_KW
 from .tree_hash import shatree_atom, shatree_pair
 
 
