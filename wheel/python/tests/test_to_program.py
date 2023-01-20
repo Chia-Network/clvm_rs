@@ -127,23 +127,15 @@ class ToProgramTest(unittest.TestCase):
         obj = dummy()
         obj.atom = None
         obj.pair = None
-        obj._cached_sha256_treehash = None
         print(dir(obj))
         assert isinstance(obj, CLVMStorage)
 
         obj = dummy()
         obj.pair = None
-        obj._cached_sha256_treehash = None
         assert not isinstance(obj, CLVMStorage)
 
         obj = dummy()
         obj.atom = None
-        obj._cached_sha256_treehash = None
-        assert not isinstance(obj, CLVMStorage)
-
-        obj = dummy()
-        obj.atom = None
-        obj.pair = None
         assert not isinstance(obj, CLVMStorage)
 
     def test_list_conversions(self):

@@ -1,3 +1,7 @@
+"""
+Some utilities to cast python types to and from clvm.
+"""
+
 from typing import Any, Callable, List, Optional, SupportsBytes, Tuple, Union
 
 from .clvm_storage import CLVMStorage
@@ -11,6 +15,8 @@ AtomCastableType = Union[
 ]
 
 
+# as of January 2023, mypy does not like this recursive definition
+
 CastableType = Union[
     AtomCastableType,
     List["CastableType"],
@@ -19,7 +25,13 @@ CastableType = Union[
 ]
 
 
+NULL_BLOB = b""
+
+
 def int_from_bytes(blob):
+    """
+    Convert a bytes blob encoded as a clvm int to a python int.
+    """
     size = len(blob)
     if size == 0:
         return 0
@@ -27,6 +39,9 @@ def int_from_bytes(blob):
 
 
 def int_to_bytes(v) -> bytes:
+    """
+    Convert a python int to a blob that encodes as this integer in clvm.
+    """
     byte_count = (v.bit_length() + 8) >> 3
     if v == 0:
         return b""
@@ -38,11 +53,11 @@ def int_to_bytes(v) -> bytes:
     return r
 
 
-NULL = b""
-
-
 def to_atom_type(v: AtomCastableType) -> bytes:
-
+    """
+    Convert an `AtomCastableType` to `bytes`. This for use with the
+    convenience function `Program.to`.
+    """
     if isinstance(v, bytes):
         return v
     if isinstance(v, str):
@@ -52,24 +67,37 @@ def to_atom_type(v: AtomCastableType) -> bytes:
     if isinstance(v, (memoryview, SupportsBytes)):
         return bytes(v)
     if v is None:
-        return NULL
+        return NULL_BLOB
 
     raise ValueError("can't cast %s (%s) to bytes" % (type(v), v))
 
 
 def to_clvm_object(
-    v: CastableType,
+    castable: CastableType,
     to_atom_f: Callable[[bytes], CLVMStorage],
     to_pair_f: Callable[[CLVMStorage, CLVMStorage], CLVMStorage],
 ):
-    stack: List[CastableType] = [v]
-    ops: List[Tuple[int, Optional[CastableType]]] = [(0, None)]  # convert
+    """
+    Convert a python object to clvm object.
+
+    This works on nested tuples and lists of potentially unlimited depth.
+    It is non-recursive, so nesting depth is not limited by the call stack.
+    """
+    to_convert: List[CastableType] = [castable]
+    did_convert: List[CLVMStorage] = []
+    ops: List[int] = [0]
+
+    # operations:
+    #  0: pop `to_convert` and convert if possible, storing result on `did_convert`,
+    #     or subdivide task, pushing multiple things on `to_convert` (and new ops)
+    #  1: pop two items from `did_convert` and cons them, pushing result to `did_convert`
+    #  2: same as 1 but cons in opposite order. Necessary for converting lists
 
     while len(ops) > 0:
-        op, target = ops.pop()
+        op = ops.pop()
         # convert value
         if op == 0:
-            v = stack.pop()
+            v = to_convert.pop()
             if isinstance(v, CLVMStorage):
                 if v.pair is None:
                     atom = v.atom
@@ -77,59 +105,50 @@ def to_clvm_object(
                     new_obj = to_atom_f(to_atom_type(atom))
                 else:
                     new_obj = to_pair_f(v.pair[0], v.pair[1])
-                stack.append(new_obj)
+                did_convert.append(new_obj)
                 continue
             if isinstance(v, tuple):
                 if len(v) != 2:
                     raise ValueError("can't cast tuple of size %d" % len(v))
                 left, right = v
-                target = len(stack)
                 ll_right = isinstance(right, CLVMStorage)
                 ll_left = isinstance(left, CLVMStorage)
                 if ll_right and ll_left:
-                    stack.append(to_pair_f(left, right))
+                    did_convert.append(to_pair_f(left, right))
                 else:
-                    ops.append((3, None))  # cons
-                    stack.append(right)
-                    ops.append((0, None))  # convert
-                    ops.append((2, None))  # roll
-                    stack.append(left)
-                    ops.append((0, None))  # convert
+                    ops.append(1)  # cons
+                    to_convert.append(left)
+                    ops.append(0)  # convert
+                    to_convert.append(right)
+                    ops.append(0)  # convert
                 continue
             if isinstance(v, list):
-                target = len(stack)
-                stack.append(to_atom_f(NULL))
                 for _ in v:
-                    stack.append(_)
-                    ops.append((1, target))  # prepend list
-                    # we only need to convert if it's not already the right
-                    # type
-                    if not isinstance(_, CLVMStorage):
-                        ops.append((0, None))  # convert
+                    ops.append(2)  # rcons
+
+                # add and convert the null terminator
+                to_convert.append(to_atom_f(NULL_BLOB))
+                ops.append(0)  # convert
+
+                for _ in reversed(v):
+                    to_convert.append(_)
+                    ops.append(0)  # convert
                 continue
-            stack.append(to_atom_f(to_atom_type(v)))
+            did_convert.append(to_atom_f(to_atom_type(v)))
             continue
-
-        if op == 1:  # prepend list
-            left = stack.pop()
-            assert isinstance(target, int)
-            right = stack[target]
-            stack[target] = to_pair_f(left, right)
-            continue
-        if op == 2:  # roll
-            p1 = stack.pop()
-            p2 = stack.pop()
-            stack.append(p1)
-            stack.append(p2)
-            continue
-        if op == 3:  # cons
-            right = stack.pop()
-            left = stack.pop()
+        if op == 1:  # cons
+            left = did_convert.pop()
+            right = did_convert.pop()
             obj = to_pair_f(left, right)
-            stack.append(obj)
+            did_convert.append(obj)
             continue
-    # there's exactly one item left at this point
-    assert len(stack) == 1
+        if op == 2:  # rcons
+            right = did_convert.pop()
+            left = did_convert.pop()
+            obj = to_pair_f(left, right)
+            did_convert.append(obj)
+            continue
 
-    # stack[0] implements the clvm object protocol
-    return stack[0]
+    # there's exactly one item left at this point
+    assert len(did_convert) == 1
+    return did_convert[0]
