@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Dict, Iterator, List, Tuple, Optional, Any
 
+from .at import at
 from .bytes32 import bytes32
 from .casts import to_clvm_object, int_from_bytes, int_to_bytes
 from .chia_dialect import NULL, ONE, Q_KW, A_KW, C_KW
@@ -8,8 +9,10 @@ from .clvm_rs import run_serialized_program
 from .clvm_storage import CLVMStorage
 from .clvm_tree import CLVMTree
 from .eval_error import EvalError
+from .replace import replace
 from .ser import sexp_from_stream, sexp_to_stream, sexp_to_bytes
 from .tree_hash import sha256_treehash
+from .uncurry import uncurry
 
 
 MAX_COST = 0x7FFFFFFFFFFFFFFF
@@ -195,19 +198,7 @@ class Program(CLVMStorage):
         ```
 
         """
-        v: Optional[Program] = self
-        for c in position.lower():
-            if v is None:
-                return v
-            if c == "f":
-                v = v.first()
-            elif c == "r":
-                v = v.rest()
-            else:
-                raise ValueError(
-                    f"`at` got illegal character `{c}`. Only `f` & `r` allowed"
-                )
-        return v
+        return at(self, position)
 
     def replace(self, **kwargs) -> "Program":
         """
@@ -232,7 +223,7 @@ class Program(CLVMStorage):
         Note that `Program` objects are immutable. This function returns a
         new object; the original is left as-is.
         """
-        return _replace(self, **kwargs)
+        return replace(self, **kwargs)
 
     def tree_hash(self) -> bytes32:
         return sha256_treehash(self)
@@ -347,35 +338,3 @@ class Program(CLVMStorage):
 
 
 NULL_PROGRAM = Program.fromhex("80")
-
-
-def _replace(program: Program, **kwargs) -> Program:
-    # if `kwargs == {}` then `return program` unchanged
-    if len(kwargs) == 0:
-        return program
-
-    if "" in kwargs:
-        if len(kwargs) > 1:
-            raise ValueError("conflicting paths")
-        return kwargs[""]
-
-    # we've confirmed that no `kwargs` is the empty string.
-    # Now split `kwargs` into two groups: those
-    # that start with `f` and those that start with `r`
-
-    args_by_prefix: Dict[str, Dict[str, Program]] = dict(f={}, r={})
-    for k, v in kwargs.items():
-        c = k[0]
-        if c not in "fr":
-            raise ValueError(f"bad path containing {c}: must only contain `f` and `r`")
-        args_by_prefix[c][k[1:]] = program.to(v)
-
-    pair = program.pair
-    if pair is None:
-        raise ValueError("path into atom")
-
-    # recurse down the tree
-    new_f = _replace(pair[0], **args_by_prefix.get("f", {}))
-    new_r = _replace(pair[1], **args_by_prefix.get("r", {}))
-
-    return program.new_pair(new_f, new_r)
