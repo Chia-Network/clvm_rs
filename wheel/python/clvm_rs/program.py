@@ -56,7 +56,7 @@ class Program(CLVMStorage):
         return self.as_int()
 
     def __hash__(self):
-        return self.tree_hash().__hash__()
+        return id(self)
 
     @classmethod
     def int_from_bytes(cls, b: bytes) -> int:
@@ -240,10 +240,11 @@ class Program(CLVMStorage):
     def run_with_cost(self, args, max_cost: int = MAX_COST) -> Tuple[int, "Program"]:
         prog_bytes = bytes(self)
         args_bytes = bytes(self.to(args))
-        cost, r = run_serialized_program(prog_bytes, args_bytes, max_cost, 0)
-        r = self.wrap(r)
-        if isinstance(cost, str):
-            raise EvalError(cost, r)
+        try:
+            cost, r = run_serialized_program(prog_bytes, args_bytes, max_cost, 0)
+            r = self.wrap(r)
+        except ValueError as ve:
+            raise EvalError(ve.args[0], self.wrap(ve.args[1]))
         return cost, r
 
     def run(self, args) -> "Program":
