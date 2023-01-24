@@ -179,6 +179,21 @@ class ToProgramTest(unittest.TestCase):
         check(-32768, "8000")
         check(-32769, "ff7fff")
 
+    def test_int_round_trip(self):
+        def check(n):
+            p = Program.to(n)
+            assert int(p) == n
+            assert p.int_from_bytes(p.atom) == n
+            assert Program.int_to_bytes(n) == p.atom
+
+        for n in range(0, 256):
+            check(n)
+            check(-n)
+
+        for n in range(0, 65536, 97):
+            check(n)
+            check(-n)
+
     def test_none_conversions(self):
         a = Program.to(None)
         assert a.as_atom() == b""
