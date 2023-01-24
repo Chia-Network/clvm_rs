@@ -21,6 +21,7 @@ class TestProgram(TestCase):
 
         self.assertRaises(ValueError, lambda: p.at("q"))
         self.assertEqual(None, p.at("ff"))
+        self.assertEqual(None, p.at("ffr"))
 
     def test_replace(self):
         p1 = Program.to([100, 200, 300])

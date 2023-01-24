@@ -290,20 +290,22 @@ class Program(CLVMStorage):
     def uncurry(self) -> Tuple[Program, Optional[List[Program]]]:
         if self.at("f") != A_KW or self.at("rff") != Q_KW or self.at("rrr") != NULL:
             return self, None
+        # since "rff" is not None, neither is "rfr"
         uncurried_function = self.at("rfr")
-        if uncurried_function is None:
-            return self, None
+        assert uncurried_function is not None
         core_items = []
+
+        # since "rrr" is not None, neither is rrf
         core = self.at("rrf")
         while core != ONE:
-            if core is None:
-                return self, None
+            assert core is not None
             if core.at("f") != C_KW or core.at("rff") != Q_KW or core.at("rrr") != NULL:
                 return self, None
+            # since "rff" is not None, neither is "rfr"
             new_item = core.at("rfr")
-            if new_item is None:
-                return self, None
+            assert new_item is not None
             core_items.append(new_item)
+            # since "rrr" is not None, neither is rrf
             core = core.at("rrf")
         return uncurried_function, core_items
 
