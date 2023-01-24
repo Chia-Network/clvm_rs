@@ -1,6 +1,6 @@
 import unittest
 
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, Union
 from clvm_rs.clvm_storage import CLVMStorage
 from clvm_rs.program import Program
 
@@ -147,10 +147,37 @@ class ToProgramTest(unittest.TestCase):
         assert a.as_atom() == "foobar".encode()
 
     def test_int_conversions(self):
-        a = Program.to(1337)
-        assert a.as_atom() == bytes([0x5, 0x39])
-        a = Program.to(-128)
-        assert a.as_atom() == bytes([0x80])
+        def check(v: int, h: Union[str, list]):
+            a = Program.to(v)
+            b = bytes.fromhex(h) if isinstance(h, str) else bytes(h)
+            assert a.as_atom() == b
+            # note that this compares to the atom, not the serialization of that atom
+            # so 16384 codes as 0x4000, not 0x824000
+
+        check(1337, "0539")
+        check(-128, "80")
+        check(0, "")
+        check(1, "01")
+        check(-1, "ff")
+
+        for v in range(1, 0x80):
+            check(v, [v])
+
+        for v in range(0x80, 0xFF):
+            check(v, [0, v])
+
+        for v in range(128):
+            check(-v - 1, [255 - v])
+
+        check(127, "7f")
+        check(128, "0080")
+        check(256, "0100")
+        check(-256, "ff00")
+        check(16384, "4000")
+        check(32767, "7fff")
+        check(32768, "008000")
+        check(-32768, "8000")
+        check(-32769, "ff7fff")
 
     def test_none_conversions(self):
         a = Program.to(None)
