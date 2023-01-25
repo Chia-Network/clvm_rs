@@ -13,6 +13,8 @@ def test_curry_and_treehash() -> None:
     # we don't really care what `arbitrary_mod` is. We just need some code
 
     quoted_mod_hash = calculate_hash_of_quoted_mod_hash(arbitrary_mod_hash)
+    exp_hash = "9f487f9078d4b215e0cbe2cbdd21215ad6ed8e894ae00d616751e0efdccb25a9"
+    assert quoted_mod_hash == bytes.fromhex(exp_hash)
 
     for v in range(500):
         args = [v, v * v, v * v * v]

@@ -1,17 +1,17 @@
 from __future__ import annotations
-from typing import Dict, Iterator, List, Tuple, Optional, Any
+from typing import Iterator, List, Tuple, Optional, Any, BinaryIO
 
 from .at import at
 from .bytes32 import bytes32
 from .casts import to_clvm_object, int_from_bytes, int_to_bytes
-from .chia_dialect import NULL, ONE, Q_KW, A_KW, C_KW
+from .chia_dialect import Dialect, chia_dialect
 from .clvm_rs import run_serialized_program
 from .clvm_storage import CLVMStorage
 from .clvm_tree import CLVMTree
 from .eval_error import EvalError
 from .replace import replace
 from .ser import sexp_from_stream, sexp_to_stream, sexp_to_bytes
-from .tree_hash import sha256_treehash
+from .tree_hash import CHIA_TREEHASHER
 from .uncurry import uncurry
 
 
@@ -22,6 +22,8 @@ class Program(CLVMStorage):
     """
     A thin wrapper around s-expression data intended to be invoked with "eval".
     """
+
+    dialect: Dialect = chia_dialect
 
     # serialization/deserialization
 
@@ -198,7 +200,7 @@ class Program(CLVMStorage):
         ```
 
         """
-        return at(self, position)
+        return self.to(at(self, position))
 
     def replace(self, **kwargs) -> "Program":
         """
@@ -223,10 +225,10 @@ class Program(CLVMStorage):
         Note that `Program` objects are immutable. This function returns a
         new object; the original is left as-is.
         """
-        return replace(self, **kwargs)
+        return self.to(replace(self, **kwargs))
 
     def tree_hash(self) -> bytes32:
-        return sha256_treehash(self)
+        return CHIA_TREEHASHER.sha256_treehash(self)
 
     def run_with_cost(self, args, max_cost: int = MAX_COST) -> Tuple[int, "Program"]:
         prog_bytes = bytes(self)
@@ -264,8 +266,8 @@ class Program(CLVMStorage):
     def curry(self, *args) -> "Program":
         fixed_args: Any = 1
         for arg in reversed(args):
-            fixed_args = [4, (1, arg), fixed_args]
-        return self.to([2, (1, self), fixed_args])
+            fixed_args = [self.dialect.C_KW, (self.dialect.Q_KW, arg), fixed_args]
+        return self.to([self.dialect.A_KW, (self.dialect.Q_KW, self), fixed_args])
 
     """
     uncurry the given program
@@ -279,26 +281,9 @@ class Program(CLVMStorage):
     """
 
     def uncurry(self) -> Tuple[Program, Optional[List[Program]]]:
-        if self.at("f") != A_KW or self.at("rff") != Q_KW or self.at("rrr") != NULL:
-            return self, None
-        # since "rff" is not None, neither is "rfr"
-        uncurried_function = self.at("rfr")
-        assert uncurried_function is not None
-        core_items = []
-
-        # since "rrr" is not None, neither is rrf
-        core = self.at("rrf")
-        while core != ONE:
-            assert core is not None
-            if core.at("f") != C_KW or core.at("rff") != Q_KW or core.at("rrr") != NULL:
-                return self, None
-            # since "rff" is not None, neither is "rfr"
-            new_item = core.at("rfr")
-            assert new_item is not None
-            core_items.append(new_item)
-            # since "rrr" is not None, neither is rrf
-            core = core.at("rrf")
-        return uncurried_function, core_items
+        mod, args = uncurry(self.dialect, self)
+        p_args = args if args is None else [self.to(_) for _ in args]
+        return self.to(mod), p_args
 
     def as_int(self) -> int:
         return int_from_bytes(self.as_atom())
