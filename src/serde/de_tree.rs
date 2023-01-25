@@ -64,8 +64,26 @@ fn tree_hash_for_byte(b: u8, calculate_tree_hashes: bool) -> Option<[u8; 32]> {
     }
 }
 
-fn skip_bytes<R: Read>(f: &mut R, skip_size: u64) -> Result<u64> {
-    copy(&mut f.by_ref().take(skip_size), &mut sink())
+pub fn copy_exactly<R: Read, W: ?Sized + Write>(
+    reader: &mut R,
+    writer: &mut W,
+    expected_size: u64,
+) -> Result<()> {
+    let mut reader = reader.by_ref().take(expected_size);
+
+    let count = copy(&mut reader, writer)?;
+    if count < expected_size {
+        Err(Error::new(
+            std::io::ErrorKind::UnexpectedEof,
+            "copy terminated early",
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn skip_bytes<R: Read>(f: &mut R, skip_size: u64) -> Result<()> {
+    copy_exactly(f, &mut sink(), skip_size)
 }
 
 fn skip_or_sha_bytes<R: Read>(
@@ -74,11 +92,10 @@ fn skip_or_sha_bytes<R: Read>(
     calculate_tree_hashes: bool,
 ) -> Result<Option<[u8; 32]>> {
     if calculate_tree_hashes {
-        let mut f = &mut f.by_ref().take(skip_size);
         let mut h = Sha256::new();
         h.update([1]);
         let mut w = ShaWrapper(h);
-        copy(&mut f, &mut w)?;
+        copy_exactly(f, &mut w, skip_size)?;
         let r: [u8; 32] =
             w.0.finalize()
                 .as_slice()

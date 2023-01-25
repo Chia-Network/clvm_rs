@@ -14,7 +14,7 @@ class Dialect:
     C_KW: bytes
 
 
-chia_dialect = Dialect(
+CHIA_DIALECT = Dialect(
     (
         # core opcodes 0x01-x08
         ". q a i c f r l x "
