@@ -2,7 +2,7 @@
 Some utilities to cast python types to and from clvm.
 """
 
-from typing import Any, Callable, List, Optional, SupportsBytes, Tuple, Union
+from typing import Callable, List, SupportsBytes, Tuple, Union
 
 from .clvm_storage import CLVMStorage
 

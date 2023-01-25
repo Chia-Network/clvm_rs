@@ -1,9 +1,11 @@
 from unittest import TestCase
 
-from clvm_rs.chia_dialect import A_KW, C_KW, Q_KW
+from clvm_rs.chia_dialect import chia_dialect
 from clvm_rs.clvm_storage import CLVMStorage
 from clvm_rs.program import Program
 from clvm_rs.eval_error import EvalError
+
+A_KW, C_KW, Q_KW = [getattr(chia_dialect, _) for _ in "A_KW C_KW Q_KW".split()]
 
 
 class TestProgram(TestCase):

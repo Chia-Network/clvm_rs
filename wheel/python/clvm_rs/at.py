@@ -25,6 +25,8 @@ def at(obj: CLVMStorage, position: str) -> Optional[CLVMStorage]:
     """
     v: Optional[CLVMStorage] = obj
     for c in position.lower():
+        if v is None:
+            break
         pair = v.pair
         if pair is None:
             return None
@@ -36,6 +38,4 @@ def at(obj: CLVMStorage, position: str) -> Optional[CLVMStorage]:
             raise ValueError(
                 f"`at` got illegal character `{c}`. Only `f` & `r` allowed"
             )
-        if v is None:
-            break
     return v
