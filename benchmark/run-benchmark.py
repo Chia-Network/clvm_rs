@@ -206,7 +206,6 @@ for n in range(5):
 
             time_start = time.perf_counter()
             cost, result = program.run_with_cost(
-                program,
                 env,
                 max_cost,
                 flags,
