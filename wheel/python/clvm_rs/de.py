@@ -24,7 +24,10 @@ def deserialize_as_tuples(
 ) -> Tuple[List[Tuple[int, int, int]], List[Optional[bytes]]]:
 
     if deserialize_as_tree:
-        tree, hashes = deserialize_as_tree(blob, calculate_tree_hash)
+        try:
+            tree, hashes = deserialize_as_tree(blob, calculate_tree_hash)
+        except OSError as ex:
+            raise ValueError(ex)
         if not calculate_tree_hash:
             hashes = [None] * len(tree)
         return tree, hashes

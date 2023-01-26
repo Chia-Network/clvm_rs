@@ -10,18 +10,16 @@ from hashlib import sha256
 from typing import List
 from weakref import WeakKeyDictionary
 
-from .chia_dialect import Dialect, chia_dialect
 from .clvm_storage import CLVMStorage
 
 bytes32 = bytes
 
 
-class Treehash:
+class Treehasher:
     atom_prefix: bytes
     pair_prefix: bytes
 
-    def __init__(self, dialect: Dialect, atom_prefix: bytes, pair_prefix: bytes):
-        self.dialect = dialect
+    def __init__(self, atom_prefix: bytes, pair_prefix: bytes):
         self.atom_prefix = atom_prefix
         self.pair_prefix = pair_prefix
         self.hash_cache: WeakKeyDictionary[CLVMStorage, bytes32] = WeakKeyDictionary()
@@ -80,6 +78,8 @@ class Treehash:
         return hash_stack[0]
 
 
-CHIA_TREEHASHER = Treehash(chia_dialect, bytes.fromhex("01"), bytes.fromhex("02"))
+CHIA_TREEHASHER = Treehasher(bytes.fromhex("01"), bytes.fromhex("02"))
+
+sha256_treehash = CHIA_TREEHASHER.sha256_treehash
 shatree_atom = CHIA_TREEHASHER.shatree_atom
 shatree_pair = CHIA_TREEHASHER.shatree_pair

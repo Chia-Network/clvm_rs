@@ -4,15 +4,14 @@ from typing import Iterator, List, Tuple, Optional, Any, BinaryIO
 from .at import at
 from .bytes32 import bytes32
 from .casts import to_clvm_object, int_from_bytes, int_to_bytes
-from .chia_dialect import Dialect, chia_dialect
 from .clvm_rs import run_serialized_program
 from .clvm_storage import CLVMStorage
 from .clvm_tree import CLVMTree
+from .curry_and_treehash import CurryTreehasher, CHIA_CURRY_TREEHASHER
 from .eval_error import EvalError
 from .replace import replace
 from .ser import sexp_from_stream, sexp_to_stream, sexp_to_bytes
-from .tree_hash import CHIA_TREEHASHER
-from .uncurry import uncurry
+from .tree_hash import sha256_treehash
 
 
 MAX_COST = 0x7FFFFFFFFFFFFFFF
@@ -23,7 +22,7 @@ class Program(CLVMStorage):
     A thin wrapper around s-expression data intended to be invoked with "eval".
     """
 
-    dialect: Dialect = chia_dialect
+    curry_treehasher: CurryTreehasher = CHIA_CURRY_TREEHASHER
 
     # serialization/deserialization
 
@@ -228,7 +227,7 @@ class Program(CLVMStorage):
         return self.to(replace(self, **kwargs))
 
     def tree_hash(self) -> bytes32:
-        return CHIA_TREEHASHER.sha256_treehash(self)
+        return sha256_treehash(self)
 
     def run_with_cost(self, args, max_cost: int = MAX_COST) -> Tuple[int, "Program"]:
         prog_bytes = bytes(self)
@@ -264,10 +263,7 @@ class Program(CLVMStorage):
     """
 
     def curry(self, *args) -> "Program":
-        fixed_args: Any = 1
-        for arg in reversed(args):
-            fixed_args = [self.dialect.C_KW, (self.dialect.Q_KW, arg), fixed_args]
-        return self.to([self.dialect.A_KW, (self.dialect.Q_KW, self), fixed_args])
+        return self.to(self.curry_treehasher.curry(self, *args))
 
     """
     uncurry the given program
@@ -281,7 +277,7 @@ class Program(CLVMStorage):
     """
 
     def uncurry(self) -> Tuple[Program, Optional[List[Program]]]:
-        mod, args = uncurry(self.dialect, self)
+        mod, args = self.curry_treehasher.uncurry(self)
         p_args = args if args is None else [self.to(_) for _ in args]
         return self.to(mod), p_args
 
