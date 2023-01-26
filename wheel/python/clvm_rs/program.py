@@ -229,11 +229,15 @@ class Program(CLVMStorage):
     def tree_hash(self) -> bytes32:
         return sha256_treehash(self)
 
-    def run_with_cost(self, args, max_cost: int = MAX_COST) -> Tuple[int, "Program"]:
+    def run_with_cost(
+        self, args, max_cost: int = MAX_COST, flags: int = 0
+    ) -> Tuple[int, "Program"]:
         prog_bytes = bytes(self)
         args_bytes = bytes(self.to(args))
         try:
-            cost, r = run_serialized_chia_program(prog_bytes, args_bytes, max_cost, 0)
+            cost, r = run_serialized_chia_program(
+                prog_bytes, args_bytes, max_cost, flags
+            )
             r = self.wrap(r)
         except ValueError as ve:
             raise EvalError(ve.args[0], self.wrap(ve.args[1]))

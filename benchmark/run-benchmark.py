@@ -205,7 +205,7 @@ for n in range(5):
             env = Program.fromhex(open(env_fn, 'r').read())
 
             time_start = time.perf_counter()
-            cost, result = program.run(
+            cost, result = program.run_with_cost(
                 program,
                 env,
                 max_cost,
