@@ -46,6 +46,36 @@ def sexp_to_byte_iterator(sexp: CLVMStorage) -> Iterator[bytes]:
             yield from atom_to_byte_iterator(atom)
 
 
+def size_blob_for_size(blob: int) -> bytes:
+    size = len(blob)
+    if size < 0x40:
+        return bytes([0x80 | size])
+    if size < 0x2000:
+        return bytes([0xC0 | (size >> 8), (size >> 0) & 0xFF])
+    if size < 0x100000:
+        return bytes([0xE0 | (size >> 16), (size >> 8) & 0xFF, (size >> 0) & 0xFF])
+    if size < 0x8000000:
+        return bytes(
+            [
+                0xF0 | (size >> 24),
+                (size >> 16) & 0xFF,
+                (size >> 8) & 0xFF,
+                (size >> 0) & 0xFF,
+            ]
+        )
+    if size < 0x400000000:
+        return bytes(
+            [
+                0xF8 | (size >> 32),
+                (size >> 24) & 0xFF,
+                (size >> 16) & 0xFF,
+                (size >> 8) & 0xFF,
+                (size >> 0) & 0xFF,
+            ]
+        )
+    raise ValueError("sexp too long %r" % blob)
+
+
 def atom_to_byte_iterator(as_atom: bytes) -> Iterator[bytes]:
     """
     Yield the serialization for a given blob (as a clvm atom).
@@ -58,35 +88,7 @@ def atom_to_byte_iterator(as_atom: bytes) -> Iterator[bytes]:
         if as_atom[0] <= MAX_SINGLE_BYTE:
             yield as_atom
             return
-    if size < 0x40:
-        size_blob = bytes([0x80 | size])
-    elif size < 0x2000:
-        size_blob = bytes([0xC0 | (size >> 8), (size >> 0) & 0xFF])
-    elif size < 0x100000:
-        size_blob = bytes([0xE0 | (size >> 16), (size >> 8) & 0xFF, (size >> 0) & 0xFF])
-    elif size < 0x8000000:
-        size_blob = bytes(
-            [
-                0xF0 | (size >> 24),
-                (size >> 16) & 0xFF,
-                (size >> 8) & 0xFF,
-                (size >> 0) & 0xFF,
-            ]
-        )
-    elif size < 0x400000000:
-        size_blob = bytes(
-            [
-                0xF8 | (size >> 32),
-                (size >> 24) & 0xFF,
-                (size >> 16) & 0xFF,
-                (size >> 8) & 0xFF,
-                (size >> 0) & 0xFF,
-            ]
-        )
-    else:
-        raise ValueError("sexp too long %r" % as_atom)
-
-    yield size_blob
+    yield size_blob_for_size(as_atom)
     yield as_atom
 
 
