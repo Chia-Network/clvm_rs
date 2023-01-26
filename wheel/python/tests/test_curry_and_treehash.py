@@ -1,7 +1,9 @@
 from clvm_rs.program import Program
-from clvm_rs.curry_and_treehash import (
-    calculate_hash_of_quoted_mod_hash,
-    curry_and_treehash,
+from clvm_rs.curry_and_treehash import CHIA_CURRY_TREEHASHER
+
+curry_and_treehash = CHIA_CURRY_TREEHASHER.curry_and_treehash
+calculate_hash_of_quoted_mod_hash = (
+    CHIA_CURRY_TREEHASHER.calculate_hash_of_quoted_mod_hash
 )
 
 
