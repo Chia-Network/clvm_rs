@@ -1,7 +1,7 @@
 import unittest
 
 from typing import Optional, Tuple, Any, Union
-from clvm_rs.clvm_storage import CLVMStorage
+from clvm_rs.clvm_storage import CLVMStorage, is_clvm_storage
 from clvm_rs.program import Program
 
 
@@ -17,8 +17,8 @@ def validate_program(program):
         if v.pair:
             assert isinstance(v.pair, tuple)
             v1, v2 = v.pair
-            assert isinstance(v1, CLVMStorage)
-            assert isinstance(v2, CLVMStorage)
+            assert is_clvm_storage(v1)
+            assert is_clvm_storage(v2)
             s1, s2 = v.as_pair()
             validate_stack.append(s1)
             validate_stack.append(s2)
@@ -101,6 +101,10 @@ class ToProgramTest(unittest.TestCase):
                     GeneratedTree(new_depth, self.val + 2**new_depth),
                 )
 
+            @classmethod
+            def isinstance(cls, obj):
+                return isinstance(obj, cls)
+
         tree = Program.to(GeneratedTree(5, 0))
         assert (
             print_leaves(tree)
@@ -128,15 +132,15 @@ class ToProgramTest(unittest.TestCase):
         obj.atom = None
         obj.pair = None
         print(dir(obj))
-        assert isinstance(obj, CLVMStorage)
+        assert is_clvm_storage(obj)
 
         obj = dummy()
         obj.pair = None
-        assert not isinstance(obj, CLVMStorage)
+        assert not is_clvm_storage(obj)
 
         obj = dummy()
         obj.atom = None
-        assert not isinstance(obj, CLVMStorage)
+        assert not is_clvm_storage(obj)
 
     def test_list_conversions(self):
         a = Program.to([1, 2, 3])
