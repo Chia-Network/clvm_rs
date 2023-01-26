@@ -4,7 +4,7 @@ from typing import Iterator, List, Tuple, Optional, Any, BinaryIO
 from .at import at
 from .bytes32 import bytes32
 from .casts import to_clvm_object, int_from_bytes, int_to_bytes
-from .clvm_rs import run_serialized_program
+from .clvm_rs import run_serialized_chia_program
 from .clvm_storage import CLVMStorage
 from .clvm_tree import CLVMTree
 from .curry_and_treehash import CurryTreehasher, CHIA_CURRY_TREEHASHER
@@ -233,7 +233,7 @@ class Program(CLVMStorage):
         prog_bytes = bytes(self)
         args_bytes = bytes(self.to(args))
         try:
-            cost, r = run_serialized_program(prog_bytes, args_bytes, max_cost, 0)
+            cost, r = run_serialized_chia_program(prog_bytes, args_bytes, max_cost, 0)
             r = self.wrap(r)
         except ValueError as ve:
             raise EvalError(ve.args[0], self.wrap(ve.args[1]))
