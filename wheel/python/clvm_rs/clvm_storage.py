@@ -1,4 +1,12 @@
-from typing import Optional, Protocol, Tuple, runtime_checkable
+from typing import Optional, Tuple
+
+# we support py3.7 which doesn't yet have typing.Protocol
+
+try:
+    from typing import Protocol, runtime_checkable
+except ImportError:
+    Protocol = object
+    runtime_checkable = lambda arg: arg
 
 
 @runtime_checkable
@@ -15,12 +23,5 @@ class CLVMStorage(Protocol):
     # `_cached_serialization:  bytes` is used by `sexp_to_byte_iterator` to speed up serialization
 
 
-@runtime_checkable
-class CLVMStorageFactory(Protocol):
-    @classmethod
-    def new_atom(cls, v: bytes) -> "CLVMStorage":
-        ...
-
-    @classmethod
-    def new_pair(cls, p1: "CLVMStorage", p2: "CLVMStorage") -> "CLVMStorage":
-        ...
+def is_clvm_storage(obj):
+    return hasattr(obj, "atom") and hasattr(obj, "pair")

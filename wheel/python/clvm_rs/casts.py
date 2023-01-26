@@ -4,7 +4,7 @@ Some utilities to cast python types to and from clvm.
 
 from typing import Callable, List, SupportsBytes, Tuple, Union
 
-from .clvm_storage import CLVMStorage
+from .clvm_storage import CLVMStorage, is_clvm_storage
 
 AtomCastableType = Union[
     bytes,
@@ -98,7 +98,7 @@ def to_clvm_object(
         # convert value
         if op == 0:
             v = to_convert.pop()
-            if isinstance(v, CLVMStorage):
+            if is_clvm_storage(v):
                 if v.pair is None:
                     atom = v.atom
                     assert atom is not None
@@ -111,8 +111,8 @@ def to_clvm_object(
                 if len(v) != 2:
                     raise ValueError("can't cast tuple of size %d" % len(v))
                 left, right = v
-                ll_right = isinstance(right, CLVMStorage)
-                ll_left = isinstance(left, CLVMStorage)
+                ll_right = is_clvm_storage(right)
+                ll_left = is_clvm_storage(left)
                 if ll_right and ll_left:
                     did_convert.append(to_pair_f(left, right))
                 else:
