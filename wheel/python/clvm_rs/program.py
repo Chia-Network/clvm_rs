@@ -197,7 +197,6 @@ class Program(CLVMStorage):
         p1 = Program.to(10)
         assert None == at(p1, "rr")
         ```
-
         """
         return self.to(at(self, position))
 
@@ -247,40 +246,38 @@ class Program(CLVMStorage):
         cost, r = self.run_with_cost(args, MAX_COST)
         return r
 
-    """
-    Replicates the curry function from clvm_tools, taking advantage of *args
-    being a list.  We iterate through args in reverse building the code to
-    create a clvm list.
-
-    Given arguments to a function addressable by the '1' reference in clvm
-
-    fixed_args = 1
-
-    Each arg is prepended as fixed_args = (c (q . arg) fixed_args)
-
-    The resulting argument list is interpreted with apply (2)
-
-    (2 (1 . self) rest)
-
-    Resulting in a function which places its own arguments after those
-    curried in in the form of a proper list.
-    """
-
     def curry(self, *args) -> "Program":
+        """
+        Replicates the curry function from clvm_tools, taking advantage of *args
+        being a list.  We iterate through args in reverse building the code to
+        create a clvm list.
+
+        Given arguments to a function addressable by the '1' reference in clvm
+
+        fixed_args = 1
+
+        Each arg is prepended as fixed_args = (c (q . arg) fixed_args)
+
+        The resulting argument list is interpreted with apply (2)
+
+        (2 (1 . self) rest)
+
+        Resulting in a function which places its own arguments after those
+        curried in in the form of a proper list.
+        """
         return self.to(self.curry_treehasher.curry(self, *args))
 
-    """
-    uncurry the given program
-
-    returns `mod, [arg1, arg2, ...]`
-
-    if the program is not a valid curry, return `self, NULL`
-
-    This distinguishes it from the case of a valid curry of 0 arguments
-    (which is rather pointless but possible), which returns `self, []`
-    """
-
     def uncurry(self) -> Tuple[Program, Optional[List[Program]]]:
+        """
+        uncurry the given program
+
+        returns `mod, [arg1, arg2, ...]`
+
+        if the program is not a valid curry, return `self, NULL`
+
+        This distinguishes it from the case of a valid curry of 0 arguments
+        (which is rather pointless but possible), which returns `self, []`
+        """
         mod, args = self.curry_treehasher.uncurry(self)
         p_args = args if args is None else [self.to(_) for _ in args]
         return self.to(mod), p_args
