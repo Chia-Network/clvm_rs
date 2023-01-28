@@ -369,10 +369,8 @@ jobs:
         package:
           - name: CLVM
             directory: clvm
-            matrix: clvm
           - name: CLVM tools
             directory: clvm_tools
-            matrix: clvm_tools
         os:
           - name: macOS
             matrix: macos
@@ -491,7 +489,6 @@ jobs:
           path: clvm
 
       - name: Checkout CLVM tools
-        if: matrix.package.matrix == 'clvm_tools'
         uses: actions/checkout@v3
         with:
           repository: Chia-Network/clvm_tools
@@ -523,13 +520,10 @@ jobs:
             echo error: wheel not selected!
             exit 1
           fi
-          pip install "${WHEEL_PATH}" ./clvm ${{ matrix.package.matrix == 'clvm_tools' && './clvm_tools' || '' }} blspy pytest
+          pip install "${WHEEL_PATH}" ./clvm ./clvm_tools blspy pytest
           python -c 'import clvm; print(clvm.__file__)'
           python -c 'import clvm_rs; print(clvm_rs.__file__)'
-          if [ "${{ matrix.packages.matrix == 'clvm_tools' && 'true' || 'false' }}" = "true" ]
-          then
-            python -c 'import clvm_tools; print(clvm_tools.__file__)'
-          fi
+          python -c 'import clvm_tools; print(clvm_tools.__file__)'
 
       - name: Test
         run: |
