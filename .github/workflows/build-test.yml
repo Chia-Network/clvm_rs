@@ -485,14 +485,18 @@ jobs:
       - name: Checkout CLVM
         uses: actions/checkout@v3
         with:
-          repository: Chia-Network/clvm
+          # for the tags to identify the version
+          fetch-depth: 0
           path: clvm
+          repository: Chia-Network/clvm
 
       - name: Checkout CLVM tools
         uses: actions/checkout@v3
         with:
-          repository: Chia-Network/clvm_tools
+          # for the tags to identify the version
+          fetch-depth: 0
           path: clvm_tools
+          repository: Chia-Network/clvm_tools
 
       - uses: Chia-Network/actions/setup-python@main
         with:
