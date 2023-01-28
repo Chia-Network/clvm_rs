@@ -517,8 +517,13 @@ jobs:
       - name: Install packages
         run: |
           # TODO: review how to get relevant test stuff installed
-          pip download --dest dist/ blspy pytest
-          pip install --no-index --find-links dist/ clvm_rs ./clvm ${{ matrix.package.matrix == 'clvm_tools' && './clvm_tools' || '' }} blspy pytest
+          WHEEL_PATH=$(pip install --no-index --dry-run --find-links dist/ clvm_rs | sed -n 's;^.*/blue/\(.*\)$;\1;p')
+          if [ "${WHEEL_PATH}" = "" ]
+          then
+            echo error: wheel not selected!
+            exit 1
+          fi
+          pip install "${WHEEL_PATH}" ./clvm ${{ matrix.package.matrix == 'clvm_tools' && './clvm_tools' || '' }} blspy pytest
           python -c 'import clvm; print(clvm.__file__)'
           python -c 'import clvm_rs; print(clvm_rs.__file__)'
           python -c 'import clvm_tools; print(clvm_tools.__file__)'
