@@ -1,35 +1,148 @@
-name: Build Mac, Linux, and Windows wheels
+name: build - check - upload
 
 on:
   push:
     branches:
-      - main
-      - dev
+    - main
     tags:
-        - '**'
+    - '**'
   pull_request:
     branches:
-      - '**'
+    - '**'
+
+concurrency:
+  # SHA is added to the end if on `main` to let all main workflows run
+  group: ${{ github.ref }}-${{ github.workflow }}-${{ github.event_name }}-${{ (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/heads/long_lived/')) && github.sha || '' }}
+  cancel-in-progress: true
 
 jobs:
-  build_wheels:
-    name: Wheel on ${{ matrix.os }} py-${{ matrix.python }}
-    runs-on: ${{ matrix.os }}
+  build-wheels:
+    name: Wheel - ${{ matrix.os.name }} ${{ matrix.python.major-dot-minor }} ${{ matrix.arch.name }}
+    runs-on: ${{ matrix.os.runs-on[matrix.arch.matrix] }}
     strategy:
       fail-fast: false
+      # TODO: switch back to abi3/single python version builds.  (or maybe not?)
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
-        python: [3.7]
+        os:
+          - name: macOS
+            matrix: macos
+            runs-on:
+              arm: [macOS, ARM64]
+              intel: [macos-latest]
+          - name: Ubuntu
+            matrix: ubuntu
+            runs-on:
+              arm: [Linux, ARM64]
+              intel: [ubuntu-latest]
+          - name: Windows
+            matrix: windows
+            runs-on:
+              intel: [windows-latest]
+        python:
+          - major-dot-minor: '3.7'
+            cibw-build: 'cp37-*'
+            by-arch:
+              arm:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_aarch64
+                rustup-target: aarch64-unknown-linux-musl
+              intel:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_x86_64
+                rustup-target: x86_64-unknown-linux-musl
+            matrix: '3.7'
+          - major-dot-minor: '3.8'
+            cibw-build: 'cp38-*'
+            by-arch:
+              arm:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_aarch64
+                rustup-target: aarch64-unknown-linux-musl
+              intel:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_x86_64
+                rustup-target: x86_64-unknown-linux-musl
+            matrix: '3.8'
+          - major-dot-minor: '3.9'
+            cibw-build: 'cp39-*'
+            by-arch:
+              arm:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_aarch64
+                rustup-target: aarch64-unknown-linux-musl
+              intel:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_x86_64
+                rustup-target: x86_64-unknown-linux-musl
+            matrix: '3.9'
+          - major-dot-minor: '3.10'
+            cibw-build: 'cp310-*'
+            by-arch:
+              arm:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_aarch64
+                rustup-target: aarch64-unknown-linux-musl
+              intel:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_x86_64
+                rustup-target: x86_64-unknown-linux-musl
+            matrix: '3.10'
+          - major-dot-minor: '3.11'
+            cibw-build: 'cp311-*'
+            by-arch:
+              arm:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_aarch64
+                rustup-target: aarch64-unknown-linux-musl
+              intel:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_x86_64
+                rustup-target: x86_64-unknown-linux-musl
+            matrix: '3.11'
+        arch:
+          - name: ARM
+            matrix: arm
+          - name: Intel
+            matrix: intel
+        exclude:
+          # Only partial entries are required here by GitHub Actions so generally I
+          # only specify the `matrix:` entry.  The super linter complains so for now
+          # all entries are included to avoid that.  Reported at
+          # https://github.com/github/super-linter/issues/3016
+          - os:
+              name: Windows
+              matrix: windows
+              runs-on:
+                intel: [windows-latest]
+            arch:
+              name: ARM
+              matrix: arm
+          - os:
+              name: macOS
+              matrix: macos
+              runs-on:
+                arm: [macOS, ARM64]
+                intel: [macos-latest]
+            python:
+              major-dot-minor: '3.7'
+              cibw-build: 'cp37-*'
+              matrix: '3.7'
+            arch:
+              name: ARM
+              matrix: arm
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Clean workspace
+      uses: Chia-Network/actions/clean-workspace@main
+
+    - name: Checkout code
+      uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
-    - uses: actions/setup-python@v4
-      name: Install Python ${{ matrix.python }}
+    - uses: Chia-Network/actions/setup-python@main
       with:
-        python-version: ${{ matrix.python }}
+        python-version: ${{ matrix.python.major-dot-minor }}
 
     - name: Update pip
       run: |
@@ -45,132 +158,123 @@ jobs:
           python -m pip install maturin
 
     - name: Build MacOs with maturin on Python ${{ matrix.python }}
-      if: startsWith(matrix.os, 'macos')
+      if: matrix.os.matrix == 'macos'
+      env:
+        MACOSX_DEPLOYMENT_TARGET: ${{ matrix.arch.matrix == 'intel' && '10.14' || '11.0' }}
       run: |
-        python -m venv venv
-        ln -s venv/bin/activate
-        . ./activate
-        maturin build -m wheel/Cargo.toml --sdist -i python --release --strip --features=openssl
+        python${{ matrix.python.major-dot-minor }} -m venv venv
+        . venv/bin/activate
+        maturin build -i python --release -m wheel/Cargo.toml
+        # TODO: add back these?  --strip --features=openssl
 
-    - name: Build Linux in manylinux2014 with maturin on Python ${{ matrix.python }}
-      if: startsWith(matrix.os, 'ubuntu')
+    - name: Build Linux with maturin on Python ${{ matrix.python }}
+      if: matrix.os.matrix == 'ubuntu'
       run: |
         podman run --rm=true \
           -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
-          quay.io/pypa/manylinux2014_x86_64 \
+          ${{ matrix.python.by-arch[matrix.arch.matrix].docker-url }} \
           bash -exc '\
             curl -L https://sh.rustup.rs > rustup-init.sh && \
             sh rustup-init.sh -y && \
             yum -y install openssl-devel && \
             source $HOME/.cargo/env && \
-            rustup target add x86_64-unknown-linux-musl && \
-            PY_VERSION=${{ matrix.python }}
-            PY_VERSION=${PY_VERSION/.} && \
-            echo "Python version with dot removed is $PY_VERSION" && \
-            if [ "$PY_VERSION" = "37" ]; \
-            then export SCND_VERSION="${PY_VERSION}m"; \
-            else export SCND_VERSION="$PY_VERSION"; fi && \
-            echo "Exporting path /opt/python/cp$PY_VERSION-cp$SCND_VERSION/bin" && \
-            export PATH=/opt/python/cp$PY_VERSION-cp$SCND_VERSION/bin/:$PATH && \
-            /opt/python/cp38-cp38/bin/python -m venv /venv && \
+            rustup target add ${{ matrix.python.by-arch[matrix.arch.matrix].rustup-target }} && \
+            python${{ matrix.python.major-dot-minor }} -m venv /venv && \
             . /venv/bin/activate && \
             pip install --upgrade pip && \
             pip install maturin && \
-            CC=gcc maturin build -m wheel/Cargo.toml --release --strip --manylinux 2014 --features=openssl \
+            CC=gcc maturin build --release --manylinux ${{ matrix.python.by-arch[matrix.arch.matrix].manylinux-version }} -m wheel/Cargo.toml \
           '
-        python -m venv venv
-        ln -s venv/bin/activate
+          # TODO: add back these?  --strip --features=openssl
 
     - name: Build Windows with maturin on Python ${{ matrix.python }}
-      if: startsWith(matrix.os, 'windows')
+      if: matrix.os.matrix == 'windows'
       run: |
-        python -m venv venv
+        py -${{ matrix.python.major-dot-minor }} -m venv venv
         . .\venv\Scripts\Activate.ps1
-        ln -s venv\Scripts\Activate.ps1 activate
-        maturin build -m wheel/Cargo.toml -i python --release --strip
-        # this will install into the venv
-        # it'd be better to use the wheel, but I can't figure out how to do that
-        # TODO: figure this out
-        # this does NOT work: pip install wheel/target/wheels/clvm_rs-*.whl
-        maturin develop --release -m wheel/Cargo.toml
-        # the line above also doesn't seem to work
+        maturin build -i python --release -m wheel/Cargo.toml
+        # TODO: add back these?  --strip
+        # TODO: why no --feature=openssl here?
+
+    - uses: Chia-Network/actions/create-venv@main
+      id: create-venv
+
+    - uses: Chia-Network/actions/activate-venv@main
+      with:
+        directories: ${{ steps.create-venv.outputs.activate-venv-directories }}
 
     - name: Install clvm_rs wheel
-      if: ${{ !startsWith(matrix.os, 'windows') }}
       run: |
-        . ./activate
-        ls wheel/target/wheels/
-        # this mess puts the name of the `.whl` file into `$WHEEL_PATH`
-        # remove the dot, use the `glob` lib to grab the file from the directory
-        WHEEL_PATH=$(echo ${{ matrix.python }} | python -c 'DOTLESS=input().replace(".", ""); import glob; print(" ".join(glob.glob("wheel/target/wheels/clvm_rs-*-cp%s-abi3-*.whl" % DOTLESS)))' )
-        echo ${WHEEL_PATH}
-        pip install ${WHEEL_PATH}
-
-    - name: Install other wheels
-      run: |
-        . ./activate
-        python -m pip install pytest
-        python -m pip install blspy
-
-    - name: install clvm & clvm_tools
-      run: |
-        . ./activate
-        git clone https://github.com/Chia-Network/clvm.git --branch=main --single-branch
-        python -m pip install ./clvm
-
-        git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
-        python -m pip install ./clvm_tools
-
-    - name: Ensure clvm, clvm_rs, clvm_tools are installed
-      run: |
-        . ./activate
-        python -c 'import clvm'
-        python -c 'import clvm; print(clvm.__file__)'
-        python -c 'import clvm_rs; print(clvm_rs.__file__)'
-        python -c 'import clvm_tools; print(clvm_tools.__file__)'
-
-    - name: Run tests from clvm
-      run: |
-        . ./activate
-        cd clvm
-        pytest tests
-
-    - name: Run tests from clvm_tools
-      continue-on-error: true
-      run: |
-        . ./activate
-        cd clvm_tools
-        pytest tests
+        pip install --no-index --find-links wheel/target/wheels/ clvm_rs
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: wheels
+        name: packages
         path: ./wheel/target/wheels/
 
-    - name: Install Twine
-      run: pip install twine
+#  check-typestubs:
+#    name: Check clvm_rs.pyi
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#    - name: Checkout code
+#      uses: actions/checkout@v3
+#      with:
+#        fetch-depth: 0
+#
+#    - uses: Chia-Network/actions/setup-python@main
+#
+#    - name: check generated clvm_rs.pyi
+#      run: |
+#        python wheel/generate_type_stubs.py
+#        git diff --exit-code
 
-    - name: Test for secrets access
-      id: check_secrets
-      shell: bash
+  build-sdist:
+    name: sdist - ${{ matrix.os.name }} ${{ matrix.python.major-dot-minor }} ${{ matrix.arch.name }}
+    runs-on: ${{ matrix.os.runs-on[matrix.arch.matrix] }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - name: Ubuntu
+            matrix: ubuntu
+            runs-on:
+              arm: [Linux, ARM64]
+              intel: [ubuntu-latest]
+        python:
+          - major-dot-minor: '3.7'
+            matrix: '3.7'
+        arch:
+          - name: Intel
+            matrix: intel
+
+    steps:
+    - name: Clean workspace
+      uses: Chia-Network/actions/clean-workspace@main
+
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - uses: Chia-Network/actions/setup-python@main
+      with:
+        python-version: ${{ matrix.python.major-dot-minor }}
+
+    - name: Build source distribution
       run: |
-        unset HAS_SECRET
-        if [ -n "$SECRET" ]; then HAS_SECRET='true' ; fi
-        echo "HAS_SECRET=${HAS_SECRET}" >>$GITHUB_OUTPUT
-      env:
-        SECRET: "${{ secrets.test_pypi_password }}"
+        pip install maturin
+        maturin sdist -m wheel/Cargo.toml
 
-    - name: publish (PyPi)
-      if: startsWith(github.event.ref, 'refs/tags') && steps.check_secrets.outputs.HAS_SECRET
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_NON_INTERACTIVE: 1
-        TWINE_PASSWORD: ${{ secrets.pypi_password }}
-      run: twine upload --non-interactive --skip-existing --verbose 'wheel/target/wheels/*'
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: packages
+        path: ./wheel/target/wheels/
 
   fmt:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: cargo fmt
     steps:
       - uses: actions/checkout@v3
@@ -179,25 +283,30 @@ jobs:
       - name: Install rust
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: stable
-            override: true
+            # TODO: was stable before, should probably be consistent across projects
+            toolchain: nightly
+            # TODO: why are we installing clippy here...
             components: rustfmt, clippy
+            override: true
       - name: fmt
-        run: cargo fmt -- --files-with-diff --check
+        # TODO: didn't have --all before
+        run: cargo fmt --all -- --files-with-diff --check
 
   clippy:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          # TODO: was stable before, should probably be consistent across projects
+          toolchain: nightly
           components: clippy
           override: true
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+          # TODO: didn't use --workspace before, what's that do?
+          args: --all-features --workspace
 
   # leaving out Windows fuzzing for now though it seems supported
   # https://llvm.org/docs/LibFuzzer.html#q-does-libfuzzer-support-windows
@@ -211,15 +320,12 @@ jobs:
         python: [3.7]
     steps:
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
-      - name: Install rust
-        uses: actions-rs/toolchain@v1
+      - uses: actions-rs/toolchain@v1
         with:
             toolchain: nightly
       - name: cargo-fuzz
         run: cargo +nightly install cargo-fuzz
-      - name: build
+      - name: cargo fuzz
         run: cargo fuzz list | xargs -I "%" sh -c "cargo +nightly fuzz run % -- -max_total_time=30 || exit 255"
 
   unit_tests:
@@ -229,25 +335,261 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        python: [3.7]
+        release:
+          - name: release
+            options: --release
+          - name: not-release
+            options: ''
+        features:
+          - name: no features
+            options: ''
+          - name: counters
+            options: --features=counters
+          - name: pre-eval
+            options: --features=pre-eval
+          - name: pre-eval and counters
+            options: --features=pre-eval,counters
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 1
-      - name: Install rust
-        uses: actions-rs/toolchain@v1
+      - uses: actions-rs/toolchain@v1
         with:
             toolchain: stable
-            components: rustfmt, clippy
+      - name: cargo test
+        run: cargo test ${{ matrix.features.options}} ${{ matrix.release.options }}
 
-      - name: cargo test (default)
-        run: cargo test && cargo test --release
+  clvm_tests:
+    name: ${{ matrix.package.name }} tests - ${{ matrix.os.name }} ${{ matrix.python.major-dot-minor }} ${{ matrix.arch.name }}
+    runs-on: ${{ matrix.os.runs-on[matrix.arch.matrix] }}
+    needs:
+      - build-wheels
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - name: CLVM
+            directory: clvm
+            matrix: clvm
+          - name: CLVM tools
+            directory: clvm_tools
+            matrix: clvm_tools
+        os:
+          - name: macOS
+            matrix: macos
+            runs-on:
+              arm: [macOS, ARM64]
+              intel: [macos-latest]
+          - name: Ubuntu
+            matrix: ubuntu
+            runs-on:
+              arm: [Linux, ARM64]
+              intel: [ubuntu-latest]
+          - name: Windows
+            matrix: windows
+            runs-on:
+              intel: [windows-latest]
+        python:
+          - major-dot-minor: '3.7'
+            cibw-build: 'cp37-*'
+            by-arch:
+              arm:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_aarch64
+                rustup-target: aarch64-unknown-linux-musl
+              intel:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_x86_64
+                rustup-target: x86_64-unknown-linux-musl
+            matrix: '3.7'
+          - major-dot-minor: '3.8'
+            cibw-build: 'cp38-*'
+            by-arch:
+              arm:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_aarch64
+                rustup-target: aarch64-unknown-linux-musl
+              intel:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_x86_64
+                rustup-target: x86_64-unknown-linux-musl
+            matrix: '3.8'
+          - major-dot-minor: '3.9'
+            cibw-build: 'cp39-*'
+            by-arch:
+              arm:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_aarch64
+                rustup-target: aarch64-unknown-linux-musl
+              intel:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_x86_64
+                rustup-target: x86_64-unknown-linux-musl
+            matrix: '3.9'
+          - major-dot-minor: '3.10'
+            cibw-build: 'cp310-*'
+            by-arch:
+              arm:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_aarch64
+                rustup-target: aarch64-unknown-linux-musl
+              intel:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_x86_64
+                rustup-target: x86_64-unknown-linux-musl
+            matrix: '3.10'
+          - major-dot-minor: '3.11'
+            cibw-build: 'cp311-*'
+            by-arch:
+              arm:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_aarch64
+                rustup-target: aarch64-unknown-linux-musl
+              intel:
+                manylinux-version: 2014
+                docker-url: quay.io/pypa/manylinux2014_x86_64
+                rustup-target: x86_64-unknown-linux-musl
+            matrix: '3.11'
+        arch:
+          - name: ARM
+            matrix: arm
+          - name: Intel
+            matrix: intel
+        exclude:
+          # Only partial entries are required here by GitHub Actions so generally I
+          # only specify the `matrix:` entry.  The super linter complains so for now
+          # all entries are included to avoid that.  Reported at
+          # https://github.com/github/super-linter/issues/3016
+          - os:
+              name: Windows
+              matrix: windows
+              runs-on:
+                intel: [windows-latest]
+            arch:
+              name: ARM
+              matrix: arm
+          - os:
+              name: macOS
+              matrix: macos
+              runs-on:
+                arm: [macOS, ARM64]
+                intel: [macos-latest]
+            python:
+              major-dot-minor: '3.7'
+              cibw-build: 'cp37-*'
+              matrix: '3.7'
+            arch:
+              name: ARM
+              matrix: arm
+    steps:
+      - name: Clean workspace
+        uses: Chia-Network/actions/clean-workspace@main
 
-      - name: cargo test (counters)
-        run: cargo test --features=counters && cargo test --features=counters --release
+      - name: Checkout CLVM
+        uses: actions/checkout@v3
+        with:
+          repository: https://github.com/Chia-Network/clvm.git
+          path: clvm
 
-      - name: cargo test (pre-eval)
-        run: cargo test --features=pre-eval && cargo test --features=pre-eval --release
+      - name: Checkout CLVM tools
+        if: matrix.package.matrix == 'clvm_tools'
+        uses: actions/checkout@v3
+        with:
+          repository: https://github.com/Chia-Network/clvm_tools.git
+          path: clvm_tools
 
-      - name: cargo test (pre-eval and counters)
-        run: cargo test --features=pre-eval,counters && cargo test --features=pre-eval,counters --release
+      - uses: Chia-Network/actions/setup-python@main
+        with:
+          python-version: ${{ matrix.python.major-dot-minor }}
+
+      - uses: Chia-Network/actions/create-venv@main
+        id: create-venv
+
+      - uses: Chia-Network/actions/activate-venv@main
+        with:
+          directories: ${{ steps.create-venv.outputs.activate-venv-directories }}
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: packages
+          path: ./dist
+
+      - name: Install packages
+        run:
+          # TODO: review how to get relevant test stuff installed
+          pip download --dest dist/ blspy pytest
+          pip install --no-index --find-links dist/ clvm_rs ./clvm ${{ matrix.package.matrix == 'clvm_tools' && './clvm_tools' || '' }} blspy pytest
+          python -c 'import clvm; print(clvm.__file__)'
+          python -c 'import clvm_rs; print(clvm_rs.__file__)'
+          python -c 'import clvm_tools; print(clvm_tools.__file__)'
+
+      - name: Test
+        run:
+          pytest ${{ matrix.package.directory }}/tests
+
+  upload:
+    name: Upload to PyPI - ${{ matrix.os.name }} ${{ matrix.python.major-dot-minor }} ${{ matrix.arch.name }}
+    runs-on: ${{ matrix.os.runs-on[matrix.arch.matrix] }}
+    needs:
+      - build-wheels
+      - build-sdist
+      - fmt
+      - clippy
+      - unit_tests
+      - clvm_tests
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - name: Ubuntu
+            matrix: ubuntu
+            runs-on:
+              arm: [Linux, ARM64]
+              intel: [ubuntu-latest]
+        python:
+          - major-dot-minor: '3.9'
+            matrix: '3.9'
+        arch:
+          - name: Intel
+            matrix: intel
+
+    steps:
+    - name: Clean workspace
+      uses: Chia-Network/actions/clean-workspace@main
+
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - uses: Chia-Network/actions/setup-python@main
+      with:
+        python-version: ${{ matrix.python.major-dot-minor }}
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: packages
+        path: ./dist
+
+    - name: Test for secrets access
+      id: check_secrets
+      shell: bash
+      run: |
+        unset HAS_SECRET
+        if [ -n "$SECRET" ]; then HAS_SECRET='true' ; fi
+        echo "HAS_SECRET=${HAS_SECRET}" >>$GITHUB_OUTPUT
+      env:
+        SECRET: "${{ secrets.test_pypi_password }}"
+
+    - name: Install twine
+      run: pip install twine
+
+    - name: Publish distribution to PyPI
+      if: startsWith(github.event.ref, 'refs/tags') && steps.check_secrets.outputs.HAS_SECRET
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_NON_INTERACTIVE: 1
+        TWINE_PASSWORD: ${{ secrets.pypi_password }}
+      run: twine upload --non-interactive --skip-existing --verbose 'dist/*'
