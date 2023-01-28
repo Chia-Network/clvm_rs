@@ -515,7 +515,7 @@ jobs:
           path: ./dist
 
       - name: Install packages
-        run:
+        run: |
           # TODO: review how to get relevant test stuff installed
           pip download --dest dist/ blspy pytest
           pip install --no-index --find-links dist/ clvm_rs ./clvm ${{ matrix.package.matrix == 'clvm_tools' && './clvm_tools' || '' }} blspy pytest
@@ -524,7 +524,7 @@ jobs:
           python -c 'import clvm_tools; print(clvm_tools.__file__)'
 
       - name: Test
-        run:
+        run: |
           pytest ${{ matrix.package.directory }}/tests
 
   upload:
