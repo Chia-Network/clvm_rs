@@ -488,14 +488,14 @@ jobs:
       - name: Checkout CLVM
         uses: actions/checkout@v3
         with:
-          repository: https://github.com/Chia-Network/clvm.git
+          repository: Chia-Network/clvm
           path: clvm
 
       - name: Checkout CLVM tools
         if: matrix.package.matrix == 'clvm_tools'
         uses: actions/checkout@v3
         with:
-          repository: https://github.com/Chia-Network/clvm_tools.git
+          repository: Chia-Network/clvm_tools
           path: clvm_tools
 
       - uses: Chia-Network/actions/setup-python@main
