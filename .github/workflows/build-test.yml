@@ -543,6 +543,7 @@ jobs:
       - build-sdist
       - fmt
       - clippy
+      - fuzz_targets
       - unit_tests
       - clvm_tests
     strategy:
