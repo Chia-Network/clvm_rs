@@ -517,7 +517,7 @@ jobs:
       - name: Install packages
         run: |
           # TODO: review how to get relevant test stuff installed
-          WHEEL_PATH=$(pip install --no-index --dry-run --find-links dist/ clvm_rs | sed -n 's;^.*/blue/\(.*\)$;\1;p')
+          WHEEL_PATH=$(pip install --no-index --dry-run --find-links dist/ clvm_rs | sed -n 's;^.*/dist/\(.*\)$;\1;p')
           if [ "${WHEEL_PATH}" = "" ]
           then
             echo error: wheel not selected!
