@@ -535,7 +535,9 @@ jobs:
 
       - name: Test
         run: |
-          pytest ${{ matrix.package.directory }}/tests
+          # the tests make assumptions about the working directory
+          cd ${{ matrix.package.directory }}
+          pytest tests
 
   upload:
     name: Upload to PyPI - ${{ matrix.os.name }} ${{ matrix.python.major-dot-minor }} ${{ matrix.arch.name }}
