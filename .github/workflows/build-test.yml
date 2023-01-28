@@ -526,7 +526,7 @@ jobs:
           pip install "${WHEEL_PATH}" ./clvm ${{ matrix.package.matrix == 'clvm_tools' && './clvm_tools' || '' }} blspy pytest
           python -c 'import clvm; print(clvm.__file__)'
           python -c 'import clvm_rs; print(clvm_rs.__file__)'
-          python -c 'import clvm_tools; print(clvm_tools.__file__)'
+          ${{ matrix.packages.matrix == 'clvm_tools' && 'python -c \'import clvm_tools; print(clvm_tools.__file__)\'' || '' }}
 
       - name: Test
         run: |
