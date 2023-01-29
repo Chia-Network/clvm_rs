@@ -148,6 +148,13 @@ jobs:
       with:
         python-version: ${{ matrix.python.major-dot-minor }}
 
+    - uses: Chia-Network/actions/create-venv@main
+      id: create-venv
+
+    - uses: Chia-Network/actions/activate-venv@main
+      with:
+        directories: ${{ steps.create-venv.outputs.activate-venv-directories }}
+
     - name: Update pip
       run: |
           python -m pip install --upgrade pip
@@ -166,8 +173,6 @@ jobs:
       env:
         MACOSX_DEPLOYMENT_TARGET: ${{ matrix.arch.matrix == 'intel' && '10.14' || '11.0' }}
       run: |
-        python${{ matrix.python.major-dot-minor }} -m venv venv
-        . venv/bin/activate
         maturin build -i python --release -m wheel/Cargo.toml
         # TODO: add back these?  --strip --features=openssl
 
@@ -194,18 +199,16 @@ jobs:
     - name: Build Windows with maturin on Python ${{ matrix.python }}
       if: matrix.os.matrix == 'windows'
       run: |
-        py -${{ matrix.python.major-dot-minor }} -m venv venv
-        . .\venv\Scripts\Activate.ps1
         maturin build -i python --release -m wheel/Cargo.toml
         # TODO: add back these?  --strip
         # TODO: why no --feature=openssl here?
 
     - uses: Chia-Network/actions/create-venv@main
-      id: create-venv
+      id: create-install-venv
 
     - uses: Chia-Network/actions/activate-venv@main
       with:
-        directories: ${{ steps.create-venv.outputs.activate-venv-directories }}
+        directories: ${{ steps.create-install-venv.outputs.activate-venv-directories }}
 
     - name: Install clvm_rs wheel
       run: |
