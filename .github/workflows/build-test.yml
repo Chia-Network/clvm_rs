@@ -525,11 +525,14 @@ jobs:
       - name: Install packages
         run: |
           # TODO: review how to get relevant test stuff installed
-          WHEEL_PATH=dist/$(pip install --no-index --dry-run --find-links dist/ clvm_rs | sed -n 's;^.*/dist/\(.*\)$;\1;p')
+          pip install --no-index --dry-run --find-links dist/ clvm_rs | tee .tmp.wheel_path
+          WHEEL_PATH=dist/$(cat .tmp.wheel_path | sed -n 's;^.*/dist/\(.*\)$;\1;p')
           if [ "${WHEEL_PATH}" = "" ]
           then
             echo error: wheel not selected!
             exit 1
+          else
+            echo wheel selected: ${WHEEL_PATH}
           fi
           pip install "${WHEEL_PATH}" ./clvm ./clvm_tools blspy pytest
           python -c 'import clvm; print(clvm.__file__)'
