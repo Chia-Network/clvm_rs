@@ -19,7 +19,7 @@ MAX_COST = 0x7FFFFFFFFFFFFFFF
 
 class Program(CLVMStorage):
     """
-    A thin wrapper around s-expression data intended to be invoked with "eval".
+    A wrapper around `CLVMStorage` providing many convenience functions.
     """
 
     curry_treehasher: CurryTreehasher = CHIA_CURRY_TREEHASHER
@@ -234,10 +234,10 @@ class Program(CLVMStorage):
         prog_bytes = bytes(self)
         args_bytes = bytes(self.to(args))
         try:
-            cost, r = run_serialized_chia_program(
+            cost, lazy_node = run_serialized_chia_program(
                 prog_bytes, args_bytes, max_cost, flags
             )
-            r = self.wrap(r)
+            r = self.wrap(lazy_node)
         except ValueError as ve:
             raise EvalError(ve.args[0], self.wrap(ve.args[1]))
         return cost, r
@@ -260,7 +260,7 @@ class Program(CLVMStorage):
 
         The resulting argument list is interpreted with apply (2)
 
-        (2 (1 . self) rest)
+        (a (q . self) rest)
 
         Resulting in a function which places its own arguments after those
         curried in in the form of a proper list.
@@ -282,8 +282,32 @@ class Program(CLVMStorage):
         p_args = args if args is None else [self.to(_) for _ in args]
         return self.to(mod), p_args
 
+    def curry_hash(self, *args: bytes32) -> bytes32:
+        """
+        Return a puzzle hash that would be created if you curried this puzzle
+        with arguments that have the given hashes.
+
+        In other words,
+
+        ```
+        c1 = self.curry(arg1, arg2, arg3).tree_hash()
+        c2 = self.curry_hash(arg1.tree_hash(), arg2.tree_hash(), arg3.tree_hash())
+        assert c1 == c2  # they will be the same
+        ```
+
+        This looks useless to the unitiated, but sometimes you'll need a puzzle
+        hash where you don't actually know the contents of a clvm subtree -- just its
+        hash. This lets you calculate the puzzle hash with hidden information.
+        """
+        curry_treehasher = self.curry_treehasher
+        quoted_mod_hash = curry_treehasher.calculate_hash_of_quoted_mod_hash(self.tree_hash())
+        return curry_treehasher.curry_and_treehash(quoted_mod_hash, *args)
+
     def as_int(self) -> int:
-        return int_from_bytes(self.as_atom())
+        v = self.as_atom()
+        if v is None:
+            raise ValueError("can't cast pair to int")
+        return int_from_bytes(v)
 
     def as_iter(self) -> Iterator[Program]:
         v = self
@@ -293,11 +317,8 @@ class Program(CLVMStorage):
 
     def as_atom_iter(self) -> Iterator[bytes]:
         """
-        Pretend `self` is a list of atoms. Yield the corresponding atoms.
-
-        At each step, we always assume a node to be an atom or a pair.
-        If the assumption is wrong, we exit early. This way we never fail
-        and always return SOMETHING.
+        Pretend `self` is a list of atoms. Yield the corresponding atoms
+        up until this assumption is wrong.
         """
         obj = self
         while obj.pair is not None:
@@ -310,11 +331,7 @@ class Program(CLVMStorage):
     def as_atom_list(self) -> List[bytes]:
         """
         Pretend `self` is a list of atoms. Return the corresponding
-        python list of atoms.
-
-        At each step, we always assume a node to be an atom or a pair.
-        If the assumption is wrong, we exit early. This way we never fail
-        and always return SOMETHING.
+        python list of atoms up until this assumption is wrong.
         """
         return list(self.as_atom_iter())
 

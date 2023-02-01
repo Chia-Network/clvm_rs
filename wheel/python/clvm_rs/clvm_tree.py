@@ -1,7 +1,7 @@
 from .clvm_storage import CLVMStorage
 from .de import deserialize_as_tuples
 
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 
 class CLVMTree(CLVMStorage):
@@ -48,21 +48,22 @@ class CLVMTree(CLVMStorage):
 
     def __init__(
         self,
-        blob: bytes,
+        blob: Union[memoryview, bytes],
         int_tuples: List[Tuple[int, int, int]],
-        tree_hashes: List[Optional[bytes]],
+        tree_hashes: Optional[List[bytes]],
         index: int,
     ):
         self.blob = blob
         self.int_tuples = int_tuples
         self.tree_hashes = tree_hashes
         self.index = index
-        self._cached_sha256_treehash = self.tree_hashes[index]
+        if self.tree_hashes:
+            self._cached_sha256_treehash = self.tree_hashes[index]
         start, end, atom_offset = self.int_tuples[self.index]
         if self.blob[start] == 0xFF:
             self.atom = None
         else:
-            self.atom = bytes(self.blob[start + atom_offset : end])
+            self.atom = bytes(self.blob[start + atom_offset:end])
             self._pair = None
 
     @property

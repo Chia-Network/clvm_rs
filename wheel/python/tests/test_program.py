@@ -1,7 +1,6 @@
 from unittest import TestCase
 
 from clvm_rs.chia_dialect import CHIA_DIALECT
-from clvm_rs.clvm_storage import CLVMStorage
 from clvm_rs.program import Program
 from clvm_rs.eval_error import EvalError
 
@@ -73,6 +72,10 @@ class TestProgram(TestCase):
             err = ee
         self.assertEqual(err.args, ("clvm raise",))
         self.assertEqual(err._sexp, ["foo", "bar"])
+
+    def test_hash(self):
+        p1 = Program.fromhex("80")
+        assert hash(p1) == id(p1)
 
 
 def check_idempotency(p, *args):

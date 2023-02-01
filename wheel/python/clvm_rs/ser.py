@@ -46,7 +46,7 @@ def sexp_to_byte_iterator(sexp: CLVMStorage) -> Iterator[bytes]:
             yield from atom_to_byte_iterator(atom)
 
 
-def size_blob_for_size(blob: int) -> bytes:
+def size_blob_for_blob(blob: bytes) -> bytes:
     size = len(blob)
     if size < 0x40:
         return bytes([0x80 | size])
@@ -73,7 +73,7 @@ def size_blob_for_size(blob: int) -> bytes:
                 (size >> 0) & 0xFF,
             ]
         )
-    raise ValueError("sexp too long %r" % blob)
+    raise ValueError("blob too long %r" % blob)
 
 
 def atom_to_byte_iterator(as_atom: bytes) -> Iterator[bytes]:
@@ -88,7 +88,7 @@ def atom_to_byte_iterator(as_atom: bytes) -> Iterator[bytes]:
         if as_atom[0] <= MAX_SINGLE_BYTE:
             yield as_atom
             return
-    yield size_blob_for_size(as_atom)
+    yield size_blob_for_blob(as_atom)
     yield as_atom
 
 

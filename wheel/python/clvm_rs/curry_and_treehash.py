@@ -56,6 +56,10 @@ class CurryTreehasher:
         `arguments` : tree hashes of arguments to be curried
         """
 
+        for arg in hashed_arguments:
+            if not isinstance(arg, bytes) or len(arg) != 32:
+                raise ValueError(f"arguments must be bytes of len 32: {arg.hex()}")
+
         curried_values = self.curried_values_tree_hash(list(hashed_arguments))
         return shatree_pair(
             self.a_kw_treehash,
