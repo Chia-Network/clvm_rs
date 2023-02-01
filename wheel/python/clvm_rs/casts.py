@@ -2,7 +2,7 @@
 Some utilities to cast python types to and from clvm.
 """
 
-from typing import Callable, List, SupportsBytes, Tuple, Union
+from typing import Callable, List, SupportsBytes, Tuple, Union, cast
 
 from .clvm_storage import CLVMStorage, is_clvm_storage
 
@@ -99,6 +99,7 @@ def to_clvm_object(
         if op == 0:
             v = to_convert.pop()
             if is_clvm_storage(v):
+                v = cast(CLVMStorage, v)
                 if v.pair is None:
                     atom = v.atom
                     assert atom is not None
@@ -114,6 +115,8 @@ def to_clvm_object(
                 ll_right = is_clvm_storage(right)
                 ll_left = is_clvm_storage(left)
                 if ll_right and ll_left:
+                    left = cast(CLVMStorage, left)
+                    right = cast(CLVMStorage, right)
                     did_convert.append(to_pair_f(left, right))
                 else:
                     ops.append(1)  # cons
@@ -134,6 +137,7 @@ def to_clvm_object(
                     to_convert.append(_)
                     ops.append(0)  # convert
                 continue
+            v = cast(AtomCastableType, v)
             did_convert.append(to_atom_f(to_atom_type(v)))
             continue
         if op == 1:  # cons

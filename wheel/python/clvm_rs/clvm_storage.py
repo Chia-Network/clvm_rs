@@ -1,15 +1,13 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, _SpecialForm, cast
 
 # we support py3.7 which doesn't yet have typing.Protocol
 
 try:
-    from typing import Protocol, runtime_checkable
+    from typing import Protocol
 except ImportError:
-    Protocol = object
-    runtime_checkable = lambda arg: arg
+    Protocol = cast(_SpecialForm, object)
 
 
-@runtime_checkable
 class CLVMStorage(Protocol):
     atom: Optional[bytes]
 

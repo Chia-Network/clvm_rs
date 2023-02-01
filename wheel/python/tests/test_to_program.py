@@ -1,7 +1,7 @@
 import unittest
 
 from typing import Optional, Tuple, Any, Union
-from clvm_rs.clvm_storage import CLVMStorage, is_clvm_storage
+from clvm_rs.clvm_storage import is_clvm_storage
 from clvm_rs.program import Program
 
 
@@ -34,7 +34,9 @@ def print_leaves(tree: Program) -> str:
         return "%d " % a[0]
 
     ret = ""
-    for i in tree.as_pair():
+    pair = tree.as_pair()
+    assert pair is not None
+    for i in pair:
         ret += print_leaves(i)
 
     return ret
@@ -47,8 +49,10 @@ def print_tree(tree: Program) -> str:
             return "() "
         return "%d " % a[0]
 
+    pair = tree.as_pair()
+    assert pair is not None
     ret = "("
-    for i in tree.as_pair():
+    for i in pair:
         ret += print_tree(i)
     ret += ")"
     return ret
@@ -69,7 +73,7 @@ class ToProgramTest(unittest.TestCase):
         o = Program.to(Program.to(1))
         assert o.atom == bytes([1])
 
-    def test_arbitrary_underlying_tree(self):
+    def test_arbitrary_underlying_tree(self) -> None:
 
         # Program provides a view on top of a tree of arbitrary types, as long as
         # those types implement the CLVMStorage protocol. This is an example of

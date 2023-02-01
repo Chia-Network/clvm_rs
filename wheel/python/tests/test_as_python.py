@@ -2,7 +2,13 @@ import unittest
 
 from clvm_rs.program import Program
 
-from blspy import G1Element
+
+class castable_to_bytes:
+    def __init__(self, blob):
+        self.blob = blob
+
+    def __bytes__(self):
+        return self.blob
 
 
 class dummy_class:
@@ -72,11 +78,13 @@ class AsPythonTest(unittest.TestCase):
         self.assertEqual(v.pair[1].atom, b"")
 
     def test_g1element(self):
+        # we don't import `G1Element` here, but just replicate
+        # its most important property: a `__bytes__` method
         b = fh(
             "b3b8ac537f4fd6bde9b26221d49b54b17a506be147347dae5"
             "d081c0a6572b611d8484e338f3432971a9823976c6a232b"
         )
-        v = Program.to(G1Element(b))
+        v = Program.to(castable_to_bytes(b))
         self.assertEqual(v.atom, b)
 
     def test_complex(self):

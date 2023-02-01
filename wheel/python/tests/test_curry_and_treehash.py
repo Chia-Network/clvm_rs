@@ -1,3 +1,5 @@
+import pytest
+
 from clvm_rs.program import Program
 from clvm_rs.curry_and_treehash import CHIA_CURRY_TREEHASHER
 
@@ -26,3 +28,11 @@ def test_curry_and_treehash() -> None:
         hashed_args = [Program.to(_).tree_hash() for _ in args]
         puzzle_hash_via_f = curry_and_treehash(quoted_mod_hash, *hashed_args)
         assert puzzle_hash_via_curry == puzzle_hash_via_f
+        puzzle_hash_via_m = arbitrary_mod.curry_hash(*hashed_args)
+        assert puzzle_hash_via_curry == puzzle_hash_via_m
+
+
+def test_bad_parameter() -> None:
+    arbitrary_mod = Program.fromhex("ff10ff02ff0580")  # `(+ 2 5)`
+    with pytest.raises(ValueError):
+        arbitrary_mod.curry_hash(b"foo")
