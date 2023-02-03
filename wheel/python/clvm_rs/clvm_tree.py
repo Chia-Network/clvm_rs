@@ -72,12 +72,10 @@ class CLVMTree(CLVMStorage):
             tuples, tree_hashes = self.int_tuples, self.tree_hashes
             start, end, right_index = tuples[self.index]
             # if `self.blob[start]` is 0xff, it's a pair
-            if self.blob[start] == 0xFF:
-                left = self.__class__(self.blob, tuples, tree_hashes, self.index + 1)
-                right = self.__class__(self.blob, tuples, tree_hashes, right_index)
-                self._pair = (left, right)
-            else:
-                self._pair = None
+            assert self.blob[start] == 0xFF
+            left = self.__class__(self.blob, tuples, tree_hashes, self.index + 1)
+            right = self.__class__(self.blob, tuples, tree_hashes, right_index)
+            self._pair = (left, right)
         return self._pair
 
     @property

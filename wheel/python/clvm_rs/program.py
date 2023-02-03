@@ -23,6 +23,7 @@ class Program(CLVMStorage):
     """
 
     curry_treehasher: CurryTreehasher = CHIA_CURRY_TREEHASHER
+    _cached_serialization: Optional[bytes]
 
     # serialization/deserialization
 
@@ -44,7 +45,9 @@ class Program(CLVMStorage):
     def from_bytes_with_cursor(
         cls, blob: bytes, cursor: int, calculate_tree_hash: bool = True
     ) -> Tuple[Program, int]:
-        tree = CLVMTree.from_bytes(blob, calculate_tree_hash=calculate_tree_hash)
+        tree = CLVMTree.from_bytes(
+            blob[cursor:], calculate_tree_hash=calculate_tree_hash
+        )
         obj = cls.wrap(tree)
         new_cursor = len(bytes(tree)) + cursor
         return obj, new_cursor
@@ -54,7 +57,11 @@ class Program(CLVMStorage):
         return cls.from_bytes(bytes.fromhex(hexstr))
 
     def __bytes__(self) -> bytes:
-        return sexp_to_bytes(self)
+        if self._cached_serialization is None:
+            self._cached_serialization = sexp_to_bytes(self)
+        if not isinstance(self._cached_serialization, bytes):
+            self._cached_serialization = bytes(self._cached_serialization)
+        return self._cached_serialization
 
     def __int__(self) -> int:
         return self.as_int()
@@ -75,7 +82,9 @@ class Program(CLVMStorage):
     def __init__(self):
         self.atom = b""
         self._pair = None
+        self._unwrapped = self
         self._unwrapped_pair = None
+        self._cached_serialization = None
         self._cached_sha256_treehash = None
 
     @property
@@ -96,7 +105,10 @@ class Program(CLVMStorage):
         o = cls()
         o.atom = v.atom
         o._pair = None
+        o._unwrapped = v
         o._unwrapped_pair = v.pair
+        o._cached_serialization = getattr(v, "_cached_serialization", None)
+        o._cached_sha256_treehash = getattr(v, "_cached_sha256_treehash", None)
         return o
 
     # new object creation on the python heap
@@ -124,7 +136,10 @@ class Program(CLVMStorage):
     # display
 
     def __str__(self) -> str:
-        return bytes(self).hex()
+        s = bytes(self).hex()
+        if len(s) > 76:
+            s = f"{s[:70]}...{s[-6:]}"
+        return s
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({str(self)})"
@@ -226,7 +241,11 @@ class Program(CLVMStorage):
         return self.to(replace(self, **kwargs))
 
     def tree_hash(self) -> bytes32:
-        return sha256_treehash(self)
+        # we operate on the unwrapped version to prevent the re-wrapping that
+        # happens on each invocation of `Program.pair` whenever possible
+        if self._cached_sha256_treehash is None:
+            self._cached_sha256_treehash = sha256_treehash(self._unwrapped)
+        return self._cached_sha256_treehash
 
     def run_with_cost(
         self, args, max_cost: int = MAX_COST, flags: int = 0
@@ -300,7 +319,9 @@ class Program(CLVMStorage):
         hash. This lets you calculate the puzzle hash with hidden information.
         """
         curry_treehasher = self.curry_treehasher
-        quoted_mod_hash = curry_treehasher.calculate_hash_of_quoted_mod_hash(self.tree_hash())
+        quoted_mod_hash = curry_treehasher.calculate_hash_of_quoted_mod_hash(
+            self.tree_hash()
+        )
         return curry_treehasher.curry_and_treehash(quoted_mod_hash, *args)
 
     def as_int(self) -> int:

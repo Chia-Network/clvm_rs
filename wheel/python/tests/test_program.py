@@ -77,6 +77,10 @@ class TestProgram(TestCase):
         p1 = Program.fromhex("80")
         assert hash(p1) == id(p1)
 
+    def test_long_repr(self):
+        p1 = Program.fromhex(f"c062{'61'*98}")
+        assert repr(p1) == f"Program(c062{'61'*33}...616161)"
+
 
 def check_idempotency(p, *args):
     curried = p.curry(*args)
@@ -134,7 +138,6 @@ def test_uncurry():
     plus = Program.fromhex("ff02ffff01ff10ff02ff0580ffff04ffff0101ff018080")
     prog = Program.fromhex("ff10ff02ff0580")  # `(+ 2 5)`
     args = Program.fromhex("01")  # `1`
-
     assert plus.uncurry() == (prog, [args])
 
 

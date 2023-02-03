@@ -100,13 +100,7 @@ def to_clvm_object(
             v = to_convert.pop()
             if is_clvm_storage(v):
                 v = cast(CLVMStorage, v)
-                if v.pair is None:
-                    atom = v.atom
-                    assert atom is not None
-                    new_obj = to_atom_f(to_atom_type(atom))
-                else:
-                    new_obj = to_pair_f(v.pair[0], v.pair[1])
-                did_convert.append(new_obj)
+                did_convert.append(v)
                 continue
             if isinstance(v, tuple):
                 if len(v) != 2:

@@ -125,6 +125,8 @@ class AsPythonTest(unittest.TestCase):
         self.assertEqual(Program.to(fh("ff")).as_int(), -1)
         self.assertEqual(Program.to(fh("0080")).as_int(), 128)
         self.assertEqual(Program.to(fh("00ff")).as_int(), 255)
+        with self.assertRaises(ValueError):
+            Program.fromhex("ff8080").as_int()
 
     def test_string(self):
         self.assertEqual(Program.to("foobar").as_atom(), b"foobar")
