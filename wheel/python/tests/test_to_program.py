@@ -1,8 +1,40 @@
 import unittest
 
 from typing import Optional, Tuple, Any, Union
-from clvm_rs.clvm_storage import is_clvm_storage
+from clvm_rs.clvm_storage import CLVMStorage, is_clvm_storage
 from clvm_rs.program import Program
+
+
+class SimpleStorage(CLVMStorage):
+    """
+    A simple implementation of `CLVMStorage`.
+    """
+
+    atom: Optional[bytes]
+
+    def __init__(self, atom, pair):
+        self.atom = atom
+        self._pair = pair
+
+    @property
+    def pair(self) -> Optional[Tuple["CLVMStorage", "CLVMStorage"]]:
+        return self._pair
+
+
+class Uncachable(SimpleStorage):
+    """
+    This object does not allow `_cached_sha256_treehash` or `_cached_serialization`
+    to be stored.
+    """
+
+    def get_th(self):
+        return None
+
+    def set_th(self, v):
+        raise AttributeError("can't set property")
+
+    _cached_sha256_treehash = property(get_th, set_th)
+    _cached_serialization = property(get_th, set_th)
 
 
 def convert_atom_to_bytes(castable: Any) -> Optional[bytes]:
@@ -104,10 +136,6 @@ class ToProgramTest(unittest.TestCase):
                     GeneratedTree(new_depth, self.val),
                     GeneratedTree(new_depth, self.val + 2**new_depth),
                 )
-
-            @classmethod
-            def isinstance(cls, obj):
-                return isinstance(obj, cls)
 
         tree = Program.to(GeneratedTree(5, 0))
         assert (
@@ -237,3 +265,77 @@ class ToProgramTest(unittest.TestCase):
         self.assertEqual(Program.to([]), 0)
         self.assertEqual(Program.to(0), 0)
         self.assertEqual(Program.to(b""), 0)
+
+    def test_tree_hash_caching(self):
+        o = SimpleStorage(b"foo", None)
+        eh = "0080b50a51ecd0ccfaaa4d49dba866fe58724f18445d30202bafb03e21eef6cb"
+        p = Program.to(o)
+        self.assertEqual(p.tree_hash().hex(), eh)
+        self.assertEqual(p._cached_sha256_treehash.hex(), eh)
+        self.assertEqual(o._cached_sha256_treehash.hex(), eh)
+
+        o2 = SimpleStorage(None, (o, o))
+        eh2 = "4a40c538671ef10c8d956e5dd3625e167c8adfb666c943f67f91ea58fd7a302c"
+        p2 = Program.to(o2)
+        self.assertEqual(p2.tree_hash().hex(), eh2)
+        self.assertEqual(p2._cached_sha256_treehash.hex(), eh2)
+        self.assertEqual(o._cached_sha256_treehash.hex(), eh)
+        self.assertEqual(o2._cached_sha256_treehash.hex(), eh2)
+
+        p2p = Program.to((p, p))
+        self.assertEqual(p2p.tree_hash().hex(), eh2)
+        self.assertEqual(p2p._cached_sha256_treehash.hex(), eh2)
+        self.assertEqual(p._cached_sha256_treehash.hex(), eh)
+        self.assertEqual(p2._cached_sha256_treehash.hex(), eh2)
+
+        o3 = SimpleStorage(None, (o2, o2))
+        eh3 = "280df61ed70cac1ec3cf9811c15f75e6698516b0354252960a62fa31240e4970"
+        p3 = Program.to(o3)
+        self.assertEqual(p3.tree_hash().hex(), eh3)
+        self.assertEqual(p3._cached_sha256_treehash.hex(), eh3)
+        self.assertEqual(o._cached_sha256_treehash.hex(), eh)
+        self.assertEqual(o2._cached_sha256_treehash.hex(), eh2)
+        self.assertEqual(o3._cached_sha256_treehash.hex(), eh3)
+
+        p3p = Program.to((p2, p2))
+        self.assertEqual(p3p.tree_hash().hex(), eh3)
+        self.assertEqual(p3p._cached_sha256_treehash.hex(), eh3)
+        self.assertEqual(p._cached_sha256_treehash.hex(), eh)
+        self.assertEqual(p2._cached_sha256_treehash.hex(), eh2)
+
+    def test_tree_hash_no_caching(self):
+        o = Uncachable(b"foo", None)
+        eh = "0080b50a51ecd0ccfaaa4d49dba866fe58724f18445d30202bafb03e21eef6cb"
+        p = Program.to(o)
+        self.assertEqual(p.tree_hash().hex(), eh)
+        self.assertEqual(p._cached_sha256_treehash.hex(), eh)
+        self.assertEqual(o._cached_sha256_treehash, None)
+
+        o2 = Uncachable(None, (o, o))
+        eh2 = "4a40c538671ef10c8d956e5dd3625e167c8adfb666c943f67f91ea58fd7a302c"
+        p2 = Program.to(o2)
+        self.assertEqual(p2.tree_hash().hex(), eh2)
+        self.assertEqual(p2._cached_sha256_treehash.hex(), eh2)
+        self.assertEqual(o._cached_sha256_treehash, None)
+        self.assertEqual(o2._cached_sha256_treehash, None)
+
+        p2p = Program.to((p, p))
+        self.assertEqual(p2p.tree_hash().hex(), eh2)
+        self.assertEqual(p2p._cached_sha256_treehash.hex(), eh2)
+        self.assertEqual(p._cached_sha256_treehash.hex(), eh)
+        self.assertEqual(p2._cached_sha256_treehash.hex(), eh2)
+
+        o3 = Uncachable(None, (o2, o2))
+        eh3 = "280df61ed70cac1ec3cf9811c15f75e6698516b0354252960a62fa31240e4970"
+        p3 = Program.to(o3)
+        self.assertEqual(p3.tree_hash().hex(), eh3)
+        self.assertEqual(p3._cached_sha256_treehash.hex(), eh3)
+        self.assertEqual(o._cached_sha256_treehash, None)
+        self.assertEqual(o2._cached_sha256_treehash, None)
+        self.assertEqual(o3._cached_sha256_treehash, None)
+
+        p3p = Program.to((p2, p2))
+        self.assertEqual(p3p.tree_hash().hex(), eh3)
+        self.assertEqual(p3p._cached_sha256_treehash.hex(), eh3)
+        self.assertEqual(p._cached_sha256_treehash.hex(), eh)
+        self.assertEqual(p2._cached_sha256_treehash.hex(), eh2)
