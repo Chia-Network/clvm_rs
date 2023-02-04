@@ -107,20 +107,15 @@ test_case("Test divmod", function(){
     expect_equal(sexp.pair[1].atom.toString(), numsToByteStr([-1]));
 });
 
-test_case("Test div and NO_NEG_DIV flag", function(){
+test_case("Test negative div", function(){
     // (/ (q . 5) (q . -3))
     const prog = bytesFromHex("ff13ffff0105ffff0181fd80");
     // ()
     const arg = bytesFromHex("80");
     // 100,000,000,000
     const max_cost = BigInt("100000000000");
-    let flag = 0;
-    const [cost, sexp] = wasm.run_chia_program(prog, arg, max_cost, flag);
-    expect_equal(sexp.atom.toString(), numsToByteStr([-2]));
-    // NO_NEG_DIV flag set
-    flag = wasm.Flag.no_neg_div();
     expect_throw(function(){
-        wasm.run_chia_program(prog, arg, max_cost, flag);
+        wasm.run_chia_program(prog, arg, max_cost, 0);
     });
 });
 
