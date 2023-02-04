@@ -6,7 +6,7 @@ use clvmr::cost::Cost;
 use clvmr::reduction::Response;
 use clvmr::run_program::run_program;
 use clvmr::serde::{node_from_bytes, serialized_length_from_bytes};
-use clvmr::{LIMIT_HEAP, LIMIT_STACK, MEMPOOL_MODE, NO_NEG_DIV, NO_UNKNOWN_OPS};
+use clvmr::{LIMIT_HEAP, LIMIT_STACK, MEMPOOL_MODE, NO_UNKNOWN_OPS};
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
@@ -44,7 +44,6 @@ fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run_serialized_chia_program, m)?)?;
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
 
-    m.add("NO_NEG_DIV", NO_NEG_DIV)?;
     m.add("NO_UNKNOWN_OPS", NO_UNKNOWN_OPS)?;
     m.add("LIMIT_HEAP", LIMIT_HEAP)?;
     m.add("LIMIT_STACK", LIMIT_STACK)?;

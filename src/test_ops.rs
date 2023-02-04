@@ -2,9 +2,9 @@ use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
 use crate::more_ops::{
-    op_add, op_all, op_any, op_ash, op_concat, op_div, op_div_deprecated, op_divmod, op_gr,
-    op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not,
-    op_point_add, op_pubkey_for_exp, op_sha256, op_softfork, op_strlen, op_substr, op_subtract,
+    op_add, op_all, op_any, op_ash, op_concat, op_div, op_divmod, op_gr, op_gr_bytes, op_logand,
+    op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add, op_pubkey_for_exp,
+    op_sha256, op_softfork, op_strlen, op_substr, op_subtract,
 };
 use crate::number::{ptr_from_number, Number};
 use crate::reduction::{EvalErr, Reduction, Response};
@@ -561,67 +561,27 @@ x "error_message" => FAIL
 
 ; division round towards negative infinity
 / 10 3 => 3 | 1006
-/ -10 3 => -4 | 1006
-/ -10 -3 => 3 | 1006
-/ 10 -3 => -4 | 1006
+/ -10 3 => FAIL
+/ -10 -3 => FAIL
+/ 10 -3 => FAIL
 
 / 80001 73 => 1095 | 1024
-/ -80001 73 => -1096 | 1024
-/ 80001 -73 => -1096 | 1024
+/ -80001 73 => FAIL
 / 0x00000000000000000a 0x000000000000000005 => 2 | 1070
 
 / 1 10 => 0 | 996
-/ -1 -10 => 0 | 996
+/ -1 -10 => FAIL
 
 / 1 1 => 1 | 1006
-/ 1 -1 => -1 | 1006
-/ -1 -1 => 1 | 1006
-/ -1 1 => -1 | 1006
-/ 0 -1 => 0 | 992
+/ 1 -1 =>  FAIL
+/ -1 -1 => FAIL
+/ -1 1 => FAIL
+/ 0 -1 => FAIL
 / 0 1 => 0 | 992
 
-; these results are incorrect.
-; the result should be -1
-; the / operator on negative numbers is deprecated because of this
-; the mempool version of op_div disallows negative operands
-/ -1 10 => 0 | 996
-/ 1 -10 => 0 | 996
-
-; wrong number of arguments
-div_depr => FAIL
-div_depr 1 => FAIL
-div_depr 1 2 3 => FAIL
-
-; division by zero
-div_depr 0 0 => FAIL
-div_depr 10 0 => FAIL
-div_depr -10 0 => FAIL
-
-; division round towards negative infinity
-div_depr 10 3 => 3 | 1006
-div_depr -10 3 => FAIL
-div_depr -10 -3 => FAIL
-div_depr 10 -3 => FAIL
-
-div_depr 80001 73 => 1095 | 1024
-div_depr -80001 73 => FAIL
-div_depr 0x00000000000000000a 0x000000000000000005 => 2 | 1070
-
-div_depr 1 10 => 0 | 996
-div_depr -1 -10 => FAIL
-
-div_depr 1 1 => 1 | 1006
-div_depr 1 -1 =>  FAIL
-div_depr -1 -1 => FAIL
-div_depr -1 1 => FAIL
-div_depr 0 -1 => FAIL
-div_depr 0 1 => 0 | 992
-
-; these results are incorrect.
-; the result should be -1
-; the div_depr operator is deprecated because of this
-div_depr -1 10 => FAIL
-div_depr 1 -10 => FAIL
+; division with negative numbers are not allowed
+/ -1 10 => FAIL
+/ 1 -10 => FAIL
 
 ; wrong number of arguments
 divmod => FAIL
@@ -1114,7 +1074,6 @@ fn test_ops() {
         ("-", op_subtract as Opf),
         ("*", op_multiply as Opf),
         ("/", op_div as Opf),
-        ("div_depr", op_div_deprecated as Opf),
         ("divmod", op_divmod as Opf),
         ("substr", op_substr as Opf),
         ("strlen", op_strlen as Opf),
@@ -1226,7 +1185,7 @@ fn equal_sexp(allocator: &Allocator, s1: NodePtr, s2: NodePtr) -> bool {
 }
 
 #[cfg(feature = "pre-eval")]
-use crate::chia_dialect::{ChiaDialect, NO_NEG_DIV, NO_UNKNOWN_OPS};
+use crate::chia_dialect::{ChiaDialect, NO_UNKNOWN_OPS};
 #[cfg(feature = "pre-eval")]
 use crate::run_program::run_program_with_pre_eval;
 #[cfg(feature = "pre-eval")]
@@ -1311,7 +1270,7 @@ fn test_pre_eval_and_post_eval() {
     let allocator_null = allocator.null();
     let result = run_program_with_pre_eval(
         &mut allocator,
-        &ChiaDialect::new(NO_NEG_DIV | NO_UNKNOWN_OPS),
+        &ChiaDialect::new(NO_UNKNOWN_OPS),
         program,
         allocator_null,
         COST_LIMIT,

@@ -4,15 +4,11 @@ use crate::cost::Cost;
 use crate::dialect::Dialect;
 use crate::err_utils::err;
 use crate::more_ops::{
-    op_add, op_all, op_any, op_ash, op_concat, op_div, op_div_deprecated, op_divmod, op_gr,
-    op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not,
-    op_point_add, op_pubkey_for_exp, op_sha256, op_softfork, op_strlen, op_substr, op_subtract,
-    op_unknown,
+    op_add, op_all, op_any, op_ash, op_concat, op_div, op_divmod, op_gr, op_gr_bytes, op_logand,
+    op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add, op_pubkey_for_exp,
+    op_sha256, op_softfork, op_strlen, op_substr, op_subtract, op_unknown,
 };
 use crate::reduction::Response;
-
-// division with negative numbers are disallowed
-pub const NO_NEG_DIV: u32 = 0x0001;
 
 // unknown operators are disallowed
 // (otherwise they are no-ops with well defined cost)
@@ -27,7 +23,7 @@ pub const LIMIT_STACK: u32 = 0x0008;
 
 // The default mode when running grnerators in mempool-mode (i.e. the stricter
 // mode)
-pub const MEMPOOL_MODE: u32 = NO_NEG_DIV | NO_UNKNOWN_OPS | LIMIT_HEAP | LIMIT_STACK;
+pub const MEMPOOL_MODE: u32 = NO_UNKNOWN_OPS | LIMIT_HEAP | LIMIT_STACK;
 
 pub struct ChiaDialect {
     flags: u32,
@@ -72,13 +68,7 @@ impl Dialect for ChiaDialect {
             16 => op_add,
             17 => op_subtract,
             18 => op_multiply,
-            19 => {
-                if (self.flags & NO_NEG_DIV) != 0 {
-                    op_div_deprecated
-                } else {
-                    op_div
-                }
-            }
+            19 => op_div,
             20 => op_divmod,
             21 => op_gr,
             22 => op_ash,
