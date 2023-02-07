@@ -1,8 +1,9 @@
 use std::io;
-use std::io::{Cursor, Read, Seek, SeekFrom};
+use std::io::{Cursor, Read};
 
 use super::errors::bad_encoding;
 use super::parse_atom::decode_size;
+use super::utils::skip_bytes;
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const CONS_BOX_MARKER: u8 = 0xff;

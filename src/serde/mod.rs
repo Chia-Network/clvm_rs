@@ -9,6 +9,7 @@ mod read_cache_lookup;
 mod ser;
 mod ser_br;
 mod tools;
+mod utils;
 mod write_atom;
 
 #[cfg(test)]
