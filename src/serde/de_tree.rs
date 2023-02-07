@@ -1,11 +1,12 @@
 use std::convert::TryInto;
-use std::io::{copy, sink, Error, Read, Result, Write};
+use std::io::{Error, Read, Result, Write};
 
 use sha2::Digest;
 
 use crate::sha2::Sha256;
 
 use super::parse_atom::decode_size_with_offset;
+use super::utils::{copy_exactly, skip_bytes};
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const CONS_BOX_MARKER: u8 = 0xff;
@@ -62,28 +63,6 @@ fn tree_hash_for_byte(b: u8, calculate_tree_hashes: bool) -> Option<[u8; 32]> {
     } else {
         None
     }
-}
-
-pub fn copy_exactly<R: Read, W: ?Sized + Write>(
-    reader: &mut R,
-    writer: &mut W,
-    expected_size: u64,
-) -> Result<()> {
-    let mut reader = reader.by_ref().take(expected_size);
-
-    let count = copy(&mut reader, writer)?;
-    if count < expected_size {
-        Err(Error::new(
-            std::io::ErrorKind::UnexpectedEof,
-            "copy terminated early",
-        ))
-    } else {
-        Ok(())
-    }
-}
-
-fn skip_bytes<R: Read>(f: &mut R, skip_size: u64) -> Result<()> {
-    copy_exactly(f, &mut sink(), skip_size)
 }
 
 fn skip_or_sha_bytes<R: Read>(

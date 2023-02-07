@@ -145,7 +145,7 @@ class Program(CLVMStorage):
         return f"{self.__class__.__name__}({str(self)})"
 
     def __eq__(self, other) -> bool:
-        return self.tree_hash() == other.tree_hash()
+        return self.tree_hash() == self.to(other).tree_hash()
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
