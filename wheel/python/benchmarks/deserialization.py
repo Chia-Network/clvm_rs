@@ -59,53 +59,67 @@ def benchmark():
 
     des_output = bench(
         lambda: Program.from_bytes(result_blob),
-        "from_bytes (with tree hashing)",
+        "from_bytes with tree hashing (fbwth)",
         allow_slow=True,
     )
-    bench(lambda: des_output.tree_hash(), "from_bytes (with tree hashing) tree hash")
+    bench(lambda: des_output.tree_hash(), "tree hash (fbwth)")
     bench(
-        lambda: des_output.tree_hash(), "from_bytes (with tree hashing) tree hash again"
+        lambda: des_output.tree_hash(), "tree hash again (fbwth)"
     )
 
     bench(lambda: serialized_length(result_blob), "serialized_length")
 
     des_output = bench(
         lambda: Program.from_bytes(result_blob, calculate_tree_hash=False),
-        "from_bytes output (without tree hashing)",
+        "from_bytes without tree hashing (fbwoth)",
         allow_slow=True,
     )
     bench(
         lambda: des_output.tree_hash(),
-        "from_bytes (without tree hashing) tree hash",
+        "tree hash (fbwoth)",
         allow_slow=True,
     )
     bench(
         lambda: des_output.tree_hash(),
-        "from_bytes (without tree hashing) tree hash again",
+        "tree hash (fbwoth) again",
     )
 
     reparsed_output = bench(
         lambda: Program.parse(io.BytesIO(result_blob)),
-        "reparse output",
+        "parse with tree hashing (pwth)",
         allow_slow=True,
     )
-    bench(lambda: reparsed_output.tree_hash(), "reparsed tree hash", allow_slow=True)
+    bench(lambda: reparsed_output.tree_hash(), "tree hash (pwth)")
     bench(
         lambda: reparsed_output.tree_hash(),
-        "reparsed tree hash again",
+        "tree hash again (pwth)",
+    )
+
+    reparsed_output = bench(
+        lambda: Program.parse(io.BytesIO(result_blob), calculate_tree_hash=False),
+        "parse without treehashing (pwowt)",
+        allow_slow=True,
+    )
+    bench(
+        lambda: reparsed_output.tree_hash(), "tree hash (pwowt)", allow_slow=True
+    )
+    bench(
+        lambda: reparsed_output.tree_hash(),
+        "tree hash again (pwowt)",
     )
 
     foo = Program.to("foo")
     o0 = Program.to((foo, obj))
     o1 = Program.to((foo, obj1))
+    o2 = Program.to((foo, output))
 
     def compare():
         assert o0 == o1
 
-    bench(compare, "compare")
+    bench(compare, "compare constructed")
 
-    bench(lambda: bytes(o0), "to_bytes o0")
-    bench(lambda: bytes(o1), "to_bytes o1")
+    bench(lambda: bytes(o0), "to_bytes constructed o0")
+    bench(lambda: bytes(o1), "to_bytes constructed o1")
 
     bench(lambda: print(o0.tree_hash().hex()), "o0 tree_hash")
     bench(lambda: print(o0.tree_hash().hex()), "o0 tree_hash (again)")
@@ -113,15 +127,9 @@ def benchmark():
     bench(lambda: print(o1.tree_hash().hex()), "o1 tree_hash")
     bench(lambda: print(o1.tree_hash().hex()), "o1 tree_hash (again)")
 
-    o2 = Program.to((foo, output))
-
+    bench(lambda: bytes(o2), "to_bytes constructed o2")
     bench(lambda: print(o2.tree_hash().hex()), "o2 tree_hash")
     bench(lambda: print(o2.tree_hash().hex()), "o2 tree_hash (again)")
-
-    # start = time.time()
-    # obj1 = sexp_from_stream(io.BytesIO(out), SExp.to, allow_backrefs=False)
-    # end = time.time()
-    # print(end-start)
 
 
 if __name__ == "__main__":
