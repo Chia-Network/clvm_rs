@@ -145,22 +145,7 @@ class Program(CLVMStorage):
         return f"{self.__class__.__name__}({str(self)})"
 
     def __eq__(self, other) -> bool:
-        stack: List[Tuple[CLVMStorage, CLVMStorage]] = [(self, Program.to(other))]
-        while stack:
-            p1, p2 = stack.pop()
-            if p1.atom is None:
-                if p2.atom is not None:
-                    return False
-                pair_1 = p1.pair
-                pair_2 = p2.pair
-                assert pair_1 is not None
-                assert pair_2 is not None
-                stack.append((pair_1[1], pair_2[1]))
-                stack.append((pair_1[0], pair_2[0]))
-            else:
-                if p1.atom != p2.atom:
-                    return False
-        return True
+        return self.tree_hash() == other.tree_hash()
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
