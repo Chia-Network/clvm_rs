@@ -16,7 +16,7 @@ enum ParseOp {
 
 pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
     let mut f = Cursor::new(b);
-    parse_through_clvm_object(&mut f)?;
+    parse_through_clvm_object(&mut f).map_err(|_e| bad_encoding())?;
     Ok(f.position())
 }
 
@@ -224,16 +224,16 @@ fn test_serialized_length_from_bytes() {
     );
 
     let e = serialized_length_from_bytes(&[0x8f, 0xff]).unwrap_err();
-    assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof);
-    assert_eq!(e.to_string(), "copy terminated early");
+    assert_eq!(e.kind(), bad_encoding().kind());
+    assert_eq!(e.to_string(), "bad encoding");
 
     let e = serialized_length_from_bytes(&[0b11001111, 0xff]).unwrap_err();
-    assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof);
-    assert_eq!(e.to_string(), "copy terminated early");
+    assert_eq!(e.kind(), bad_encoding().kind());
+    assert_eq!(e.to_string(), "bad encoding");
 
     let e = serialized_length_from_bytes(&[0b11001111, 0xff, 0, 0]).unwrap_err();
-    assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof);
-    assert_eq!(e.to_string(), "copy terminated early");
+    assert_eq!(e.kind(), bad_encoding().kind());
+    assert_eq!(e.to_string(), "bad encoding");
 
     assert_eq!(
         serialized_length_from_bytes(&[0x8f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).unwrap(),
