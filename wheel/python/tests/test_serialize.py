@@ -100,12 +100,16 @@ class SerializeTest(unittest.TestCase):
     def test_deserialize_empty(self):
         bytes_in = b""
         with self.assertRaises(ValueError):
+            Program.from_bytes(bytes_in)
+        with self.assertRaises(ValueError):
             Program.parse(io.BytesIO(bytes_in))
 
     def test_deserialize_truncated_size(self):
         # fe means the total number of bytes in the length-prefix is 7
         # one for each bit set. 5 bytes is too few
         bytes_in = b"\xfe    "
+        with self.assertRaises(ValueError):
+            Program.from_bytes(bytes_in)
         with self.assertRaises(ValueError):
             Program.parse(io.BytesIO(bytes_in))
 
@@ -114,6 +118,8 @@ class SerializeTest(unittest.TestCase):
         # the blob itself is truncated though, it's less than 63 bytes
         bytes_in = b"\xbf   "
 
+        with self.assertRaises(ValueError):
+            Program.from_bytes(bytes_in)
         with self.assertRaises(ValueError):
             Program.parse(io.BytesIO(bytes_in))
 
@@ -138,6 +144,7 @@ class SerializeTest(unittest.TestCase):
 
     def test_bad_blob(self):
         self.assertRaises(ValueError, lambda: Program.fromhex("ff"))
+        self.assertRaises(ValueError, lambda: Program.parse(io.BytesIO(bytes.fromhex("ff"))))
 
     def test_large_atom(self):
         s = "foo" * 100
