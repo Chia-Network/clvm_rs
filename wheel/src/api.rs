@@ -5,14 +5,32 @@ use clvmr::chia_dialect::ChiaDialect;
 use clvmr::cost::Cost;
 use clvmr::reduction::Response;
 use clvmr::run_program::run_program;
-use clvmr::serde::{node_from_bytes, serialized_length_from_bytes};
+use clvmr::serde::{node_from_bytes, parse_through_clvm_object, serialized_length_from_bytes};
 use clvmr::{LIMIT_HEAP, LIMIT_STACK, MEMPOOL_MODE, NO_UNKNOWN_OPS};
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
+struct ReadPyAny<'py>(&'py PyAny);
+
+impl<'py> std::io::Read for ReadPyAny<'py> {
+    fn read(&mut self, b: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
+        let r: Vec<u8> = self.0.call1((b.len(),))?.extract()?;
+        let (p0, _p1) = b.split_at_mut(r.len());
+        p0.copy_from_slice(&r);
+        Ok(r.len())
+    }
+}
+
 #[pyfunction]
 pub fn serialized_length(program: &[u8]) -> PyResult<u64> {
     Ok(serialized_length_from_bytes(program)?)
+}
+
+#[pyfunction]
+pub fn skip_clvm_object(obj: &PyAny) -> PyResult<()> {
+    Ok(parse_through_clvm_object(&mut ReadPyAny(
+        obj.getattr("read")?,
+    ))?)
 }
 
 #[pyfunction]
@@ -43,6 +61,7 @@ pub fn run_serialized_chia_program(
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run_serialized_chia_program, m)?)?;
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
+    m.add_function(wrap_pyfunction!(skip_clvm_object, m)?)?;
 
     m.add("NO_UNKNOWN_OPS", NO_UNKNOWN_OPS)?;
     m.add("LIMIT_HEAP", LIMIT_HEAP)?;

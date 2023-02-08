@@ -8,6 +8,7 @@ mod read_cache_lookup;
 mod ser;
 mod ser_br;
 mod tools;
+mod utils;
 mod write_atom;
 
 #[cfg(test)]
@@ -17,4 +18,4 @@ pub use de::node_from_bytes;
 pub use de_br::node_from_bytes_backrefs;
 pub use ser::node_to_bytes;
 pub use ser_br::node_to_bytes_backrefs;
-pub use tools::{serialized_length_from_bytes, tree_hash_from_stream};
+pub use tools::{parse_through_clvm_object, serialized_length_from_bytes, tree_hash_from_stream};
