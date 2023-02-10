@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterator, List, Tuple, Optional, Any, BinaryIO
+from typing import List, Tuple, Optional, Any, BinaryIO
 
 from .at import at
 from .bytes32 import bytes32
