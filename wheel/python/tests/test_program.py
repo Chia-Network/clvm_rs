@@ -51,7 +51,7 @@ class TestProgram(TestCase):
         self.assertEqual(p.first(), 4)
         self.assertEqual(p.rest(), [5])
         p = Program.to(4)
-        self.assertEqual(p.as_pair(), None)
+        self.assertEqual(p.pair, None)
         self.assertEqual(p.first(), None)
         self.assertEqual(p.rest(), None)
 

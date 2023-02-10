@@ -51,7 +51,7 @@ def validate_program(program):
             v1, v2 = v.pair
             assert is_clvm_storage(v1)
             assert is_clvm_storage(v2)
-            s1, s2 = v.as_pair()
+            s1, s2 = v.pair
             validate_stack.append(s1)
             validate_stack.append(s2)
         else:
@@ -59,14 +59,14 @@ def validate_program(program):
 
 
 def print_leaves(tree: Program) -> str:
-    a = tree.as_atom()
+    a = tree.atom
     if a is not None:
         if len(a) == 0:
             return "() "
         return "%d " % a[0]
 
     ret = ""
-    pair = tree.as_pair()
+    pair = tree.pair
     assert pair is not None
     for i in pair:
         ret += print_leaves(i)
@@ -75,13 +75,13 @@ def print_leaves(tree: Program) -> str:
 
 
 def print_tree(tree: Program) -> str:
-    a = tree.as_atom()
+    a = tree.atom
     if a is not None:
         if len(a) == 0:
             return "() "
         return "%d " % a[0]
 
-    pair = tree.as_pair()
+    pair = tree.pair
     assert pair is not None
     ret = "("
     for i in pair:
@@ -180,13 +180,13 @@ class ToProgramTest(unittest.TestCase):
 
     def test_string_conversions(self):
         a = Program.to("foobar")
-        assert a.as_atom() == "foobar".encode()
+        assert a.atom == "foobar".encode()
 
     def test_int_conversions(self):
         def check(v: int, h: Union[str, list]):
             a = Program.to(v)
             b = bytes.fromhex(h) if isinstance(h, str) else bytes(h)
-            assert a.as_atom() == b
+            assert a.atom == b
             # note that this compares to the atom, not the serialization of that atom
             # so 16384 codes as 0x4000, not 0x824000
 
@@ -232,11 +232,11 @@ class ToProgramTest(unittest.TestCase):
 
     def test_none_conversions(self):
         a = Program.to(None)
-        assert a.as_atom() == b""
+        assert a.atom == b""
 
     def test_empty_list_conversions(self):
         a = Program.to([])
-        assert a.as_atom() == b""
+        assert a.atom == b""
 
     def test_eager_conversion(self):
         with self.assertRaises(ValueError):
