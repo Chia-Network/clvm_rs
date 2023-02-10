@@ -64,7 +64,10 @@ class Program(CLVMStorage):
         return self._cached_serialization
 
     def __int__(self) -> int:
-        return self.as_int()
+        v = self.as_int()
+        if v is None:
+            raise ValueError("can't cast pair to int")
+        return v
 
     def __hash__(self):
         return id(self)
@@ -159,12 +162,6 @@ class Program(CLVMStorage):
         if self.pair:
             return self.pair[1]
         return None
-
-    def as_pair(self) -> Optional[Tuple[Program, Program]]:
-        return self.pair
-
-    def as_atom(self) -> Optional[bytes]:
-        return self.atom
 
     def listp(self) -> bool:
         return self.pair is not None
@@ -309,37 +306,11 @@ class Program(CLVMStorage):
         )
         return curry_treehasher.curry_and_treehash(quoted_mod_hash, *args)
 
-    def as_int(self) -> int:
-        v = self.as_atom()
+    def as_int(self) -> Optional[int]:
+        v = self.atom
         if v is None:
-            raise ValueError("can't cast pair to int")
+            return v
         return int_from_bytes(v)
-
-    def as_iter(self) -> Iterator[Program]:
-        v = self
-        while v.pair:
-            yield v.pair[0]
-            v = v.pair[1]
-
-    def as_atom_iter(self) -> Iterator[bytes]:
-        """
-        Pretend `self` is a list of atoms. Yield the corresponding atoms
-        up until this assumption is wrong.
-        """
-        obj = self
-        while obj.pair is not None:
-            left, obj = obj.pair
-            atom = left.atom
-            if atom is None:
-                break
-            yield atom
-
-    def as_atom_list(self) -> List[bytes]:
-        """
-        Pretend `self` is a list of atoms. Return the corresponding
-        python list of atoms up until this assumption is wrong.
-        """
-        return list(self.as_atom_iter())
 
 
 NULL_PROGRAM = Program.fromhex("80")
