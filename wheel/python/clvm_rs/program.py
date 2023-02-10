@@ -148,7 +148,12 @@ class Program(CLVMStorage):
         return f"{self.__class__.__name__}({str(self)})"
 
     def __eq__(self, other) -> bool:
-        return self.tree_hash() == self.to(other).tree_hash()
+        try:
+            other_obj = self.to(other)
+        except ValueError:
+            # cast failure
+            return False
+        return self.tree_hash() == other_obj.tree_hash()
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
@@ -195,7 +200,26 @@ class Program(CLVMStorage):
         assert None == at(p1, "rr")
         ```
         """
-        return self.to(at(self, position))
+        r = at(self, position)
+        if r is None:
+            return r
+        return self.to(r)
+
+    def at_many(self, *positions: str) -> List[Optional["Program"]]:
+        """
+        Call `.at` multiple times.
+
+        Why? So you can write
+
+        `
+        if p.at_many("f", "rf", "rfrf") == [5, 10, 15]:
+        `
+        instead of
+        `
+        if [p.at("f"), p.at("rf"), p.at("rfrf")] == [5, 10, 15]:
+        `
+        """
+        return [self.at(_) for _ in positions]
 
     def replace(self, **kwargs) -> "Program":
         """

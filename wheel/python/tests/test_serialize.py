@@ -65,8 +65,8 @@ class SerializeTest(unittest.TestCase):
                 self.check_serde([_] * size)
 
     def test_cons_box(self):
-        self.check_serde((None, None))
-        self.check_serde((None, [1, 2, 30, 40, 600, (None, 18)]))
+        self.check_serde((0, 0))
+        self.check_serde((0, [1, 2, 30, 40, 600, ([], 18)]))
         self.check_serde((100, (TEXT, (30, (50, (90, (TEXT, TEXT + TEXT)))))))
 
     def test_long_blobs(self):

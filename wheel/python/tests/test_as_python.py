@@ -36,10 +36,6 @@ class AsPythonTest(unittest.TestCase):
         self.assertEqual(v.atom, bytes([]))
         self.assertEqual(v.as_int(), 0)
 
-    def test_none(self):
-        v = Program.to(None)
-        self.assertEqual(v.atom, b"")
-
     def test_empty_list(self):
         v = Program.to([])
         self.assertEqual(v.atom, b"")
@@ -164,14 +160,14 @@ class AsPythonTest(unittest.TestCase):
     def test_eq(self):
         val = Program.to(1)
 
-        self.assertTrue(val == 1)
-        self.assertFalse(val == 2)
+        self.assertEqual(val, 1)
+        self.assertNotEqual(val, 2)
 
         # mismatching types
-        self.assertFalse(val == [1])
-        self.assertFalse(val == [1, 2])
-        self.assertFalse(val == (1, 2))
-        self.assertRaises(ValueError, lambda: val == (dummy_class, dummy_class))
+        self.assertNotEqual(val, [1])
+        self.assertNotEqual(val, [1, 2])
+        self.assertNotEqual(val, (1, 2))
+        self.assertNotEqual(val, (dummy_class, dummy_class))
 
     def test_eq_tree(self):
         val1 = gen_tree(2)

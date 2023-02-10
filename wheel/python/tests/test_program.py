@@ -24,6 +24,11 @@ class TestProgram(TestCase):
         self.assertEqual(None, p.at("ff"))
         self.assertEqual(None, p.at("ffr"))
 
+    def test_at_many(self):
+        p = Program.to([10, 20, 30, [15, 17], 40, 50])
+        self.assertEqual(p.at_many("f", "rrrfrf"), [10, 17])
+        self.assertEqual(p.at_many("fff", "rrrfff"), [None, None])
+
     def test_replace(self):
         p1 = Program.to([100, 200, 300])
         self.assertEqual(p1.replace(f=105), Program.to([105, 200, 300]))
@@ -152,11 +157,11 @@ def test_uncurry_not_pair():
     # the second item in the list is expected to be a pair, with a qoute
     # `(a 1 (c (q . 1) (q . 1)))`
     plus = Program.fromhex("ff02ff01ffff04ffff0101ffff01018080")
-    assert plus.uncurry() == (plus, Program.to(0))
+    assert plus.uncurry() == (plus, None)
 
 
 def test_uncurry_args_garbage():
     # there's garbage at the end of the args list
     # `(a (q . 1) (c (q . 1) (q . 1) (q . 4919)))`
     plus = Program.fromhex("ff02ffff0101ffff04ffff0101ffff0101ffff018213378080")
-    assert plus.uncurry() == (plus, Program.to(0))
+    assert plus.uncurry() == (plus, None)
