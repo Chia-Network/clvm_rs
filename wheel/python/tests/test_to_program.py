@@ -230,10 +230,6 @@ class ToProgramTest(unittest.TestCase):
             check(n)
             check(-n)
 
-    def test_none_conversions(self):
-        a = Program.to(None)
-        assert a.atom == b""
-
     def test_empty_list_conversions(self):
         a = Program.to([])
         assert a.atom == b""
@@ -251,7 +247,6 @@ class ToProgramTest(unittest.TestCase):
         assert convert_atom_to_bytes("") == b""
 
         assert convert_atom_to_bytes(b"foobar") == b"foobar"
-        assert convert_atom_to_bytes(None) == b""
         assert convert_atom_to_bytes([]) == b""
 
         assert convert_atom_to_bytes([1, 2, 3]) is None

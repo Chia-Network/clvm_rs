@@ -11,7 +11,6 @@ AtomCastableType = Union[
     str,
     int,
     SupportsBytes,
-    None,
 ]
 
 
@@ -66,8 +65,6 @@ def to_atom_type(v: AtomCastableType) -> bytes:
         return int_to_bytes(v)
     if isinstance(v, (memoryview, SupportsBytes)):
         return bytes(v)
-    if v is None:
-        return NULL_BLOB
 
     raise ValueError("can't cast %s (%s) to bytes" % (type(v), v))
 
