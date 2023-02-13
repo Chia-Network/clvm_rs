@@ -25,7 +25,6 @@ jobs:
     runs-on: ${{ matrix.os.runs-on[matrix.arch.matrix] }}
     strategy:
       fail-fast: false
-      # TODO: switch back to abi3/single python version builds.  (or maybe not?)
       matrix:
         os:
           - name: macOS
@@ -292,8 +291,7 @@ jobs:
         with:
             # TODO: was stable before, should probably be consistent across projects
             toolchain: nightly
-            # TODO: why are we installing clippy here...
-            components: rustfmt, clippy
+            components: rustfmt
             override: true
       - name: fmt
         # TODO: didn't have --all before
@@ -524,7 +522,6 @@ jobs:
 
       - name: Install packages
         run: |
-          # TODO: review how to get relevant test stuff installed
           pip install --no-index --dry-run --find-links dist/ clvm_rs | tee .tmp.wheel_path
           WHEEL_PATH=dist/$(cat .tmp.wheel_path | sed -n 's;^.*[/\\]dist[/\\]\(.*\)$;\1;p')
           if [ "${WHEEL_PATH}" = "" ]
