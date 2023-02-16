@@ -336,5 +336,11 @@ class Program(CLVMStorage):
             return v
         return int_from_bytes(v)
 
+    def as_iter(self) -> Iterator[Program]:
+        v = self
+        while v.pair:
+            yield v.pair[0]
+            v = v.pair[1]
+
 
 NULL_PROGRAM = Program.fromhex("80")
