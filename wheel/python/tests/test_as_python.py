@@ -157,6 +157,22 @@ class AsPythonTest(unittest.TestCase):
         val = Program.to((42, val))
         self.assertEqual(val.rest(), Program.to(1))
 
+    def test_as_iter(self):
+        val = list(Program.to((1, (2, (3, (4, b""))))).as_iter())
+        self.assertEqual(val, [1, 2, 3, 4])
+
+        val = list(Program.to(b"").as_iter())
+        self.assertEqual(val, [])
+
+        val = list(Program.to((1, b"")).as_iter())
+        self.assertEqual(val, [1])
+
+        # these fail because the lists are not null-terminated
+        self.assertEqual(list(Program.to(1).as_iter()), [])
+        self.assertEqual(
+            list(Program.to((1, (2, (3, (4, 5))))).as_iter()), [1, 2, 3, 4]
+        )
+
     def test_eq(self):
         val = Program.to(1)
 
