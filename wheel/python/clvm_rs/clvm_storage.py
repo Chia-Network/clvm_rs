@@ -18,7 +18,8 @@ class CLVMStorage(Protocol):
     # optional fields used to speed implementations:
 
     # `_cached_sha256_treehash: Optional[bytes]` is used by `sha256_treehash`
-    # `_cached_serialization:  bytes` is used by `sexp_to_byte_iterator` to speed up serialization
+    # `_cached_serialization:  bytes` is used by `sexp_to_byte_iterator`
+    #      to speed up serialization
 
 
 def is_clvm_storage(obj):

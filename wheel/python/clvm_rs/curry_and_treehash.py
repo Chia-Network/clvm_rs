@@ -1,7 +1,6 @@
 from typing import Any, List, Optional, Tuple
 
 from .at import at
-from .bytes32 import bytes32
 from .chia_dialect import Dialect, CHIA_DIALECT
 from .clvm_storage import CLVMStorage
 from .tree_hash import shatree_pair, shatree_atom
@@ -30,7 +29,7 @@ class CurryTreehasher:
     # `(c . ((q . F) . EXPANSION(R)))` if R is not 0
     # `1` if R is 0
 
-    def curried_values_tree_hash(self, arguments: List[bytes32]) -> bytes32:
+    def curried_values_tree_hash(self, arguments: List[bytes]) -> bytes:
         if len(arguments) == 0:
             return self.one_treehash
 
@@ -48,8 +47,8 @@ class CurryTreehasher:
     # where `F` is the `mod` and `E` is the curried environment
 
     def curry_and_treehash(
-        self, hash_of_quoted_mod_hash: bytes32, *hashed_arguments: bytes32
-    ) -> bytes32:
+        self, hash_of_quoted_mod_hash: bytes, *hashed_arguments: bytes
+    ) -> bytes:
         """
         `hash_of_quoted_mod_hash` : tree hash of `(q . MOD)` where `MOD`
              is template to be curried
@@ -69,7 +68,7 @@ class CurryTreehasher:
             ),
         )
 
-    def calculate_hash_of_quoted_mod_hash(self, mod_hash: bytes32) -> bytes32:
+    def calculate_hash_of_quoted_mod_hash(self, mod_hash: bytes) -> bytes:
         return shatree_pair(self.q_kw_treehash, mod_hash)
 
     """

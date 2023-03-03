@@ -87,7 +87,7 @@ def to_clvm_object(
     # operations:
     #  0: pop `to_convert` and convert if possible, storing result on `did_convert`,
     #     or subdivide task, pushing multiple things on `to_convert` (and new ops)
-    #  1: pop two items from `did_convert` and cons them, pushing result to `did_convert`
+    #  1: pop & cons two items from `did_convert`, pushing result to `did_convert`
     #  2: same as 1 but cons in opposite order. Necessary for converting lists
 
     while len(ops) > 0:

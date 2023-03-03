@@ -144,7 +144,8 @@ class SerializeTest(unittest.TestCase):
 
     def test_bad_blob(self):
         self.assertRaises(ValueError, lambda: Program.fromhex("ff"))
-        self.assertRaises(ValueError, lambda: Program.parse(io.BytesIO(bytes.fromhex("ff"))))
+        f = io.BytesIO(bytes.fromhex("ff"))
+        self.assertRaises(ValueError, lambda: Program.parse(f))
 
     def test_large_atom(self):
         s = "foo" * 100

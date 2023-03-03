@@ -9,7 +9,6 @@ have to worry about blowing out the python stack.
 from hashlib import sha256
 from typing import List
 
-from .bytes32 import bytes32
 from .clvm_storage import CLVMStorage
 
 
@@ -32,20 +31,20 @@ class Treehasher:
         self.pair_prefix = pair_prefix
         self.cache_hits = 0
 
-    def shatree_atom(self, atom: bytes) -> bytes32:
+    def shatree_atom(self, atom: bytes) -> bytes:
         s = sha256()
         s.update(self.atom_prefix)
         s.update(atom)
-        return bytes32(s.digest())
+        return s.digest()
 
-    def shatree_pair(self, left_hash: bytes32, right_hash: bytes32) -> bytes32:
+    def shatree_pair(self, left_hash: bytes, right_hash: bytes) -> bytes:
         s = sha256()
         s.update(self.pair_prefix)
         s.update(left_hash)
         s.update(right_hash)
-        return bytes32(s.digest())
+        return s.digest()
 
-    def sha256_treehash(self, clvm_storage: CLVMStorage) -> bytes32:
+    def sha256_treehash(self, clvm_storage: CLVMStorage) -> bytes:
         def handle_obj(obj_stack, hash_stack, op_stack) -> None:
             obj = obj_stack.pop()
             r = getattr(obj, "_cached_sha256_treehash", None)
@@ -82,7 +81,7 @@ class Treehasher:
 
         obj_stack = [clvm_storage]
         op_stack = [handle_obj]
-        hash_stack: List[bytes32] = []
+        hash_stack: List[bytes] = []
         while len(op_stack) > 0:
             op = op_stack.pop()
             op(obj_stack, hash_stack, op_stack)

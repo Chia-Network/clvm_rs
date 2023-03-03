@@ -1,8 +1,7 @@
 from __future__ import annotations
-from typing import List, Tuple, Optional, Any, BinaryIO
+from typing import Iterator, List, Tuple, Optional, Any, BinaryIO
 
 from .at import at
-from .bytes32 import bytes32
 from .casts import to_clvm_object, int_from_bytes, int_to_bytes
 from .clvm_rs import run_serialized_chia_program
 from .clvm_storage import CLVMStorage
@@ -246,7 +245,7 @@ class Program(CLVMStorage):
         """
         return self.to(replace(self, **kwargs))
 
-    def tree_hash(self) -> bytes32:
+    def tree_hash(self) -> bytes:
         # we operate on the unwrapped version to prevent the re-wrapping that
         # happens on each invocation of `Program.pair` whenever possible
         if self._cached_sha256_treehash is None:
@@ -307,7 +306,7 @@ class Program(CLVMStorage):
         p_args = args if args is None else [self.to(_) for _ in args]
         return self.to(mod), p_args
 
-    def curry_hash(self, *args: bytes32) -> bytes32:
+    def curry_hash(self, *args: bytes) -> bytes:
         """
         Return a puzzle hash that would be created if you curried this puzzle
         with arguments that have the given hashes.
