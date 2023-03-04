@@ -136,10 +136,15 @@ jobs:
         pytest tests
 
     - name: Run tests from clvm_tools
-      continue-on-error: true
       run: |
         . ./activate
         cd clvm_tools
+        pytest tests
+
+    - name: Run tests from wheel
+      run: |
+        . ./activate
+        cd wheel/python
         pytest tests
 
     - name: Upload artifacts
