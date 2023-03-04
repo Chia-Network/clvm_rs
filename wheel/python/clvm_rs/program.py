@@ -3,10 +3,11 @@ from typing import Iterator, List, Tuple, Optional, Any, BinaryIO
 
 from .at import at
 from .casts import to_clvm_object, int_from_bytes, int_to_bytes
+from .chia_dialect import CHIA_DIALECT
 from .clvm_rs import run_serialized_chia_program
 from .clvm_storage import CLVMStorage
 from .clvm_tree import CLVMTree
-from .curry_and_treehash import CurryTreehasher, CHIA_CURRY_TREEHASHER
+from .curry_and_treehash import CurryTreehasher
 from .eval_error import EvalError
 from .replace import replace
 from .ser import sexp_from_stream, sexp_to_stream, sexp_to_bytes
@@ -21,7 +22,7 @@ class Program(CLVMStorage):
     A wrapper around `CLVMStorage` providing many convenience functions.
     """
 
-    curry_treehasher: CurryTreehasher = CHIA_CURRY_TREEHASHER
+    curry_treehasher: CurryTreehasher = CurryTreehasher(CHIA_DIALECT)
     _cached_serialization: Optional[bytes]
 
     # serialization/deserialization

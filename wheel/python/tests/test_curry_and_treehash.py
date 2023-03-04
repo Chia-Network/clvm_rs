@@ -2,8 +2,10 @@
 import pytest
 
 from clvm_rs import Program
-from clvm_rs.curry_and_treehash import CHIA_CURRY_TREEHASHER
+from clvm_rs.chia_dialect import CHIA_DIALECT
+from clvm_rs.curry_and_treehash import CurryTreehasher
 
+CHIA_CURRY_TREEHASHER = CurryTreehasher(CHIA_DIALECT)
 curry_and_treehash = CHIA_CURRY_TREEHASHER.curry_and_treehash
 calculate_hash_of_quoted_mod_hash = (
     CHIA_CURRY_TREEHASHER.calculate_hash_of_quoted_mod_hash
