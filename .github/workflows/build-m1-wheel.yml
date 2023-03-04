@@ -87,8 +87,7 @@ jobs:
     - name: Run tests from wheel
       run: |
         . ./venv/bin/activate
-        cd wheel/python
-        pytest tests
+        pytest wheel/python/tests
 
     - name: Upload wheels
       uses: actions/upload-artifact@v3

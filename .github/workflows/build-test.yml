@@ -141,14 +141,14 @@ jobs:
         cd clvm_tools
         pytest tests
 
-    - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v1
-
     - name: Run tests from wheel
       run: |
         . ./activate
         cd wheel/python
-        pytest tests
+        pytest --import-mode append tests
+        # we use `append` because otherwise the `clvm_rs` source is added
+        # to `sys.path` and it uses that instead of the wheel (and so
+        # ignoring `clvm_rs.so`, which is pretty important)
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
