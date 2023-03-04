@@ -141,6 +141,9 @@ jobs:
         cd clvm_tools
         pytest tests
 
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v1
+
     - name: Run tests from wheel
       run: |
         . ./activate
