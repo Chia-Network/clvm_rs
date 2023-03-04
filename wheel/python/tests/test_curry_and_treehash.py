@@ -1,4 +1,3 @@
-
 import pytest
 
 from clvm_rs import Program
@@ -13,7 +12,6 @@ calculate_hash_of_quoted_mod_hash = (
 
 
 def test_curry_and_treehash() -> None:
-
     arbitrary_mod = Program.fromhex("ff10ff02ff0580")  # `(+ 2 5)`
     arbitrary_mod_hash = arbitrary_mod.tree_hash()
 

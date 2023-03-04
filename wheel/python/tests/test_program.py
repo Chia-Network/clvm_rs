@@ -271,12 +271,10 @@ class ProgramTest(TestCase):
         assert o.atom == bytes([1])
 
     def test_arbitrary_underlying_tree(self) -> None:
-
         # Program provides a view on top of a tree of arbitrary types, as long as
         # those types implement the CLVMStorage protocol. This is an example of
         # a tree that's generated
         class GeneratedTree:
-
             depth: int = 4
             val: int = 0
 
@@ -319,7 +317,6 @@ class ProgramTest(TestCase):
         assert print_leaves(Program.to(0)) == "() "
 
     def test_looks_like_clvm_object(self):
-
         # this function can't look at the values, that would cause a cascade of
         # eager evaluation/conversion
         class dummy:
