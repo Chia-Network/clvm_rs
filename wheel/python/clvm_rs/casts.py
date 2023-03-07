@@ -6,6 +6,7 @@ from typing import Callable, List, SupportsBytes, Tuple, Union, cast
 
 from .clvm_storage import CLVMStorage, is_clvm_storage
 
+
 AtomCastableType = Union[
     bytes,
     str,
@@ -25,6 +26,28 @@ CastableType = Union[
 
 
 NULL_BLOB = b""
+
+
+def generate_working_memview_or_bytes():
+    # in python3.7 you can't go 'isinstance(b"", SupportsBytes)'
+
+    # this one works in py38+
+    def memview_or_bytes_py38_or_later(o):
+        return isinstance(o, (memoryview, SupportsBytes))
+
+    # this one works in py37
+    def memview_or_bytes_py37(o):
+        return getattr(o, "__bytes__", None) is not None
+
+    try:
+        memview_or_bytes_py38_or_later(b"")
+        return memview_or_bytes_py38_or_later
+    except TypeError:
+        pass
+    return memview_or_bytes_py37
+
+
+memview_or_bytes = generate_working_memview_or_bytes()
 
 
 def int_from_bytes(blob):
@@ -63,7 +86,7 @@ def to_atom_type(v: AtomCastableType) -> bytes:
         return v.encode()
     if isinstance(v, int):
         return int_to_bytes(v)
-    if isinstance(v, (memoryview, SupportsBytes)):
+    if memview_or_bytes(v):
         return bytes(v)
 
     raise ValueError("can't cast %s (%s) to bytes" % (type(v), v))
