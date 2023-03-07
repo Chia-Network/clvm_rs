@@ -15,8 +15,6 @@ AtomCastableType = Union[
 ]
 
 
-# as of January 2023, mypy does not like this recursive definition
-
 CastableType = Union[
     AtomCastableType,
     List["CastableType"],
