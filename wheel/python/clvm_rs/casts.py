@@ -48,7 +48,7 @@ def generate_working_memview_or_bytes():
 memview_or_bytes = generate_working_memview_or_bytes()
 
 
-def int_from_bytes(blob):
+def int_from_bytes(blob: bytes) -> int:
     """
     Convert a bytes blob encoded as a clvm int to a python int.
     """
@@ -58,13 +58,13 @@ def int_from_bytes(blob):
     return int.from_bytes(blob, "big", signed=True)
 
 
-def int_to_bytes(v) -> bytes:
+def int_to_bytes(v: int) -> bytes:
     """
     Convert a python int to a blob that encodes as this integer in clvm.
     """
-    byte_count = (v.bit_length() + 8) >> 3
     if v == 0:
         return b""
+    byte_count = (v.bit_length() + 8) // 8
     r = v.to_bytes(byte_count, "big", signed=True)
     # make sure the string returned is minimal
     # ie. no leading 00 or ff bytes that are unnecessary
@@ -94,12 +94,19 @@ def to_clvm_object(
     castable: CastableType,
     to_atom_f: Callable[[bytes], CLVMStorage],
     to_pair_f: Callable[[CLVMStorage, CLVMStorage], CLVMStorage],
-):
+) -> CLVMStorage:
     """
     Convert a python object to clvm object.
 
     This works on nested tuples and lists of potentially unlimited depth.
     It is non-recursive, so nesting depth is not limited by the call stack.
+    But the entire hiearachy must be traversed, so execution time is
+    proportional to hierarchy depth, and thus potentially unbounded.
+
+    So don't use on untrusted input. Also, the case where a list that transitively
+    contains itself (eg `t = []; t.append(t)`) in a loop is not detected, and
+    this function will never return because it acts like a hiearachy with
+    infinite depth.
     """
     to_convert: List[CastableType] = [castable]
     did_convert: List[CLVMStorage] = []

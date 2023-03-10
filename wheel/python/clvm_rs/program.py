@@ -1,8 +1,8 @@
 from __future__ import annotations
-from typing import Iterator, List, Tuple, Optional, Any, BinaryIO
+from typing import Iterator, List, Tuple, Optional, BinaryIO
 
 from .at import at
-from .casts import to_clvm_object, int_from_bytes, int_to_bytes
+from .casts import CastableType, to_clvm_object, int_from_bytes, int_to_bytes
 from .chia_dialect import CHIA_DIALECT
 from .clvm_rs import run_serialized_chia_program
 from .clvm_storage import CLVMStorage
@@ -98,7 +98,7 @@ class Program(CLVMStorage):
         return self._pair
 
     @classmethod
-    def to(cls, v: Any) -> Program:
+    def to(cls, v: CastableType) -> Program:
         return cls.wrap(to_clvm_object(v, cls.new_atom, cls.new_pair))
 
     @classmethod
@@ -271,24 +271,12 @@ class Program(CLVMStorage):
         cost, r = self.run_with_cost(args, MAX_COST)
         return r
 
-    def curry(self, *args) -> "Program":
+    def curry(self, *args: CastableType) -> "Program":
         """
-        Replicates the curry function from clvm_tools, taking advantage of *args
-        being a list.  We iterate through args in reverse building the code to
-        create a clvm list.
+        Given a `MOD` program, cast to `Program` the list of values and
+        bind them to the `MOD`. See also https://docs.chia.net/guides/chialisp-currying
 
-        Given arguments to a function addressable by the '1' reference in clvm
-
-        fixed_args = 1
-
-        Each arg is prepended as fixed_args = (c (q . arg) fixed_args)
-
-        The resulting argument list is interpreted with apply (2)
-
-        (a (q . self) rest)
-
-        Resulting in a function which places its own arguments after those
-        curried in in the form of a proper list.
+        Returns a program with the given values bound.
         """
         return self.to(self.curry_treehasher.curry(self, *args))
 

@@ -1,6 +1,7 @@
-from typing import Any, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from .at import at
+from .casts import CastableType
 from .chia_dialect import Dialect
 from .clvm_storage import CLVMStorage
 from .tree_hash import shatree_pair, shatree_atom
@@ -84,7 +85,7 @@ class CurryTreehasher:
         """
         return shatree_pair(self.q_kw_treehash, mod_hash)
 
-    def curry(self, mod, *args) -> Any:
+    def curry(self, mod: CLVMStorage, *args: CastableType) -> CastableType:
         """
         Curry a mod template with the given args, returning a new function.
 
@@ -105,7 +106,7 @@ class CurryTreehasher:
         curried in in the form of a proper list.
         """
 
-        fixed_args: Any = 1
+        fixed_args: CastableType = 1
         for arg in reversed(args):
             fixed_args = [self.dialect.C_KW, (self.dialect.Q_KW, arg), fixed_args]
         return [self.dialect.A_KW, (self.dialect.Q_KW, mod), fixed_args]

@@ -7,9 +7,12 @@ have to worry about blowing out the python stack.
 """
 
 from hashlib import sha256
-from typing import List
+from typing import Callable, List, Tuple, cast
 
 from .clvm_storage import CLVMStorage
+
+
+OP_STACK_F = Callable[[List[CLVMStorage], List[bytes], List["OP_STACK_F"]], None]
 
 
 class Treehasher:
@@ -45,7 +48,11 @@ class Treehasher:
         return s.digest()
 
     def sha256_treehash(self, clvm_storage: CLVMStorage) -> bytes:
-        def handle_obj(obj_stack, hash_stack, op_stack) -> None:
+        def handle_obj(
+            obj_stack: List[CLVMStorage],
+            hash_stack: List[bytes],
+            op_stack: List[OP_STACK_F],
+        ) -> None:
             obj = obj_stack.pop()
             r = getattr(obj, "_cached_sha256_treehash", None)
             if r is not None:
@@ -60,7 +67,8 @@ class Treehasher:
                 except AttributeError:
                     pass
             else:
-                p0, p1 = obj.pair
+                pair = cast(Tuple[CLVMStorage, CLVMStorage], obj.pair)
+                p0, p1 = pair
                 obj_stack.append(obj)
                 obj_stack.append(p0)
                 obj_stack.append(p1)
@@ -68,7 +76,11 @@ class Treehasher:
                 op_stack.append(handle_obj)
                 op_stack.append(handle_obj)
 
-        def handle_pair(obj_stack, hash_stack, op_stack) -> None:
+        def handle_pair(
+            obj_stack: List[CLVMStorage],
+            hash_stack: List[bytes],
+            op_stack: List[OP_STACK_F],
+        ) -> None:
             p0 = hash_stack.pop()
             p1 = hash_stack.pop()
             r = shatree_pair(p0, p1)
@@ -79,11 +91,11 @@ class Treehasher:
             except AttributeError:
                 pass
 
-        obj_stack = [clvm_storage]
-        op_stack = [handle_obj]
+        obj_stack: List[CLVMStorage] = [clvm_storage]
+        op_stack: List[OP_STACK_F] = [handle_obj]
         hash_stack: List[bytes] = []
         while len(op_stack) > 0:
-            op = op_stack.pop()
+            op: OP_STACK_F = op_stack.pop()
             op(obj_stack, hash_stack, op_stack)
         return hash_stack[0]
 

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, cast
+from typing import Optional
 
 from .clvm_storage import CLVMStorage
 
@@ -23,9 +23,8 @@ def at(obj: CLVMStorage, position: str) -> Optional[CLVMStorage]:
     ```
 
     """
-    v: Optional[CLVMStorage] = obj
+    v = obj
     for c in position.lower():
-        v = cast(CLVMStorage, v)
         pair = v.pair
         if pair is None:
             return None

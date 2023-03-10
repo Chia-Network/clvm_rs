@@ -15,7 +15,7 @@ Serialize clvm.
 # 0xf7-0xfb is 5 bytes (`and` of first byte with 0x3)
 """
 
-from typing import BinaryIO, Iterator, List
+from typing import BinaryIO, Callable, Iterator, List
 
 from .clvm_storage import CLVMStorage
 
@@ -107,7 +107,20 @@ def sexp_to_bytes(sexp: CLVMStorage) -> bytes:
     return bytes(b)
 
 
-def _op_read_sexp(op_stack, val_stack, f, new_pair_f, new_atom_f):
+NEW_PAIR_F = Callable[[CLVMStorage, CLVMStorage], CLVMStorage]
+NEW_ATOM_F = Callable[[bytes], CLVMStorage]
+OP_STACK_F = Callable[
+    [List["OP_STACK_F"], List[CLVMStorage], BinaryIO, NEW_PAIR_F, NEW_ATOM_F], None
+]
+
+
+def _op_read_sexp(
+    op_stack: List[OP_STACK_F],
+    val_stack: List[CLVMStorage],
+    f: BinaryIO,
+    new_pair_f: NEW_PAIR_F,
+    new_atom_f: NEW_ATOM_F,
+):
     blob = f.read(1)
     if len(blob) == 0:
         raise ValueError("bad encoding")
@@ -121,15 +134,21 @@ def _op_read_sexp(op_stack, val_stack, f, new_pair_f, new_atom_f):
 
 
 def _op_cons(
-    op_stack, val_stack: List[CLVMStorage], f: BinaryIO, new_pair_f, new_atom_f
+    op_stack: List[OP_STACK_F],
+    val_stack: List[CLVMStorage],
+    f: BinaryIO,
+    new_pair_f: NEW_PAIR_F,
+    new_atom_f: NEW_ATOM_F,
 ):
     right = val_stack.pop()
     left = val_stack.pop()
     val_stack.append(new_pair_f(left, right))
 
 
-def sexp_from_stream(f: BinaryIO, new_pair_f, new_atom_f):
-    op_stack = [_op_read_sexp]
+def sexp_from_stream(
+    f: BinaryIO, new_pair_f: NEW_PAIR_F, new_atom_f: NEW_ATOM_F
+) -> CLVMStorage:
+    op_stack: List[OP_STACK_F] = [_op_read_sexp]
     val_stack: List[CLVMStorage] = []
 
     while op_stack:
@@ -138,7 +157,7 @@ def sexp_from_stream(f: BinaryIO, new_pair_f, new_atom_f):
     return val_stack.pop()
 
 
-def _atom_from_stream(f: BinaryIO, b: int, new_atom_f):
+def _atom_from_stream(f: BinaryIO, b: int, new_atom_f: NEW_ATOM_F) -> CLVMStorage:
     if b == 0x80:
         return new_atom_f(b"")
     if b <= MAX_SINGLE_BYTE:

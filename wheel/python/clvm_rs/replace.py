@@ -5,7 +5,7 @@ from .casts import CastableType
 from .clvm_storage import CLVMStorage
 
 
-def replace(program: CLVMStorage, **kwargs) -> CastableType:
+def replace(program: CLVMStorage, **kwargs: CastableType) -> CastableType:
     # if `kwargs == {}` then `return program` unchanged
     if len(kwargs) == 0:
         return program
@@ -19,7 +19,7 @@ def replace(program: CLVMStorage, **kwargs) -> CastableType:
     # Now split `kwargs` into two groups: those
     # that start with `f` and those that start with `r`
 
-    args_by_prefix: Dict[str, Dict[str, CLVMStorage]] = dict(f={}, r={})
+    args_by_prefix: Dict[str, Dict[str, CastableType]] = dict(f={}, r={})
     for k, v in kwargs.items():
         c = k[0]
         if c not in "fr":

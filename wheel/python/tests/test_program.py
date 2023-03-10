@@ -274,7 +274,7 @@ class ProgramTest(TestCase):
         # Program provides a view on top of a tree of arbitrary types, as long as
         # those types implement the CLVMStorage protocol. This is an example of
         # a tree that's generated
-        class GeneratedTree:
+        class GeneratedTree(CLVMStorage):
             depth: int = 4
             val: int = 0
 
@@ -283,12 +283,7 @@ class ProgramTest(TestCase):
                 self.depth = depth
                 self.val = val
                 self._cached_sha256_treehash = None
-
-            @property
-            def atom(self) -> Optional[bytes]:
-                if self.depth > 0:
-                    return None
-                return bytes([self.val])
+                self.atom = None if self.depth > 0 else bytes([self.val])
 
             @property
             def pair(self) -> Optional[Tuple[Any, Any]]:
