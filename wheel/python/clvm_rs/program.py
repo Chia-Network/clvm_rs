@@ -136,6 +136,10 @@ class Program(CLVMStorage):
     def null(cls) -> Program:
         return NULL_PROGRAM
 
+    @classmethod
+    def one(cls) -> Program:
+        return ONE_PROGRAM
+
     # display
 
     def __str__(self) -> str:
@@ -343,3 +347,4 @@ class Program(CLVMStorage):
 
 
 NULL_PROGRAM = Program.fromhex("80")
+ONE_PROGRAM = Program.fromhex("01")
