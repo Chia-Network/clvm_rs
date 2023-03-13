@@ -9,6 +9,8 @@ from clvm_rs.program import Program
 
 A_KW, C_KW, Q_KW = [getattr(CHIA_DIALECT, _) for _ in "A_KW C_KW Q_KW".split()]
 
+Program.set_run_unsafe_max_cost(0x7FFFFFFFFFFFFFFF)
+
 
 class TestProgram(TestCase):
     def test_at(self):

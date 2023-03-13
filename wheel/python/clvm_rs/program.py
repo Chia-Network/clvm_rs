@@ -14,13 +14,13 @@ from .ser import sexp_from_stream, sexp_to_stream, sexp_to_bytes
 from .tree_hash import sha256_treehash
 
 
-MAX_COST = 0x7FFFFFFFFFFFFFFF
-
 
 class Program(CLVMStorage):
     """
     A wrapper around `CLVMStorage` providing many convenience functions.
     """
+
+    UNSAFE_MAX_COST: Optional[int] = None
 
     curry_treehasher: CurryTreehasher = CurryTreehasher(CHIA_DIALECT)
     _cached_serialization: Optional[bytes]
@@ -254,7 +254,7 @@ class Program(CLVMStorage):
         return self._cached_sha256_treehash
 
     def run_with_cost(
-        self, args, max_cost: int = MAX_COST, flags: int = 0
+        self, args, max_cost: int, flags: int = 0
     ) -> Tuple[int, "Program"]:
         prog_bytes = bytes(self)
         args_bytes = bytes(self.to(args))
@@ -268,8 +268,19 @@ class Program(CLVMStorage):
         return cost, r
 
     def run(self, args) -> "Program":
-        cost, r = self.run_with_cost(args, MAX_COST)
+        """
+        Run with the default `UNSAFE_MAX_COST` value. Using too high a value with
+        misbehaving code may exhaust memory or take a long time.
+        """
+        max_cost = self.__class__.UNSAFE_MAX_COST
+        if max_cost is None:
+            raise ValueError("please call `set_run_unsafe_max_cost` before using `run`")
+        cost, r = self.run_with_cost(args, max_cost=max_cost)
         return r
+
+    @classmethod
+    def set_run_unsafe_max_cost(cls, new_max_cost: int):
+        cls.UNSAFE_MAX_COST = new_max_cost
 
     def curry(self, *args: CastableType) -> "Program":
         """
