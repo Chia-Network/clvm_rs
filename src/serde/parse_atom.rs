@@ -24,7 +24,7 @@ pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> Result<(u8,
         b &= 0xff ^ bit_mask;
         bit_mask >>= 1;
     }
-    let mut stack_allocation: [u8; 7] = [0; 7];
+    let mut stack_allocation = [0_u8; 8];
     let size_blob = &mut stack_allocation[..atom_start_offset];
     size_blob[0] = b;
     if atom_start_offset > 1 {
@@ -152,6 +152,13 @@ fn test_large_decode_size() {
         decode_size_with_offset(&mut buffer, first).unwrap(),
         (6, 0x3ffffffff)
     );
+
+    // this ensures a fuzzer-found bug doesn't reoccur
+    let mut buffer = Cursor::new(&[0xff, 0xfe]);
+    let ret = decode_size_with_offset(&mut buffer, first);
+    let e = ret.unwrap_err();
+    assert_eq!(e.kind(), ErrorKind::UnexpectedEof);
+    assert_eq!(e.to_string(), "failed to fill whole buffer");
 }
 
 #[test]
