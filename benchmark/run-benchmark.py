@@ -6,9 +6,7 @@ import sys
 import os
 import time
 import random
-from clvm import KEYWORD_FROM_ATOM, KEYWORD_TO_ATOM
-from clvm.operators import OP_REWRITE
-from clvm_rs import run_serialized_chia_program
+from clvm_rs import Program
 from colorama import init, Fore, Style
 
 init()
@@ -184,12 +182,6 @@ if len(procs) > 0:
 test_runs = {}
 test_costs = {}
 
-native_opcode_names_by_opcode = dict(
-    ("op_%s" % OP_REWRITE.get(k, k), op)
-    for op, k in KEYWORD_FROM_ATOM.items()
-    if k not in "qa."
-)
-
 print('benchmarking...')
 for n in range(5):
     if "-v" in sys.argv:
@@ -209,13 +201,12 @@ for n in range(5):
         else:
             if "-v" in sys.argv:
                 print(fn)
-            program_data = bytes.fromhex(open(fn, 'r').read())
-            env_data = bytes.fromhex(open(env_fn, 'r').read())
+            program = Program.fromhex(open(fn, 'r').read())
+            env = Program.fromhex(open(env_fn, 'r').read())
 
             time_start = time.perf_counter()
-            cost, result = run_serialized_chia_program(
-                program_data,
-                env_data,
+            cost, result = program.run_with_cost(
+                env,
                 max_cost,
                 flags,
             )

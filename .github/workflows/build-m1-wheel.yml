@@ -79,11 +79,19 @@ jobs:
         arch -arm64 pytest tests
 
     - name: Run tests from clvm_tools
-      continue-on-error: true
       run: |
         . ./venv/bin/activate
         cd clvm_tools
         arch -arm64 pytest tests
+
+    - name: Run tests from wheel
+      run: |
+        . ./venv/bin/activate
+        cd wheel/python
+        pytest --import-mode append tests
+        # we use `append` because otherwise the `clvm_rs` source is added
+        # to `sys.path` and it uses that instead of the wheel (and so
+        # ignoring `clvm_rs.so`, which is pretty important)
 
     - name: Upload wheels
       uses: actions/upload-artifact@v3
