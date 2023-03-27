@@ -16,7 +16,7 @@ path = "src/lib.rs"
 
 [dependencies]
 clvmr = { path = ".." }
-pyo3 = { version = "=0.15.1", features = ["abi3-py37", "extension-module"] }
+pyo3 = { version = "=0.16.0", features = ["abi3-py37", "extension-module"] }
 
 [features]
 openssl = ["clvmr/openssl"]

@@ -1,3 +1,5 @@
+use std::io;
+
 use super::lazy_node::LazyNode;
 use crate::adapt_response::adapt_response;
 use clvmr::allocator::Allocator;
@@ -5,14 +7,34 @@ use clvmr::chia_dialect::ChiaDialect;
 use clvmr::cost::Cost;
 use clvmr::reduction::Response;
 use clvmr::run_program::run_program;
-use clvmr::serde::{node_from_bytes, serialized_length_from_bytes};
+use clvmr::serde::{
+    node_from_bytes, parse_through_clvm_object, parse_triples, serialized_length_from_bytes,
+    ParsedTriple,
+};
 use clvmr::{LIMIT_HEAP, LIMIT_STACK, MEMPOOL_MODE, NO_UNKNOWN_OPS};
 use pyo3::prelude::*;
+use pyo3::types::{PyBytes, PyTuple};
 use pyo3::wrap_pyfunction;
+
+struct ReadPyAny<'py>(&'py PyAny);
+
+impl<'py> std::io::Read for ReadPyAny<'py> {
+    fn read(&mut self, b: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
+        let r: Vec<u8> = self.0.call1((b.len(),))?.extract()?;
+        let (p0, _p1) = b.split_at_mut(r.len());
+        p0.copy_from_slice(&r);
+        Ok(r.len())
+    }
+}
 
 #[pyfunction]
 pub fn serialized_length(program: &[u8]) -> PyResult<u64> {
     Ok(serialized_length_from_bytes(program)?)
+}
+
+#[pyfunction]
+pub fn skip_clvm_object(obj: &PyAny) -> PyResult<()> {
+    Ok(parse_through_clvm_object(&mut ReadPyAny(obj.getattr("read")?))?)
 }
 
 #[pyfunction]
@@ -39,10 +61,41 @@ pub fn run_serialized_chia_program(
     adapt_response(py, allocator, r)
 }
 
+fn tuple_for_parsed_triple(py: Python<'_>, p: &ParsedTriple) -> PyObject {
+    let tuple = match p {
+        ParsedTriple::Atom {
+            start,
+            end,
+            atom_offset,
+        } => PyTuple::new(py, [*start, *end, *atom_offset as u64]),
+        ParsedTriple::Pair {
+            start,
+            end,
+            right_index,
+        } => PyTuple::new(py, [*start, *end, *right_index as u64]),
+    };
+    tuple.into_py(py)
+}
+
+#[pyfunction]
+fn deserialize_as_tree(
+    py: Python,
+    blob: &[u8],
+    calculate_tree_hashes: bool,
+) -> PyResult<(Vec<PyObject>, Option<Vec<PyObject>>)> {
+    let mut cursor = io::Cursor::new(blob);
+    let (r, tree_hashes) = parse_triples(&mut cursor, calculate_tree_hashes)?;
+    let r = r.iter().map(|pt| tuple_for_parsed_triple(py, pt)).collect();
+    let s = tree_hashes.map(|ths| ths.iter().map(|b| PyBytes::new(py, b).into()).collect());
+    Ok((r, s))
+}
+
 #[pymodule]
 fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run_serialized_chia_program, m)?)?;
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
+    m.add_function(wrap_pyfunction!(skip_clvm_object, m)?)?;
+    m.add_function(wrap_pyfunction!(deserialize_as_tree, m)?)?;
 
     m.add("NO_UNKNOWN_OPS", NO_UNKNOWN_OPS)?;
     m.add("LIMIT_HEAP", LIMIT_HEAP)?;

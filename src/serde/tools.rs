@@ -1,8 +1,9 @@
 use std::io;
-use std::io::{Cursor, Read, Seek, SeekFrom};
+use std::io::{Cursor, Read};
 
 use super::errors::bad_encoding;
 use super::parse_atom::decode_size;
+use super::utils::skip_bytes;
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const CONS_BOX_MARKER: u8 = 0xff;
@@ -15,43 +16,27 @@ enum ParseOp {
 
 pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
     let mut f = Cursor::new(b);
-    let mut ops = vec![ParseOp::SExp];
+    parse_through_clvm_object(&mut f).map_err(|_e| bad_encoding())?;
+    Ok(f.position())
+}
+
+pub fn parse_through_clvm_object<R: Read>(f: &mut R) -> io::Result<()> {
+    let mut to_parse_count = 1;
     let mut b = [0; 1];
     loop {
-        let op = ops.pop();
-        if op.is_none() {
+        if to_parse_count < 1 {
             break;
+        };
+        f.read_exact(&mut b)?;
+        if b[0] == CONS_BOX_MARKER {
+            to_parse_count += 2;
+        } else if b[0] != 0x80 && b[0] > MAX_SINGLE_BYTE {
+            let blob_size = decode_size(f, b[0])?;
+            skip_bytes(f, blob_size)?;
         }
-        match op.unwrap() {
-            ParseOp::SExp => {
-                f.read_exact(&mut b)?;
-                if b[0] == CONS_BOX_MARKER {
-                    // since all we're doing is to determing the length of the
-                    // serialized buffer, we don't need to do anything about
-                    // "cons". So we skip pushing it to lower the pressure on
-                    // the op stack
-                    //ops.push(ParseOp::Cons);
-                    ops.push(ParseOp::SExp);
-                    ops.push(ParseOp::SExp);
-                } else if b[0] == 0x80 || b[0] <= MAX_SINGLE_BYTE {
-                    // This one byte we just read was the whole atom.
-                    // or the
-                    // special case of NIL
-                } else {
-                    let blob_size = decode_size(&mut f, b[0])?;
-                    f.seek(SeekFrom::Current(blob_size as i64))?;
-                    if (f.get_ref().len() as u64) < f.position() {
-                        return Err(bad_encoding());
-                    }
-                }
-            }
-            ParseOp::Cons => {
-                // cons. No need to construct any structure here. Just keep
-                // going
-            }
-        }
+        to_parse_count -= 1;
     }
-    Ok(f.position())
+    Ok(())
 }
 
 use crate::sha2::{Digest, Sha256};
