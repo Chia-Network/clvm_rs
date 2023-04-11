@@ -4,7 +4,7 @@ use crate::cost::Cost;
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_concat, op_div, op_divmod, op_gr, op_gr_bytes, op_logand,
     op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add, op_pubkey_for_exp,
-    op_sha256, op_softfork, op_strlen, op_substr, op_subtract,
+    op_sha256, op_strlen, op_substr, op_subtract,
 };
 use crate::number::{ptr_from_number, Number};
 use crate::reduction::{EvalErr, Reduction, Response};
@@ -651,31 +651,6 @@ divmod -100 70 => ( -2 . 40 ) | 1148
 divmod 100 -70 => ( -2 . -40 ) | 1148
 divmod 100 70 => ( 1 . 30 ) | 1148
 
-; cost argument is required
-softfork => FAIL
-
-; cost must be an integer
-softfork ( 50 ) => FAIL
-
-; cost must be > 0
-softfork 0 => FAIL
-softfork -1 => FAIL
-
-softfork 50 => 0 | 50
-softfork 51 110 => 0 | 51
-softfork => FAIL
-softfork 3121 => 0 | 3121
-softfork 0x00000000000000000000000000000000000050 => 0 | 80
-softfork 0xffffffffffffffff => FAIL
-; technically, this is a valid cost, but it still exceeds the limit we set for the tests
-softfork 0xffffffffffffff => FAIL
-softfork 0 => FAIL
-
-softfork 51 ( 1 60 50 ) => ( ) | 51
-softfork 3121 ( 1 60 50 ) =>  () | 3121
-softfork 0 ( 1 60 50 ) => FAIL
-softfork 0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000050 => ( ) | 80
-
 strlen => FAIL
 strlen ( "list" ) => FAIL
 strlen "" => 0 | 173
@@ -1091,7 +1066,6 @@ fn test_ops() {
         ("not", op_not as Opf),
         ("any", op_any as Opf),
         ("all", op_all as Opf),
-        ("softfork", op_softfork as Opf),
     ]);
 
     for t in TEST_CASES.split("\n") {

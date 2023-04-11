@@ -1,17 +1,18 @@
-use crate::allocator::{Allocator, AtomBuf, NodePtr, SExp};
+use super::traverse_path::traverse_path;
+use crate::allocator::{Allocator, AtomBuf, Checkpoint, NodePtr, SExp};
 use crate::cost::Cost;
-use crate::dialect::Dialect;
+use crate::dialect::{Dialect, Extension};
 use crate::err_utils::err;
 use crate::node::Node;
 use crate::number::{ptr_from_number, Number};
+use crate::op_utils::uint_atom;
 use crate::reduction::{EvalErr, Reduction, Response};
-
-use super::traverse_path::traverse_path;
 
 // lowered from 46
 const QUOTE_COST: Cost = 20;
 // lowered from 138
 const APPLY_COST: Cost = 90;
+const SOFTFORK_COST: Cost = 140;
 // mandatory base cost for every operator we execute
 const OP_COST: Cost = 1;
 
@@ -26,6 +27,7 @@ pub type PostEval = dyn Fn(Option<NodePtr>);
 enum Operation {
     Apply,
     Cons,
+    Softfork,
     SwapEval,
 
     #[cfg(feature = "pre-eval")]
@@ -57,6 +59,26 @@ impl Counters {
     }
 }
 
+// this represents the state we were in before entering a soft-fork guard. We
+// may need this to long-jump out of the guard, and also to validate the cost
+// when exiting the guard
+struct SoftforkGuard {
+    // This is the expected cost of the program after the softfork. i.e. the
+    // current_cost + the first argument to the softfork operator
+    expected_cost: Cost,
+
+    // When exiting a softfork guard, all values used inside it are zapped. This
+    // was the state of the allocator before entering. We restore to this state
+    // on exit.
+    allocator_state: Checkpoint,
+
+    // this specifies which new operators are available
+    extensions: Extension,
+
+    #[cfg(test)]
+    start_cost: Cost,
+}
+
 // `run_program` has two stacks: the operand stack (of `Node` objects) and the
 // operator stack (of Operation)
 
@@ -66,6 +88,7 @@ struct RunProgramContext<'a, D> {
     val_stack: Vec<NodePtr>,
     env_stack: Vec<NodePtr>,
     op_stack: Vec<Operation>,
+    softfork_stack: Vec<SoftforkGuard>,
     stack_limit: usize,
     #[cfg(feature = "counters")]
     pub counters: Counters,
@@ -160,6 +183,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             val_stack: Vec::new(),
             env_stack: Vec::new(),
             op_stack: Vec::new(),
+            softfork_stack: Vec::new(),
             stack_limit: dialect.stack_limit(),
             #[cfg(feature = "counters")]
             counters: Counters::new(),
@@ -175,6 +199,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             val_stack: Vec::new(),
             env_stack: Vec::new(),
             op_stack: Vec::new(),
+            softfork_stack: Vec::new(),
             stack_limit: dialect.stack_limit(),
             #[cfg(feature = "counters")]
             counters: Counters::new(),
@@ -293,7 +318,34 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         self.eval_pair(program, env)
     }
 
-    fn apply_op(&mut self, max_cost: Cost) -> Result<Cost, EvalErr> {
+    #[allow(dead_code)]
+    fn parse_softfork_arguments(
+        &self,
+        args: &Node,
+    ) -> Result<(Extension, NodePtr, NodePtr), EvalErr> {
+        if !args.arg_count_is(4) {
+            return Err(EvalErr(
+                args.node,
+                "softfork takes exactly 4 arguments".to_string(),
+            ));
+        }
+        let args = args.rest()?;
+
+        let extension = self
+            .dialect
+            .softfork_extension(uint_atom::<4>(&args.first()?, "softfork")? as u32);
+        if extension == Extension::None {
+            return Err(EvalErr(args.node, "unknown softfork extension".to_string()));
+        }
+        let args = args.rest()?;
+        let program = args.first()?.node;
+        let args = args.rest()?;
+        let env = args.first()?.node;
+
+        Ok((extension, program, env))
+    }
+
+    fn apply_op(&mut self, current_cost: Cost, max_cost: Cost) -> Result<Cost, EvalErr> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
         let operand_list = Node::new(self.allocator, operand_list);
@@ -312,14 +364,98 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             let new_operator = operand_list.first()?.node;
             let env = operand_list.rest()?.first()?.node;
 
-            Ok(self.eval_pair(new_operator, env).map(|c| c + APPLY_COST)?)
+            self.eval_pair(new_operator, env).map(|c| c + APPLY_COST)
+        } else if op_atom == self.dialect.softfork_kw() {
+            let expected_cost = uint_atom::<8>(&operand_list.first()?, "softfork")?;
+            if expected_cost > max_cost {
+                return err(self.allocator.null(), "cost exceeded");
+            }
+            if expected_cost == 0 {
+                return err(self.allocator.null(), "cost must be > 0");
+            }
+
+            // we can't blindly propagate errors here, since we handle errors
+            // differently depending on whether we allow unknown ops or not
+            let (ext, prg, env) = match self.parse_softfork_arguments(&operand_list) {
+                Ok(ret_values) => ret_values,
+                Err(err) => {
+                    if self.dialect.allow_unknown_ops() {
+                        // In this case, we encountered a softfork invocation
+                        // that doesn't pass the correct arguments.
+                        // if we're in consensus mode, we have to accept this as
+                        // something we don't understand
+                        self.push(self.allocator.null())?;
+                        return Ok(expected_cost);
+                    }
+                    return Err(err);
+                }
+            };
+
+            self.softfork_stack.push(SoftforkGuard {
+                expected_cost: current_cost + expected_cost,
+                allocator_state: self.allocator.checkpoint(),
+                extensions: ext,
+                #[cfg(test)]
+                start_cost: current_cost,
+            });
+
+            // once the softfork returns, we need to ensure the cost that was
+            // specified match, and restore the state to before this call.
+            self.op_stack.push(Operation::Softfork);
+
+            self.eval_pair(prg, env).map(|c| c + SOFTFORK_COST)
         } else {
-            let r = self
-                .dialect
-                .op(self.allocator, operator.node, operand_list.node, max_cost)?;
+            let current_extensions = if let Some(sf) = self.softfork_stack.last() {
+                sf.extensions
+            } else {
+                Extension::None
+            };
+
+            let r = self.dialect.op(
+                self.allocator,
+                operator.node,
+                operand_list.node,
+                max_cost,
+                current_extensions,
+            )?;
             self.push(r.1)?;
             Ok(r.0)
         }
+    }
+
+    fn exit_softfork_guard(&mut self, current_cost: Cost) -> Result<Cost, EvalErr> {
+        // this is called when we are done executing a softfork program.
+        // This is when we have to validate the cost
+        let guard = self
+            .softfork_stack
+            .pop()
+            .expect("internal error. exiting a softfork that's already been popped");
+
+        if current_cost != guard.expected_cost {
+            #[cfg(test)]
+            println!(
+                "actual cost: {} specified cost: {}",
+                current_cost - guard.start_cost,
+                guard.expected_cost - guard.start_cost
+            );
+            return err(self.allocator.null(), "softfork specified cost mismatch");
+        }
+
+        // restore the allocator to the state when we entered the softfork guard
+        // This is an optimization to reclaim all heap space allocated by the
+        // softfork program. Since the softfork always return null, no value can
+        // escape the softfork program, and it's therefore safe to restore the
+        // heap
+        self.allocator.restore_checkpoint(&guard.allocator_state);
+
+        // the softfork always returns null, pop the value pushed by the
+        // evaluation of the program and push null instead
+        self.pop()
+            .expect("internal error, softfork program did not push value onto stack");
+
+        self.push(self.allocator.null())?;
+
+        Ok(0)
     }
 
     pub fn run_program(&mut self, program: NodePtr, env: NodePtr, max_cost: Cost) -> Response {
@@ -338,7 +474,17 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         cost += self.eval_pair(program, env)?;
 
         loop {
-            if cost > max_cost {
+            // if we are in a softfork guard, temporarily use the guard's
+            // expected cost as the upper limit. This lets us fail early in case
+            // it's wrong. It's guaranteed to be <= max_cost, because we check
+            // that when entering the softfork guard
+            let effective_max_cost = if let Some(sf) = self.softfork_stack.last() {
+                sf.expected_cost
+            } else {
+                max_cost
+            };
+
+            if cost > effective_max_cost {
                 return err(max_cost_ptr, "cost exceeded");
             }
             let top = self.op_stack.pop();
@@ -347,9 +493,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 None => break,
             };
             cost += match op {
-                Operation::Apply => {
-                    augment_cost_errors(self.apply_op(max_cost - cost), max_cost_ptr)?
-                }
+                Operation::Apply => augment_cost_errors(
+                    self.apply_op(cost, effective_max_cost - cost),
+                    max_cost_ptr,
+                )?,
+                Operation::Softfork => self.exit_softfork_guard(cost)?,
                 Operation::Cons => self.cons_op()?,
                 Operation::SwapEval => augment_cost_errors(self.swap_eval_op(), max_cost_ptr)?,
                 #[cfg(feature = "pre-eval")]
@@ -417,6 +565,9 @@ struct RunProgramTest {
 
 #[cfg(test)]
 use crate::test_ops::parse_exp;
+
+#[cfg(test)]
+use crate::chia_dialect::NO_UNKNOWN_OPS;
 
 #[cfg(test)]
 const TEST_CASES: &[RunProgramTest] = &[
@@ -766,33 +917,163 @@ const TEST_CASES: &[RunProgramTest] = &[
 
     // ## SOFTFORK
 
-    // in mempool mode, softfork is not allowed, because we haven't implemented
-    // any softfork operators yet
+    // the arguments to softfork are checked in mempool mode, but in consensus
+    // mode, only the cost argument is
     RunProgramTest {
-        prg: "(softfork (q . 939) (q 88))",
-        args: "()",
-        flags: NO_UNKNOWN_OPS,
-        result: None,
-        cost: 0,
-        err: "no softfork implemented",
-    },
-    // in consensus mode we just accept any softfork program, even if we don't
-    // know what it does
-    RunProgramTest {
-        prg: "(softfork (q . 939) (q 0x0fffffffff) (q ()))",
+        prg: "(softfork (q . 979))",
         args: "()",
         flags: 0,
         result: Some("()"),
         cost: 1000,
         err: "",
     },
-    // the cost argument may not exceed the max cost
     RunProgramTest {
-        prg: "(softfork (q . 939) (q 0x0fffffffff) (q ()))",
+        prg: "(softfork (q . 979))",
+        args: "()",
+        flags: NO_UNKNOWN_OPS,
+        result: None,
+        cost: 1000,
+        err: "softfork takes exactly 4 arguments",
+    },
+    RunProgramTest {
+        prg: "(softfork (q . 959) (q . 9))",
+        args: "()",
+        flags: 0,
+        result: Some("()"),
+        cost: 1000,
+        err: "",
+    },
+    RunProgramTest {
+        prg: "(softfork (q . 959) (q . 9))",
+        args: "()",
+        flags: NO_UNKNOWN_OPS,
+        result: None,
+        cost: 1000,
+        err: "softfork takes exactly 4 arguments",
+    },
+    RunProgramTest {
+        prg: "(softfork (q . 939) (q . 9) (q x))",
+        args: "()",
+        flags: 0,
+        result: Some("()"),
+        cost: 1000,
+        err: "",
+    },
+    RunProgramTest {
+        prg: "(softfork (q . 939) (q . 9) (q x))",
+        args: "()",
+        flags: NO_UNKNOWN_OPS,
+        result: None,
+        cost: 1000,
+        err: "softfork takes exactly 4 arguments",
+    },
+    // this is a valid invocation, but we don't implement any extensions (yet)
+    // so the extension specifier 0 is still unknown
+    RunProgramTest {
+        prg: "(softfork (q . 919) (q . 9) (q x) (q . ()))",
+        args: "()",
+        flags: 0,
+        result: Some("()"),
+        cost: 1000,
+        err: "",
+    },
+    // when parsing the cost argument, we ignore redundant leading zeroes
+    RunProgramTest {
+        prg: "(softfork (q . 0x00000397) (q . 9) (q x) (q . ()))",
+        args: "()",
+        flags: 0,
+        result: Some("()"),
+        cost: 1000,
+        err: "",
+    },
+    RunProgramTest {
+        prg: "(softfork (q . 919) (q . 9) (q x) (q . ()))",
+        args: "()",
+        flags: NO_UNKNOWN_OPS,
+        result: None,
+        cost: 1000,
+        err: "unknown softfork extension",
+    },
+
+    // this is a valid invocation, but we don't implement any extensions (yet)
+    RunProgramTest {
+        prg: "(softfork (q . 919) (q . 0x00ffffffff) (q x) (q . ()))",
+        args: "()",
+        flags: 0,
+        result: Some("()"),
+        cost: 1000,
+        err: "",
+    },
+    RunProgramTest {
+        prg: "(softfork (q . 919) (q . 0x00ffffffff) (q x) (q . ()))",
+        args: "()",
+        flags: NO_UNKNOWN_OPS,
+        result: None,
+        cost: 1000,
+        err: "unknown softfork extension",
+    },
+
+    // we don't allow negative "extension" parameters
+    RunProgramTest {
+        prg: "(softfork (q . 919) (q . -1) (q x) (q . ()))",
+        args: "()",
+        flags: 0,
+        result: Some("()"),
+        cost: 1000,
+        err: "",
+    },
+    RunProgramTest {
+        prg: "(softfork (q . 919) (q . -1) (q x) (q . ()))",
+        args: "()",
+        flags: NO_UNKNOWN_OPS,
+        result: None,
+        cost: 1000,
+        err: "softfork requires positive int arg",
+    },
+
+    // we don't allow "extension" parameters > u32::MAX
+    RunProgramTest {
+        prg: "(softfork (q . 919) (q . 0x0100000000) (q x) (q . ()))",
+        args: "()",
+        flags: 0,
+        result: Some("()"),
+        cost: 1000,
+        err: "",
+    },
+    RunProgramTest {
+        prg: "(softfork (q . 919) (q . 0x0100000000) (q x) (q . ()))",
+        args: "()",
+        flags: NO_UNKNOWN_OPS,
+        result: None,
+        cost: 1000,
+        err: "softfork requires u32 arg",
+    },
+
+    // we don't allow pairs as extension specifier
+    RunProgramTest {
+        prg: "(softfork (q . 919) (q 1 2 3) (q x) (q . ()))",
+        args: "()",
+        flags: 0,
+        result: Some("()"),
+        cost: 1000,
+        err: "",
+    },
+    RunProgramTest {
+        prg: "(softfork (q . 919) (q 1 2 3) (q x) (q . ()))",
+        args: "()",
+        flags: NO_UNKNOWN_OPS,
+        result: None,
+        cost: 1000,
+        err: "softfork requires int arg",
+    },
+
+    // the cost value is checked in consensus mode as well
+    RunProgramTest {
+        prg: "(softfork (q . 1000))",
         args: "()",
         flags: 0,
         result: None,
-        cost: 900,
+        cost: 1000,
         err: "cost exceeded",
     },
     // the cost parameter is mandatory
@@ -802,7 +1083,15 @@ const TEST_CASES: &[RunProgramTest] = &[
         flags: 0,
         result: None,
         cost: 0,
-        err: "softfork takes at least 1 argument",
+        err: "first of non-cons",
+    },
+    RunProgramTest {
+        prg: "(softfork (q . 0))",
+        args: "()",
+        flags: 0,
+        result: None,
+        cost: 1000,
+        err: "cost must be > 0",
     },
     // negative costs are not allowed
     RunProgramTest {
@@ -810,17 +1099,16 @@ const TEST_CASES: &[RunProgramTest] = &[
         args: "()",
         flags: 0,
         result: None,
-        cost: 0,
+        cost: 1000,
         err: "softfork requires positive int arg",
     },
-    // zero costs are not allowed
     RunProgramTest {
-        prg: "(softfork (q . 0))",
+        prg: "(softfork (q 1 2 3))",
         args: "()",
         flags: 0,
         result: None,
-        cost: 0,
-        err: "cost must be > 0",
+        cost: 1000,
+        err: "softfork requires int arg",
     },
 ];
 
@@ -829,9 +1117,6 @@ fn check(res: (NodePtr, &str)) -> NodePtr {
     assert_eq!(res.1, "");
     res.0
 }
-
-#[cfg(test)]
-use crate::chia_dialect::NO_UNKNOWN_OPS;
 
 #[test]
 fn test_run_program() {

@@ -1,12 +1,12 @@
 use crate::allocator::{Allocator, NodePtr};
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
-use crate::dialect::Dialect;
+use crate::dialect::{Dialect, Extension};
 use crate::err_utils::err;
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_concat, op_div, op_divmod, op_gr, op_gr_bytes, op_logand,
     op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add, op_pubkey_for_exp,
-    op_sha256, op_softfork, op_strlen, op_substr, op_subtract, op_unknown,
+    op_sha256, op_strlen, op_substr, op_subtract, op_unknown,
 };
 use crate::reduction::Response;
 
@@ -56,12 +56,15 @@ impl Dialect for ChiaDialect {
         o: NodePtr,
         argument_list: NodePtr,
         max_cost: Cost,
+        _extensions: Extension,
     ) -> Response {
         let b = &allocator.atom(o);
         if b.len() != 1 {
             return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
         }
         let f = match b[0] {
+            // 1 = quote
+            // 2 = apply
             3 => op_if,
             4 => op_cons,
             5 => op_first,
@@ -95,14 +98,9 @@ impl Dialect for ChiaDialect {
             33 => op_any,
             34 => op_all,
             // 35 ---
-            36 => {
-                if (self.flags & NO_UNKNOWN_OPS) != 0 {
-                    return err(o, "no softfork implemented");
-                } else {
-                    op_softfork
-                }
-            }
+            // 36 = softfork
             _ => {
+                // new extension opcodes go here
                 return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
             }
         };
@@ -117,11 +115,26 @@ impl Dialect for ChiaDialect {
         &[2]
     }
 
+    fn softfork_kw(&self) -> &[u8] {
+        &[36]
+    }
+
+    fn softfork_extension(&self, ext: u32) -> Extension {
+        match ext {
+            // new extensions go here
+            _ => Extension::None,
+        }
+    }
+
     fn stack_limit(&self) -> usize {
         if (self.flags & LIMIT_STACK) != 0 {
             20000000
         } else {
             usize::MAX
         }
+    }
+
+    fn allow_unknown_ops(&self) -> bool {
+        (self.flags & NO_UNKNOWN_OPS) == 0
     }
 }
