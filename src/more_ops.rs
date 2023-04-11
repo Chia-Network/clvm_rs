@@ -13,7 +13,7 @@ use crate::err_utils::err;
 use crate::node::Node;
 use crate::number::{number_from_u8, ptr_from_number, Number};
 use crate::op_utils::{
-    arg_count, atom, check_arg_count, i32_atom, int_atom, two_ints, u32_from_u8, uint_atom,
+    arg_count, atom, check_arg_count, i32_atom, int_atom, two_ints, u32_from_u8,
 };
 use crate::reduction::{Reduction, Response};
 use crate::sha2::{Digest, Sha256};
@@ -784,23 +784,6 @@ pub fn op_all(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     }
     let total: Node = args.from_bool(is_all);
     Ok(Reduction(cost, total.node))
-}
-
-pub fn op_softfork(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
-    let args = Node::new(a, input);
-    match args.pair() {
-        Some((p1, _)) => {
-            let cost = uint_atom::<8>(&p1, "softfork")?;
-            if cost > max_cost {
-                return args.err("cost exceeded");
-            }
-            if cost == 0 {
-                return args.err("cost must be > 0");
-            }
-            Ok(Reduction(cost, args.null().node))
-        }
-        _ => args.err("softfork takes at least 1 argument"),
-    }
 }
 
 lazy_static! {
