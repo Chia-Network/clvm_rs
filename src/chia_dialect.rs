@@ -85,7 +85,13 @@ impl Dialect for ChiaDialect {
             33 => op_any,
             34 => op_all,
             // 35 ---
-            36 => op_softfork,
+            36 => {
+                if (self.flags & NO_UNKNOWN_OPS) != 0 {
+                    return err(o, "no softfork implemented");
+                } else {
+                    op_softfork
+                }
+            }
             _ => {
                 if (self.flags & NO_UNKNOWN_OPS) != 0 {
                     return err(o, "unimplemented operator");
