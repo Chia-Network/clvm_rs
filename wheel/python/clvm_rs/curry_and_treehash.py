@@ -1,7 +1,7 @@
-from typing import Any, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from .at import at
-from .bytes32 import bytes32
+from .casts import CastableType
 from .chia_dialect import Dialect, CHIA_DIALECT
 from .clvm_storage import CLVMStorage
 from .tree_hash import shatree_pair, shatree_atom
@@ -19,18 +19,23 @@ class CurryTreehasher:
 
     def __init__(self, dialect: Dialect):
         self.dialect = dialect
-
+        # cache some frequently used values
         self.q_kw_treehash = shatree_atom(dialect.Q_KW)
         self.c_kw_treehash = shatree_atom(dialect.C_KW)
         self.a_kw_treehash = shatree_atom(dialect.A_KW)
         self.null_treehash = shatree_atom(dialect.NULL)
         self.one_treehash = shatree_atom(ONE)
 
-    # The environment `E = (F . R)` recursively expands out to
-    # `(c . ((q . F) . EXPANSION(R)))` if R is not 0
-    # `1` if R is 0
+    def curried_values_tree_hash(self, arguments: List[bytes]) -> bytes:
+        """
+        Given a list of hashes of arguments, calculate the so-called
+        "curried values tree hash" needed by `curry_and_treehash` below.
 
-    def curried_values_tree_hash(self, arguments: List[bytes32]) -> bytes32:
+        The environment `E = (F . R)` recursively expands out to
+            `(c . ((q . F) . EXPANSION(R)))` if R is not 0
+            `1` if R is 0
+        """
+
         if len(arguments) == 0:
             return self.one_treehash
 
@@ -44,17 +49,21 @@ class CurryTreehasher:
             ),
         )
 
-    # The curry pattern is `(a . ((q . F)  . (E . 0)))` == `(a (q . F) E)
-    # where `F` is the `mod` and `E` is the curried environment
-
     def curry_and_treehash(
-        self, hash_of_quoted_mod_hash: bytes32, *hashed_arguments: bytes32
-    ) -> bytes32:
+        self, hash_of_quoted_mod_hash: bytes, *hashed_arguments: bytes
+    ) -> bytes:
         """
+        Return the hash of a function whose quoted mod hash is
+        `hash_of_quoted_mod_hash` when curried with the arguments whose
+        hashes are in `hashed_arguments`.
+
         `hash_of_quoted_mod_hash` : tree hash of `(q . MOD)` where `MOD`
              is template to be curried
         `arguments` : tree hashes of arguments to be curried
         """
+
+        # The curry pattern is `(a . ((q . F)  . (E . 0)))` == `(a (q . F) E)
+        # where `F` is the `mod` and `E` is the curried environment
 
         for arg in hashed_arguments:
             if not isinstance(arg, bytes) or len(arg) != 32:
@@ -69,48 +78,53 @@ class CurryTreehasher:
             ),
         )
 
-    def calculate_hash_of_quoted_mod_hash(self, mod_hash: bytes32) -> bytes32:
+    def calculate_hash_of_quoted_mod_hash(self, mod_hash: bytes) -> bytes:
+        """
+        Calculate the hash of `(q mod_hash)`, as it's a common subexpression used
+        in `curry_and_treehash` and might be worth caching.
+        """
         return shatree_pair(self.q_kw_treehash, mod_hash)
 
-    """
-    Replicates the curry function from clvm_tools, taking advantage of *args
-    being a list.  We iterate through args in reverse building the code to
-    create a clvm list.
+    def curry(self, mod: CLVMStorage, *args: CastableType) -> CastableType:
+        """
+        Curry a mod template with the given args, returning a new function.
 
-    Given arguments to a function addressable by the '1' reference in clvm
+        We iterate through args in reverse building the code to create
+        a clvm list.
 
-    fixed_args = 1
+        Given arguments to a function addressable by the '1' reference in clvm
 
-    Each arg is prepended as fixed_args = (c (q . arg) fixed_args)
+        `fixed_args = 1`
 
-    The resulting argument list is interpreted with apply (2)
+        Each arg is prepended as fixed_args = (c (q . arg) fixed_args)
 
-    (2 (1 . self) rest)
+        The resulting argument list is interpreted with `a` (for "apply")
 
-    Resulting in a function which places its own arguments after those
-    curried in in the form of a proper list.
-    """
+        `(a (q . self) rest)`
 
-    def curry(self, mod, *args) -> Any:
-        fixed_args: Any = 1
+        Resulting in a function which places its own arguments after those
+        curried in in the form of a proper list.
+        """
+
+        fixed_args: CastableType = 1
         for arg in reversed(args):
             fixed_args = [self.dialect.C_KW, (self.dialect.Q_KW, arg), fixed_args]
         return [self.dialect.A_KW, (self.dialect.Q_KW, mod), fixed_args]
 
-    """
-    uncurry the given program
-
-    returns `mod, [arg1, arg2, ...]`
-
-    if the program is not a valid curry, return `sexp, NULL`
-
-    This distinguishes it from the case of a valid curry of 0 arguments
-    (which is rather pointless but possible), which returns `sexp, []`
-    """
-
     def uncurry(
         self, sexp: CLVMStorage
     ) -> Tuple[CLVMStorage, Optional[List[CLVMStorage]]]:
+        """
+        uncurry the given program
+
+        returns `mod, [arg1, arg2, ...]`
+
+        if the program is not a valid curry, return `sexp, NULL`
+
+        This distinguishes it from the case of a valid curry of 0 arguments
+        (which is rather pointless but possible), which returns `sexp, []`
+        """
+
         dialect = self.dialect
         if (
             at(sexp, "f") != dialect.A_KW

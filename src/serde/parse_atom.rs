@@ -6,9 +6,10 @@ use super::errors::{bad_encoding, internal_error};
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 
-/// decode the length prefix for an atom. Atoms whose value fit in 7 bits
-/// don't have a length prefix, so those should be handled specially and
-/// never passed to this function.
+/// decode the length prefix for an atom, returning both the offset to the start
+/// of the atom and the full length of the atom.
+/// Atoms whose value fit in 7 bits don't have a length prefix, so those should
+/// be handled specially and never passed to this function.
 pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> Result<(u8, u64)> {
     debug_assert!((initial_b & 0x80) != 0);
     if (initial_b & 0x80) == 0 {
@@ -23,11 +24,11 @@ pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> Result<(u8,
         b &= 0xff ^ bit_mask;
         bit_mask >>= 1;
     }
-    let mut size_blob: Vec<u8> = Vec::new();
-    size_blob.resize(atom_start_offset, 0);
+    let mut stack_allocation = [0_u8; 8];
+    let size_blob = &mut stack_allocation[..atom_start_offset];
     size_blob[0] = b;
     if atom_start_offset > 1 {
-        let remaining_buffer = &mut size_blob[1..atom_start_offset];
+        let remaining_buffer = &mut size_blob[1..];
         f.read_exact(remaining_buffer)?;
     }
     // need to convert size_blob to an int
@@ -35,7 +36,7 @@ pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> Result<(u8,
     if size_blob.len() > 6 {
         return Err(bad_encoding());
     }
-    for b in &size_blob {
+    for b in size_blob {
         atom_size <<= 8;
         atom_size += *b as u64;
     }
@@ -109,12 +110,18 @@ use super::write_atom::write_atom;
 fn test_decode_size() {
     // single-byte length prefix
     let mut buffer = Cursor::new(&[]);
-    assert_eq!(decode_size(&mut buffer, 0x80 | 0x20).unwrap(), 0x20);
+    assert_eq!(
+        decode_size_with_offset(&mut buffer, 0x80 | 0x20).unwrap(),
+        (1, 0x20)
+    );
 
     // two-byte length prefix
     let first = 0b11001111;
     let mut buffer = Cursor::new(&[0xaa]);
-    assert_eq!(decode_size(&mut buffer, first).unwrap(), 0xfaa);
+    assert_eq!(
+        decode_size_with_offset(&mut buffer, first).unwrap(),
+        (2, 0xfaa)
+    );
 }
 
 #[test]
@@ -124,7 +131,7 @@ fn test_large_decode_size() {
     // allocate this much memory
     let first = 0b11111110;
     let mut buffer = Cursor::new(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
-    let ret = decode_size(&mut buffer, first);
+    let ret = decode_size_with_offset(&mut buffer, first);
     let e = ret.unwrap_err();
     assert_eq!(e.kind(), bad_encoding().kind());
     assert_eq!(e.to_string(), "bad encoding");
@@ -132,7 +139,7 @@ fn test_large_decode_size() {
     // this is still too large
     let first = 0b11111100;
     let mut buffer = Cursor::new(&[0x4, 0, 0, 0, 0]);
-    let ret = decode_size(&mut buffer, first);
+    let ret = decode_size_with_offset(&mut buffer, first);
     let e = ret.unwrap_err();
     assert_eq!(e.kind(), bad_encoding().kind());
     assert_eq!(e.to_string(), "bad encoding");
@@ -141,7 +148,17 @@ fn test_large_decode_size() {
     // Still a very large blob, probably enough for a DoS attack
     let first = 0b11111100;
     let mut buffer = Cursor::new(&[0x3, 0xff, 0xff, 0xff, 0xff]);
-    assert_eq!(decode_size(&mut buffer, first).unwrap(), 0x3ffffffff);
+    assert_eq!(
+        decode_size_with_offset(&mut buffer, first).unwrap(),
+        (6, 0x3ffffffff)
+    );
+
+    // this ensures a fuzzer-found bug doesn't reoccur
+    let mut buffer = Cursor::new(&[0xff, 0xfe]);
+    let ret = decode_size_with_offset(&mut buffer, first);
+    let e = ret.unwrap_err();
+    assert_eq!(e.kind(), ErrorKind::UnexpectedEof);
+    assert_eq!(e.to_string(), "failed to fill whole buffer");
 }
 
 #[test]
@@ -149,7 +166,7 @@ fn test_truncated_decode_size() {
     // the stream is truncated
     let first = 0b11111100;
     let mut cursor = Cursor::new(&[0x4, 0, 0, 0]);
-    let ret = decode_size(&mut cursor, first);
+    let ret = decode_size_with_offset(&mut cursor, first);
     let e = ret.unwrap_err();
     assert_eq!(e.kind(), ErrorKind::UnexpectedEof);
 }

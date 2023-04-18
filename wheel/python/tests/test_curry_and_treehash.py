@@ -1,13 +1,10 @@
-from dataclasses import dataclass
-from typing import Optional, Tuple
-
 import pytest
 
 from clvm_rs import Program
-from clvm_rs.clvm_storage import CLVMStorage
-from clvm_rs.curry_and_treehash import CHIA_CURRY_TREEHASHER
-from clvm_rs.tree_hash import sha256_treehash
+from clvm_rs.chia_dialect import CHIA_DIALECT
+from clvm_rs.curry_and_treehash import CurryTreehasher
 
+CHIA_CURRY_TREEHASHER = CurryTreehasher(CHIA_DIALECT)
 curry_and_treehash = CHIA_CURRY_TREEHASHER.curry_and_treehash
 calculate_hash_of_quoted_mod_hash = (
     CHIA_CURRY_TREEHASHER.calculate_hash_of_quoted_mod_hash
@@ -15,7 +12,6 @@ calculate_hash_of_quoted_mod_hash = (
 
 
 def test_curry_and_treehash() -> None:
-
     arbitrary_mod = Program.fromhex("ff10ff02ff0580")  # `(+ 2 5)`
     arbitrary_mod_hash = arbitrary_mod.tree_hash()
 

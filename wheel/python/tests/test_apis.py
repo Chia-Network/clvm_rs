@@ -74,6 +74,9 @@ class AsPythonTest(unittest.TestCase):
 
     def test_constants(self):
         self.assertEqual(Program.null().nullp(), True)
+        self.assertEqual(Program.null(), Program.to([]))
+        self.assertEqual(Program.null(), Program.to(0))
+        self.assertEqual(Program.one(), Program.to(1))
 
     def test_list_len(self):
         v = Program.to(42)

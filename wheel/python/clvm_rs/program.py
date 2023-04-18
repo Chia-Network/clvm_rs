@@ -1,20 +1,18 @@
 from __future__ import annotations
-from typing import List, Tuple, Optional, Any, BinaryIO
+from typing import Iterator, List, Tuple, Optional, BinaryIO
 
 from .at import at
-from .bytes32 import bytes32
-from .casts import to_clvm_object, int_from_bytes, int_to_bytes
+from .casts import CastableType, to_clvm_object, int_from_bytes, int_to_bytes
+from .chia_dialect import CHIA_DIALECT
 from .clvm_rs import run_serialized_chia_program
 from .clvm_storage import CLVMStorage
 from .clvm_tree import CLVMTree
-from .curry_and_treehash import CurryTreehasher, CHIA_CURRY_TREEHASHER
+from .curry_and_treehash import CurryTreehasher
 from .eval_error import EvalError
 from .replace import replace
 from .ser import sexp_from_stream, sexp_to_stream, sexp_to_bytes
 from .tree_hash import sha256_treehash
 
-
-MAX_COST = 0x7FFFFFFFFFFFFFFF
 
 
 class Program(CLVMStorage):
@@ -22,7 +20,9 @@ class Program(CLVMStorage):
     A wrapper around `CLVMStorage` providing many convenience functions.
     """
 
-    curry_treehasher: CurryTreehasher = CHIA_CURRY_TREEHASHER
+    UNSAFE_MAX_COST: Optional[int] = None
+
+    curry_treehasher: CurryTreehasher = CurryTreehasher(CHIA_DIALECT)
     _cached_serialization: Optional[bytes]
 
     # serialization/deserialization
@@ -98,7 +98,7 @@ class Program(CLVMStorage):
         return self._pair
 
     @classmethod
-    def to(cls, v: Any) -> Program:
+    def to(cls, v: CastableType) -> Program:
         return cls.wrap(to_clvm_object(v, cls.new_atom, cls.new_pair))
 
     @classmethod
@@ -135,6 +135,10 @@ class Program(CLVMStorage):
     @classmethod
     def null(cls) -> Program:
         return NULL_PROGRAM
+
+    @classmethod
+    def one(cls) -> Program:
+        return ONE_PROGRAM
 
     # display
 
@@ -246,7 +250,7 @@ class Program(CLVMStorage):
         """
         return self.to(replace(self, **kwargs))
 
-    def tree_hash(self) -> bytes32:
+    def tree_hash(self) -> bytes:
         # we operate on the unwrapped version to prevent the re-wrapping that
         # happens on each invocation of `Program.pair` whenever possible
         if self._cached_sha256_treehash is None:
@@ -254,7 +258,7 @@ class Program(CLVMStorage):
         return self._cached_sha256_treehash
 
     def run_with_cost(
-        self, args, max_cost: int = MAX_COST, flags: int = 0
+        self, args, max_cost: int, flags: int = 0
     ) -> Tuple[int, "Program"]:
         prog_bytes = bytes(self)
         args_bytes = bytes(self.to(args))
@@ -268,27 +272,26 @@ class Program(CLVMStorage):
         return cost, r
 
     def run(self, args) -> "Program":
-        cost, r = self.run_with_cost(args, MAX_COST)
+        """
+        Run with the default `UNSAFE_MAX_COST` value. Using too high a value with
+        misbehaving code may exhaust memory or take a long time.
+        """
+        max_cost = self.__class__.UNSAFE_MAX_COST
+        if max_cost is None:
+            raise ValueError("please call `set_run_unsafe_max_cost` before using `run`")
+        cost, r = self.run_with_cost(args, max_cost=max_cost)
         return r
 
-    def curry(self, *args) -> "Program":
+    @classmethod
+    def set_run_unsafe_max_cost(cls, new_max_cost: int):
+        cls.UNSAFE_MAX_COST = new_max_cost
+
+    def curry(self, *args: CastableType) -> "Program":
         """
-        Replicates the curry function from clvm_tools, taking advantage of *args
-        being a list.  We iterate through args in reverse building the code to
-        create a clvm list.
+        Given a `MOD` program, cast to `Program` the list of values and
+        bind them to the `MOD`. See also https://docs.chia.net/guides/chialisp-currying
 
-        Given arguments to a function addressable by the '1' reference in clvm
-
-        fixed_args = 1
-
-        Each arg is prepended as fixed_args = (c (q . arg) fixed_args)
-
-        The resulting argument list is interpreted with apply (2)
-
-        (a (q . self) rest)
-
-        Resulting in a function which places its own arguments after those
-        curried in in the form of a proper list.
+        Returns a program with the given values bound.
         """
         return self.to(self.curry_treehasher.curry(self, *args))
 
@@ -307,7 +310,7 @@ class Program(CLVMStorage):
         p_args = args if args is None else [self.to(_) for _ in args]
         return self.to(mod), p_args
 
-    def curry_hash(self, *args: bytes32) -> bytes32:
+    def curry_hash(self, *args: bytes) -> bytes:
         """
         Return a puzzle hash that would be created if you curried this puzzle
         with arguments that have the given hashes.
@@ -344,3 +347,4 @@ class Program(CLVMStorage):
 
 
 NULL_PROGRAM = Program.fromhex("80")
+ONE_PROGRAM = Program.fromhex("01")

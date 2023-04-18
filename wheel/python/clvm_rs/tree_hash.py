@@ -5,12 +5,13 @@ puzzle hashes in clvm.
 This implementation goes to great pains to be non-recursive so we don't
 have to worry about blowing out the python stack.
 """
-
 from hashlib import sha256
-from typing import List
+from typing import Callable, List, Tuple, cast
 
-from .bytes32 import bytes32
 from .clvm_storage import CLVMStorage
+
+
+OP_STACK_F = Callable[[List[CLVMStorage], List[bytes], List["OP_STACK_F"]], None]
 
 
 class Treehasher:
@@ -32,21 +33,25 @@ class Treehasher:
         self.pair_prefix = pair_prefix
         self.cache_hits = 0
 
-    def shatree_atom(self, atom: bytes) -> bytes32:
+    def shatree_atom(self, atom: bytes) -> bytes:
         s = sha256()
         s.update(self.atom_prefix)
         s.update(atom)
-        return bytes32(s.digest())
+        return s.digest()
 
-    def shatree_pair(self, left_hash: bytes32, right_hash: bytes32) -> bytes32:
+    def shatree_pair(self, left_hash: bytes, right_hash: bytes) -> bytes:
         s = sha256()
         s.update(self.pair_prefix)
         s.update(left_hash)
         s.update(right_hash)
-        return bytes32(s.digest())
+        return s.digest()
 
-    def sha256_treehash(self, clvm_storage: CLVMStorage) -> bytes32:
-        def handle_obj(obj_stack, hash_stack, op_stack) -> None:
+    def sha256_treehash(self, clvm_storage: CLVMStorage) -> bytes:
+        def handle_obj(
+            obj_stack: List[CLVMStorage],
+            hash_stack: List[bytes],
+            op_stack: List[OP_STACK_F],
+        ) -> None:
             obj = obj_stack.pop()
             r = getattr(obj, "_cached_sha256_treehash", None)
             if r is not None:
@@ -61,7 +66,8 @@ class Treehasher:
                 except AttributeError:
                     pass
             else:
-                p0, p1 = obj.pair
+                pair = cast(Tuple[CLVMStorage, CLVMStorage], obj.pair)
+                p0, p1 = pair
                 obj_stack.append(obj)
                 obj_stack.append(p0)
                 obj_stack.append(p1)
@@ -69,7 +75,11 @@ class Treehasher:
                 op_stack.append(handle_obj)
                 op_stack.append(handle_obj)
 
-        def handle_pair(obj_stack, hash_stack, op_stack) -> None:
+        def handle_pair(
+            obj_stack: List[CLVMStorage],
+            hash_stack: List[bytes],
+            op_stack: List[OP_STACK_F],
+        ) -> None:
             p0 = hash_stack.pop()
             p1 = hash_stack.pop()
             r = shatree_pair(p0, p1)
@@ -80,16 +90,18 @@ class Treehasher:
             except AttributeError:
                 pass
 
-        obj_stack = [clvm_storage]
-        op_stack = [handle_obj]
-        hash_stack: List[bytes32] = []
+        obj_stack: List[CLVMStorage] = [clvm_storage]
+        op_stack: List[OP_STACK_F] = [handle_obj]
+        hash_stack: List[bytes] = []
         while len(op_stack) > 0:
-            op = op_stack.pop()
+            op: OP_STACK_F = op_stack.pop()
             op(obj_stack, hash_stack, op_stack)
         return hash_stack[0]
 
 
-CHIA_TREEHASHER = Treehasher(bytes.fromhex("01"), bytes.fromhex("02"))
+CHIA_TREE_HASH_ATOM_PREFIX = bytes.fromhex("01")
+CHIA_TREE_HASH_PAIR_PREFIX = bytes.fromhex("02")
+CHIA_TREEHASHER = Treehasher(CHIA_TREE_HASH_ATOM_PREFIX, CHIA_TREE_HASH_PAIR_PREFIX)
 
 sha256_treehash = CHIA_TREEHASHER.sha256_treehash
 shatree_atom = CHIA_TREEHASHER.shatree_atom

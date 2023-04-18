@@ -26,7 +26,6 @@ DeserOp = Callable[[bytes, int, List[Triple], List], int]
 def deserialize_as_tuples(
     blob: bytes, cursor: int, calculate_tree_hash: bool
 ) -> Tuple[List[Tuple[int, int, int]], Optional[List[bytes]]]:
-
     if deserialize_as_tree:
         try:
             tree, hashes = deserialize_as_tree(blob, calculate_tree_hash)

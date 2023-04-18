@@ -6,6 +6,7 @@ from typing import Callable, List, SupportsBytes, Tuple, Union, cast
 
 from .clvm_storage import CLVMStorage, is_clvm_storage
 
+
 AtomCastableType = Union[
     bytes,
     str,
@@ -13,8 +14,6 @@ AtomCastableType = Union[
     SupportsBytes,
 ]
 
-
-# as of January 2023, mypy does not like this recursive definition
 
 CastableType = Union[
     AtomCastableType,
@@ -27,7 +26,29 @@ CastableType = Union[
 NULL_BLOB = b""
 
 
-def int_from_bytes(blob):
+def generate_working_memview_or_bytes():
+    # in python3.7 you can't go 'isinstance(b"", SupportsBytes)'
+
+    # this one works in py38+
+    def memview_or_bytes_py38_or_later(o):
+        return isinstance(o, (memoryview, SupportsBytes))
+
+    # this one works in py37
+    def memview_or_bytes_py37(o):
+        return getattr(o, "__bytes__", None) is not None
+
+    try:
+        memview_or_bytes_py38_or_later(b"")
+        return memview_or_bytes_py38_or_later
+    except TypeError:
+        pass
+    return memview_or_bytes_py37
+
+
+memview_or_bytes = generate_working_memview_or_bytes()
+
+
+def int_from_bytes(blob: bytes) -> int:
     """
     Convert a bytes blob encoded as a clvm int to a python int.
     """
@@ -37,13 +58,13 @@ def int_from_bytes(blob):
     return int.from_bytes(blob, "big", signed=True)
 
 
-def int_to_bytes(v) -> bytes:
+def int_to_bytes(v: int) -> bytes:
     """
     Convert a python int to a blob that encodes as this integer in clvm.
     """
-    byte_count = (v.bit_length() + 8) >> 3
     if v == 0:
         return b""
+    byte_count = (v.bit_length() + 8) // 8
     r = v.to_bytes(byte_count, "big", signed=True)
     # make sure the string returned is minimal
     # ie. no leading 00 or ff bytes that are unnecessary
@@ -63,7 +84,7 @@ def to_atom_type(v: AtomCastableType) -> bytes:
         return v.encode()
     if isinstance(v, int):
         return int_to_bytes(v)
-    if isinstance(v, (memoryview, SupportsBytes)):
+    if memview_or_bytes(v):
         return bytes(v)
 
     raise ValueError("can't cast %s (%s) to bytes" % (type(v), v))
@@ -73,12 +94,19 @@ def to_clvm_object(
     castable: CastableType,
     to_atom_f: Callable[[bytes], CLVMStorage],
     to_pair_f: Callable[[CLVMStorage, CLVMStorage], CLVMStorage],
-):
+) -> CLVMStorage:
     """
     Convert a python object to clvm object.
 
     This works on nested tuples and lists of potentially unlimited depth.
     It is non-recursive, so nesting depth is not limited by the call stack.
+    But the entire hiearachy must be traversed, so execution time is
+    proportional to hierarchy depth, and thus potentially unbounded.
+
+    So don't use on untrusted input. Also, the case where a list that transitively
+    contains itself (eg `t = []; t.append(t)`) in a loop is not detected, and
+    this function will never return because it acts like a hiearachy with
+    infinite depth.
     """
     to_convert: List[CastableType] = [castable]
     did_convert: List[CLVMStorage] = []
@@ -87,7 +115,7 @@ def to_clvm_object(
     # operations:
     #  0: pop `to_convert` and convert if possible, storing result on `did_convert`,
     #     or subdivide task, pushing multiple things on `to_convert` (and new ops)
-    #  1: pop two items from `did_convert` and cons them, pushing result to `did_convert`
+    #  1: pop & cons two items from `did_convert`, pushing result to `did_convert`
     #  2: same as 1 but cons in opposite order. Necessary for converting lists
 
     while len(ops) > 0:

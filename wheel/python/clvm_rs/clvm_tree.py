@@ -37,7 +37,28 @@ class CLVMTree(CLVMStorage):
     in well-behaved python code.
     """
 
+    # cached value of lazily-created child `CLVMStorage` objects
+    # created on call to `.pair`
     _pair: Optional[Tuple["CLVMStorage", "CLVMStorage"]]
+
+    # the serialized form, which contains the template for all the atoms
+    blob: Union[memoryview, bytes]
+
+    # the memoized boundary list for all clvm objects in the tree
+    # this list is shared by *all* instances of sub-objects of the
+    # same tree
+    # [int, int, int] => start_offset, end_offset, atom_start_or_pair_rest
+    #   deserialization of this object is blob[start_offset, end_offset]
+    # We look at blob[start_offset] and if 0xff, this is a pair, otherwise atom
+    # if atom, atom is blob[atom_start_or_pair_rest:end_offset]
+    # if pair, children have `index` start_offset+1 and atom_start_or_pair_rest
+    int_tuples: List[Tuple[int, int, int]]
+
+    # which of the clvm objects in the tree this instance represents
+    index: int  # index into `int_tuples`
+
+    # the sha256 tree hashes that are optionally created on deserialization
+    tree_hashes: Optional[List[bytes]]
 
     @classmethod
     def from_bytes(cls, blob: bytes, calculate_tree_hash: bool = True) -> "CLVMTree":

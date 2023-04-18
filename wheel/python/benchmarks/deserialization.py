@@ -63,9 +63,7 @@ def benchmark():
         allow_slow=True,
     )
     bench(lambda: des_output.tree_hash(), "tree hash (fbwth)")
-    bench(
-        lambda: des_output.tree_hash(), "tree hash again (fbwth)"
-    )
+    bench(lambda: des_output.tree_hash(), "tree hash again (fbwth)")
 
     bench(lambda: serialized_length(result_blob), "serialized_length")
 
@@ -100,9 +98,7 @@ def benchmark():
         "parse without treehashing (pwowt)",
         allow_slow=True,
     )
-    bench(
-        lambda: reparsed_output.tree_hash(), "tree hash (pwowt)", allow_slow=True
-    )
+    bench(lambda: reparsed_output.tree_hash(), "tree hash (pwowt)", allow_slow=True)
     bench(
         lambda: reparsed_output.tree_hash(),
         "tree hash again (pwowt)",

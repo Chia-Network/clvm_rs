@@ -1,2 +1,5 @@
-from .eval_error import EvalError  # noqa: F401
-from .program import Program  # noqa: F401
+from .eval_error import EvalError
+from .program import Program
+
+
+__all__ = ["Program", "EvalError"]
