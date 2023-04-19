@@ -811,7 +811,7 @@ const TEST_CASES: &[RunProgramTest] = &[
         flags: 0,
         result: None,
         cost: 0,
-        err: "cost must be > 0",
+        err: "softfork requires positive int arg",
     },
     // zero costs are not allowed
     RunProgramTest {

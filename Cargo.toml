@@ -34,3 +34,6 @@ num-integer = "=0.1.45"
 bls12_381 = "=0.7.0"
 sha2 = "=0.10.2"
 openssl = { version = "=0.10.48", features = ["vendored"], optional = true }
+
+[dev-dependencies]
+rstest = "=0.16.0"
