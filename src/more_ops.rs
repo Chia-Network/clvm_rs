@@ -1,7 +1,6 @@
 use bls12_381::{G1Affine, G1Projective, Scalar};
 use num_bigint::{BigUint, Sign};
 use num_integer::Integer;
-use std::convert::TryFrom;
 use std::ops::BitAndAssign;
 use std::ops::BitOrAssign;
 use std::ops::BitXorAssign;
@@ -14,7 +13,7 @@ use crate::err_utils::err;
 use crate::node::Node;
 use crate::number::{number_from_u8, ptr_from_number, Number};
 use crate::op_utils::{
-    arg_count, atom, check_arg_count, i32_atom, int_atom, two_ints, u32_from_u8,
+    arg_count, atom, check_arg_count, i32_atom, int_atom, two_ints, u32_from_u8, uint_atom,
 };
 use crate::reduction::{Reduction, Response};
 use crate::sha2::{Digest, Sha256};
@@ -791,16 +790,14 @@ pub fn op_softfork(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respons
     let args = Node::new(a, input);
     match args.pair() {
         Some((p1, _)) => {
-            let n: Number = number_from_u8(int_atom(p1, "softfork")?);
-            if n.sign() == Sign::Plus {
-                if n > Number::from(max_cost) {
-                    return err(a.null(), "cost exceeded");
-                }
-                let cost: Cost = TryFrom::try_from(&n).unwrap();
-                Ok(Reduction(cost, args.null().node))
-            } else {
-                args.err("cost must be > 0")
+            let cost = uint_atom::<8>(&p1, "softfork")?;
+            if cost > max_cost {
+                return args.err("cost exceeded");
             }
+            if cost == 0 {
+                return args.err("cost must be > 0");
+            }
+            Ok(Reduction(cost, args.null().node))
         }
         _ => args.err("softfork takes at least 1 argument"),
     }
