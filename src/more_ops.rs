@@ -17,7 +17,6 @@ use crate::op_utils::{
     arg_count, atom, check_arg_count, i32_atom, int_atom, two_ints, u32_from_u8,
 };
 use crate::reduction::{Reduction, Response};
-use crate::serde::node_to_bytes;
 use crate::sha2::{Digest, Sha256};
 
 // We ascribe some additional cost per byte for operations that allocate new atoms
@@ -207,7 +206,7 @@ pub fn op_unknown(
             let mut byte_count: u64 = 0;
             for arg in Node::new(allocator, args) {
                 cost += ARITH_COST_PER_ARG;
-                let blob = int_atom(&arg, "unknown op")?;
+                let blob = int_atom(arg, "unknown op")?;
                 byte_count += blob.len() as u64;
                 check_cost(
                     allocator,
@@ -222,7 +221,7 @@ pub fn op_unknown(
             let mut first_iter: bool = true;
             let mut l0: u64 = 0;
             for arg in Node::new(allocator, args) {
-                let blob = int_atom(&arg, "unknown op")?;
+                let blob = int_atom(arg, "unknown op")?;
                 if first_iter {
                     l0 = blob.len() as u64;
                     first_iter = false;
@@ -242,7 +241,7 @@ pub fn op_unknown(
             let mut total_size: u64 = 0;
             for arg in Node::new(allocator, args) {
                 cost += CONCAT_COST_PER_ARG;
-                let blob = atom(&arg, "unknown op")?;
+                let blob = atom(arg, "unknown op")?;
                 total_size += blob.len() as u64;
                 check_cost(
                     allocator,
@@ -343,7 +342,7 @@ pub fn op_sha256(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
             cost + byte_count as Cost * SHA256_COST_PER_BYTE,
             max_cost,
         )?;
-        let blob = atom(&arg, "sha256")?;
+        let blob = atom(arg, "sha256")?;
         byte_count += blob.len();
         hasher.update(blob);
     }
@@ -362,7 +361,7 @@ pub fn op_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
             cost + (byte_count as Cost * ARITH_COST_PER_BYTE),
             max_cost,
         )?;
-        let blob = int_atom(&arg, "+")?;
+        let blob = int_atom(arg, "+")?;
         let v: Number = number_from_u8(blob);
         byte_count += blob.len();
         total += v;
@@ -380,7 +379,7 @@ pub fn op_subtract(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respons
     for arg in Node::new(a, input) {
         cost += ARITH_COST_PER_ARG;
         check_cost(a, cost + byte_count as Cost * ARITH_COST_PER_BYTE, max_cost)?;
-        let blob = int_atom(&arg, "-")?;
+        let blob = int_atom(arg, "-")?;
         let v: Number = number_from_u8(blob);
         byte_count += blob.len();
         if is_first {
@@ -402,7 +401,7 @@ pub fn op_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respons
     let mut l0: usize = 0;
     for arg in Node::new(a, input) {
         check_cost(a, cost, max_cost)?;
-        let blob = int_atom(&arg, "*")?;
+        let blob = int_atom(arg, "*")?;
         if first_iter {
             l0 = blob.len();
             total = number_from_u8(blob);
@@ -465,10 +464,8 @@ pub fn op_divmod(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
 pub fn op_gr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 2, ">")?;
-    let a0 = args.first()?;
-    let a1 = args.rest()?.first()?;
-    let v0 = int_atom(&a0, ">")?;
-    let v1 = int_atom(&a1, ">")?;
+    let v0 = int_atom(args.first()?, ">")?;
+    let v1 = int_atom(args.rest()?.first()?, ">")?;
     let cost = GR_BASE_COST + (v0.len() + v1.len()) as Cost * GR_COST_PER_BYTE;
     Ok(Reduction(
         cost,
@@ -483,10 +480,8 @@ pub fn op_gr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
 pub fn op_gr_bytes(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 2, ">s")?;
-    let a0 = args.first()?;
-    let a1 = args.rest()?.first()?;
-    let v0 = atom(&a0, ">s")?;
-    let v1 = atom(&a1, ">s")?;
+    let v0 = atom(args.first()?, ">s")?;
+    let v1 = atom(args.rest()?.first()?, ">s")?;
     let cost = GRS_BASE_COST + (v0.len() + v1.len()) as Cost * GRS_COST_PER_BYTE;
     Ok(Reduction(cost, if v0 > v1 { a.one() } else { a.null() }))
 }
@@ -494,8 +489,7 @@ pub fn op_gr_bytes(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Respon
 pub fn op_strlen(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 1, "strlen")?;
-    let a0 = args.first()?;
-    let v0 = atom(&a0, "strlen")?;
+    let v0 = atom(args.first()?, "strlen")?;
     let size = v0.len();
     let size_num: Number = size.into();
     let size_node = ptr_from_number(a, &size_num)?;
@@ -510,7 +504,7 @@ pub fn op_substr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
         return args.err("substr takes exactly 2 or 3 arguments");
     }
     let a0 = args.first()?;
-    let s0 = atom(&a0, "substr")?;
+    let s0 = atom(a0.clone(), "substr")?;
     let size = s0.len();
     let rest = args.rest()?;
     let i1 = i32_atom(&rest.first()?, "substr")?;
@@ -560,8 +554,7 @@ pub fn op_concat(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
 pub fn op_ash(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 2, "ash")?;
-    let a0 = args.first()?;
-    let b0 = int_atom(&a0, "ash")?;
+    let b0 = int_atom(args.first()?, "ash")?;
     let i0 = number_from_u8(b0);
     let l0 = b0.len();
     let rest = args.rest()?;
@@ -637,8 +630,7 @@ fn test_op_ash() {
 pub fn op_lsh(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 2, "lsh")?;
-    let a0 = args.first()?;
-    let b0 = int_atom(&a0, "lsh")?;
+    let b0 = int_atom(args.first()?, "lsh")?;
     let i0 = BigUint::from_bytes_be(b0);
     let l0 = b0.len();
     let rest = args.rest()?;
@@ -711,7 +703,7 @@ fn binop_reduction(
     let mut arg_size: usize = 0;
     let mut cost = LOG_BASE_COST;
     for arg in Node::new(a, input) {
-        let blob = int_atom(&arg, op_name)?;
+        let blob = int_atom(arg, op_name)?;
         let n0 = number_from_u8(blob);
         op_f(&mut total, &n0);
         arg_size += blob.len();
@@ -753,8 +745,7 @@ pub fn op_logxor(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
 pub fn op_lognot(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 1, "lognot")?;
-    let a0 = args.first()?;
-    let v0 = int_atom(&a0, "lognot")?;
+    let v0 = int_atom(args.first()?, "lognot")?;
     let mut n: Number = number_from_u8(v0);
     n = !n;
     let cost = LOGNOT_BASE_COST + ((v0.len() as Cost) * LOGNOT_COST_PER_BYTE);
@@ -800,7 +791,7 @@ pub fn op_softfork(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respons
     let args = Node::new(a, input);
     match args.pair() {
         Some((p1, _)) => {
-            let n: Number = number_from_u8(int_atom(&p1, "softfork")?);
+            let n: Number = number_from_u8(int_atom(p1, "softfork")?);
             if n.sign() == Sign::Plus {
                 if n > Number::from(max_cost) {
                     return err(a.null(), "cost exceeded");
@@ -851,9 +842,7 @@ fn number_to_scalar(n: Number) -> Scalar {
 pub fn op_pubkey_for_exp(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 1, "pubkey_for_exp")?;
-    let a0 = args.first()?;
-
-    let v0 = int_atom(&a0, "pubkey_for_exp")?;
+    let v0 = int_atom(args.first()?, "pubkey_for_exp")?;
     let exp: Number = mod_group_order(number_from_u8(v0));
     let cost = PUBKEY_BASE_COST + (v0.len() as Cost) * PUBKEY_COST_PER_BYTE;
     let exp: Scalar = number_to_scalar(exp);
@@ -868,7 +857,7 @@ pub fn op_point_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respon
     let mut cost = POINT_ADD_BASE_COST;
     let mut total: G1Projective = G1Projective::identity();
     for arg in &args {
-        let blob = atom(&arg, "point_add")?;
+        let blob = atom(arg, "point_add")?;
         let mut is_ok: bool = blob.len() == 48;
         if is_ok {
             let mut as_array: [u8; 48] = [0; 48];
@@ -883,7 +872,7 @@ pub fn op_point_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respon
             }
         }
         if !is_ok {
-            let blob: String = hex::encode(node_to_bytes(&arg).unwrap());
+            let blob: String = hex::encode(blob);
             let msg = format!("point_add expects blob, got {blob}: Length of bytes object not equal to G1Element::SIZE");
             return args.err(&msg);
         }
