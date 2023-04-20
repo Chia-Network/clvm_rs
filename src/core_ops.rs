@@ -84,10 +84,8 @@ pub fn op_raise(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response 
 pub fn op_eq(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 2, "=")?;
-    let a0 = args.first()?;
-    let a1 = args.rest()?.first()?;
-    let s0 = atom(&a0, "=")?;
-    let s1 = atom(&a1, "=")?;
+    let s0 = atom(args.first()?, "=")?;
+    let s1 = atom(args.rest()?.first()?, "=")?;
     let cost = EQ_BASE_COST + (s0.len() as Cost + s1.len() as Cost) * EQ_COST_PER_BYTE;
     Ok(Reduction(cost, if s0 == s1 { a.one() } else { a.null() }))
 }

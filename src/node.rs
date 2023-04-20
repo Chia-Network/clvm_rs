@@ -19,7 +19,7 @@ impl<'a> Node<'a> {
         self.allocator.sexp(self.node)
     }
 
-    pub fn atom(&'a self) -> Option<&'a [u8]> {
+    pub fn atom(&self) -> Option<&'a [u8]> {
         match self.sexp() {
             SExp::Atom(_) => Some(self.allocator.atom(self.node)),
             _ => None,

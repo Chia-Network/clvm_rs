@@ -66,15 +66,14 @@ fn test_arg_count() {
     assert_eq!(arg_count(&count_3_args, 4), 3);
 }
 
-pub fn int_atom<'a>(args: &'a Node, op_name: &str) -> Result<&'a [u8], EvalErr> {
+pub fn int_atom<'a>(args: Node<'a>, op_name: &str) -> Result<&'a [u8], EvalErr> {
     match args.atom() {
         Some(a) => Ok(a),
         _ => args.err(&format!("{op_name} requires int args")),
     }
 }
 
-// rename to atom()
-pub fn atom<'a>(args: &'a Node, op_name: &str) -> Result<&'a [u8], EvalErr> {
+pub fn atom<'a>(args: Node<'a>, op_name: &str) -> Result<&'a [u8], EvalErr> {
     match args.atom() {
         Some(a) => Ok(a),
         _ => args.err(&format!("{op_name} on list")),
@@ -83,10 +82,8 @@ pub fn atom<'a>(args: &'a Node, op_name: &str) -> Result<&'a [u8], EvalErr> {
 
 pub fn two_ints(args: &Node, op_name: &str) -> Result<(Number, usize, Number, usize), EvalErr> {
     check_arg_count(args, 2, op_name)?;
-    let a0 = args.first()?;
-    let a1 = args.rest()?.first()?;
-    let n0 = int_atom(&a0, op_name)?;
-    let n1 = int_atom(&a1, op_name)?;
+    let n0 = int_atom(args.first()?, op_name)?;
+    let n1 = int_atom(args.rest()?.first()?, op_name)?;
     Ok((number_from_u8(n0), n0.len(), number_from_u8(n1), n1.len()))
 }
 
