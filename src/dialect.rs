@@ -5,7 +5,8 @@ use crate::reduction::Response;
 #[repr(u32)]
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum Extension {
-    None = 0,
+    None,
+    BLS,
 }
 
 pub trait Dialect {

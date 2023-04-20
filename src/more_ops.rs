@@ -85,6 +85,10 @@ const PUBKEY_BASE_COST: Cost = 1325730;
 // increased from 12 to closer model Raspberry PI
 const PUBKEY_COST_PER_BYTE: Cost = 38;
 
+// the new coinid operator
+const COINID_COST: Cost =
+    SHA256_BASE_COST + SHA256_COST_PER_ARG * 3 + SHA256_COST_PER_BYTE * (32 + 32 + 8);
+
 fn limbs_for_int(v: &Number) -> usize {
     ((v.bits() + 7) / 8) as usize
 }
@@ -859,4 +863,46 @@ pub fn op_point_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respon
     }
     let total: G1Affine = total.into();
     new_atom_and_cost(a, cost, &total.to_compressed())
+}
+
+pub fn op_coinid(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+    let args = Node::new(a, input);
+    check_arg_count(&args, 3, "coinid")?;
+
+    let parent_coin = atom(args.first()?, "coinid")?;
+    if parent_coin.len() != 32 {
+        return args.err("coinid: invalid parent coin id (must be 32 bytes)");
+    }
+    let args = args.rest()?;
+    let puzzle_hash = atom(args.first()?, "coinid")?;
+    if puzzle_hash.len() != 32 {
+        return args.err("coinid: invalid puzzle hash (must be 32 bytes)");
+    }
+    let args = args.rest()?;
+    let amount = atom(args.first()?, "coinid")?;
+    if !amount.is_empty() {
+        if (amount[0] & 0x80) != 0 {
+            return args.err("coinid: invalid amount (may not be negative");
+        }
+        if amount == [0_u8] || (amount.len() > 1 && amount[0] == 0 && (amount[1] & 0x80) == 0) {
+            return args.err("coinid: invalid amount (may not have redundant leading zero)");
+        }
+        // the only valid coin value that's 9 bytes is when a leading zero is
+        // required to not have the value interpreted as negative
+        if amount.len() > 9 || (amount.len() == 9 && amount[0] != 0) {
+            return args.err("coinid: invalid amount (may not exceed max coin amount)");
+        }
+    }
+
+    let mut hasher = Sha256::new();
+    hasher.update(parent_coin);
+    hasher.update(puzzle_hash);
+    hasher.update(amount);
+    let ret: [u8; 32] = hasher
+        .finalize()
+        .as_slice()
+        .try_into()
+        .expect("sha256 hash is not 32 bytes");
+    let ret = a.new_atom(&ret)?;
+    Ok(Reduction(COINID_COST, ret))
 }

@@ -4,9 +4,9 @@ use crate::cost::Cost;
 use crate::dialect::{Dialect, Extension};
 use crate::err_utils::err;
 use crate::more_ops::{
-    op_add, op_all, op_any, op_ash, op_concat, op_div, op_divmod, op_gr, op_gr_bytes, op_logand,
-    op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add, op_pubkey_for_exp,
-    op_sha256, op_strlen, op_substr, op_subtract, op_unknown,
+    op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
+    op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add,
+    op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract, op_unknown,
 };
 use crate::reduction::Response;
 
@@ -20,6 +20,10 @@ pub const LIMIT_HEAP: u32 = 0x0004;
 
 // When set, enforce a stack size limit for CLVM programs
 pub const LIMIT_STACK: u32 = 0x0008;
+
+// When set, we allow softfork with extension 0 (which includes coinid and the
+// BLS operators)
+pub const ENABLE_BLS_OPS: u32 = 0x0010;
 
 // The default mode when running grnerators in mempool-mode (i.e. the stricter
 // mode)
@@ -56,7 +60,7 @@ impl Dialect for ChiaDialect {
         o: NodePtr,
         argument_list: NodePtr,
         max_cost: Cost,
-        _extensions: Extension,
+        extensions: Extension,
     ) -> Response {
         let b = &allocator.atom(o);
         if b.len() != 1 {
@@ -99,10 +103,18 @@ impl Dialect for ChiaDialect {
             34 => op_all,
             // 35 ---
             // 36 = softfork
-            _ => {
-                // new extension opcodes go here
-                return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
-            }
+            _ => match extensions {
+                Extension::BLS => match b[0] {
+                    48 => op_coinid,
+                    // TODO: add BLS operators here
+                    _ => {
+                        return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
+                    }
+                },
+                _ => {
+                    return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
+                }
+            },
         };
         f(allocator, argument_list, max_cost)
     }
@@ -121,6 +133,13 @@ impl Dialect for ChiaDialect {
 
     fn softfork_extension(&self, ext: u32) -> Extension {
         match ext {
+            0 => {
+                if (self.flags & ENABLE_BLS_OPS) == 0 {
+                    Extension::None
+                } else {
+                    Extension::BLS
+                }
+            }
             // new extensions go here
             _ => Extension::None,
         }
