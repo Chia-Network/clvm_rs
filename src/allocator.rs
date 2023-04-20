@@ -131,11 +131,11 @@ impl Allocator {
         if (self.heap_limit - start as usize) < v.len() {
             return err(self.null(), "out of memory");
         }
-        self.u8_vec.extend_from_slice(v);
-        let end = self.u8_vec.len() as u32;
         if self.atom_vec.len() == self.atom_limit {
             return err(self.null(), "too many atoms");
         }
+        self.u8_vec.extend_from_slice(v);
+        let end = self.u8_vec.len() as u32;
         self.atom_vec.push(AtomBuf { start, end });
         Ok(-(self.atom_vec.len() as i32))
     }
@@ -342,8 +342,10 @@ fn test_allocate_atom_limit() {
     let _atom = a.new_atom(b"bar").unwrap();
     let _atom = a.new_atom(b"baz").unwrap();
 
-    // the 4th fails
+    // the 4th fails and ensure not to append atom to the stack
+    assert_eq!(a.u8_vec.len(), 10);
     assert_eq!(a.new_atom(b"foobar").unwrap_err().1, "too many atoms");
+    assert_eq!(a.u8_vec.len(), 10);
 }
 
 #[test]
