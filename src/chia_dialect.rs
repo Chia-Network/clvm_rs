@@ -25,6 +25,20 @@ pub const LIMIT_STACK: u32 = 0x0008;
 // mode)
 pub const MEMPOOL_MODE: u32 = NO_UNKNOWN_OPS | LIMIT_HEAP | LIMIT_STACK;
 
+fn unknown_operator(
+    allocator: &mut Allocator,
+    o: NodePtr,
+    args: NodePtr,
+    flags: u32,
+    max_cost: Cost,
+) -> Response {
+    if (flags & NO_UNKNOWN_OPS) != 0 {
+        err(o, "unimplemented operator")
+    } else {
+        op_unknown(allocator, o, args, max_cost)
+    }
+}
+
 pub struct ChiaDialect {
     flags: u32,
 }
@@ -45,11 +59,7 @@ impl Dialect for ChiaDialect {
     ) -> Response {
         let b = &allocator.atom(o);
         if b.len() != 1 {
-            return if (self.flags & NO_UNKNOWN_OPS) != 0 {
-                err(o, "unimplemented operator")
-            } else {
-                op_unknown(allocator, o, argument_list, max_cost)
-            };
+            return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
         }
         let f = match b[0] {
             3 => op_if,
@@ -93,11 +103,7 @@ impl Dialect for ChiaDialect {
                 }
             }
             _ => {
-                if (self.flags & NO_UNKNOWN_OPS) != 0 {
-                    return err(o, "unimplemented operator");
-                } else {
-                    return op_unknown(allocator, o, argument_list, max_cost);
-                }
+                return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
             }
         };
         f(allocator, argument_list, max_cost)
