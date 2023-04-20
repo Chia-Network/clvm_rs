@@ -567,6 +567,8 @@ struct RunProgramTest {
 use crate::test_ops::parse_exp;
 
 #[cfg(test)]
+use crate::chia_dialect::ENABLE_BLS_OPS;
+#[cfg(test)]
 use crate::chia_dialect::NO_UNKNOWN_OPS;
 
 #[cfg(test)]
@@ -922,7 +924,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 979))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -938,7 +940,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 959) (q . 9))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -954,7 +956,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 939) (q . 9) (q x))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -972,7 +974,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 919) (q . 9) (q x) (q . ()))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -981,7 +983,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 0x00000397) (q . 9) (q x) (q . ()))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -999,7 +1001,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 919) (q . 0x00ffffffff) (q x) (q . ()))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1017,7 +1019,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 919) (q . -1) (q x) (q . ()))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1035,7 +1037,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 919) (q . 0x0100000000) (q x) (q . ()))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1053,7 +1055,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 919) (q 1 2 3) (q x) (q . ()))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1071,7 +1073,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 1000))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: None,
         cost: 1000,
         err: "cost exceeded",
@@ -1080,7 +1082,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork)",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: None,
         cost: 0,
         err: "first of non-cons",
@@ -1088,7 +1090,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 0))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: None,
         cost: 1000,
         err: "cost must be > 0",
@@ -1097,7 +1099,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . -1))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: None,
         cost: 1000,
         err: "softfork requires positive int arg",
@@ -1105,10 +1107,72 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q 1 2 3))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: None,
         cost: 1000,
         err: "softfork requires int arg",
+    },
+
+    // test mismatching cost
+    RunProgramTest {
+        prg: "(softfork (q . 160) (q . 0) (q . (q . 42)) (q . ()))",
+        args: "()",
+        flags: ENABLE_BLS_OPS,
+        result: Some("()"),
+        cost: 241,
+        err: "",
+    },
+    // the program under the softfork is restricted by the specified cost
+    RunProgramTest {
+        prg: "(softfork (q . 159) (q . 0) (q . (q . 42)) (q . ()))",
+        args: "()",
+        flags: ENABLE_BLS_OPS,
+        result: None,
+        cost: 241,
+        err: "cost exceeded",
+    },
+    // the cost specified on the softfork must match exactly the cost of
+    // executing the program
+    RunProgramTest {
+        prg: "(softfork (q . 161) (q . 0) (q . (q . 42)) (q . ()))",
+        args: "()",
+        flags: ENABLE_BLS_OPS,
+        result: None,
+        cost: 10000,
+        err: "softfork specified cost mismatch",
+    },
+
+    // without the flag to enable the BLS extensions, it's an unknown extension
+    RunProgramTest {
+        prg: "(softfork (q . 161) (q . 0) (q . (q . 42)) (q . ()))",
+        args: "()",
+        flags: NO_UNKNOWN_OPS,
+        result: None,
+        cost: 10000,
+        err: "unknown softfork extension",
+    },
+
+    // coinid extension
+    // make sure we can execute the coinid operator under softfork 0
+    // this program raises an exception if the computed coin ID matches the
+    // expected
+    RunProgramTest {
+        prg: "(softfork (q . 1265) (q . 0) (q a (i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q x) (q . 0)) (q . ())) (q . ()))",
+        args: "()",
+        flags: ENABLE_BLS_OPS,
+        result: None,
+        cost: 1346,
+        err: "clvm raise",
+    },
+    // also test the opposite. This program is the same as above but it raises
+    // if the coin ID is a mismatch
+    RunProgramTest {
+        prg: "(softfork (q . 1265) (q . 0) (q a (i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x)) (q . ())) (q . ()))",
+        args: "()",
+        flags: ENABLE_BLS_OPS,
+        result: Some("()"),
+        cost: 1346,
+        err: "",
     },
 ];
 
