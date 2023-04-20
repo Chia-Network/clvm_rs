@@ -67,14 +67,14 @@ fn tree_hash_for_byte(b: u8, calculate_tree_hashes: bool) -> Option<[u8; 32]> {
 
 fn skip_or_sha_bytes<R: Read>(
     f: &mut R,
-    skip_size: u64,
+    size: u64,
     calculate_tree_hashes: bool,
 ) -> Result<Option<[u8; 32]>> {
     if calculate_tree_hashes {
         let mut h = Sha256::new();
         h.update([1]);
         let mut w = ShaWrapper(h);
-        copy_exactly(f, &mut w, skip_size)?;
+        copy_exactly(f, &mut w, size)?;
         let r: [u8; 32] =
             w.0.finalize()
                 .as_slice()
@@ -82,7 +82,7 @@ fn skip_or_sha_bytes<R: Read>(
                 .expect("wrong slice length");
         Ok(Some(r))
     } else {
-        skip_bytes(f, skip_size)?;
+        skip_bytes(f, size)?;
         Ok(None)
     }
 }
