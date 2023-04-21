@@ -42,8 +42,8 @@ pub enum ParsedTriple {
 
 enum ParseOpRef {
     ParseObj,
-    SaveCursor(usize),
-    SaveIndex(usize),
+    SaveEnd(usize),
+    SaveRightIndex(usize),
 }
 
 fn sha_blobs(blobs: &[&[u8]]) -> [u8; 32] {
@@ -133,9 +133,9 @@ pub fn parse_triples<R: Read>(
                         if calculate_tree_hashes {
                             tree_hashes.push([0; 32])
                         }
-                        op_stack.push(ParseOpRef::SaveCursor(index));
+                        op_stack.push(ParseOpRef::SaveEnd(index));
                         op_stack.push(ParseOpRef::ParseObj);
-                        op_stack.push(ParseOpRef::SaveIndex(index));
+                        op_stack.push(ParseOpRef::SaveRightIndex(index));
                         op_stack.push(ParseOpRef::ParseObj);
                     } else {
                         let (start, end, atom_offset, tree_hash) = {
@@ -165,40 +165,39 @@ pub fn parse_triples<R: Read>(
                         r.push(new_obj);
                     }
                 }
-                ParseOpRef::SaveCursor(index) => {
-                    if let ParsedTriple::Pair {
-                        start,
-                        end: _,
+                ParseOpRef::SaveEnd(index) => match &mut r[index] {
+                    ParsedTriple::Pair {
+                        start: _,
+                        end,
                         right_index,
-                    } = r[index]
-                    {
+                    } => {
                         if calculate_tree_hashes {
                             let h = sha_blobs(&[
                                 &[2],
                                 &tree_hashes[index + 1],
-                                &tree_hashes[right_index as usize],
+                                &tree_hashes[*right_index as usize],
                             ]);
                             tree_hashes[index] = h;
                         }
-                        r[index] = ParsedTriple::Pair {
-                            start,
-                            end: cursor,
-                            right_index,
-                        };
+                        *end = cursor;
                     }
-                }
-                ParseOpRef::SaveIndex(index) => {
-                    if let ParsedTriple::Pair {
-                        start,
-                        end,
-                        right_index: _,
-                    } = r[index]
-                    {
-                        r[index] = ParsedTriple::Pair {
-                            start,
-                            end,
-                            right_index: r.len() as u32,
-                        };
+                    _ => {
+                        panic!("internal error: SaveEnd")
+                    }
+                },
+                ParseOpRef::SaveRightIndex(index) => {
+                    let new_index = r.len() as u32;
+                    match &mut r[index] {
+                        ParsedTriple::Pair {
+                            start: _,
+                            end: _,
+                            right_index,
+                        } => {
+                            *right_index = new_index;
+                        }
+                        _ => {
+                            panic!("internal error: SaveRightIndex")
+                        }
                     }
                 }
             },
