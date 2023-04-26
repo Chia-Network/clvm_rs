@@ -24,15 +24,30 @@ impl Write for ShaWrapper {
 }
 
 /// This data structure is used with `parse_triples`, which returns a triple of
-/// integer values for each clvm object in a tree.
+/// integer values for each clvm object in a tree. It's a port of python code.
+///
+/// The deserializer iterates through the blob and caches a triple of
+/// integers for each subtree: the first two integers represent the
+/// `(start_offset, end_offset)` within the blob that corresponds to the
+/// serialization of that object. You can check the contents of
+/// `blob[start_offset]` to determine if the object is a pair (in which case
+/// that byte is 0xff) or an atom (anything else). For a pair, the third
+/// number corresponds to the index of the array that is the "rest" of the
+/// pair (the "first" is always this object's index plus one, so we don't
+/// need to save that); for an atom, the third number corresponds to an
+/// offset of where the atom's binary data is relative to
+/// `blob[start_offset]` (so the atom data is at `blob[triple[0] +
+/// triple[2]:triple[1]]`)
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ParsedTriple {
+    // if `buffer[start] != 0xff`, this is an atom
     Atom {
         start: u64,
         end: u64,
         atom_offset: u32,
     },
+    // otherwise, it's an pair
     Pair {
         start: u64,
         end: u64,
@@ -235,6 +250,29 @@ fn check_parse_tree(h: &str, expected: Vec<ParsedTriple>, expected_sha_tree_hex:
 
     let est = Vec::from_hex(expected_sha_tree_hex).unwrap();
     assert_eq!(tree_hash.unwrap()[0].to_vec(), est);
+}
+
+#[cfg(test)]
+fn check_sha_blobs(h: &str, blobs: &[&[u8]]) -> () {
+    let exp_sha = Vec::from_hex(h).unwrap();
+    let actual_sha = sha_blobs(blobs);
+    assert_eq!(exp_sha, actual_sha);
+}
+
+#[test]
+fn test_sha_blobs() {
+    check_sha_blobs(
+        "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+        &[&[1_u8]],
+    );
+    check_sha_blobs(
+        "9dcf97a184f32623d11a73124ceb99a5709b083721e878a16d78f596718ba7b2",
+        &[&[1], &[1]],
+    );
+    check_sha_blobs(
+        "812195e02ed84360ceafab26f9fa6072f8aa76ba34a735894c3f3c2e4fe6911d",
+        &[&[1, 250, 17], &[28]],
+    );
 }
 
 #[test]
