@@ -19,6 +19,6 @@ pub fn copy_exactly<R: Read, W: ?Sized + Write>(
     }
 }
 
-pub fn skip_bytes<R: Read>(f: &mut R, skip_size: u64) -> io::Result<()> {
-    copy_exactly(f, &mut sink(), skip_size)
+pub fn skip_bytes<R: Read>(f: &mut R, size: u64) -> io::Result<()> {
+    copy_exactly(f, &mut sink(), size)
 }
