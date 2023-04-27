@@ -1,7 +1,7 @@
 use super::traverse_path::traverse_path;
 use crate::allocator::{Allocator, AtomBuf, Checkpoint, NodePtr, SExp};
 use crate::cost::Cost;
-use crate::dialect::{Dialect, Extension};
+use crate::dialect::{Dialect, Operators};
 use crate::err_utils::err;
 use crate::node::Node;
 use crate::number::{ptr_from_number, Number};
@@ -12,7 +12,8 @@ use crate::reduction::{EvalErr, Reduction, Response};
 const QUOTE_COST: Cost = 20;
 // lowered from 138
 const APPLY_COST: Cost = 90;
-const SOFTFORK_COST: Cost = 140;
+// the cost of entering a softfork guard
+const GUARD_COST: Cost = 140;
 // mandatory base cost for every operator we execute
 const OP_COST: Cost = 1;
 
@@ -27,7 +28,7 @@ pub type PostEval = dyn Fn(Option<NodePtr>);
 enum Operation {
     Apply,
     Cons,
-    Softfork,
+    ExitGuard,
     SwapEval,
 
     #[cfg(feature = "pre-eval")]
@@ -63,8 +64,8 @@ impl Counters {
 // may need this to long-jump out of the guard, and also to validate the cost
 // when exiting the guard
 struct SoftforkGuard {
-    // This is the expected cost of the program after the softfork. i.e. the
-    // current_cost + the first argument to the softfork operator
+    // This is the expected cost of the program when exiting the guard. i.e. the
+    // current_cost + the first argument to the operator
     expected_cost: Cost,
 
     // When exiting a softfork guard, all values used inside it are zapped. This
@@ -73,7 +74,7 @@ struct SoftforkGuard {
     allocator_state: Checkpoint,
 
     // this specifies which new operators are available
-    extensions: Extension,
+    extension: Operators,
 
     #[cfg(test)]
     start_cost: Cost,
@@ -318,11 +319,10 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         self.eval_pair(program, env)
     }
 
-    #[allow(dead_code)]
     fn parse_softfork_arguments(
         &self,
         args: &Node,
-    ) -> Result<(Extension, NodePtr, NodePtr), EvalErr> {
+    ) -> Result<(Operators, NodePtr, NodePtr), EvalErr> {
         if !args.arg_count_is(4) {
             return Err(EvalErr(
                 args.node,
@@ -334,7 +334,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let extension = self
             .dialect
             .softfork_extension(uint_atom::<4>(&args.first()?, "softfork")? as u32);
-        if extension == Extension::None {
+        if extension == Operators::None {
             return Err(EvalErr(args.node, "unknown softfork extension".to_string()));
         }
         let args = args.rest()?;
@@ -394,21 +394,21 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             self.softfork_stack.push(SoftforkGuard {
                 expected_cost: current_cost + expected_cost,
                 allocator_state: self.allocator.checkpoint(),
-                extensions: ext,
+                extension: ext,
                 #[cfg(test)]
                 start_cost: current_cost,
             });
 
-            // once the softfork returns, we need to ensure the cost that was
-            // specified match, and restore the state to before this call.
-            self.op_stack.push(Operation::Softfork);
+            // once the softfork guard exits, we need to ensure the cost that was
+            // specified match the true cost. We also free heap allocations
+            self.op_stack.push(Operation::ExitGuard);
 
-            self.eval_pair(prg, env).map(|c| c + SOFTFORK_COST)
+            self.eval_pair(prg, env).map(|c| c + GUARD_COST)
         } else {
             let current_extensions = if let Some(sf) = self.softfork_stack.last() {
-                sf.extensions
+                sf.extension
             } else {
-                Extension::None
+                Operators::None
             };
 
             let r = self.dialect.op(
@@ -423,7 +423,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    fn exit_softfork_guard(&mut self, current_cost: Cost) -> Result<Cost, EvalErr> {
+    fn exit_guard(&mut self, current_cost: Cost) -> Result<Cost, EvalErr> {
         // this is called when we are done executing a softfork program.
         // This is when we have to validate the cost
         let guard = self
@@ -497,7 +497,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                     self.apply_op(cost, effective_max_cost - cost),
                     max_cost_ptr,
                 )?,
-                Operation::Softfork => self.exit_softfork_guard(cost)?,
+                Operation::ExitGuard => self.exit_guard(cost)?,
                 Operation::Cons => self.cons_op()?,
                 Operation::SwapEval => augment_cost_errors(self.swap_eval_op(), max_cost_ptr)?,
                 #[cfg(feature = "pre-eval")]

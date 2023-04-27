@@ -1,7 +1,7 @@
 use crate::allocator::{Allocator, NodePtr};
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
-use crate::dialect::{Dialect, Extension};
+use crate::dialect::{Dialect, Operators};
 use crate::err_utils::err;
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
@@ -22,7 +22,7 @@ pub const LIMIT_HEAP: u32 = 0x0004;
 pub const LIMIT_STACK: u32 = 0x0008;
 
 // When set, we allow softfork with extension 0 (which includes coinid and the
-// BLS operators)
+// BLS operators). This remains disabled until the soft-fork activates
 pub const ENABLE_BLS_OPS: u32 = 0x0010;
 
 // The default mode when running grnerators in mempool-mode (i.e. the stricter
@@ -60,7 +60,7 @@ impl Dialect for ChiaDialect {
         o: NodePtr,
         argument_list: NodePtr,
         max_cost: Cost,
-        extensions: Extension,
+        extension: Operators,
     ) -> Response {
         let b = &allocator.atom(o);
         if b.len() != 1 {
@@ -103,8 +103,8 @@ impl Dialect for ChiaDialect {
             34 => op_all,
             // 35 ---
             // 36 = softfork
-            _ => match extensions {
-                Extension::BLS => match b[0] {
+            _ => match extension {
+                Operators::BLS => match b[0] {
                     48 => op_coinid,
                     // TODO: add BLS operators here
                     _ => {
@@ -131,17 +131,22 @@ impl Dialect for ChiaDialect {
         &[36]
     }
 
-    fn softfork_extension(&self, ext: u32) -> Extension {
+    // interpret the extension argument passed to the softfork operator, and
+    // return the Operators it enables (or None) if we don't know what it means
+    // We have to pretend that we don't know about the BLS extensions until
+    // after the soft-fork activation, which is controlled by the ENABLE_BLS_OPS
+    // flag
+    fn softfork_extension(&self, ext: u32) -> Operators {
         match ext {
             0 => {
                 if (self.flags & ENABLE_BLS_OPS) == 0 {
-                    Extension::None
+                    Operators::None
                 } else {
-                    Extension::BLS
+                    Operators::BLS
                 }
             }
             // new extensions go here
-            _ => Extension::None,
+            _ => Operators::None,
         }
     }
 
