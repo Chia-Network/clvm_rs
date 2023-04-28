@@ -1,6 +1,7 @@
+use crate::allocator::SExp::Atom;
 use crate::err_utils::err;
 use crate::node::Node;
-use crate::number::{number_from_u8, Number};
+use crate::number::Number;
 use crate::reduction::EvalErr;
 
 pub fn check_arg_count(args: &Node, expected: usize, name: &str) -> Result<(), EvalErr> {
@@ -66,10 +67,20 @@ fn test_arg_count() {
     assert_eq!(arg_count(&count_3_args, 4), 3);
 }
 
-pub fn int_atom<'a>(args: Node<'a>, op_name: &str) -> Result<&'a [u8], EvalErr> {
-    match args.atom() {
-        Some(a) => Ok(a),
+pub fn int_atom(args: Node, op_name: &str) -> Result<(Number, usize), EvalErr> {
+    match args.sexp() {
+        Atom(_) => Ok((
+            args.allocator.number(args.node),
+            args.allocator.atom_len(args.node),
+        )),
         _ => args.err(&format!("{op_name} requires int args")),
+    }
+}
+
+pub fn atom_len(args: Node, op_name: &str) -> Result<usize, EvalErr> {
+    match args.sexp() {
+        Atom(_) => Ok(args.allocator.atom_len(args.node)),
+        _ => args.err(&format!("{op_name} requires an atom")),
     }
 }
 
@@ -216,9 +227,9 @@ pub fn atom<'a>(args: Node<'a>, op_name: &str) -> Result<&'a [u8], EvalErr> {
 
 pub fn two_ints(args: &Node, op_name: &str) -> Result<(Number, usize, Number, usize), EvalErr> {
     check_arg_count(args, 2, op_name)?;
-    let n0 = int_atom(args.first()?, op_name)?;
-    let n1 = int_atom(args.rest()?.first()?, op_name)?;
-    Ok((number_from_u8(n0), n0.len(), number_from_u8(n1), n1.len()))
+    let (n0, n0_len) = int_atom(args.first()?, op_name)?;
+    let (n1, n1_len) = int_atom(args.rest()?.first()?, op_name)?;
+    Ok((n0, n0_len, n1, n1_len))
 }
 
 fn u32_from_u8_impl(buf: &[u8], signed: bool) -> Option<u32> {

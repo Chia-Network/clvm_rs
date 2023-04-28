@@ -4,7 +4,6 @@ use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;
 use crate::node::Node;
-use crate::number::{ptr_from_number, Number};
 use crate::op_utils::uint_atom;
 use crate::reduction::{EvalErr, Reduction, Response};
 
@@ -465,9 +464,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         // max_cost is always in effect, and necessary to prevent wrap-around of
         // the cost integer.
         let max_cost = if max_cost == 0 { Cost::MAX } else { max_cost };
-
-        let max_cost_number: Number = max_cost.into();
-        let max_cost_ptr = ptr_from_number(self.allocator, &max_cost_number)?;
+        let max_cost_ptr = self.allocator.new_number(max_cost.into())?;
 
         let mut cost: Cost = 0;
 
