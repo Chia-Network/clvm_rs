@@ -12,6 +12,7 @@ enum Type {
     Program,
     Tree,
     List,
+    PointPair,
     Bool,
     Int64,
     Int32,
@@ -20,11 +21,10 @@ enum Type {
     Bytes32,
     Bytes48,
     Bytes96,
-    Bytes288,
     AnyAtom,
 }
 
-const ATOMS: [Type; 9] = [
+const ATOMS: [Type; 8] = [
     Type::Bool,
     Type::Int64,
     Type::Int32,
@@ -33,7 +33,6 @@ const ATOMS: [Type; 9] = [
     Type::Bytes32,
     Type::Bytes48,
     Type::Bytes96,
-    Type::Bytes288,
 ];
 
 struct OperatorInfo {
@@ -50,7 +49,7 @@ const fn op(opcode: u8, operands: &'static [Type], result: Type) -> OperatorInfo
     }
 }
 
-const OPERATORS: [OperatorInfo; 33] = [
+const OPERATORS: [OperatorInfo; 76] = [
     // apply
     op(2, &[Type::Program, Type::Tree], Type::AnyAtom),
     // if
@@ -61,6 +60,7 @@ const OPERATORS: [OperatorInfo; 33] = [
     ),
     // cons
     op(4, &[Type::AnyAtom, Type::List], Type::List),
+    op(4, &[Type::Bytes48, Type::Bytes96], Type::PointPair),
     // first
     op(5, &[Type::List], Type::AnyAtom),
     // rest
@@ -90,10 +90,21 @@ const OPERATORS: [OperatorInfo; 33] = [
     op(13, &[Type::AnyAtom], Type::Int32),
     // concat
     op(14, &[Type::AnyAtom, Type::AnyAtom], Type::AnyAtom),
+    op(
+        14,
+        &[Type::AnyAtom, Type::AnyAtom, Type::AnyAtom],
+        Type::AnyAtom,
+    ),
     // add
+    op(16, &[], Type::Int64),
+    op(16, &[Type::Int64], Type::Int64),
     op(16, &[Type::Int64, Type::Int64], Type::Int64),
+    op(16, &[Type::Int64, Type::Int64, Type::Int64], Type::Int64),
     // subtract
+    op(17, &[], Type::Int64),
+    op(17, &[Type::Int64], Type::Int64),
     op(17, &[Type::Int64, Type::Int64], Type::Int64),
+    op(17, &[Type::Int64, Type::Int64, Type::Int64], Type::Int64),
     // multiply
     op(18, &[Type::Int64, Type::Int64], Type::Int64),
     // div
@@ -107,15 +118,43 @@ const OPERATORS: [OperatorInfo; 33] = [
     // lsh
     op(23, &[Type::Int64, Type::Int32], Type::Int64),
     // logand
+    op(24, &[], Type::AnyAtom),
+    op(24, &[Type::AnyAtom], Type::AnyAtom),
     op(24, &[Type::AnyAtom, Type::AnyAtom], Type::AnyAtom),
+    op(
+        24,
+        &[Type::AnyAtom, Type::AnyAtom, Type::AnyAtom],
+        Type::AnyAtom,
+    ),
     // logior
+    op(25, &[], Type::AnyAtom),
+    op(25, &[Type::AnyAtom], Type::AnyAtom),
     op(25, &[Type::AnyAtom, Type::AnyAtom], Type::AnyAtom),
+    op(
+        25,
+        &[Type::AnyAtom, Type::AnyAtom, Type::AnyAtom],
+        Type::AnyAtom,
+    ),
     // logxor
+    op(26, &[], Type::AnyAtom),
+    op(26, &[Type::AnyAtom], Type::AnyAtom),
     op(26, &[Type::AnyAtom, Type::AnyAtom], Type::AnyAtom),
+    op(
+        26,
+        &[Type::AnyAtom, Type::AnyAtom, Type::AnyAtom],
+        Type::AnyAtom,
+    ),
     // lognot
     op(27, &[Type::AnyAtom], Type::AnyAtom),
     // point_add
+    op(29, &[], Type::Bytes48),
+    op(29, &[Type::Bytes48], Type::Bytes48),
     op(29, &[Type::Bytes48, Type::Bytes48], Type::Bytes48),
+    op(
+        29,
+        &[Type::Bytes48, Type::Bytes48, Type::Bytes48],
+        Type::Bytes48,
+    ),
     // pubkey for exp
     op(30, &[Type::AnyAtom], Type::Bytes48),
     // not
@@ -138,9 +177,89 @@ const OPERATORS: [OperatorInfo; 33] = [
         &[Type::Bytes32, Type::Bytes32, Type::Int64],
         Type::Bytes32,
     ),
+    // bls_g1_subtract
+    op(49, &[Type::Bytes48, Type::Bytes48], Type::Bytes48),
+    // bls_g1_multiply
+    op(50, &[Type::Bytes48, Type::Int64], Type::Bytes48),
+    // bls_g1_negate
+    op(51, &[Type::Bytes48], Type::Bytes48),
+    // bls_g2_add
+    op(52, &[Type::Bytes96, Type::Bytes96], Type::Bytes96),
+    // bls_g2_subtract
+    op(53, &[Type::Bytes96, Type::Bytes96], Type::Bytes96),
+    // bls_g2_multiply
+    op(54, &[Type::Bytes96, Type::Int64], Type::Bytes96),
+    op(54, &[Type::Bytes96, Type::Bytes32], Type::Bytes96),
+    op(54, &[Type::Bytes96, Type::Bytes48], Type::Bytes96),
+    op(54, &[Type::Bytes96, Type::Bytes96], Type::Bytes96),
+    // bls_g2_negate
+    op(55, &[Type::Bytes96], Type::Bytes96),
+    // bls_map_to_g1
+    op(56, &[Type::AnyAtom, Type::AnyAtom], Type::Bytes48),
+    // bls_map_to_g2
+    op(57, &[Type::AnyAtom, Type::AnyAtom], Type::Bytes96),
+    op(57, &[Type::AnyAtom], Type::Bytes96),
+    // bls_pairing_identity
+    op(58, &[Type::PointPair], Type::Bool),
+    op(58, &[Type::PointPair, Type::PointPair], Type::Bool),
+    op(
+        58,
+        &[Type::PointPair, Type::PointPair, Type::PointPair],
+        Type::Bool,
+    ),
+    op(
+        58,
+        &[
+            Type::PointPair,
+            Type::PointPair,
+            Type::PointPair,
+            Type::PointPair,
+        ],
+        Type::Bool,
+    ),
+    op(
+        58,
+        &[
+            Type::PointPair,
+            Type::PointPair,
+            Type::PointPair,
+            Type::PointPair,
+            Type::PointPair,
+        ],
+        Type::Bool,
+    ),
+    // bls_verify
+    op(59, &[Type::Bytes96], Type::Bool),
+    op(59, &[Type::Bytes96, Type::PointPair], Type::Bool),
+    op(
+        59,
+        &[Type::Bytes96, Type::PointPair, Type::PointPair],
+        Type::Bool,
+    ),
+    op(
+        59,
+        &[
+            Type::Bytes96,
+            Type::PointPair,
+            Type::PointPair,
+            Type::PointPair,
+        ],
+        Type::Bool,
+    ),
+    op(
+        59,
+        &[
+            Type::Bytes96,
+            Type::PointPair,
+            Type::PointPair,
+            Type::PointPair,
+            Type::PointPair,
+        ],
+        Type::Bool,
+    ),
 ];
 
-const ZEROS: [u8; 288] = [0; 288];
+const ZEROS: [u8; 96] = [0; 96];
 
 fn rand_atom_type<R: Rng>(rng: &mut R) -> Type {
     ATOMS[rng.gen_range(0..ATOMS.len())]
@@ -246,6 +365,11 @@ fn generate<R: Rng>(t: Type, rng: &mut R, buffer: &mut Vec<u8>) {
             }
             buffer.push(0x80); // NIL
         }
+        Type::PointPair => {
+            buffer.push(0xff); // cons
+            generate(Type::Bytes48, rng, buffer);
+            generate(Type::Bytes96, rng, buffer);
+        }
         Type::Program => {
             let op = sample(rng, &OPERATORS);
             generate_program(op, rng, buffer);
@@ -277,9 +401,6 @@ fn generate<R: Rng>(t: Type, rng: &mut R, buffer: &mut Vec<u8>) {
         }
         Type::Bytes96 => {
             write_atom(buffer, &ZEROS[..96]).expect("write_atom failed");
-        }
-        Type::Bytes288 => {
-            write_atom(buffer, &ZEROS[..288]).expect("write_atom failed");
         }
         Type::AnyAtom => {
             generate(rand_atom_type(rng), rng, buffer);
