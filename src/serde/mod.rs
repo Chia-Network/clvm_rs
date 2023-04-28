@@ -10,7 +10,7 @@ mod ser;
 mod ser_br;
 mod tools;
 mod utils;
-mod write_atom;
+pub mod write_atom;
 
 #[cfg(test)]
 mod test;
