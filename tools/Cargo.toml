@@ -1,0 +1,26 @@
+[package]
+name = "clvm-tools"
+version = "0.1.0"
+authors = ["Arvid Norberg <arvid@chia.net>"]
+edition = "2021"
+license = "Apache-2.0"
+description = "Developer tools for the CLVM interpreter"
+homepage = "https://github.com/Chia-Network/clvm_rs/tools/"
+repository = "https://github.com/Chia-Network/clvm_rs/tools/"
+readme = "README.md"
+
+[profile.release]
+lto = true
+
+[dependencies]
+hex = "=0.4.3"
+rand = "0.8.4"
+sha1 = "=0.10.5"
+clvmr = { path = ".." }
+
+[[bin]]
+name = "generate-fuzz-corpus"
+test = false
+bench = false
+
+

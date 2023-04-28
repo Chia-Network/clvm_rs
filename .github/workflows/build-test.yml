@@ -191,7 +191,7 @@ jobs:
             override: true
             components: rustfmt, clippy
       - name: fmt
-        run: cargo fmt -- --files-with-diff --check
+        run: cargo fmt --all -- --files-with-diff --check
 
   clippy:
     runs-on: ubuntu-20.04
@@ -205,7 +205,7 @@ jobs:
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+          args: --workspace --all-features
 
   # leaving out Windows fuzzing for now though it seems supported
   # https://llvm.org/docs/LibFuzzer.html#q-does-libfuzzer-support-windows

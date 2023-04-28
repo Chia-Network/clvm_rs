@@ -1,3 +1,7 @@
+[workspace]
+members = ["tools"]
+exclude = ["wheel"]
+
 [package]
 name = "clvmr"
 version = "0.2.4"

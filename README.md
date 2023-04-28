@@ -23,9 +23,8 @@ Documentation for setting up fuzzing in rust can be found [here](https://rust-fu
 To generate an initial corpus (for the `run_program` fuzzer), run:
 
 ```
-cd fuzz
-mkdir -p corpus/fuzz_run_program/
-python gen_corpus.py
+cd tools
+cargo run generate-fuzz-corpus
 ```
 
 To get started, run:
