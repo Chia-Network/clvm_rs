@@ -2,7 +2,9 @@
 use libfuzzer_sys::fuzz_target;
 
 use clvmr::allocator::Allocator;
-use clvmr::chia_dialect::ChiaDialect;
+use clvmr::chia_dialect::{
+    ChiaDialect, ENABLE_BLS_OPS, LIMIT_HEAP, LIMIT_STACK, MEMPOOL_MODE, NO_UNKNOWN_OPS,
+};
 use clvmr::cost::Cost;
 use clvmr::reduction::Reduction;
 use clvmr::run_program::run_program;
@@ -17,13 +19,26 @@ fuzz_target!(|data: &[u8]| {
         Ok(r) => r,
     };
     let args = allocator.null();
-    let dialect = ChiaDialect::new(0);
 
-    let Reduction(_cost, _node) =
-        match run_program(&mut allocator, &dialect, program, args, 12000000000 as Cost) {
-            Err(_) => {
-                return;
-            }
-            Ok(r) => r,
-        };
+    let allocator_checkpoint = allocator.checkpoint();
+
+    for flags in [
+        0,
+        NO_UNKNOWN_OPS,
+        LIMIT_HEAP,
+        LIMIT_STACK,
+        ENABLE_BLS_OPS,
+        MEMPOOL_MODE,
+    ] {
+        let dialect = ChiaDialect::new(flags);
+        allocator.restore_checkpoint(&allocator_checkpoint);
+
+        let Reduction(_cost, _node) =
+            match run_program(&mut allocator, &dialect, program, args, 11000000000 as Cost) {
+                Err(_) => {
+                    continue;
+                }
+                Ok(r) => r,
+            };
+    }
 });
