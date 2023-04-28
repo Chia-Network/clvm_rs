@@ -1,7 +1,7 @@
 use crate::allocator::{Allocator, NodePtr};
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
-use crate::dialect::{Dialect, Operators};
+use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
@@ -60,7 +60,7 @@ impl Dialect for ChiaDialect {
         o: NodePtr,
         argument_list: NodePtr,
         max_cost: Cost,
-        extension: Operators,
+        extension: OperatorSet,
     ) -> Response {
         let b = &allocator.atom(o);
         if b.len() != 1 {
@@ -104,7 +104,7 @@ impl Dialect for ChiaDialect {
             // 35 ---
             // 36 = softfork
             _ => match extension {
-                Operators::BLS => match b[0] {
+                OperatorSet::BLS => match b[0] {
                     48 => op_coinid,
                     // TODO: add BLS operators here
                     _ => {
@@ -136,17 +136,17 @@ impl Dialect for ChiaDialect {
     // We have to pretend that we don't know about the BLS extensions until
     // after the soft-fork activation, which is controlled by the ENABLE_BLS_OPS
     // flag
-    fn softfork_extension(&self, ext: u32) -> Operators {
+    fn softfork_extension(&self, ext: u32) -> OperatorSet {
         match ext {
             0 => {
                 if (self.flags & ENABLE_BLS_OPS) == 0 {
-                    Operators::None
+                    OperatorSet::Default
                 } else {
-                    Operators::BLS
+                    OperatorSet::BLS
                 }
             }
             // new extensions go here
-            _ => Operators::None,
+            _ => OperatorSet::Default,
         }
     }
 

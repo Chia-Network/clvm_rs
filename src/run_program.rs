@@ -1,7 +1,7 @@
 use super::traverse_path::traverse_path;
 use crate::allocator::{Allocator, AtomBuf, Checkpoint, NodePtr, SExp};
 use crate::cost::Cost;
-use crate::dialect::{Dialect, Operators};
+use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;
 use crate::node::Node;
 use crate::number::{ptr_from_number, Number};
@@ -74,7 +74,7 @@ struct SoftforkGuard {
     allocator_state: Checkpoint,
 
     // this specifies which new operators are available
-    extension: Operators,
+    operator_set: OperatorSet,
 
     #[cfg(test)]
     start_cost: Cost,
@@ -322,7 +322,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     fn parse_softfork_arguments(
         &self,
         args: &Node,
-    ) -> Result<(Operators, NodePtr, NodePtr), EvalErr> {
+    ) -> Result<(OperatorSet, NodePtr, NodePtr), EvalErr> {
         if !args.arg_count_is(4) {
             return Err(EvalErr(
                 args.node,
@@ -334,7 +334,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let extension = self
             .dialect
             .softfork_extension(uint_atom::<4>(&args.first()?, "softfork")? as u32);
-        if extension == Operators::None {
+        if extension == OperatorSet::Default {
             return Err(EvalErr(args.node, "unknown softfork extension".to_string()));
         }
         let args = args.rest()?;
@@ -394,7 +394,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             self.softfork_stack.push(SoftforkGuard {
                 expected_cost: current_cost + expected_cost,
                 allocator_state: self.allocator.checkpoint(),
-                extension: ext,
+                operator_set: ext,
                 #[cfg(test)]
                 start_cost: current_cost,
             });
@@ -406,9 +406,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             self.eval_pair(prg, env).map(|c| c + GUARD_COST)
         } else {
             let current_extensions = if let Some(sf) = self.softfork_stack.last() {
-                sf.extension
+                sf.operator_set
             } else {
-                Operators::None
+                OperatorSet::Default
             };
 
             let r = self.dialect.op(

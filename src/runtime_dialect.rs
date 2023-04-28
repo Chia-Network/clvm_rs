@@ -1,7 +1,7 @@
 use crate::allocator::{Allocator, NodePtr};
 use crate::chia_dialect::NO_UNKNOWN_OPS;
 use crate::cost::Cost;
-use crate::dialect::{Dialect, Operators};
+use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;
 use crate::f_table::{f_lookup_for_hashmap, FLookup};
 use crate::more_ops::op_unknown;
@@ -40,7 +40,7 @@ impl Dialect for RuntimeDialect {
         o: NodePtr,
         argument_list: NodePtr,
         max_cost: Cost,
-        _extensions: Operators,
+        _extensions: OperatorSet,
     ) -> Response {
         let b = &allocator.atom(o);
         if b.len() == 1 {
@@ -67,8 +67,8 @@ impl Dialect for RuntimeDialect {
         &self.softfork_kw
     }
 
-    fn softfork_extension(&self, _ext: u32) -> Operators {
-        Operators::None
+    fn softfork_extension(&self, _ext: u32) -> OperatorSet {
+        OperatorSet::Default
     }
 
     fn stack_limit(&self) -> usize {
