@@ -844,9 +844,7 @@ pub fn op_point_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respon
         let blob = atom(arg, "point_add")?;
         let mut is_ok: bool = blob.len() == 48;
         if is_ok {
-            let mut as_array: [u8; 48] = [0; 48];
-            as_array.clone_from_slice(&blob[0..48]);
-            let v = G1Affine::from_compressed(&as_array);
+            let v = G1Affine::from_compressed(&blob.try_into().unwrap());
             is_ok = v.is_some().into();
             if is_ok {
                 let point = v.unwrap();
