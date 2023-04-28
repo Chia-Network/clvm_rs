@@ -6,7 +6,7 @@ use crate::more_ops::{
     op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add,
     op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
 };
-use crate::number::{ptr_from_number, Number};
+use crate::number::Number;
 use crate::reduction::{EvalErr, Reduction, Response};
 
 use hex::FromHex;
@@ -903,7 +903,7 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
     }
 
     if let Ok(num) = Number::from_str_radix(v, 10) {
-        ptr_from_number(a, &num).unwrap()
+        a.new_number(num).unwrap()
     } else {
         let v = if v.starts_with("#") { &v[1..] } else { v };
         match v {

@@ -1,4 +1,5 @@
 use crate::err_utils::err;
+use crate::number::{node_from_number, number_from_u8, Number};
 use crate::reduction::EvalErr;
 
 pub type NodePtr = i32;
@@ -147,6 +148,10 @@ impl Allocator {
         Ok(-(self.atom_vec.len() as i32))
     }
 
+    pub fn new_number(&mut self, v: Number) -> Result<NodePtr, EvalErr> {
+        node_from_number(self, &v)
+    }
+
     pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr> {
         let r = self.pair_vec.len() as i32;
         if self.pair_vec.len() == self.pair_limit {
@@ -230,6 +235,14 @@ impl Allocator {
 
     pub fn buf<'a>(&'a self, node: &AtomBuf) -> &'a [u8] {
         &self.u8_vec[node.start as usize..node.end as usize]
+    }
+
+    pub fn atom_len(&self, node: NodePtr) -> usize {
+        self.atom(node).len()
+    }
+
+    pub fn number(&self, node: NodePtr) -> Number {
+        number_from_u8(self.atom(node))
     }
 
     pub fn sexp(&self, node: NodePtr) -> SExp {
@@ -479,6 +492,37 @@ fn test_concat_limit() {
     );
     let cat = a.new_concat(2, &[atom1, atom2]).unwrap();
     assert_eq!(a.atom(cat), b"fo");
+}
+
+#[cfg(test)]
+use rstest::rstest;
+
+#[cfg(test)]
+#[rstest]
+#[case(0.into(), &[])]
+#[case(1.into(), &[1])]
+#[case((-1).into(), &[0xff])]
+#[case(0x80.into(), &[0, 0x80])]
+#[case(0xff.into(), &[0, 0xff])]
+#[case(0xffffffff_u64.into(), &[0, 0xff, 0xff, 0xff, 0xff])]
+fn test_new_number(#[case] num: Number, #[case] expected: &[u8]) {
+    let mut a = Allocator::new();
+
+    // TEST creating the atom from a Number
+    let atom = a.new_number(num.clone()).unwrap();
+
+    // make sure we get back the same number
+    assert_eq!(a.number(atom), num);
+    assert_eq!(a.atom(atom), expected);
+    assert_eq!(number_from_u8(expected), num);
+
+    // TEST creating the atom from a buffer
+    let atom = a.new_atom(expected).unwrap();
+
+    // make sure we get back the same number
+    assert_eq!(a.number(atom), num);
+    assert_eq!(a.atom(atom), expected);
+    assert_eq!(number_from_u8(expected), num);
 }
 
 #[test]
