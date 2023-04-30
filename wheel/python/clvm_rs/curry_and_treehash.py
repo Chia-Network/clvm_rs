@@ -2,7 +2,7 @@ from typing import List, Optional, Tuple
 
 from .at import at
 from .casts import CastableType
-from .chia_dialect import Dialect
+from .chia_dialect import Dialect, CHIA_DIALECT
 from .clvm_storage import CLVMStorage
 from .tree_hash import shatree_pair, shatree_atom
 
@@ -154,3 +154,6 @@ class CurryTreehasher:
             # since "rrr" is not None, neither is rrf
             core = at(core, "rrf")
         return uncurried_function, core_items
+
+
+CHIA_CURRY_TREEHASHER = CurryTreehasher(CHIA_DIALECT)

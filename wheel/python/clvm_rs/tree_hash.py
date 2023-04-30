@@ -5,7 +5,6 @@ puzzle hashes in clvm.
 This implementation goes to great pains to be non-recursive so we don't
 have to worry about blowing out the python stack.
 """
-
 from hashlib import sha256
 from typing import Callable, List, Tuple, cast
 
