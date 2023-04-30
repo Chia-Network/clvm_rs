@@ -60,3 +60,9 @@ name = "fuzz_parse_triples"
 path = "fuzz_targets/parse_triples.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "operators"
+path = "fuzz_targets/operators.rs"
+test = false
+doc = false
