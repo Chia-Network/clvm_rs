@@ -31,9 +31,9 @@ lazy_static = "=1.4.0"
 num-bigint = "=0.4.3"
 num-traits = "=0.2.15"
 num-integer = "=0.1.45"
-bls12_381 = "=0.7.0"
-sha2 = "=0.10.2"
-openssl = { version = "=0.10.48", features = ["vendored"], optional = true }
+bls12_381 = "=0.8.0"
+sha2 = "=0.10.6"
+openssl = { version = "=0.10.52", features = ["vendored"], optional = true }
 
 [dev-dependencies]
-rstest = "=0.16.0"
+rstest = "=0.17.0"
