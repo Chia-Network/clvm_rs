@@ -1,6 +1,6 @@
+use js_sys::Array;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
-use js_sys::{Array};
 
 use crate::lazy_node::LazyNode;
 use clvmr::allocator::Allocator;
@@ -23,7 +23,9 @@ pub struct Flag;
 #[wasm_bindgen]
 impl Flag {
     #[wasm_bindgen]
-    pub fn no_unknown_ops() -> u32 { _no_unknown_ops }
+    pub fn no_unknown_ops() -> u32 {
+        _no_unknown_ops
+    }
 }
 
 #[wasm_bindgen]
@@ -67,13 +69,7 @@ pub fn run_chia_program(
     let args = node_from_bytes(&mut allocator, args).unwrap();
     let dialect = ChiaDialect::new(flag);
 
-    let r = run_program(
-        &mut allocator,
-        &dialect,
-        program,
-        args,
-        max_cost,
-    );
+    let r = run_program(&mut allocator, &dialect, program, args, max_cost);
     match r {
         Ok(reduction) => {
             let cost = JsValue::from(reduction.0);
@@ -84,7 +80,7 @@ pub fn run_chia_program(
             tuple.set(0, cost);
             tuple.set(1, val);
             Ok(tuple)
-        },
-        Err(_eval_err) => Err(format!("{:?}", _eval_err).into()),
+        }
+        Err(_eval_err) => Err(format!("{:?}", _eval_err)),
     }
 }

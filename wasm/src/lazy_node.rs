@@ -1,8 +1,8 @@
 use clvmr::allocator::{Allocator, NodePtr, SExp};
 use std::rc::Rc;
 
+use js_sys::Array;
 use wasm_bindgen::prelude::*;
-use js_sys::{Array};
 
 #[wasm_bindgen]
 #[derive(Clone)]

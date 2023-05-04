@@ -1,5 +1,5 @@
 [workspace]
-members = ["tools"]
+members = ["tools", "wasm"]
 exclude = ["wheel"]
 
 [package]
