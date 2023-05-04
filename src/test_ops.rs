@@ -222,6 +222,11 @@ use rstest::rstest;
 #[case("test-core-ops")]
 #[case("test-more-ops")]
 #[case("test-bls-ops")]
+#[case("test-blspy-g1")]
+#[case("test-blspy-g2")]
+#[case("test-blspy-hash")]
+#[case("test-blspy-pairing")]
+#[case("test-blspy-verify")]
 fn test_ops(#[case] filename: &str) {
     use std::fs::read_to_string;
 
