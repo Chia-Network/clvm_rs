@@ -225,6 +225,16 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
             toolchain: nightly
+            override: true
+            components: rustfmt, clippy
+      - name: fmt
+        run: |
+          cd fuzz
+          cargo fmt -- --files-with-diff --check
+      - name: clippy
+        run: |
+          cd fuzz
+          cargo clippy
       - name: cargo-fuzz
         run: cargo +nightly install cargo-fuzz
       - name: build

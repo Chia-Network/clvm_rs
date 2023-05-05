@@ -19,16 +19,11 @@ fuzz_target!(|data: &[u8]| {
     let args = allocator.null();
     let dialect = ChiaDialect::new(0);
 
-    let Reduction(_cost, _node) = match run_program(
-        &mut allocator,
-        &dialect,
-        program,
-        args,
-        12000000000 as Cost,
-    ) {
-        Err(_) => {
-            return;
-        }
-        Ok(r) => r,
-    };
+    let Reduction(_cost, _node) =
+        match run_program(&mut allocator, &dialect, program, args, 12000000000 as Cost) {
+            Err(_) => {
+                return;
+            }
+            Ok(r) => r,
+        };
 });
