@@ -1,7 +1,7 @@
 #![no_main]
-use std::io::Cursor;
 use clvmr::serde::parse_triples;
 use libfuzzer_sys::fuzz_target;
+use std::io::Cursor;
 
 fuzz_target!(|data: &[u8]| {
     let mut cursor = Cursor::new(data);
