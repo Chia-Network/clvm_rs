@@ -1,6 +1,7 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 
+use clvmr::allocator::{Allocator, NodePtr};
 use clvmr::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use clvmr::cost::Cost;
 use clvmr::more_ops::{
@@ -8,8 +9,7 @@ use clvmr::more_ops::{
     op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add,
     op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
 };
-use clvmr::allocator::{Allocator, NodePtr};
-use clvmr::reduction::{Response, EvalErr};
+use clvmr::reduction::{EvalErr, Response};
 use clvmr::serde::node_from_bytes;
 
 type Opf = fn(&mut Allocator, NodePtr, Cost) -> Response;
@@ -60,7 +60,6 @@ fuzz_target!(|data: &[u8]| {
 
     let allocator_checkpoint = allocator.checkpoint();
 
-
     for op in FUNS {
         for max_cost in [11000000, 1100000, 110000, 10, 1, 0] {
             allocator.restore_checkpoint(&allocator_checkpoint);
@@ -69,7 +68,7 @@ fuzz_target!(|data: &[u8]| {
                     assert!(!msg.contains("internal error"));
                     // make sure n is a valid node in the allocator
                     allocator.sexp(n);
-                },
+                }
                 Ok(n) => {
                     // make sure n is a valid node in the allocator
                     allocator.sexp(n.1);
@@ -83,5 +82,5 @@ fuzz_target!(|data: &[u8]| {
                 }
             }
         }
-	}
+    }
 });
