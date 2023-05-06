@@ -566,6 +566,8 @@ use crate::test_ops::parse_exp;
 #[cfg(test)]
 use crate::chia_dialect::ENABLE_BLS_OPS;
 #[cfg(test)]
+use crate::chia_dialect::ENABLE_BLS_OPS_OUTSIDE_GUARD;
+#[cfg(test)]
 use crate::chia_dialect::NO_UNKNOWN_OPS;
 
 #[cfg(test)]
@@ -1170,6 +1172,35 @@ const TEST_CASES: &[RunProgramTest] = &[
         result: Some("()"),
         cost: 1346,
         err: "",
+    },
+
+    // coinid operator after hardfork, where coinid is available outside the
+    // softfork guard.
+    RunProgramTest {
+        prg: "(coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789))",
+        args: "()",
+        flags: ENABLE_BLS_OPS_OUTSIDE_GUARD,
+        result: Some("0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc"),
+        cost: 694,
+        err: "",
+    },
+    RunProgramTest {
+        prg: "(coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 0x000123456789))",
+        args: "()",
+        flags: ENABLE_BLS_OPS_OUTSIDE_GUARD,
+        result: None,
+        cost: 694,
+        err: "coinid: invalid amount (may not have redundant leading zero)",
+    },
+    // make sure the coinid operator is not available unless the flag is
+    // specified
+    RunProgramTest {
+        prg: "(coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 0x000123456789))",
+        args: "()",
+        flags: NO_UNKNOWN_OPS,
+        result: None,
+        cost: 694,
+        err: "unimplemented operator",
     },
 ];
 

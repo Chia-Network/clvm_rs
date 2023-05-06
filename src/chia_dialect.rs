@@ -25,6 +25,10 @@ pub const LIMIT_STACK: u32 = 0x0008;
 // BLS operators). This remains disabled until the soft-fork activates
 pub const ENABLE_BLS_OPS: u32 = 0x0010;
 
+// enables the BLS ops extensions *outside* the softfork guard. This is a
+// hard-fork and should only be enabled when it activates
+pub const ENABLE_BLS_OPS_OUTSIDE_GUARD: u32 = 0x0020;
+
 // The default mode when running grnerators in mempool-mode (i.e. the stricter
 // mode)
 pub const MEMPOOL_MODE: u32 = NO_UNKNOWN_OPS | LIMIT_HEAP | LIMIT_STACK;
@@ -103,18 +107,26 @@ impl Dialect for ChiaDialect {
             34 => op_all,
             // 35 ---
             // 36 = softfork
-            _ => match extension {
-                OperatorSet::BLS => match b[0] {
-                    48 => op_coinid,
-                    // TODO: add BLS operators here
-                    _ => {
-                        return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
+            _ => {
+                if extension == OperatorSet::BLS || (self.flags & ENABLE_BLS_OPS_OUTSIDE_GUARD) != 0
+                {
+                    match b[0] {
+                        48 => op_coinid,
+                        // TODO: add BLS operators here
+                        _ => {
+                            return unknown_operator(
+                                allocator,
+                                o,
+                                argument_list,
+                                self.flags,
+                                max_cost,
+                            );
+                        }
                     }
-                },
-                _ => {
+                } else {
                     return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
                 }
-            },
+            }
         };
         f(allocator, argument_list, max_cost)
     }
