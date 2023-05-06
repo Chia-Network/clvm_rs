@@ -3,7 +3,8 @@ use libfuzzer_sys::fuzz_target;
 
 use clvmr::allocator::Allocator;
 use clvmr::chia_dialect::{
-    ChiaDialect, ENABLE_BLS_OPS, LIMIT_HEAP, LIMIT_STACK, MEMPOOL_MODE, NO_UNKNOWN_OPS,
+    ChiaDialect, ENABLE_BLS_OPS, ENABLE_BLS_OPS_OUTSIDE_GUARD, LIMIT_HEAP, LIMIT_STACK,
+    MEMPOOL_MODE, NO_UNKNOWN_OPS,
 };
 use clvmr::cost::Cost;
 use clvmr::reduction::Reduction;
@@ -28,6 +29,7 @@ fuzz_target!(|data: &[u8]| {
         LIMIT_HEAP,
         LIMIT_STACK,
         ENABLE_BLS_OPS,
+        ENABLE_BLS_OPS_OUTSIDE_GUARD,
         MEMPOOL_MODE,
     ] {
         let dialect = ChiaDialect::new(flags);
