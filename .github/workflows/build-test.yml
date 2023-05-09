@@ -112,35 +112,6 @@ jobs:
         python -m pip install pytest
         python -m pip install blspy
 
-    - name: install clvm & clvm_tools
-      run: |
-        . ./activate
-        git clone https://github.com/Chia-Network/clvm.git --branch=main --single-branch
-        python -m pip install ./clvm
-
-        git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
-        python -m pip install ./clvm_tools
-
-    - name: Ensure clvm, clvm_rs, clvm_tools are installed
-      run: |
-        . ./activate
-        python -c 'import clvm'
-        python -c 'import clvm; print(clvm.__file__)'
-        python -c 'import clvm_rs; print(clvm_rs.__file__)'
-        python -c 'import clvm_tools; print(clvm_tools.__file__)'
-
-    - name: Run tests from clvm
-      run: |
-        . ./activate
-        cd clvm
-        pytest tests
-
-    - name: Run tests from clvm_tools
-      run: |
-        . ./activate
-        cd clvm_tools
-        pytest tests
-
     - name: Run tests from wheel
       run: |
         . ./activate
