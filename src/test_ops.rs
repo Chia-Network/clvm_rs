@@ -86,6 +86,7 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
 
             "coinid" => a.new_atom(&[48]).unwrap(),
 
+            "g1_add" => a.new_atom(&[29]).unwrap(),
             "g1_subtract" => a.new_atom(&[49]).unwrap(),
             "g1_multiply" => a.new_atom(&[50]).unwrap(),
             "g1_negate" => a.new_atom(&[51]).unwrap(),
@@ -258,6 +259,7 @@ fn test_ops(#[case] filename: &str) {
         ("all", op_all as Opf),
         //the BLS extension
         ("coinid", op_coinid as Opf),
+        ("g1_add", op_point_add as Opf),
         ("g1_subtract", op_bls_g1_subtract as Opf),
         ("g1_multiply", op_bls_g1_multiply as Opf),
         ("g1_negate", op_bls_g1_negate as Opf),
