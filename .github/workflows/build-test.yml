@@ -245,3 +245,22 @@ jobs:
 
       - name: cargo test (pre-eval and counters)
         run: cargo test --features=pre-eval,counters && cargo test --features=pre-eval,counters --release
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+            toolchain: nightly
+      - name: Install tarpaulin
+        run: cargo +nightly install cargo-tarpaulin
+      - name: Run tarpaulin
+        run: cargo tarpaulin --workspace --all-features --ignore-panics --out Lcov
+      - name: Upload to Coveralls
+        uses: coverallsapp/github-action@v2
+        if: always()
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        with:
+          path-to-lcov: './lcov.info'
