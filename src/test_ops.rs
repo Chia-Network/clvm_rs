@@ -183,7 +183,8 @@ fn run_op_test(op: &Opf, args_str: &str, expected: &str, expected_cost: u64) {
     assert_eq!(rest, "");
     let result = op(&mut a, args, 10000000000 as Cost);
     match result {
-        Err(_) => {
+        Err(e) => {
+            println!("Error: {}", e.1);
             assert_eq!(expected, "FAIL");
         }
         Ok(Reduction(cost, ret_value)) => {
@@ -195,11 +196,18 @@ fn run_op_test(op: &Opf, args_str: &str, expected: &str, expected_cost: u64) {
     }
 }
 
-#[test]
-fn test_ops() {
+#[cfg(test)]
+use rstest::rstest;
+
+#[cfg(test)]
+#[rstest]
+#[case("test-core-ops")]
+#[case("test-more-ops")]
+#[case("test-bls-ops")]
+fn test_ops(#[case] filename: &str) {
     use std::fs::read_to_string;
 
-    const TEST_FILES: &[&str; 3] = &["test-core-ops.txt", "test-more-ops.txt", "test-bls-ops.txt"];
+    let filename = format!("op-tests/{filename}.txt");
 
     let funs = HashMap::from([
         ("i", op_if as Opf),
@@ -235,35 +243,35 @@ fn test_ops() {
         ("coinid", op_coinid as Opf),
     ]);
 
-    for filename in TEST_FILES {
-        println!("Test cases from: {filename}");
-        let test_cases = read_to_string(filename).expect("test file not found");
-        for t in test_cases.split("\n") {
-            let t = t.trim();
-            if t.len() == 0 {
-                continue;
-            }
-            // ignore comments
-            if t.starts_with(";") {
-                continue;
-            }
-            let (op_name, t) = t.split_once(" ").unwrap();
-            let op = funs.get(op_name).unwrap();
-            let (args, out) = t.split_once("=>").unwrap();
-            let (expected, expected_cost) = if out.contains("|") {
-                out.split_once("|").unwrap()
-            } else {
-                (out, "0")
-            };
-
-            println!("({} {}) => {}", op_name, args.trim(), expected.trim());
-            run_op_test(
-                op,
-                args.trim(),
-                expected.trim(),
-                expected_cost.trim().parse().unwrap(),
-            );
+    println!("Test cases from: {filename}");
+    let test_cases = read_to_string(filename).expect("test file not found");
+    for t in test_cases.split("\n") {
+        let t = t.trim();
+        if t.len() == 0 {
+            continue;
         }
+        // ignore comments
+        if t.starts_with(";") {
+            continue;
+        }
+        let (op_name, t) = t.split_once(" ").unwrap();
+        let op = funs
+            .get(op_name)
+            .expect(&format!("couldn't find operator \"{op_name}\""));
+        let (args, out) = t.split_once("=>").unwrap();
+        let (expected, expected_cost) = if out.contains("|") {
+            out.split_once("|").unwrap()
+        } else {
+            (out, "0")
+        };
+
+        println!("({} {}) => {}", op_name, args.trim(), expected.trim());
+        run_op_test(
+            op,
+            args.trim(),
+            expected.trim(),
+            expected_cost.trim().parse().unwrap(),
+        );
     }
 }
 
