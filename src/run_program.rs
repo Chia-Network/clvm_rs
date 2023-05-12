@@ -1156,21 +1156,21 @@ const TEST_CASES: &[RunProgramTest] = &[
     // this program raises an exception if the computed coin ID matches the
     // expected
     RunProgramTest {
-        prg: "(softfork (q . 1265) (q . 0) (q a (i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q x) (q . 0)) (q . ())) (q . ()))",
+        prg: "(softfork (q . 1432) (q . 0) (q a (i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q x) (q . 0)) (q . ())) (q . ()))",
         args: "()",
         flags: ENABLE_BLS_OPS,
         result: None,
-        cost: 1346,
+        cost: 1513,
         err: "clvm raise",
     },
     // also test the opposite. This program is the same as above but it raises
     // if the coin ID is a mismatch
     RunProgramTest {
-        prg: "(softfork (q . 1265) (q . 0) (q a (i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x)) (q . ())) (q . ()))",
+        prg: "(softfork (q . 1432) (q . 0) (q a (i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x)) (q . ())) (q . ()))",
         args: "()",
         flags: ENABLE_BLS_OPS,
         result: Some("()"),
-        cost: 1346,
+        cost: 1513,
         err: "",
     },
 
@@ -1181,7 +1181,7 @@ const TEST_CASES: &[RunProgramTest] = &[
         args: "()",
         flags: ENABLE_BLS_OPS_OUTSIDE_GUARD,
         result: Some("0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc"),
-        cost: 694,
+        cost: 861,
         err: "",
     },
     RunProgramTest {
@@ -1189,7 +1189,7 @@ const TEST_CASES: &[RunProgramTest] = &[
         args: "()",
         flags: ENABLE_BLS_OPS_OUTSIDE_GUARD,
         result: None,
-        cost: 694,
+        cost: 861,
         err: "coinid: invalid amount (may not have redundant leading zero)",
     },
     // make sure the coinid operator is not available unless the flag is
@@ -1199,7 +1199,7 @@ const TEST_CASES: &[RunProgramTest] = &[
         args: "()",
         flags: NO_UNKNOWN_OPS,
         result: None,
-        cost: 694,
+        cost: 861,
         err: "unimplemented operator",
     },
 ];
