@@ -16,6 +16,7 @@ lto = true
 hex = "=0.4.3"
 rand = "0.8.4"
 sha1 = "=0.10.5"
+linreg = "=0.2.0"
 clvmr = { path = ".." }
 
 [[bin]]
@@ -23,4 +24,8 @@ name = "generate-fuzz-corpus"
 test = false
 bench = false
 
+[[bin]]
+name = "benchmark-clvm-cost"
+test = false
+bench = false
 
