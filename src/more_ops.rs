@@ -86,8 +86,10 @@ const PUBKEY_BASE_COST: Cost = 1325730;
 const PUBKEY_COST_PER_BYTE: Cost = 38;
 
 // the new coinid operator
+// we subtract 153 cost as a discount, to incentivice using this operator rather
+// than "naked" sha256
 const COINID_COST: Cost =
-    SHA256_BASE_COST + SHA256_COST_PER_ARG * 3 + SHA256_COST_PER_BYTE * (32 + 32 + 8);
+    SHA256_BASE_COST + SHA256_COST_PER_ARG * 3 + SHA256_COST_PER_BYTE * (32 + 32 + 8) - 153;
 
 fn limbs_for_int(v: &Number) -> usize {
     ((v.bits() + 7) / 8) as usize
@@ -885,6 +887,6 @@ pub fn op_coinid(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
         .as_slice()
         .try_into()
         .expect("sha256 hash is not 32 bytes");
-    let ret = a.new_atom(&ret)?;
-    Ok(Reduction(COINID_COST, ret))
+
+    new_atom_and_cost(a, COINID_COST, &ret)
 }
