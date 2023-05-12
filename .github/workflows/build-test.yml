@@ -254,11 +254,13 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
-            toolchain: nightly
-      - name: Install tarpaulin
-        run: cargo +nightly install cargo-tarpaulin
-      - name: Run tarpaulin
-        run: cargo tarpaulin --workspace --all-features --ignore-panics --out Lcov
+            toolchain: stable
+      - name: Run for coverage
+        run: |
+          rustup component add llvm-tools-preview
+          cargo install grcov
+          RUSTFLAGS="-Cinstrument-coverage" cargo test --workspace
+          grcov . --binary-path ./target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../*' --ignore "/*" -o lcov.info
       - name: Upload to Coveralls
         uses: coverallsapp/github-action@v2
         if: always()
