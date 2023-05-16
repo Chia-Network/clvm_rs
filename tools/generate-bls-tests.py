@@ -25,7 +25,7 @@ def flip_bit(b: bytes) -> bytearray:
 
 def print_validation_test_case(f1, f2, num_cases, filter_pk, filter_msg, filter_sig, expect: str):
     sks = sample(secret_keys, randint(1,min(10, num_cases)))
-    cost = 4999087
+    cost = 7460000
     messages = []
     sigs = []
 
@@ -33,8 +33,8 @@ def print_validation_test_case(f1, f2, num_cases, filter_pk, filter_msg, filter_
     for sk in sks:
         pk = sk.get_g1()
         msg = randbytes(randint(3,40))
-        cost += len(msg) * 122 + 43 * 135
-        cost += 4515438
+        cost += len(msg) * 4 + 43 * 4
+        cost += 5900000
         messages.append(msg)
         sigs.append(blspy.AugSchemeMPL.sign(sk, msg))
         args += f"0x{bytes(filter_pk(pk)).hex()} 0x{filter_msg(msg).hex()} "
@@ -46,11 +46,11 @@ def print_validation_test_case(f1, f2, num_cases, filter_pk, filter_msg, filter_
     f1.write(f"=> {expect} | {cost}\n")
 
     # interleave tests for bls_pairing_identity using the same parameters
-    cost = 4999087
+    cost = 7460000
     f2.write("bls_pairing_identity ")
     for sk, msg in zip(sks, messages):
         pk = sk.get_g1()
-        cost += 4515438
+        cost += 5900000
 
         # in the AUG scheme we prepend the public key to the message before
         # hashing it to the G2 point
@@ -61,7 +61,7 @@ def print_validation_test_case(f1, f2, num_cases, filter_pk, filter_msg, filter_
     # signature and the negated generator
     gen = "b7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
     f2.write(f"0x{gen} 0x{bytes(filter_sig(agg_sig)).hex()} ")
-    cost += 4515438
+    cost += 5900000
 
     f2.write(f"=> {expect} | {cost}\n")
 
@@ -113,7 +113,7 @@ with open("../op-tests/test-blspy-g1.txt", "w+") as f:
             aggregate = g1
             continue
 
-        cost = 2857918
+        cost = 101094 + 1343980 * 2 + 48 * 10
         result = aggregate + g1.negate()
         f.write(f"g1_subtract 0x{bytes(aggregate).hex()} 0x{bytes(g1).hex()} => 0x{bytes(result).hex()} | {cost}\n")
 
@@ -122,7 +122,7 @@ with open("../op-tests/test-blspy-g1.txt", "w+") as f:
     # g1_multiply
     for g1 in g1_points:
         scalar = randint(-100, 100)
-        cost = 2154347 + bytes_in_atom(scalar) * 12 + 48 * 10
+        cost = 1411000 + bytes_in_atom(scalar) * 10 + 48 * 10
         # blspy does not expose multiplication, so we simulate it
         result = blspy.G1Element()
         if scalar < 0:
@@ -137,7 +137,7 @@ with open("../op-tests/test-blspy-g1.txt", "w+") as f:
     # g1_negate
     for g1 in g1_points:
 
-        cost = 471259
+        cost = 839000 + 48 * 10
         result = g1.negate()
         f.write(f"g1_negate 0x{bytes(g1).hex()} => 0x{bytes(result).hex()} | {cost}\n")
 
@@ -153,7 +153,7 @@ with open("../op-tests/test-blspy-g2.txt", "w+") as f:
             aggregate = g2
             continue
 
-        cost = 11135562
+        cost = 80000 + 3900000 * 2 + 96 * 10
         result = aggregate + g2
         f.write(f"g2_add 0x{bytes(aggregate).hex()} 0x{bytes(g2).hex()} => 0x{bytes(result).hex()} | {cost}\n")
 
@@ -167,7 +167,7 @@ with open("../op-tests/test-blspy-g2.txt", "w+") as f:
             aggregate = g2
             continue
 
-        cost = 11137794
+        cost = 80000 + 3900000 * 2 + 96 * 10
         result = aggregate + g2.negate()
         f.write(f"g2_subtract 0x{bytes(aggregate).hex()} 0x{bytes(g2).hex()} => 0x{bytes(result).hex()} | {cost}\n")
 
@@ -176,7 +176,7 @@ with open("../op-tests/test-blspy-g2.txt", "w+") as f:
     # g2_multiply
     for g2 in g2_points:
         scalar = randint(-100, 100)
-        cost = 10078145 + bytes_in_atom(scalar) * 12 + 96 * 10
+        cost = 4200000 + bytes_in_atom(scalar) * 5 + 96 * 10
         # blspy does not expose multiplication, so we simulate it
         result = blspy.G2Element()
         if scalar < 0:
@@ -191,7 +191,7 @@ with open("../op-tests/test-blspy-g2.txt", "w+") as f:
     # g2_negate
     for g2 in g2_points:
 
-        cost = 1882659
+        cost = 2370000 + 96 * 10
         result = g2.negate()
         f.write(f"g2_negate 0x{bytes(g2).hex()} => 0x{bytes(result).hex()} | {cost}\n")
 
@@ -204,7 +204,7 @@ with open("../op-tests/test-blspy-hash.txt", "w+") as f:
     for i in range(SIZE):
         msg = randbytes(randint(3,40))
         g1 = blspy.G1Element.from_message(msg, "BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_AUG_")
-        cost = 610907 + len(msg) * 122 + 43 * 135 + 48 * 10
+        cost = 390000 + len(msg) * 4 + 43 * 4 + 48 * 10
         f.write(f"g1_map 0x{bytes(msg).hex()} \"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_AUG_\" => 0x{bytes(g1).hex()} | {cost}\n")
         f.write(f"g1_map 0x{bytes(msg).hex()} => 0x{bytes(g1).hex()} | {cost}\n")
         g1 = blspy.G1Element.from_message(msg, "BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_POP_")
@@ -214,7 +214,7 @@ with open("../op-tests/test-blspy-hash.txt", "w+") as f:
     for i in range(SIZE):
         msg = randbytes(randint(3,40))
         g2 = blspy.AugSchemeMPL.g2_from_message(msg)
-        cost = 3386788 + len(msg) * 122
+        cost = 1630000 + len(msg) * 4 + 43 * 4 + 96 * 10
         f.write(f"g2_map 0x{bytes(msg).hex()} \"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_AUG_\" => 0x{bytes(g2).hex()} | {cost}\n")
         # this scheme is the default, and doesn't need to be specified
         # it has the same cost
