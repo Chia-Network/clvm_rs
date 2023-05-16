@@ -1,0 +1,120 @@
+cost scale: 6.425771579565472
+base cost scale: 2.3786823529411767
+arg cost scale: 10.418449612403101
+opcode: point_add (29)
+   time: base: 41998.35ns per-arg: 126783.69ns
+   cost: base: 99901 per-arg: 1320889
+opcode: g1_subtract (49)
+   time: base: 33643.21ns per-arg: 134817.90ns
+   cost: base: 80026 per-arg: 1404594
+opcode: g1_multiply (50)
+   time: base: 584923.32ns per-byte: 1.63ns
+   cost: base: 1391347 per-byte: 10
+opcode: g1_negate (51)
+   time: base: 132316.16ns
+   cost: base: 850233
+opcode: g2_add (52)
+   time: base: 42873.58ns per-arg: 366003.29ns
+   cost: base: 101983 per-arg: 3813187
+opcode: g2_subtract (53)
+   time: base: 36975.90ns per-arg: 363488.86ns
+   cost: base: 87954 per-arg: 3786990
+opcode: g2_multiply (54)
+   time: base: 1735736.81ns per-byte: 0.74ns
+   cost: base: 4128767 per-byte: 5
+opcode: g2_negate (55)
+   time: base: 369885.46ns
+   cost: base: 2376799
+opcode: g1_map (56)
+   time: base: 164252.24ns per-byte: 0.53ns
+   cost: base: 390704 per-byte: 3
+opcode: g2_map (57)
+   time: base: 681595.49ns per-byte: 0.54ns
+   cost: base: 1621299 per-byte: 3
+opcode: bls_pairing_identity (58)
+   time: base: 1145375.18ns per-arg: 911304.13ns
+   cost: base: 7359919 per-arg: 5855832
+opcode: bls_verify (59)
+   time: base: 1938870.02ns per-arg: 1221101.59ns
+   cost: base: 12458736 per-arg: 7846520
+
+cost scale: 6.425771579565472
+base cost scale: 2.3786823529411767
+arg cost scale: 10.418449612403101
+opcode: point_add (29)
+   time: base: 37398.40ns per-arg: 133388.74ns
+   cost: base: 88959 per-arg: 1389704
+opcode: g1_subtract (49)
+   time: base: 36666.02ns per-arg: 132895.06ns
+   cost: base: 87217 per-arg: 1384560
+opcode: g1_multiply (50)
+   time: base: 593355.66ns per-byte: 1.62ns
+   cost: base: 1411405 per-byte: 10
+opcode: g1_negate (51)
+   time: base: 130703.17ns
+   cost: base: 839869
+opcode: g2_add (52)
+   time: base: 31357.44ns per-arg: 378523.05ns
+   cost: base: 74589 per-arg: 3943623
+opcode: g2_subtract (53)
+   time: base: 41581.11ns per-arg: 374396.98ns
+   cost: base: 98908 per-arg: 3900636
+opcode: g2_multiply (54)
+   time: base: 1765758.41ns per-byte: 0.76ns
+   cost: base: 4200178 per-byte: 5
+opcode: g2_negate (55)
+   time: base: 372016.59ns
+   cost: base: 2390494
+opcode: g1_map (56)
+   time: base: 167532.75ns per-byte: 0.54ns
+   cost: base: 398507 per-byte: 3
+opcode: g2_map (57)
+   time: base: 701718.64ns per-byte: 0.55ns
+   cost: base: 1669166 per-byte: 4
+opcode: bls_pairing_identity (58)
+   time: base: 1160938.98ns per-arg: 932062.80ns
+   cost: base: 7459929 per-arg: 5989223
+opcode: bls_verify (59)
+   time: base: 2036563.53ns per-arg: 1237270.72ns
+   cost: base: 13086492 per-arg: 7950419
+
+cost scale: 6.425771579565472
+base cost scale: 2.3786823529411767
+arg cost scale: 10.418449612403101
+opcode: point_add (29)
+   time: base: 37881.47ns per-arg: 133342.41ns
+   cost: base: 90108 per-arg: 1389221
+opcode: g1_subtract (49)
+   time: base: 38600.39ns per-arg: 133076.76ns
+   cost: base: 91818 per-arg: 1386454
+opcode: g1_multiply (50)
+   time: base: 593521.07ns per-byte: 1.68ns
+   cost: base: 1411798 per-byte: 11
+opcode: g1_negate (51)
+   time: base: 133263.80ns
+   cost: base: 856323
+opcode: g2_add (52)
+   time: base: 38400.39ns per-arg: 376056.20ns
+   cost: base: 91342 per-arg: 3917923
+opcode: g2_subtract (53)
+   time: base: 33696.89ns per-arg: 374538.00ns
+   cost: base: 80154 per-arg: 3902105
+opcode: g2_multiply (54)
+   time: base: 1807908.67ns per-byte: 0.78ns
+   cost: base: 4300440 per-byte: 5
+opcode: g2_negate (55)
+   time: base: 379750.25ns
+   cost: base: 2440188
+opcode: g1_map (56)
+   time: base: 167897.64ns per-byte: 0.54ns
+   cost: base: 399375 per-byte: 3
+opcode: g2_map (57)
+   time: base: 697674.73ns per-byte: 0.55ns
+   cost: base: 1659547 per-byte: 4
+opcode: bls_pairing_identity (58)
+   time: base: 1254807.99ns per-arg: 941277.54ns
+   cost: base: 8063110 per-arg: 6048434
+opcode: bls_verify (59)
+   time: base: 2023084.92ns per-arg: 1262964.77ns
+   cost: base: 12999882 per-arg: 8115523
+
