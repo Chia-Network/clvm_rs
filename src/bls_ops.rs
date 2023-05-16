@@ -225,15 +225,8 @@ pub fn op_bls_map_to_g2(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Re
     new_atom_and_cost(a, cost, &G2Affine::from(point).to_compressed())
 }
 
-fn extract_point(points: Node) -> Result<(G1Affine, G2Prepared), EvalErr> {
-    match points.pair() {
-        Some((left, right)) => Ok((g1_atom(left)?, G2Prepared::from(g2_atom(right)?))),
-        _ => points.err("invalid (G1, G2)-pair"),
-    }
-}
-
-// This operator takes a variable number of arguments. Each argumt is a
-// single cons box containing a G1 point (left) and G2 point (right)
+// This operator takes a variable number of G1 and G2 points. The points must
+// come in pairs (as a "flat" argument list).
 // It performs a low-level pairing operation of the (G1, G2)-pairs
 // and returns a boolean indicating whether the resulting Gt point is the
 // identity or not. True means identity False otherwise. This is a building
@@ -243,10 +236,15 @@ pub fn op_bls_pairing_identity(a: &mut Allocator, input: NodePtr, max_cost: Cost
     check_cost(a, cost, max_cost)?;
     let mut items = Vec::<(G1Affine, G2Prepared)>::new();
 
-    for arg in Node::new(a, input) {
+    let mut args = Node::new(a, input);
+    while !args.nullp() {
         cost += BLS_PAIRING_COST_PER_ARG;
         check_cost(a, cost, max_cost)?;
-        items.push(extract_point(arg)?);
+        let g1 = g1_atom(args.first()?)?;
+        args = args.rest()?;
+        let g2 = g2_atom(args.first()?)?;
+        args = args.rest()?;
+        items.push((g1, G2Prepared::from(g2)));
     }
 
     let mut item_refs = Vec::<(&G1Affine, &G2Prepared)>::new();
@@ -260,20 +258,10 @@ pub fn op_bls_pairing_identity(a: &mut Allocator, input: NodePtr, max_cost: Cost
     Ok(Reduction(cost, if identity { a.one() } else { a.null() }))
 }
 
-fn extract_pk_pair(points: Node) -> Result<(G1Affine, &[u8]), EvalErr> {
-    match points.pair() {
-        Some((left, right)) => {
-            let pk = g1_atom(left)?;
-            let msg = atom(right, "bls_verify message")?;
-            Ok((pk, msg))
-        }
-        _ => points.err("invalid (G1, msg)-pair"),
-    }
-}
-
-// expects: G2 (G1 . msg) (G1 . msg) ...
+// expects: G2 G1 msg G1 msg ...
 // G2 is the signature
 // G1 is a public key
+// the G1 and its corresponding message must be passed in pairs.
 pub fn op_bls_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let mut cost = BLS_PAIRING_BASE_COST;
     check_cost(a, cost, max_cost)?;
@@ -283,12 +271,16 @@ pub fn op_bls_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respo
     // the first argument is the signature
     let signature = g2_atom(args.first()?)?;
 
-    // followed by a variable number of (G1, msg)-pairs
-    let args = args.rest()?;
+    // followed by a variable number of (G1, msg)-pairs (as a flat list)
+    let mut args = args.rest()?;
 
     let mut items = Vec::<(G1Affine, G2Prepared)>::new();
-    for arg in args {
-        let (pk, msg) = extract_pk_pair(arg)?;
+    while !args.nullp() {
+        let pk = g1_atom(args.first()?)?;
+        args = args.rest()?;
+        let msg = atom(args.first()?, "bls_verify message")?;
+        args = args.rest()?;
+
         cost += BLS_PAIRING_COST_PER_ARG;
         cost += msg.len() as Cost * BLS_MAP_TO_G2_COST_PER_BYTE;
         cost += DST_G2.len() as Cost * BLS_MAP_TO_G2_COST_PER_DST_BYTE;
@@ -323,71 +315,6 @@ pub fn op_bls_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respo
 
 #[cfg(test)]
 use rstest::rstest;
-
-#[cfg(test)]
-use crate::test_ops::parse_exp;
-
-#[cfg(test)]
-#[rstest]
-#[case("()", "invalid (G1, G2)-pair")]
-#[case("(0x010203 . 0xffff)", "atom is not G1 size, 48 bytes")]
-#[case("(0x000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f . 0xffff)", "atom is not a G1 point")]
-#[case("(0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb . 0xffff)", "atom is not G2 size, 96 bytes")]
-#[case("((0 1) . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)", "G1 atom on list")]
-#[case("(0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb . (0 1))", "G2 atom on list")]
-fn test_extract_point_failure(#[case] input: &str, #[case] expected: &str) {
-    let mut a = Allocator::new();
-
-    let (input, rest) = parse_exp(&mut a, input);
-    assert_eq!(rest, "");
-
-    let e = extract_point(Node::new(&mut a, input)).unwrap_err();
-    assert_eq!(e.1, expected);
-}
-
-#[cfg(test)]
-#[rstest]
-#[case("(0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)")]
-fn test_extract_point_success(#[case] input: &str) {
-    let mut a = Allocator::new();
-
-    let (input_node, rest) = parse_exp(&mut a, input);
-    assert_eq!(rest, "");
-
-    let (g1, _g2) = extract_point(Node::new(&mut a, input_node)).unwrap();
-    assert!(input.starts_with(&format!("(0x{}", hex::encode(g1.to_compressed()))));
-}
-
-#[cfg(test)]
-#[rstest]
-#[case("()", "invalid (G1, msg)-pair")]
-#[case("(0x010203 . 0xffff)", "atom is not G1 size, 48 bytes")]
-#[case("(0x000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f . 0xffff)", "atom is not a G1 point")]
-#[case("((0 1) . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)", "G1 atom on list")]
-#[case("(0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb . (0 1))", "bls_verify message on list")]
-fn test_extract_pk_pair_failure(#[case] input: &str, #[case] expected: &str) {
-    let mut a = Allocator::new();
-
-    let (input, rest) = parse_exp(&mut a, input);
-    assert_eq!(rest, "");
-
-    let e = extract_pk_pair(Node::new(&mut a, input)).unwrap_err();
-    assert_eq!(e.1, expected);
-}
-
-#[cfg(test)]
-#[rstest]
-#[case("(0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)")]
-#[case("(0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb . \"foobar\")")]
-fn test_extract_pk_pair(#[case] input: &str) {
-    let mut a = Allocator::new();
-
-    let (input_node, rest) = parse_exp(&mut a, input);
-    assert_eq!(rest, "");
-
-    let (g1, _g2) = extract_pk_pair(Node::new(&mut a, input_node)).unwrap();
-    assert!(input.starts_with(&format!("(0x{}", hex::encode(g1.to_compressed()))));
-}
 
 #[cfg(test)]
 fn test_g1(n: &Node) -> EvalErr {

@@ -37,7 +37,7 @@ def print_validation_test_case(f1, f2, num_cases, filter_pk, filter_msg, filter_
         cost += 4515438
         messages.append(msg)
         sigs.append(blspy.AugSchemeMPL.sign(sk, msg))
-        args += f"(0x{bytes(filter_pk(pk)).hex()} . 0x{filter_msg(msg).hex()}) "
+        args += f"0x{bytes(filter_pk(pk)).hex()} 0x{filter_msg(msg).hex()} "
 
     agg_sig = blspy.AugSchemeMPL.aggregate(sigs)
 
@@ -55,12 +55,12 @@ def print_validation_test_case(f1, f2, num_cases, filter_pk, filter_msg, filter_
         # in the AUG scheme we prepend the public key to the message before
         # hashing it to the G2 point
         g2 = blspy.AugSchemeMPL.g2_from_message(bytes(pk) + filter_msg(msg))
-        f2.write(f"(0x{bytes(filter_pk(pk)).hex()} . 0x{bytes(g2).hex()}) ")
+        f2.write(f"0x{bytes(filter_pk(pk)).hex()} 0x{bytes(g2).hex()} ")
 
     # this is the low-level pairing operation, we also need to include the
     # signature and the negated generator
     gen = "b7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
-    f2.write(f"(0x{gen} . 0x{bytes(filter_sig(agg_sig)).hex()}) ")
+    f2.write(f"0x{gen} 0x{bytes(filter_sig(agg_sig)).hex()} ")
     cost += 4515438
 
     f2.write(f"=> {expect} | {cost}\n")
