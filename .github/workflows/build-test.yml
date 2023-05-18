@@ -257,10 +257,24 @@ jobs:
             toolchain: stable
       - name: Run for coverage
         run: |
+          sudo apt-get update
+          sudo apt-get install lcov -y
           rustup component add llvm-tools-preview
+          export CARGOFLAGS="-j $(nproc)"
           cargo install grcov
-          RUSTFLAGS="-Cinstrument-coverage" cargo test --workspace
-          grcov . --binary-path ./target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../*' --ignore "/*" -o lcov.info
+          export RUSTFLAGS="-Cinstrument-coverage"
+          export LLVM_PROFILE_FILE=$(pwd)/target/clvm_rs-%p-%m.profraw
+          export CARGO_TARGET_DIR=$(pwd)/target
+          export RUST_TEST_THREADS=$(nproc)
+          cargo test --workspace
+          python -m venv venv
+          source venv/bin/activate
+          pip install maturin pytest pytest-cov
+          maturin develop -m wheel/Cargo.toml --features=openssl
+          pytest wheel/python/tests --cov=clvm_rs --cov-report lcov:py_cov.info --cov-branch
+          grcov . --binary-path target -s . --branch --ignore-not-existing --ignore='*/.cargo/*' --ignore='target/*' -o pre_rust_cov.info
+          python -c 'with open("pre_rust_cov.info") as f: lines = [l for l in f if not (l.startswith("DA:") and int(l.split(",")[1].strip()) >= 2**63)]; open("rust_cov.info", "w").writelines(lines)'
+          lcov --add-tracefile rust_cov.info -a py_cov.info -o lcov.info
       - name: Upload to Coveralls
         uses: coverallsapp/github-action@v2
         if: always()
