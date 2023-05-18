@@ -269,8 +269,11 @@ jobs:
           cargo test --workspace
           python -m venv venv
           source venv/bin/activate
-          pip install maturin pytest pytest-cov
+          git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
+          pip install ./clvm_tools
+          pip install colorama maturin pytest pytest-cov
           maturin develop -m wheel/Cargo.toml --features=openssl
+          (cd tests && python generate-programs.py && python run-programs.py) || true
           pytest wheel/python/tests --cov=clvm_rs --cov-report lcov:py_cov.info --cov-branch
           grcov . --binary-path target -s . --branch --ignore-not-existing --ignore='*/.cargo/*' --ignore='target/*' -o pre_rust_cov.info
           python -c 'with open("pre_rust_cov.info") as f: lines = [l for l in f if not (l.startswith("DA:") and int(l.split(",")[1].strip()) >= 2**63)]; open("rust_cov.info", "w").writelines(lines)'
