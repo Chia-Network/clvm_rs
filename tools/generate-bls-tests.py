@@ -43,7 +43,10 @@ def print_validation_test_case(f1, f2, num_cases, filter_pk, filter_msg, filter_
 
     f1.write(f"bls_verify 0x{bytes(filter_sig(agg_sig)).hex()} ")
     f1.write(args)
-    f1.write(f"=> {expect} | {cost}\n")
+    f1.write(f"=> {expect}")
+    if expect != "FAIL":
+        f1.write(f" | {cost}")
+    f1.write("\n")
 
     # interleave tests for bls_pairing_identity using the same parameters
     cost = 3000000
@@ -63,7 +66,10 @@ def print_validation_test_case(f1, f2, num_cases, filter_pk, filter_msg, filter_
     f2.write(f"0x{gen} 0x{bytes(filter_sig(agg_sig)).hex()} ")
     cost += 1200000
 
-    f2.write(f"=> {expect} | {cost}\n")
+    f2.write(f"=> {expect}")
+    if expect != "FAIL":
+        f2.write(f" | {cost}")
+    f2.write("\n")
 
 
 seed(1337)
@@ -235,16 +241,16 @@ with open("../op-tests/test-blspy-verify.txt", "w+") as f1, \
     # bls_verify
     # bls_pairing_identity
     for k in range(SIZE // 2):
-        print_validation_test_case(f1, f2, SIZE, lambda pk: pk, lambda msg: msg, lambda sig: sig, "1")
+        print_validation_test_case(f1, f2, SIZE, lambda pk: pk, lambda msg: msg, lambda sig: sig, "0")
 
     # negative tests (alter public key)
     for k in range(5):
-        print_validation_test_case(f1, f2, 3, lambda pk: pk.negate(), lambda msg: msg, lambda sig: sig, "0")
+        print_validation_test_case(f1, f2, 3, lambda pk: pk.negate(), lambda msg: msg, lambda sig: sig, "FAIL")
 
     # negative tests (alter message)
     for k in range(5):
-        print_validation_test_case(f1, f2, 3, lambda pk: pk, flip_bit, lambda sig: sig, "0")
+        print_validation_test_case(f1, f2, 3, lambda pk: pk, flip_bit, lambda sig: sig, "FAIL")
 
     # negative tests (alter signature)
     for k in range(5):
-        print_validation_test_case(f1, f2, 3, lambda pk: pk, lambda msg: msg, lambda sig: sig.negate(), "0")
+        print_validation_test_case(f1, f2, 3, lambda pk: pk, lambda msg: msg, lambda sig: sig.negate(), "FAIL")
