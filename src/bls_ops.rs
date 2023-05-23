@@ -15,32 +15,36 @@ use std::ops::Neg;
 const BLS_G1_SUBTRACT_BASE_COST: Cost = 101094;
 const BLS_G1_SUBTRACT_COST_PER_ARG: Cost = 1343980;
 
-const BLS_G1_MULTIPLY_BASE_COST: Cost = 1411000;
+const BLS_G1_MULTIPLY_BASE_COST: Cost = 705500;
 const BLS_G1_MULTIPLY_COST_PER_BYTE: Cost = 10;
 
-const BLS_G1_NEGATE_BASE_COST: Cost = 839000;
+// this is the same cost as XORing the top bit (minus the heap allocation of the
+// return value, which the operator is adding back)
+const BLS_G1_NEGATE_BASE_COST: Cost = 1396 - 480;
 
 // g2_add and g2_subtract have the same cost
 const BLS_G2_ADD_BASE_COST: Cost = 80000;
-const BLS_G2_ADD_COST_PER_ARG: Cost = 3900000;
+const BLS_G2_ADD_COST_PER_ARG: Cost = 1950000;
 const BLS_G2_SUBTRACT_BASE_COST: Cost = 80000;
-const BLS_G2_SUBTRACT_COST_PER_ARG: Cost = 3900000;
+const BLS_G2_SUBTRACT_COST_PER_ARG: Cost = 1950000;
 
-const BLS_G2_MULTIPLY_BASE_COST: Cost = 4200000;
+const BLS_G2_MULTIPLY_BASE_COST: Cost = 2100000;
 const BLS_G2_MULTIPLY_COST_PER_BYTE: Cost = 5;
 
-const BLS_G2_NEGATE_BASE_COST: Cost = 2370000;
+// this is the same cost as XORing the top bit (minus the heap allocation of the
+// return value, which the operator is adding back)
+const BLS_G2_NEGATE_BASE_COST: Cost = 2164 - 960;
 
-const BLS_MAP_TO_G1_BASE_COST: Cost = 390000;
+const BLS_MAP_TO_G1_BASE_COST: Cost = 195000;
 const BLS_MAP_TO_G1_COST_PER_BYTE: Cost = 4;
 const BLS_MAP_TO_G1_COST_PER_DST_BYTE: Cost = 4;
 
-const BLS_MAP_TO_G2_BASE_COST: Cost = 1630000;
+const BLS_MAP_TO_G2_BASE_COST: Cost = 815000;
 const BLS_MAP_TO_G2_COST_PER_BYTE: Cost = 4;
 const BLS_MAP_TO_G2_COST_PER_DST_BYTE: Cost = 4;
 
-const BLS_PAIRING_BASE_COST: Cost = 7460000;
-const BLS_PAIRING_COST_PER_ARG: Cost = 5900000;
+const BLS_PAIRING_BASE_COST: Cost = 3000000;
+const BLS_PAIRING_COST_PER_ARG: Cost = 1200000;
 
 const DST_G2: &[u8; 43] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_AUG_";
 
@@ -108,13 +112,19 @@ pub fn op_bls_g1_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
     new_atom_and_cost(a, cost, &total.to_compressed())
 }
 
-pub fn op_bls_g1_negate(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
-    check_cost(a, BLS_G1_NEGATE_BASE_COST, max_cost)?;
+pub fn op_bls_g1_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 1, "g1_negate")?;
-    let point = g1_atom(args.first()?)?;
-    let total = -point;
-    new_atom_and_cost(a, BLS_G1_NEGATE_BASE_COST, &total.to_compressed())
+
+    // we don't validate the point. We may want to soft fork-in validating the
+    // point once the allocator preserves native representation of points
+    let blob = atom(args.first()?, "G1 atom")?;
+    if blob.len() != 48 {
+        return args.first()?.err("atom is not G1 size, 48 bytes");
+    }
+    let mut blob: [u8; 48] = blob.try_into().unwrap();
+    blob[0] ^= 0x20;
+    new_atom_and_cost(a, BLS_G1_NEGATE_BASE_COST, &blob)
 }
 
 pub fn op_bls_g2_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
@@ -172,14 +182,19 @@ pub fn op_bls_g2_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
     new_atom_and_cost(a, cost, &total.to_compressed())
 }
 
-pub fn op_bls_g2_negate(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+pub fn op_bls_g2_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 1, "g2_negate")?;
-    let cost = BLS_G2_NEGATE_BASE_COST;
-    check_cost(a, cost, max_cost)?;
-    let point = g2_atom(args.first()?)?;
-    let total = -point;
-    new_atom_and_cost(a, cost, &total.to_compressed())
+
+    // we don't validate the point. We may want to soft fork-in validating the
+    // point once the allocator preserves native representation of points
+    let blob = atom(args.first()?, "G2 atom")?;
+    if blob.len() != 96 {
+        return args.first()?.err("atom is not G2 size, 96 bytes");
+    }
+    let mut blob: [u8; 96] = blob.try_into().unwrap();
+    blob[0] ^= 0x20;
+    new_atom_and_cost(a, BLS_G2_NEGATE_BASE_COST, &blob)
 }
 
 pub fn op_bls_map_to_g1(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
