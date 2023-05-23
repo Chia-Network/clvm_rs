@@ -300,7 +300,11 @@ pub fn op_bls_pairing_identity(a: &mut Allocator, input: NodePtr, max_cost: Cost
         .final_exponentiation()
         .is_identity()
         .into();
-    Ok(Reduction(cost, if identity { a.one() } else { a.null() }))
+    if !identity {
+        Node::new(a, input).err("bls_pairing_identity failed")
+    } else {
+        Ok(Reduction(cost, a.null()))
+    }
 }
 
 // expects: G2 G1 msg G1 msg ...
@@ -353,7 +357,11 @@ pub fn op_bls_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respo
         .final_exponentiation()
         .is_identity()
         .into();
-    Ok(Reduction(cost, if identity { a.one() } else { a.null() }))
+    if !identity {
+        Node::new(a, input).err("bls_verify failed")
+    } else {
+        Ok(Reduction(cost, a.null()))
+    }
 }
 
 // TESTS
