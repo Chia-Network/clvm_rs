@@ -13,10 +13,10 @@ pub mod op_utils;
 pub mod reduction;
 pub mod run_program;
 pub mod runtime_dialect;
+pub mod secp_ops;
 pub mod serde;
 pub mod sha2;
 pub mod traverse_path;
-pub mod secp_ops;
 
 pub use allocator::Allocator;
 pub use chia_dialect::ChiaDialect;

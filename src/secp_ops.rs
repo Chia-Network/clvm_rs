@@ -3,9 +3,9 @@ use crate::cost::{check_cost, Cost};
 use crate::node::Node;
 use crate::op_utils::{atom, check_arg_count};
 use crate::reduction::{Reduction, Response};
-use k256::ecdsa::{VerifyingKey as K1VerifyingKey, Signature as K1Signature};
-use p256::ecdsa::{VerifyingKey as P1VerifyingKey, Signature as P1Signature};
+use k256::ecdsa::{Signature as K1Signature, VerifyingKey as K1VerifyingKey};
 use p256::ecdsa::signature::hazmat::PrehashVerifier;
+use p256::ecdsa::{Signature as P1Signature, VerifyingKey as P1VerifyingKey};
 
 const SECP256P1_VERIFY_COST: Cost = 3000000;
 const SECP256K1_VERIFY_COST: Cost = 3000000;
@@ -71,4 +71,3 @@ pub fn op_secp256k1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) ->
         Ok(Reduction(cost, a.null()))
     }
 }
-
