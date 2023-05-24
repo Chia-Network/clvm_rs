@@ -13,6 +13,7 @@ use crate::more_ops::{
 };
 use crate::number::Number;
 use crate::reduction::{EvalErr, Reduction, Response};
+use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
 
 use hex::FromHex;
 use num_traits::Num;
@@ -98,6 +99,8 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
             "g2_map" => a.new_atom(&[57]).unwrap(),
             "bls_pairing_identity" => a.new_atom(&[58]).unwrap(),
             "bls_verify" => a.new_atom(&[59]).unwrap(),
+            "secp256k1_verify" => a.new_atom(&[0x0c, 0xf8, 0x4f, 0x00]).unwrap(),
+            "secp256r1_verify" => a.new_atom(&[0x1c, 0x3a, 0x8f, 0x00]).unwrap(),
             _ => {
                 panic!("atom not supported \"{}\"", v);
             }
@@ -227,6 +230,7 @@ use rstest::rstest;
 #[case("test-blspy-hash")]
 #[case("test-blspy-pairing")]
 #[case("test-blspy-verify")]
+#[case("test-secp-verify")]
 fn test_ops(#[case] filename: &str) {
     use std::fs::read_to_string;
 
@@ -276,6 +280,8 @@ fn test_ops(#[case] filename: &str) {
         ("g2_map", op_bls_map_to_g2 as Opf),
         ("bls_pairing_identity", op_bls_pairing_identity as Opf),
         ("bls_verify", op_bls_verify as Opf),
+        ("secp256k1_verify", op_secp256k1_verify as Opf),
+        ("secp256r1_verify", op_secp256r1_verify as Opf),
     ]);
 
     println!("Test cases from: {filename}");

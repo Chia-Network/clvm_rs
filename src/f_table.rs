@@ -14,13 +14,14 @@ use crate::more_ops::{
     op_sha256, op_strlen, op_substr, op_subtract,
 };
 use crate::reduction::Response;
+use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
 
 type OpFn = fn(&mut Allocator, NodePtr, Cost) -> Response;
 
 pub type FLookup = [Option<OpFn>; 256];
 
 pub fn opcode_by_name(name: &str) -> Option<OpFn> {
-    let opcode_lookup: [(OpFn, &str); 40] = [
+    let opcode_lookup: [(OpFn, &str); 42] = [
         (op_if, "op_if"),
         (op_cons, "op_cons"),
         (op_first, "op_first"),
@@ -61,6 +62,8 @@ pub fn opcode_by_name(name: &str) -> Option<OpFn> {
         (op_bls_map_to_g2, "op_g2_map"),
         (op_bls_pairing_identity, "op_bls_pairing_identity"),
         (op_bls_verify, "op_bls_verify"),
+        (op_secp256k1_verify, "op_secp256k1_verify"),
+        (op_secp256r1_verify, "op_secp256r1_verify"),
     ];
     let name: &[u8] = name.as_ref();
     for (f, op) in opcode_lookup.iter() {

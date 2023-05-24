@@ -569,6 +569,8 @@ use crate::chia_dialect::ENABLE_BLS_OPS;
 #[cfg(test)]
 use crate::chia_dialect::ENABLE_BLS_OPS_OUTSIDE_GUARD;
 #[cfg(test)]
+use crate::chia_dialect::ENABLE_SECP_OPS;
+#[cfg(test)]
 use crate::chia_dialect::NO_UNKNOWN_OPS;
 
 #[cfg(test)]
@@ -1202,6 +1204,79 @@ const TEST_CASES: &[RunProgramTest] = &[
         result: None,
         cost: 861,
         err: "unimplemented operator",
+    },
+
+    // secp261k1
+
+    // secp ops are unknown if flag not set
+    RunProgramTest {
+        prg: "(secp256k1_verify (q . 0x02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439) (q . 0x74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668) (q . 0x1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c018))",
+        args: "()",
+        flags: NO_UNKNOWN_OPS,
+        result: None,
+        cost: 861,
+        err: "unimplemented operator",
+    },
+    RunProgramTest {
+        prg: "(secp256k1_verify (q . 0x02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439) (q . 0x74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668) (q . 0x1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c018))",
+        args: "()",
+        flags: ENABLE_SECP_OPS,
+        result: Some("0"),
+        cost: 850061,
+        err: "",
+    },
+    // invalid signature
+    RunProgramTest {
+        prg: "(secp256k1_verify (q . 0x02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439) (q . 0x74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668) (q . 0x1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c019))",
+        args: "()",
+        flags: ENABLE_SECP_OPS,
+        result: None,
+        cost: 0,
+        err: "secp256k1_verify failed",
+    },
+    RunProgramTest {
+        prg: "(secp256k1_verify (q . 0x02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439) (q . 0x74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668) (q . 0x1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c019))",
+        args: "()",
+        flags: 0,
+        result: Some("0"),
+        cost: 850061,
+        err: "",
+    },
+
+    // secp261r1
+
+    RunProgramTest {
+        prg: "(secp256r1_verify (q . 0x0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9) (q . 0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08) (q . 0xe8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffc))",
+        args: "()",
+        flags: NO_UNKNOWN_OPS,
+        result: None,
+        cost: 861,
+        err: "unimplemented operator",
+    },
+    RunProgramTest {
+        prg: "(secp256r1_verify (q . 0x0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9) (q . 0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08) (q . 0xe8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffc))",
+        args: "()",
+        flags: ENABLE_SECP_OPS,
+        result: Some("0"),
+        cost: 1850061,
+        err: "",
+    },
+    // invalid signature
+    RunProgramTest {
+        prg: "(secp256r1_verify (q . 0x0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9) (q . 0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08) (q . 0xe8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffd))",
+        args: "()",
+        flags: ENABLE_SECP_OPS,
+        result: None,
+        cost: 0,
+        err: "secp256r1_verify failed",
+    },
+    RunProgramTest {
+        prg: "(secp256r1_verify (q . 0x0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9) (q . 0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08) (q . 0xe8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffd))",
+        args: "()",
+        flags: 0,
+        result: Some("0"),
+        cost: 1850061,
+        err: "",
     },
 ];
 

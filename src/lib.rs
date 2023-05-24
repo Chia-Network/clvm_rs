@@ -13,6 +13,7 @@ pub mod op_utils;
 pub mod reduction;
 pub mod run_program;
 pub mod runtime_dialect;
+pub mod secp_ops;
 pub mod serde;
 pub mod sha2;
 pub mod traverse_path;
@@ -22,7 +23,8 @@ pub use chia_dialect::ChiaDialect;
 pub use run_program::run_program;
 
 pub use chia_dialect::{
-    ENABLE_BLS_OPS, ENABLE_BLS_OPS_OUTSIDE_GUARD, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS,
+    ENABLE_BLS_OPS, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_SECP_OPS, LIMIT_HEAP, MEMPOOL_MODE,
+    NO_UNKNOWN_OPS,
 };
 
 #[cfg(feature = "counters")]
