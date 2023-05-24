@@ -16,6 +16,7 @@ pub mod runtime_dialect;
 pub mod serde;
 pub mod sha2;
 pub mod traverse_path;
+pub mod secp_ops;
 
 pub use allocator::Allocator;
 pub use chia_dialect::ChiaDialect;
