@@ -77,7 +77,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "clvm-tools"
+name = "clvm-rs-test-tools"
 version = "0.1.0"
 dependencies = [
  "clvmr",
@@ -89,7 +89,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_wasm"
-version = "0.2.3"
+version = "0.2.5"
 dependencies = [
  "clvmr",
  "js-sys",
@@ -99,7 +99,7 @@ dependencies = [
 
 [[package]]
 name = "clvmr"
-version = "0.2.4"
+version = "0.2.5"
 dependencies = [
  "bls12_381",
  "group",
