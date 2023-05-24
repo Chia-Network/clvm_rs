@@ -166,7 +166,7 @@ pub fn op_unknown(
     //  ^               ^    ^
     //  |               |    + 6 bits ignored when computing cost
     // cost_multiplier  |
-    //                  + 2 bits
+    // (up to 4 bytes)  + 2 bits
     //                    cost_function
 
     // 1 is always added to the multiplier before using it to multiply the cost, this

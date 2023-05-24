@@ -14,6 +14,7 @@ use crate::more_ops::{
     op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract, op_unknown,
 };
 use crate::reduction::Response;
+use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
 
 // unknown operators are disallowed
 // (otherwise they are no-ops with well defined cost)
@@ -30,6 +31,9 @@ pub const ENABLE_BLS_OPS: u32 = 0x0010;
 // enables the BLS ops extensions *outside* the softfork guard. This is a
 // hard-fork and should only be enabled when it activates
 pub const ENABLE_BLS_OPS_OUTSIDE_GUARD: u32 = 0x0020;
+
+// enables the secp operators. This is a soft-fork
+pub const ENABLE_SECP_OPS: u32 = 0x0040;
 
 // The default mode when running grnerators in mempool-mode (i.e. the stricter
 // mode)
@@ -68,7 +72,36 @@ impl Dialect for ChiaDialect {
         max_cost: Cost,
         extension: OperatorSet,
     ) -> Response {
-        let b = &allocator.atom(o);
+        let b = allocator.atom(o);
+        if b.len() == 4 {
+            // these are unkown operators with assigned cost
+            // the formula is:
+            // +---+---+---+------------+
+            // | multiplier|XX | XXXXXX |
+            // +---+---+---+---+--------+
+            //  ^           ^    ^
+            //  |           |    + 6 bits ignored when computing cost
+            // cost         |
+            // (3 bytes)    + 2 bits
+            //                cost_function
+
+            let opcode = u32::from_be_bytes(b.try_into().unwrap());
+
+            if (self.flags & ENABLE_SECP_OPS) != 0 {
+                // the secp operators have a fixed cost of 1850000 and 850000,
+                // which makes the multiplier 0x1c3a8f and 0x0cf84f (there is an
+                // implied +1) and cost function 0
+                let f = match opcode {
+                    0x0cf84f00 => op_secp256k1_verify,
+                    0x1c3a8f00 => op_secp256r1_verify,
+                    _ => {
+                        return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
+                    }
+                };
+                return f(allocator, argument_list, max_cost);
+            }
+            return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
+        }
         if b.len() != 1 {
             return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
         }

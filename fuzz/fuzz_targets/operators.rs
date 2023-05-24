@@ -15,11 +15,12 @@ use clvmr::more_ops::{
     op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
 };
 use clvmr::reduction::{EvalErr, Response};
+use clvmr::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
 use clvmr::serde::node_from_bytes;
 
 type Opf = fn(&mut Allocator, NodePtr, Cost) -> Response;
 
-const FUNS: [Opf; 41] = [
+const FUNS: [Opf; 43] = [
     op_if as Opf,
     op_cons as Opf,
     op_first as Opf,
@@ -62,6 +63,9 @@ const FUNS: [Opf; 41] = [
     op_bls_map_to_g2 as Opf,
     op_bls_pairing_identity as Opf,
     op_bls_verify as Opf,
+    // Secp operators
+    op_secp256k1_verify as Opf,
+    op_secp256r1_verify as Opf,
 ];
 
 fuzz_target!(|data: &[u8]| {
