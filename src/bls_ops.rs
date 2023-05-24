@@ -3,7 +3,7 @@ use crate::cost::{check_cost, Cost};
 use crate::node::Node;
 use crate::op_utils::{
     arg_count, atom, check_arg_count, int_atom, mod_group_order, new_atom_and_cost,
-    number_to_scalar,
+    number_to_scalar, MALLOC_COST_PER_BYTE,
 };
 use crate::reduction::{EvalErr, Reduction, Response};
 use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve};
@@ -122,9 +122,19 @@ pub fn op_bls_g1_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
     if blob.len() != 48 {
         return args.first()?.err("atom is not G1 size, 48 bytes");
     }
-    let mut blob: [u8; 48] = blob.try_into().unwrap();
-    blob[0] ^= 0x20;
-    new_atom_and_cost(a, BLS_G1_NEGATE_BASE_COST, &blob)
+    if (blob[0] & 0xe0) == 0xc0 {
+        // This is compressed infinity. negating it is a no-op
+        // we can just pass through the same atom as we received. We'll charge
+        // the allocation cost anyway, for consistency
+        Ok(Reduction(
+            BLS_G1_NEGATE_BASE_COST + 48 * MALLOC_COST_PER_BYTE,
+            args.first()?.node,
+        ))
+    } else {
+        let mut blob: [u8; 48] = blob.try_into().unwrap();
+        blob[0] ^= 0x20;
+        new_atom_and_cost(a, BLS_G1_NEGATE_BASE_COST, &blob)
+    }
 }
 
 pub fn op_bls_g2_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
@@ -192,9 +202,19 @@ pub fn op_bls_g2_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
     if blob.len() != 96 {
         return args.first()?.err("atom is not G2 size, 96 bytes");
     }
-    let mut blob: [u8; 96] = blob.try_into().unwrap();
-    blob[0] ^= 0x20;
-    new_atom_and_cost(a, BLS_G2_NEGATE_BASE_COST, &blob)
+    if (blob[0] & 0xe0) == 0xc0 {
+        // This is compressed infinity. negating it is a no-op
+        // we can just pass through the same atom as we received. We'll charge
+        // the allocation cost anyway, for consistency
+        Ok(Reduction(
+            BLS_G2_NEGATE_BASE_COST + 96 * MALLOC_COST_PER_BYTE,
+            args.first()?.node,
+        ))
+    } else {
+        let mut blob: [u8; 96] = blob.try_into().unwrap();
+        blob[0] ^= 0x20;
+        new_atom_and_cost(a, BLS_G2_NEGATE_BASE_COST, &blob)
+    }
 }
 
 pub fn op_bls_map_to_g1(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
