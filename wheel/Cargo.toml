@@ -1,6 +1,6 @@
 [package]
 name = "clvm_rs"
-version = "0.2.3"
+version = "0.2.5"
 authors = ["Richard Kiss <him@richardkiss.com>"]
 edition = "2021"
 license = "Apache-2.0"
