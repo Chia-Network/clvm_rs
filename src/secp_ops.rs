@@ -20,7 +20,8 @@ pub fn op_secp256p1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) ->
 
     // first argument is sec1 encoded pubkey
     let pubkey = atom(args.first()?, "secp256p1_verify pubkey")?;
-    let Ok(verifier) = P1VerifyingKey::from_sec1_bytes(pubkey) else { return args.err("secp256p1_verify pubkey is not valid") };
+    let verifier = P1VerifyingKey::from_sec1_bytes(pubkey)
+        .or_else(|_| args.err("secp256p1_verify pubkey is not valid"))?;
 
     // second arg is message
     let args = args.rest()?;
@@ -29,7 +30,8 @@ pub fn op_secp256p1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) ->
     // third arg is der encoded sig
     let args = args.rest()?;
     let sig = atom(args.first()?, "secp256p1_verify sig")?;
-    let Ok(sig) = P1Signature::from_slice(sig) else { return args.err("secp256p1_verify sig is not valid") };
+    let sig =
+        P1Signature::from_slice(sig).or_else(|_| args.err("secp256p1_verify sig is not valid"))?;
 
     // verify signature
     let result = verifier.verify_prehash(msg, &sig);
@@ -51,7 +53,8 @@ pub fn op_secp256k1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) ->
 
     // first argument is sec1 encoded pubkey
     let pubkey = atom(args.first()?, "secp256k1_verify pubkey")?;
-    let Ok(verifier) = K1VerifyingKey::from_sec1_bytes(pubkey) else { return args.err("secp256k1_verify pubkey is not valid") };
+    let verifier = K1VerifyingKey::from_sec1_bytes(pubkey)
+        .or_else(|_| args.err("secp256k1_verify pubkey is not valid"))?;
 
     // second arg is message
     let args = args.rest()?;
@@ -60,7 +63,8 @@ pub fn op_secp256k1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) ->
     // third arg is der encoded sig
     let args = args.rest()?;
     let sig = atom(args.first()?, "secp256k1_verify sig")?;
-    let Ok(sig) = K1Signature::from_slice(sig) else { return args.err("secp256k1_verify sig is not valid") };
+    let sig =
+        K1Signature::from_slice(sig).or_else(|_| args.err("secp256k1_verify sig is not valid"))?;
 
     // verify signature
     let result = verifier.verify_prehash(msg, &sig);
