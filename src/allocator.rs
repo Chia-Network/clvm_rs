@@ -1,6 +1,7 @@
 use crate::err_utils::err;
 use crate::number::{node_from_number, number_from_u8, Number};
 use crate::reduction::EvalErr;
+use bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective};
 
 pub type NodePtr = i32;
 
@@ -146,6 +147,16 @@ impl Allocator {
         node_from_number(self, &v)
     }
 
+    pub fn new_g1(&mut self, g1: G1Projective) -> Result<NodePtr, EvalErr> {
+        let g1: G1Affine = g1.into();
+        self.new_atom(&g1.to_compressed())
+    }
+
+    pub fn new_g2(&mut self, g2: G2Projective) -> Result<NodePtr, EvalErr> {
+        let g2: G2Affine = g2.into();
+        self.new_atom(&g2.to_compressed())
+    }
+
     pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr> {
         let r = self.pair_vec.len() as i32;
         if self.pair_vec.len() == self.pair_limit {
@@ -233,6 +244,44 @@ impl Allocator {
 
     pub fn number(&self, node: NodePtr) -> Number {
         number_from_u8(self.atom(node))
+    }
+
+    pub fn g1(&self, node: NodePtr) -> Result<G1Projective, EvalErr> {
+        let blob = match self.sexp(node) {
+            SExp::Atom(buf) => self.buf(&buf),
+            _ => {
+                return err(node, "pair found, expected G1 point");
+            }
+        };
+        if blob.len() != 48 {
+            return err(node, "atom is not G1 size, 48 bytes");
+        }
+
+        let affine: Option<G1Affine> =
+            G1Affine::from_compressed(blob.try_into().expect("G1 slice is not 48 bytes")).into();
+        match affine {
+            Some(point) => Ok(G1Projective::from(point)),
+            None => err(node, "atom is not a G1 point"),
+        }
+    }
+
+    pub fn g2(&self, node: NodePtr) -> Result<G2Projective, EvalErr> {
+        let blob = match self.sexp(node) {
+            SExp::Atom(buf) => self.buf(&buf),
+            _ => {
+                return err(node, "pair found, expected G2 point");
+            }
+        };
+        if blob.len() != 96 {
+            return err(node, "atom is not G2 size, 96 bytes");
+        }
+
+        let affine: Option<G2Affine> =
+            G2Affine::from_compressed(blob.try_into().expect("G2 slice is not 96 bytes")).into();
+        match affine {
+            Some(point) => Ok(G2Projective::from(point)),
+            None => err(node, "atom is not a G2 point"),
+        }
     }
 
     pub fn sexp(&self, node: NodePtr) -> SExp {
@@ -540,4 +589,309 @@ fn test_checkpoints() {
 
     // since atom2 was removed, atom3 should actually be using that slot
     assert_eq!(atom2, atom3);
+}
+
+#[cfg(test)]
+fn test_g1(a: &Allocator, n: NodePtr) -> EvalErr {
+    a.g1(n).unwrap_err()
+}
+
+#[cfg(test)]
+fn test_g2(a: &Allocator, n: NodePtr) -> EvalErr {
+    a.g2(n).unwrap_err()
+}
+
+#[cfg(test)]
+type TestFun = fn(&Allocator, NodePtr) -> EvalErr;
+
+#[cfg(test)]
+#[rstest]
+#[case(test_g1, 0, "atom is not G1 size, 48 bytes")]
+#[case(test_g1, 3, "atom is not G1 size, 48 bytes")]
+#[case(test_g1, 47, "atom is not G1 size, 48 bytes")]
+#[case(test_g1, 49, "atom is not G1 size, 48 bytes")]
+#[case(test_g1, 48, "atom is not a G1 point")]
+#[case(test_g2, 0, "atom is not G2 size, 96 bytes")]
+#[case(test_g2, 3, "atom is not G2 size, 96 bytes")]
+#[case(test_g2, 95, "atom is not G2 size, 96 bytes")]
+#[case(test_g2, 97, "atom is not G2 size, 96 bytes")]
+#[case(test_g2, 96, "atom is not a G2 point")]
+fn test_point_size_error(#[case] fun: TestFun, #[case] size: usize, #[case] expected: &str) {
+    let mut a = Allocator::new();
+    let mut buf = Vec::<u8>::new();
+    buf.resize(size, 0xcc);
+    let n = a.new_atom(&buf).unwrap();
+    let r = fun(&mut a, n);
+    assert_eq!(r.0, n);
+    assert_eq!(r.1, expected.to_string());
+}
+
+#[cfg(test)]
+#[rstest]
+#[case(test_g1, "pair found, expected G1 point")]
+#[case(test_g2, "pair found, expected G2 point")]
+fn test_point_atom_pair(#[case] fun: TestFun, #[case] expected: &str) {
+    let mut a = Allocator::new();
+    let n = a.new_pair(a.null(), a.one()).unwrap();
+    let r = fun(&mut a, n);
+    assert_eq!(r.0, n);
+    assert_eq!(r.1, expected.to_string());
+}
+
+#[cfg(test)]
+#[rstest]
+#[case("97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb")]
+#[case("a572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e")]
+fn test_g1_roundtrip(#[case] atom: &str) {
+    let mut a = Allocator::new();
+    let n = a.new_atom(&hex::decode(atom).unwrap()).unwrap();
+    let g1 = a.g1(n).unwrap();
+    assert_eq!(hex::encode(G1Affine::from(g1).to_compressed()), atom);
+
+    let g1_copy = a.new_g1(g1).unwrap();
+    let g1_atom = a.atom(g1_copy);
+    assert_eq!(hex::encode(g1_atom), atom);
+
+    // try interpreting the point as G1
+    assert_eq!(a.g2(n).unwrap_err().1, "atom is not G2 size, 96 bytes");
+    assert_eq!(
+        a.g2(g1_copy).unwrap_err().1,
+        "atom is not G2 size, 96 bytes"
+    );
+
+    // try interpreting the point as number
+    assert_eq!(a.number(n), number_from_u8(&hex::decode(atom).unwrap()));
+    assert_eq!(
+        a.number(g1_copy),
+        number_from_u8(&hex::decode(atom).unwrap())
+    );
+}
+
+#[cfg(test)]
+#[rstest]
+#[case("93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8")]
+#[case("aa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053")]
+fn test_g2_roundtrip(#[case] atom: &str) {
+    let mut a = Allocator::new();
+    let n = a.new_atom(&hex::decode(atom).unwrap()).unwrap();
+    let g2 = a.g2(n).unwrap();
+    assert_eq!(hex::encode(G2Affine::from(g2).to_compressed()), atom);
+
+    let g2_copy = a.new_g2(g2).unwrap();
+    let g2_atom = a.atom(g2_copy);
+    assert_eq!(hex::encode(g2_atom), atom);
+
+    // try interpreting the point as G1
+    assert_eq!(a.g1(n).unwrap_err().1, "atom is not G1 size, 48 bytes");
+    assert_eq!(
+        a.g1(g2_copy).unwrap_err().1,
+        "atom is not G1 size, 48 bytes"
+    );
+
+    // try interpreting the point as number
+    assert_eq!(a.number(n), number_from_u8(&hex::decode(atom).unwrap()));
+    assert_eq!(
+        a.number(g2_copy),
+        number_from_u8(&hex::decode(atom).unwrap())
+    );
+}
+
+#[cfg(test)]
+use core::convert::TryFrom;
+
+#[cfg(test)]
+type MakeFun = fn(&mut Allocator, &[u8]) -> NodePtr;
+
+#[cfg(test)]
+fn make_buf(a: &mut Allocator, bytes: &[u8]) -> NodePtr {
+    a.new_atom(bytes).unwrap()
+}
+
+#[cfg(test)]
+fn make_number(a: &mut Allocator, bytes: &[u8]) -> NodePtr {
+    let v = number_from_u8(bytes);
+    a.new_number(v).unwrap()
+}
+
+#[cfg(test)]
+fn make_g1(a: &mut Allocator, bytes: &[u8]) -> NodePtr {
+    let v: G1Projective = G1Affine::from_compressed(bytes.try_into().unwrap())
+        .unwrap()
+        .into();
+    a.new_g1(v).unwrap()
+}
+
+#[cfg(test)]
+fn make_g2(a: &mut Allocator, bytes: &[u8]) -> NodePtr {
+    let v: G2Projective = G2Affine::from_compressed(bytes.try_into().unwrap())
+        .unwrap()
+        .into();
+    a.new_g2(v).unwrap()
+}
+
+#[cfg(test)]
+fn make_g1_fail(a: &mut Allocator, bytes: &[u8]) -> NodePtr {
+    assert!(<[u8; 48]>::try_from(bytes).is_err());
+    //assert!(G1Affine::from_compressed(bytes.try_into().unwrap()).is_none().unwrap_u8() != 0);
+    a.new_atom(bytes).unwrap()
+}
+
+#[cfg(test)]
+fn make_g2_fail(a: &mut Allocator, bytes: &[u8]) -> NodePtr {
+    assert!(<[u8; 96]>::try_from(bytes).is_err());
+    //assert!(G2Affine::from_compressed(bytes.try_into().unwrap()).is_none().unwrap_u8() != 0);
+    a.new_atom(bytes).unwrap()
+}
+
+#[cfg(test)]
+type CheckFun = fn(&Allocator, NodePtr, &[u8]);
+
+#[cfg(test)]
+fn check_buf(a: &Allocator, n: NodePtr, bytes: &[u8]) {
+    let buf = a.atom(n);
+    assert_eq!(buf, bytes);
+}
+
+#[cfg(test)]
+fn check_number(a: &Allocator, n: NodePtr, bytes: &[u8]) {
+    let num = a.number(n);
+    let v = number_from_u8(bytes);
+    assert_eq!(num, v);
+}
+
+#[cfg(test)]
+fn check_g1(a: &Allocator, n: NodePtr, bytes: &[u8]) {
+    let num = a.g1(n).unwrap();
+    let v: G1Projective = G1Affine::from_compressed(bytes.try_into().unwrap())
+        .unwrap()
+        .into();
+    assert_eq!(num, v);
+}
+
+#[cfg(test)]
+fn check_g2(a: &Allocator, n: NodePtr, bytes: &[u8]) {
+    let num = a.g2(n).unwrap();
+    let v: G2Projective = G2Affine::from_compressed(bytes.try_into().unwrap())
+        .unwrap()
+        .into();
+    assert_eq!(num, v);
+}
+
+#[cfg(test)]
+fn check_g1_fail(a: &Allocator, n: NodePtr, bytes: &[u8]) {
+    assert_eq!(a.g1(n).unwrap_err().0, n);
+    //assert!(G1Affine::from_compressed(bytes.try_into().unwrap()).is_none().unwrap_u8() != 0);
+    assert!(<[u8; 48]>::try_from(bytes).is_err());
+}
+
+#[cfg(test)]
+fn check_g2_fail(a: &Allocator, n: NodePtr, bytes: &[u8]) {
+    assert_eq!(a.g2(n).unwrap_err().0, n);
+    //assert!(G2Affine::from_compressed(bytes.try_into().unwrap()).is_none().unwrap_u8() != 0);
+    assert!(<[u8; 96]>::try_from(bytes).is_err());
+}
+
+#[cfg(test)]
+const EMPTY: &str = "";
+
+#[cfg(test)]
+const SMALL_BUF: &str = "133742";
+
+#[cfg(test)]
+const VALID_G1: &str = "a572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e";
+
+#[cfg(test)]
+const VALID_G2: &str = "aa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053";
+
+/*
+  We want to exercise round-tripping avery kind of value via every other kind
+  of value (as far as possible). e.g. Every value can round-trip through a byte buffer
+  or a number, but G1 cannot round-trip via G2.
+
+  +-----------+--------+--------+------+------+
+  | from / to | buffer | number | G1   | G2   |
+  +-----------+--------+--------+------+------+
+  | buffer    | o      | o      | -    | -    |
+  | number    | o      | o      | -    | -    |
+  | G1        | o      | o      | o    | -    |
+  | G2        | o      | o      | -    | o    |
+  +-----------+--------+--------+------+------+
+
+*/
+
+#[cfg(test)]
+#[rstest]
+// round trip empty buffer
+#[case(EMPTY, make_buf, check_buf)]
+#[case(EMPTY, make_buf, check_number)]
+#[case(EMPTY, make_buf, check_g1_fail)]
+#[case(EMPTY, make_buf, check_g2_fail)]
+#[case(EMPTY, make_number, check_buf)]
+#[case(EMPTY, make_number, check_number)]
+#[case(EMPTY, make_number, check_g1_fail)]
+#[case(EMPTY, make_number, check_g2_fail)]
+#[case(EMPTY, make_g1_fail, check_buf)]
+#[case(EMPTY, make_g1_fail, check_number)]
+#[case(EMPTY, make_g1_fail, check_g1_fail)]
+#[case(EMPTY, make_g1_fail, check_g2_fail)]
+#[case(EMPTY, make_g2_fail, check_buf)]
+#[case(EMPTY, make_g2_fail, check_number)]
+#[case(EMPTY, make_g2_fail, check_g1_fail)]
+#[case(EMPTY, make_g2_fail, check_g2_fail)]
+// round trip small buffer
+#[case(SMALL_BUF, make_buf, check_buf)]
+#[case(SMALL_BUF, make_buf, check_number)]
+#[case(SMALL_BUF, make_buf, check_g1_fail)]
+#[case(SMALL_BUF, make_buf, check_g2_fail)]
+#[case(SMALL_BUF, make_number, check_buf)]
+#[case(SMALL_BUF, make_number, check_number)]
+#[case(SMALL_BUF, make_number, check_g1_fail)]
+#[case(SMALL_BUF, make_number, check_g2_fail)]
+#[case(SMALL_BUF, make_g1_fail, check_buf)]
+#[case(SMALL_BUF, make_g1_fail, check_number)]
+#[case(SMALL_BUF, make_g1_fail, check_g1_fail)]
+#[case(SMALL_BUF, make_g1_fail, check_g2_fail)]
+#[case(SMALL_BUF, make_g2_fail, check_buf)]
+#[case(SMALL_BUF, make_g2_fail, check_number)]
+#[case(SMALL_BUF, make_g2_fail, check_g1_fail)]
+#[case(SMALL_BUF, make_g2_fail, check_g2_fail)]
+// round trip G1 point
+#[case(VALID_G1, make_buf, check_buf)]
+#[case(VALID_G1, make_buf, check_number)]
+#[case(VALID_G1, make_buf, check_g1)]
+#[case(VALID_G1, make_buf, check_g2_fail)]
+#[case(VALID_G1, make_number, check_buf)]
+#[case(VALID_G1, make_number, check_number)]
+#[case(VALID_G1, make_number, check_g1)]
+#[case(VALID_G1, make_number, check_g2_fail)]
+#[case(VALID_G1, make_g1, check_buf)]
+#[case(VALID_G1, make_g1, check_number)]
+#[case(VALID_G1, make_g1, check_g1)]
+#[case(VALID_G1, make_g1, check_g2_fail)]
+#[case(VALID_G1, make_g2_fail, check_buf)]
+#[case(VALID_G1, make_g2_fail, check_number)]
+#[case(VALID_G1, make_g2_fail, check_g1)]
+#[case(VALID_G1, make_g2_fail, check_g2_fail)]
+// round trip G2 point
+#[case(VALID_G2, make_buf, check_buf)]
+#[case(VALID_G2, make_buf, check_number)]
+#[case(VALID_G2, make_buf, check_g1_fail)]
+#[case(VALID_G2, make_buf, check_g2)]
+#[case(VALID_G2, make_number, check_buf)]
+#[case(VALID_G2, make_number, check_number)]
+#[case(VALID_G2, make_number, check_g1_fail)]
+#[case(VALID_G2, make_number, check_g2)]
+#[case(VALID_G2, make_g1_fail, check_buf)]
+#[case(VALID_G2, make_g1_fail, check_number)]
+#[case(VALID_G2, make_g1_fail, check_g1_fail)]
+#[case(VALID_G2, make_g1_fail, check_g2)]
+#[case(VALID_G2, make_g2, check_buf)]
+#[case(VALID_G2, make_g2, check_number)]
+#[case(VALID_G2, make_g2, check_g1_fail)]
+#[case(VALID_G2, make_g2, check_g2)]
+fn test_roundtrip(#[case] test_value: &str, #[case] make: MakeFun, #[case] check: CheckFun) {
+    let value = hex::decode(test_value).unwrap();
+    let mut a = Allocator::new();
+    let node = make(&mut a, &value);
+    check(&mut a, node, &value);
 }
