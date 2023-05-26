@@ -775,9 +775,10 @@ pub fn op_pubkey_for_exp(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> 
     let cost = PUBKEY_BASE_COST + (v0_len as Cost) * PUBKEY_COST_PER_BYTE;
     let exp: Scalar = number_to_scalar(exp);
     let point: G1Projective = G1Affine::generator() * exp;
-    let point: G1Affine = point.into();
-
-    new_atom_and_cost(a, cost, &point.to_compressed())
+    Ok(Reduction(
+        cost + 48 * MALLOC_COST_PER_BYTE,
+        a.new_g1(point)?,
+    ))
 }
 
 pub fn op_point_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
@@ -803,8 +804,10 @@ pub fn op_point_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respon
             return args.err(&msg);
         }
     }
-    let total: G1Affine = total.into();
-    new_atom_and_cost(a, cost, &total.to_compressed())
+    Ok(Reduction(
+        cost + 48 * MALLOC_COST_PER_BYTE,
+        a.new_g1(total)?,
+    ))
 }
 
 pub fn op_coinid(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
