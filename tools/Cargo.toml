@@ -1,7 +1,7 @@
 [package]
 name = "clvm-rs-test-tools"
 version = "0.1.0"
-authors = ["Arvid Norberg <arvid@chia.net>"]
+authors = ["Arvid Norberg <arvid@chia.net>", "Cameron Cooper <cameron@chia.net>"]
 edition = "2021"
 license = "Apache-2.0"
 description = "Developer tools for the CLVM interpreter"
@@ -19,6 +19,11 @@ rand = "0.8.4"
 sha1 = "=0.10.5"
 linreg = "=0.2.0"
 clvmr = { path = ".." }
+bls12_381 = { version = "=0.8.0", features = ["experimental"] }
+num-bigint = "0.4.3"
+serde = { version ="1.0.163", features = ["derive"] }
+serde_json = "1.0.96"
+group = "=0.13.0"
 
 [[bin]]
 name = "generate-fuzz-corpus"
@@ -30,3 +35,7 @@ name = "benchmark-clvm-cost"
 test = false
 bench = false
 
+[[bin]]
+name = "verify-zksnark"
+test = false
+bench = false
