@@ -1,0 +1,32 @@
+[package]
+name = "clvm-tests-zksnark"
+version = "0.1.0"
+authors = ["Cameron Cooper <cameron@chia.net>"]
+edition = "2021"
+license = "Apache-2.0"
+description = "ZKSnark test for the CLVM interpreter"
+homepage = "https://github.com/Chia-Network/clvm_rs/tools/"
+repository = "https://github.com/Chia-Network/clvm_rs/tools/"
+readme = "README.md"
+
+[profile.release]
+lto = true
+
+[dependencies]
+bls12_381 = { version = "=0.8.0", features = ["experimental"] }
+hex = "=0.4.3"
+rand = "0.8.4"
+sha1 = "=0.10.5"
+linreg = "=0.2.0"
+clvmr = { path = "../.." }
+num-bigint = "0.4.3"
+serde = { version ="1.0.163", features = ["derive"] }
+serde_json = "1.0.96"
+group = "=0.13.0"
+
+[[bin]]
+name = "verify-zksnark"
+test = false
+bench = false
+
+
