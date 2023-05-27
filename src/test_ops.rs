@@ -230,6 +230,7 @@ use rstest::rstest;
 #[case("test-blspy-hash")]
 #[case("test-blspy-pairing")]
 #[case("test-blspy-verify")]
+#[case("test-bls-zk")]
 #[case("test-secp-verify")]
 #[case("test-secp256k1")]
 #[case("test-secp256r1")]
