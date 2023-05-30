@@ -35,6 +35,9 @@ pub const ENABLE_BLS_OPS: u32 = 0x0010;
 // hard-fork and should only be enabled when it activates
 pub const ENABLE_BLS_OPS_OUTSIDE_GUARD: u32 = 0x0020;
 
+// enables the secp ops *outside* the softfork guard
+pub const ENABLE_SECP_OPS_OUTSIDE_GUARD: u32 = 0x0040;
+
 // The default mode when running grnerators in mempool-mode (i.e. the stricter
 // mode)
 pub const MEMPOOL_MODE: u32 = NO_UNKNOWN_OPS | LIMIT_HEAP | LIMIT_STACK;
@@ -112,6 +115,14 @@ impl Dialect for ChiaDialect {
             33 => op_any,
             34 => op_all,
             // 35 ---
+            60 => match self.flags & ENABLE_SECP_OPS_OUTSIDE_GUARD {
+                0 => return unknown_operator(allocator, o, argument_list, self.flags, max_cost),
+                _ => op_secp256k1_verify,
+            },
+            61 => match self.flags & ENABLE_SECP_OPS_OUTSIDE_GUARD {
+                0 => return unknown_operator(allocator, o, argument_list, self.flags, max_cost),
+                _ => op_secp256r1_verify,
+            },
             // 36 = softfork
             _ => {
                 if extension == OperatorSet::BLS || (self.flags & ENABLE_BLS_OPS_OUTSIDE_GUARD) != 0
@@ -129,8 +140,6 @@ impl Dialect for ChiaDialect {
                         57 => op_bls_map_to_g2,
                         58 => op_bls_pairing_identity,
                         59 => op_bls_verify,
-                        60 => op_secp256k1_verify,
-                        61 => op_secp256r1_verify,
                         _ => {
                             return unknown_operator(
                                 allocator,
