@@ -120,6 +120,19 @@ pub fn main() {
     let vk_alpha_1 = vec_pair_g1(&verification_key.vk_alpha_1);
     let vk_beta_2 = vec_pair_g2(&verification_key.vk_beta_2);
 
+    // output the compressed values
+    println!(
+        "bls_pairing_identity 0x{} 0x{} 0x{} 0x{} 0x{} 0x{} 0x{} 0x{} => 0 | 7800000",
+        hex::encode((-pi_a).to_compressed()),
+        hex::encode(pi_b.to_compressed()),
+        hex::encode(cpub.to_compressed()),
+        hex::encode(vk_gamma_2.to_compressed()),
+        hex::encode(pi_c.to_compressed()),
+        hex::encode(vk_delta_2.to_compressed()),
+        hex::encode(vk_alpha_1.to_compressed()),
+        hex::encode(vk_beta_2.to_compressed())
+    );
+
     // run the miller loop
     let mut item_refs = Vec::<(&G1Affine, &G2Prepared)>::new();
     let pi_a = -pi_a;
