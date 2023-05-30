@@ -7,37 +7,37 @@ use k256::ecdsa::{Signature as K1Signature, VerifyingKey as K1VerifyingKey};
 use p256::ecdsa::signature::hazmat::PrehashVerifier;
 use p256::ecdsa::{Signature as P1Signature, VerifyingKey as P1VerifyingKey};
 
-const SECP256P1_VERIFY_COST: Cost = 3000000;
+const SECP256R1_VERIFY_COST: Cost = 3000000;
 const SECP256K1_VERIFY_COST: Cost = 3000000;
 
 // expects: pubkey msg sig
-pub fn op_secp256p1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+pub fn op_secp256r1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let args = Node::new(a, input);
-    check_arg_count(&args, 3, "secp256p1_verify")?;
+    check_arg_count(&args, 3, "secp256r1_verify")?;
 
-    let cost = SECP256P1_VERIFY_COST;
+    let cost = SECP256R1_VERIFY_COST;
     check_cost(a, cost, max_cost)?;
 
     // first argument is sec1 encoded pubkey
-    let pubkey = atom(args.first()?, "secp256p1_verify pubkey")?;
+    let pubkey = atom(args.first()?, "secp256r1_verify pubkey")?;
     let verifier = P1VerifyingKey::from_sec1_bytes(pubkey)
-        .or_else(|_| args.err("secp256p1_verify pubkey is not valid"))?;
+        .or_else(|_| args.err("secp256r1_verify pubkey is not valid"))?;
 
     // second arg is message
     let args = args.rest()?;
-    let msg = atom(args.first()?, "secp256p1_verify msg")?;
+    let msg = atom(args.first()?, "secp256r1_verify msg")?;
 
     // third arg is der encoded sig
     let args = args.rest()?;
-    let sig = atom(args.first()?, "secp256p1_verify sig")?;
+    let sig = atom(args.first()?, "secp256r1_verify sig")?;
     let sig =
-        P1Signature::from_slice(sig).or_else(|_| args.err("secp256p1_verify sig is not valid"))?;
+        P1Signature::from_slice(sig).or_else(|_| args.err("secp256r1_verify sig is not valid"))?;
 
     // verify signature
     let result = verifier.verify_prehash(msg, &sig);
 
     if !result.is_ok() {
-        Node::new(a, input).err("secp256p1_verify failed")
+        Node::new(a, input).err("secp256r1_verify failed")
     } else {
         Ok(Reduction(cost, a.null()))
     }

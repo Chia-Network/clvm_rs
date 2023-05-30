@@ -13,7 +13,7 @@ use crate::more_ops::{
 };
 use crate::number::Number;
 use crate::reduction::{EvalErr, Reduction, Response};
-use crate::secp_ops::{op_secp256k1_verify, op_secp256p1_verify};
+use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
 
 use hex::FromHex;
 use num_traits::Num;
@@ -100,7 +100,7 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
             "bls_pairing_identity" => a.new_atom(&[58]).unwrap(),
             "bls_verify" => a.new_atom(&[59]).unwrap(),
             "secp256k1_verify" => a.new_atom(&[60]).unwrap(),
-            "secp256p1_verify" => a.new_atom(&[61]).unwrap(),
+            "secp256r1_verify" => a.new_atom(&[61]).unwrap(),
             _ => {
                 panic!("atom not supported \"{}\"", v);
             }
@@ -281,7 +281,7 @@ fn test_ops(#[case] filename: &str) {
         ("bls_pairing_identity", op_bls_pairing_identity as Opf),
         ("bls_verify", op_bls_verify as Opf),
         ("secp256k1_verify", op_secp256k1_verify as Opf),
-        ("secp256p1_verify", op_secp256p1_verify as Opf),
+        ("secp256r1_verify", op_secp256r1_verify as Opf),
     ]);
 
     println!("Test cases from: {filename}");

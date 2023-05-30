@@ -14,7 +14,7 @@ use crate::more_ops::{
     op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract, op_unknown,
 };
 use crate::reduction::Response;
-use crate::secp_ops::{op_secp256k1_verify, op_secp256p1_verify};
+use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
 
 // unknown operators are disallowed
 // (otherwise they are no-ops with well defined cost)
@@ -130,7 +130,7 @@ impl Dialect for ChiaDialect {
                         58 => op_bls_pairing_identity,
                         59 => op_bls_verify,
                         60 => op_secp256k1_verify,
-                        61 => op_secp256p1_verify,
+                        61 => op_secp256r1_verify,
                         _ => {
                             return unknown_operator(
                                 allocator,
