@@ -1,16 +1,16 @@
 use bls12_381::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Scalar};
-use clvmr::allocator::{Allocator, AtomBuf, Checkpoint, NodePtr, SExp};
-use clvmr::chia_dialect::ENABLE_BLS_OPS_OUTSIDE_GUARD;
-use clvmr::dialect::{Dialect, OperatorSet};
-use clvmr::reduction::Reduction;
-use clvmr::run_program::run_program;
-use clvmr::serde::node_from_bytes;
-use clvmr::ChiaDialect;
+
+
+
+
+
+
+
 use group::Group;
-use hex::FromHex;
-use num_bigint::{BigInt, Sign};
+
+use num_bigint::{BigInt};
 use serde::Deserialize;
-use serde_json::Result;
+
 use std::fs::File;
 use std::io::Read;
 
@@ -58,7 +58,7 @@ fn vec_pair(arr: &Vec<String>) -> ([u8; 48], [u8; 48]) {
 }
 
 fn vec_pair_g1(arr: &Vec<String>) -> G1Affine {
-    let (fp_1, fp_2) = vec_pair(&arr);
+    let (fp_1, fp_2) = vec_pair(arr);
     let data: [u8; 96] = [fp_1, fp_2].concat().try_into().unwrap();
     G1Affine::from_uncompressed(&data).unwrap()
 }
