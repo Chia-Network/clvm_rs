@@ -24,28 +24,28 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
         return a.null();
     }
 
-    assert!(v.len() > 0);
+    assert!(!v.is_empty());
 
     if v.starts_with("0x") {
         let buf = Vec::from_hex(v.strip_prefix("0x").unwrap()).unwrap();
         return a.new_atom(&buf).unwrap();
     }
 
-    if v.starts_with("\"") {
-        assert!(v.ends_with("\""));
+    if v.starts_with('\"') {
+        assert!(v.ends_with('\"'));
         let buf = v
-            .strip_prefix("\"")
+            .strip_prefix('\"')
             .unwrap()
-            .strip_suffix("\"")
+            .strip_suffix('\"')
             .unwrap()
             .as_bytes();
-        return a.new_atom(&buf).unwrap();
+        return a.new_atom(buf).unwrap();
     }
 
     if let Ok(num) = Number::from_str_radix(v, 10) {
         a.new_number(num).unwrap()
     } else {
-        let v = if v.starts_with("#") { &v[1..] } else { v };
+        let v = if v.starts_with('#') { &v[1..] } else { v };
         match v {
             "q" => a.new_atom(&[1]).unwrap(),
             "a" => a.new_atom(&[2]).unwrap(),
@@ -105,16 +105,16 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
     }
 }
 
-fn pop_token<'a>(s: &'a str) -> (&'a str, &'a str) {
+fn pop_token(s: &str) -> (&str, &str) {
     let s = s.trim();
-    if s.starts_with("\"") {
-        if let Some(second_quote) = &s[1..].find("\"") {
+    if s.starts_with('\"') {
+        if let Some(second_quote) = &s[1..].find('\"') {
             let (first, rest) = s.split_at(second_quote + 2);
             (first.trim(), rest.trim())
         } else {
             panic!("mismatching quote")
         }
-    } else if s.starts_with("(") || s.starts_with(")") {
+    } else if s.starts_with('(') || s.starts_with(')') {
         let (first, rest) = s.split_at(1);
         (first, rest.trim())
     } else {
@@ -139,7 +139,7 @@ fn pop_token<'a>(s: &'a str) -> (&'a str, &'a str) {
 pub fn parse_list<'a>(a: &mut Allocator, v: &'a str) -> (NodePtr, &'a str) {
     let v = v.trim();
     let (first, rest) = pop_token(v);
-    if first.len() == 0 {
+    if first.is_empty() {
         return (a.null(), rest);
     }
     if first == ")" {
@@ -280,22 +280,22 @@ fn test_ops(#[case] filename: &str) {
 
     println!("Test cases from: {filename}");
     let test_cases = read_to_string(filename).expect("test file not found");
-    for t in test_cases.split("\n") {
+    for t in test_cases.split('\n') {
         let t = t.trim();
-        if t.len() == 0 {
+        if t.is_empty() {
             continue;
         }
         // ignore comments
-        if t.starts_with(";") {
+        if t.starts_with(';') {
             continue;
         }
-        let (op_name, t) = t.split_once(" ").unwrap();
+        let (op_name, t) = t.split_once(' ').unwrap();
         let op = funs
             .get(op_name)
-            .expect(&format!("couldn't find operator \"{op_name}\""));
+            .unwrap_or_else(|| panic!("couldn't find operator \"{op_name}\""));
         let (args, out) = t.split_once("=>").unwrap();
-        let (expected, expected_cost) = if out.contains("|") {
-            out.split_once("|").unwrap()
+        let (expected, expected_cost) = if out.contains('|') {
+            out.split_once('|').unwrap()
         } else {
             (out, "0")
         };

@@ -42,8 +42,7 @@ impl<W: io::Write> Write for LimitedWriter<W> {
 pub fn node_to_stream<W: io::Write>(node: &Node, f: &mut W) -> io::Result<()> {
     let mut values: Vec<NodePtr> = vec![node.node];
     let a = node.allocator;
-    while !values.is_empty() {
-        let v = values.pop().unwrap();
+    while let Some(v) = values.pop() {
         let n = a.sexp(v);
         match n {
             SExp::Atom(atom_ptr) => {

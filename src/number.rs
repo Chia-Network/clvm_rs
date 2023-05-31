@@ -101,8 +101,8 @@ use std::convert::TryFrom;
 
 #[cfg(test)]
 fn roundtrip_bytes(b: &[u8]) {
-    let negative = b.len() > 0 && (b[0] & 0x80) != 0;
-    let zero = b.len() == 0 || (b.len() == 1 && b[0] == 0);
+    let negative = !b.is_empty() && (b[0] & 0x80) != 0;
+    let zero = b.is_empty() || (b.len() == 1 && b[0] == 0);
 
     {
         let num = Number::from_signed_bytes_be(b);
@@ -144,7 +144,7 @@ fn roundtrip_bytes(b: &[u8]) {
         // equal.
         // the 0 prefix has to be added to the end though, since it's little
         // endian
-        if buf_le.len() > 0 && (buf_le.last().unwrap() & 0x80) != 0 {
+        if !buf_le.is_empty() && (buf_le.last().unwrap() & 0x80) != 0 {
             buf_le.push(0);
         }
 
@@ -167,7 +167,7 @@ fn roundtrip_bytes(b: &[u8]) {
         } else {
             &unsigned_round_trip
         };
-        if b.len() > 0 && (b[0] & 0x80) != 0 {
+        if !b.is_empty() && (b[0] & 0x80) != 0 {
             // we expect a new leading zero here, to keep the value positive
             assert!(unsigned_round_trip[0] == 0);
             assert_eq!(&unsigned_round_trip[1..], b);

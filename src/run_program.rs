@@ -1218,8 +1218,8 @@ fn test_run_program() {
     for t in TEST_CASES {
         let mut allocator = Allocator::new();
 
-        let program = check(parse_exp(&mut allocator, &t.prg));
-        let args = check(parse_exp(&mut allocator, &t.args));
+        let program = check(parse_exp(&mut allocator, t.prg));
+        let args = check(parse_exp(&mut allocator, t.args));
         let expected_result = &t.result.map(|v| check(parse_exp(&mut allocator, v)));
 
         let dialect = ChiaDialect::new(t.flags);

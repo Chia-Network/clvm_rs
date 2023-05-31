@@ -117,8 +117,8 @@ pub fn tree_hash_from_stream(f: &mut Cursor<&[u8]>) -> io::Result<[u8; 32]> {
 #[test]
 fn test_tree_hash_max_single_byte() {
     let mut ctx = Sha256::new();
-    ctx.update(&[1_u8]);
-    ctx.update(&[0x7f_u8]);
+    ctx.update([1_u8]);
+    ctx.update([0x7f_u8]);
     let mut cursor = Cursor::<&[u8]>::new(&[0x7f_u8]);
     assert_eq!(
         tree_hash_from_stream(&mut cursor).unwrap(),
@@ -129,8 +129,8 @@ fn test_tree_hash_max_single_byte() {
 #[test]
 fn test_tree_hash_one() {
     let mut ctx = Sha256::new();
-    ctx.update(&[1_u8]);
-    ctx.update(&[1_u8]);
+    ctx.update([1_u8]);
+    ctx.update([1_u8]);
     let mut cursor = Cursor::<&[u8]>::new(&[1_u8]);
     assert_eq!(
         tree_hash_from_stream(&mut cursor).unwrap(),
@@ -141,8 +141,8 @@ fn test_tree_hash_one() {
 #[test]
 fn test_tree_hash_zero() {
     let mut ctx = Sha256::new();
-    ctx.update(&[1_u8]);
-    ctx.update(&[0_u8]);
+    ctx.update([1_u8]);
+    ctx.update([0_u8]);
     let mut cursor = Cursor::<&[u8]>::new(&[0_u8]);
     assert_eq!(
         tree_hash_from_stream(&mut cursor).unwrap(),
@@ -153,7 +153,7 @@ fn test_tree_hash_zero() {
 #[test]
 fn test_tree_hash_nil() {
     let mut ctx = Sha256::new();
-    ctx.update(&[1_u8]);
+    ctx.update([1_u8]);
     let mut cursor = Cursor::<&[u8]>::new(&[0x80_u8]);
     assert_eq!(
         tree_hash_from_stream(&mut cursor).unwrap(),

@@ -16,7 +16,7 @@ impl<'a> PartialEq for Node<'a> {
 }
 
 fn test_serialize_roundtrip(a: &mut Allocator, n: NodePtr) {
-    let vec = node_to_bytes(&Node::new(a, n.clone())).unwrap();
+    let vec = node_to_bytes(&Node::new(a, n)).unwrap();
     let n0 = node_from_bytes(a, &vec).unwrap();
     let n1 = Node::new(a, n0);
     assert_eq!(Node::new(a, n), n1);

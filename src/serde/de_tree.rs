@@ -235,7 +235,7 @@ use std::io::Cursor;
 use hex::FromHex;
 
 #[cfg(test)]
-fn check_parse_tree(h: &str, expected: Vec<ParsedTriple>, expected_sha_tree_hex: &str) -> () {
+fn check_parse_tree(h: &str, expected: Vec<ParsedTriple>, expected_sha_tree_hex: &str) {
     let b = Vec::from_hex(h).unwrap();
     println!("{:?}", b);
     let mut f = Cursor::new(b);
@@ -253,7 +253,7 @@ fn check_parse_tree(h: &str, expected: Vec<ParsedTriple>, expected_sha_tree_hex:
 }
 
 #[cfg(test)]
-fn check_sha_blobs(h: &str, blobs: &[&[u8]]) -> () {
+fn check_sha_blobs(h: &str, blobs: &[&[u8]]) {
     let exp_sha = Vec::from_hex(h).unwrap();
     let actual_sha = sha_blobs(blobs);
     assert_eq!(exp_sha, actual_sha);

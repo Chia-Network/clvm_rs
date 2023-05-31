@@ -36,22 +36,22 @@ fn test_sha256() {
     ];
 
     let mut ctx = Sha256::new();
-    ctx.update(&[0x61, 0x62, 0x63]);
+    ctx.update([0x61, 0x62, 0x63]);
     assert_eq!(&ctx.finalize().as_slice(), output);
 
     let mut ctx = Sha256::new();
-    ctx.update(&[0x61]);
-    ctx.update(&[0x62]);
-    ctx.update(&[0x63]);
+    ctx.update([0x61]);
+    ctx.update([0x62]);
+    ctx.update([0x63]);
     assert_eq!(&ctx.finalize().as_slice(), output);
 
     let mut ctx = Sha256::new();
-    ctx.update(&[0x61, 0x62]);
-    ctx.update(&[0x63]);
+    ctx.update([0x61, 0x62]);
+    ctx.update([0x63]);
     assert_eq!(&ctx.finalize().as_slice(), output);
 
     let mut ctx = Sha256::new();
-    ctx.update(&[0x61]);
-    ctx.update(&[0x62, 0x63]);
+    ctx.update([0x61]);
+    ctx.update([0x62, 0x63]);
     assert_eq!(&ctx.finalize().as_slice(), output);
 }
