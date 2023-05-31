@@ -13,6 +13,7 @@ readme = "README.md"
 lto = true
 
 [dependencies]
+hex-literal = "=0.4.1"
 hex = "=0.4.3"
 rand = "0.8.4"
 sha1 = "=0.10.5"
