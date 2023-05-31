@@ -260,7 +260,7 @@ fn test_read_cache_lookup() {
     // now let's push a `5` atom to the top
     // tree: `(5 . 0)`
     let hash_of_5_atom = hash_blobs(&[&[1], &[5]]);
-    rcl.push(hash_of_5_atom.clone());
+    rcl.push(hash_of_5_atom);
     let hash_of_cons_5_nil = hash_blobs(&[&[2], &hash_of_5_atom, &hash_of_nil]);
     assert_eq!(rcl.find_paths(&hash_of_cons_5_nil, large_max), [[1]]);
     assert_eq!(rcl.find_paths(&hash_of_5_atom, large_max), [[2]]);
@@ -276,7 +276,7 @@ fn test_read_cache_lookup() {
     // now let's push a `9` atom to the top
     // tree: `(9 . (5 . 0))`
     let hash_of_9_atom = hash_blobs(&[&[1], &[9]]);
-    rcl.push(hash_of_9_atom.clone());
+    rcl.push(hash_of_9_atom);
     let hash_of_cons_9_cons_5_nil = hash_blobs(&[&[2], &hash_of_9_atom, &hash_of_cons_5_nil]);
 
     assert_eq!(rcl.find_paths(&hash_of_cons_9_cons_5_nil, large_max), [[1]]);
@@ -298,7 +298,7 @@ fn test_read_cache_lookup() {
     // tree: `(10 . (9 . (5 . 0)))`
 
     let hash_of_10_atom = hash_blobs(&[&[1], &[10]]);
-    rcl.push(hash_of_10_atom.clone());
+    rcl.push(hash_of_10_atom);
     let hash_of_cons_10_cons_9_cons_5_nil =
         hash_blobs(&[&[2], &hash_of_10_atom, &hash_of_cons_9_cons_5_nil]);
     assert_eq!(

@@ -173,7 +173,7 @@ fn test_truncated_decode_size() {
 
 #[cfg(test)]
 fn check_parse_atom(blob: &[u8], expected_atom: &[u8]) {
-    let mut cursor = Cursor::<&[u8]>::new(&blob);
+    let mut cursor = Cursor::<&[u8]>::new(blob);
     let mut first: [u8; 1] = [0];
     cursor.read(&mut first).unwrap();
     let first = first[0];
@@ -190,7 +190,7 @@ fn check_parse_atom(blob: &[u8], expected_atom: &[u8]) {
 fn check_parse_atom_str(blob_hex: &str, expected_atom_hex: &str) {
     let blob = hex::decode(blob_hex).unwrap();
     let expected_atom: &[u8] = &hex::decode(expected_atom_hex).unwrap();
-    check_parse_atom(&blob, &expected_atom);
+    check_parse_atom(&blob, expected_atom);
 }
 
 #[test]

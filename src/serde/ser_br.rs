@@ -35,9 +35,7 @@ pub fn node_to_stream_backrefs<W: io::Write>(node: &Node, f: &mut W) -> io::Resu
     let mut thc = ObjectCache::new(allocator, treehash);
     let mut slc = ObjectCache::new(allocator, serialized_length);
 
-    while !write_stack.is_empty() {
-        let node_to_write = write_stack.pop().expect("write_stack empty");
-
+    while let Some(node_to_write) = write_stack.pop() {
         let op = read_op_stack.pop();
         assert!(op == Some(ReadOp::Parse));
 

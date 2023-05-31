@@ -103,7 +103,7 @@ fn test_write_atom_encoding_prefix_with_size() {
 
     // this is too large
     let mut buf = Vec::<u8>::new();
-    assert!(!write_atom_encoding_prefix_with_size(&mut buf, 0xaa, 0x400000000).is_ok());
+    assert!(write_atom_encoding_prefix_with_size(&mut buf, 0xaa, 0x400000000).is_err());
 
     for (size, expected_prefix) in [
         (0x1, vec![0x81]),
@@ -127,27 +127,27 @@ fn test_write_atom_encoding_prefix_with_size() {
 #[test]
 fn test_write_atom() {
     let mut buf = Vec::<u8>::new();
-    assert!(write_atom(&mut buf, &vec![]).is_ok());
+    assert!(write_atom(&mut buf, &[]).is_ok());
     assert_eq!(buf, vec![0b10000000]);
 
     let mut buf = Vec::<u8>::new();
-    assert!(write_atom(&mut buf, &vec![0x00]).is_ok());
+    assert!(write_atom(&mut buf, &[0x00]).is_ok());
     assert_eq!(buf, vec![0b00000000]);
 
     let mut buf = Vec::<u8>::new();
-    assert!(write_atom(&mut buf, &vec![0x7f]).is_ok());
+    assert!(write_atom(&mut buf, &[0x7f]).is_ok());
     assert_eq!(buf, vec![0x7f]);
 
     let mut buf = Vec::<u8>::new();
-    assert!(write_atom(&mut buf, &vec![0x80]).is_ok());
+    assert!(write_atom(&mut buf, &[0x80]).is_ok());
     assert_eq!(buf, vec![0x81, 0x80]);
 
     let mut buf = Vec::<u8>::new();
-    assert!(write_atom(&mut buf, &vec![0xff]).is_ok());
+    assert!(write_atom(&mut buf, &[0xff]).is_ok());
     assert_eq!(buf, vec![0x81, 0xff]);
 
     let mut buf = Vec::<u8>::new();
-    assert!(write_atom(&mut buf, &vec![0xaa, 0xbb]).is_ok());
+    assert!(write_atom(&mut buf, &[0xaa, 0xbb]).is_ok());
     assert_eq!(buf, vec![0x82, 0xaa, 0xbb]);
 
     for (size, mut expected_prefix) in [

@@ -202,7 +202,7 @@ where
     T: Clone + Eq + Debug,
 {
     let mut allocator = Allocator::new();
-    let blob: Vec<u8> = Vec::from_hex(obj_as_hex).unwrap().into();
+    let blob: Vec<u8> = Vec::from_hex(obj_as_hex).unwrap();
     let mut cursor: Cursor<&[u8]> = Cursor::new(&blob);
     let obj = node_from_stream(&mut allocator, &mut cursor).unwrap();
     let mut oc = ObjectCache::new(&allocator, f);
@@ -234,7 +234,7 @@ fn test_depths_cache() {
 
 #[test]
 fn test_treehash() {
-    let check = |a, b| check_cached_function(a, Bytes32::from_hex(&b).unwrap(), treehash);
+    let check = |a, b| check_cached_function(a, Bytes32::from_hex(b).unwrap(), treehash);
     check(
         "ff83666f6f83626172",
         "c518e45ae6a7b4146017b7a1d81639051b132f1f5572ce3088a3898a9ed1280b",

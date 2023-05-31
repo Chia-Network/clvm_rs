@@ -93,11 +93,11 @@ fn limbs_for_int(v: &Number) -> usize {
 
 #[cfg(test)]
 fn limb_test_helper(bytes: &[u8]) {
-    let bigint = Number::from_signed_bytes_be(&bytes);
+    let bigint = Number::from_signed_bytes_be(bytes);
     println!("{} bits: {}", &bigint, &bigint.bits());
 
     // redundant leading zeros don't count, since they aren't stored internally
-    let expected = if bytes.len() > 0 && bytes[0] == 0 {
+    let expected = if !bytes.is_empty() && bytes[0] == 0 {
         bytes.len() - 1
     } else {
         bytes.len()
@@ -274,23 +274,23 @@ fn test_unknown_op_reserved() {
     // any op starting with ffff is reserved and a hard failure
     let buf = vec![0xff, 0xff];
     let null = a.null();
-    assert!(!test_op_unknown(&buf, &mut a, null).is_ok());
+    assert!(test_op_unknown(&buf, &mut a, null).is_err());
 
     let buf = vec![0xff, 0xff, 0xff];
-    assert!(!test_op_unknown(&buf, &mut a, null).is_ok());
+    assert!(test_op_unknown(&buf, &mut a, null).is_err());
 
     let buf = vec![0xff, 0xff, b'0'];
-    assert!(!test_op_unknown(&buf, &mut a, null).is_ok());
+    assert!(test_op_unknown(&buf, &mut a, null).is_err());
 
     let buf = vec![0xff, 0xff, 0];
-    assert!(!test_op_unknown(&buf, &mut a, null).is_ok());
+    assert!(test_op_unknown(&buf, &mut a, null).is_err());
 
     let buf = vec![0xff, 0xff, 0xcc, 0xcc, 0xfe, 0xed, 0xce];
-    assert!(!test_op_unknown(&buf, &mut a, null).is_ok());
+    assert!(test_op_unknown(&buf, &mut a, null).is_err());
 
     // an empty atom is not a valid opcode
     let buf = Vec::<u8>::new();
-    assert!(!test_op_unknown(&buf, &mut a, null).is_ok());
+    assert!(test_op_unknown(&buf, &mut a, null).is_err());
 
     // a single ff is not sufficient to be treated as a reserved opcode
     let buf = vec![0xff];
