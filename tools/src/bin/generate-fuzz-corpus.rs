@@ -1,4 +1,5 @@
 use clvmr::serde::write_atom::write_atom;
+use hex_literal::hex;
 use rand::rngs::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
@@ -12,26 +13,29 @@ enum Type {
     Program,
     Tree,
     List,
-    PointPair,
     Bool,
     Int64,
     Int32,
     Zero,
     Cost,
+    G1Point,
+    G2Point,
+    Bytes20,
     Bytes32,
-    Bytes48,
     Bytes96,
     AnyAtom,
 }
 
-const ATOMS: [Type; 8] = [
+const ATOMS: [Type; 10] = [
     Type::Bool,
     Type::Int64,
     Type::Int32,
     Type::Zero,
     Type::Cost,
+    Type::G1Point,
+    Type::G2Point,
+    Type::Bytes20,
     Type::Bytes32,
-    Type::Bytes48,
     Type::Bytes96,
 ];
 
@@ -60,7 +64,6 @@ const OPERATORS: [OperatorInfo; 76] = [
     ),
     // cons
     op(4, &[Type::AnyAtom, Type::List], Type::List),
-    op(4, &[Type::Bytes48, Type::Bytes96], Type::PointPair),
     // first
     op(5, &[Type::List], Type::AnyAtom),
     // rest
@@ -90,6 +93,7 @@ const OPERATORS: [OperatorInfo; 76] = [
     op(13, &[Type::AnyAtom], Type::Int32),
     // concat
     op(14, &[Type::AnyAtom, Type::AnyAtom], Type::AnyAtom),
+    op(14, &[Type::Int64, Type::Int64, Type::Int32], Type::Bytes20),
     op(
         14,
         &[Type::AnyAtom, Type::AnyAtom, Type::AnyAtom],
@@ -147,16 +151,16 @@ const OPERATORS: [OperatorInfo; 76] = [
     // lognot
     op(27, &[Type::AnyAtom], Type::AnyAtom),
     // point_add
-    op(29, &[], Type::Bytes48),
-    op(29, &[Type::Bytes48], Type::Bytes48),
-    op(29, &[Type::Bytes48, Type::Bytes48], Type::Bytes48),
+    op(29, &[], Type::G1Point),
+    op(29, &[Type::G1Point], Type::G1Point),
+    op(29, &[Type::G1Point, Type::G1Point], Type::G1Point),
     op(
         29,
-        &[Type::Bytes48, Type::Bytes48, Type::Bytes48],
-        Type::Bytes48,
+        &[Type::G1Point, Type::G1Point, Type::G1Point],
+        Type::G1Point,
     ),
     // pubkey for exp
-    op(30, &[Type::AnyAtom], Type::Bytes48),
+    op(30, &[Type::AnyAtom], Type::G1Point),
     // not
     op(32, &[Type::AnyAtom], Type::Bool),
     // AnyAtom
@@ -178,84 +182,83 @@ const OPERATORS: [OperatorInfo; 76] = [
         Type::Bytes32,
     ),
     // bls_g1_subtract
-    op(49, &[Type::Bytes48, Type::Bytes48], Type::Bytes48),
+    op(49, &[Type::G1Point, Type::G1Point], Type::G1Point),
     // bls_g1_multiply
-    op(50, &[Type::Bytes48, Type::Int64], Type::Bytes48),
+    op(50, &[Type::G1Point, Type::Int64], Type::G1Point),
+    op(50, &[Type::G1Point, Type::Bytes32], Type::G1Point),
+    op(50, &[Type::G1Point, Type::Bytes96], Type::G1Point),
     // bls_g1_negate
-    op(51, &[Type::Bytes48], Type::Bytes48),
+    op(51, &[Type::G1Point], Type::G1Point),
     // bls_g2_add
-    op(52, &[Type::Bytes96, Type::Bytes96], Type::Bytes96),
+    op(52, &[Type::G2Point, Type::G2Point], Type::G2Point),
     // bls_g2_subtract
-    op(53, &[Type::Bytes96, Type::Bytes96], Type::Bytes96),
+    op(53, &[Type::G2Point, Type::G2Point], Type::G2Point),
     // bls_g2_multiply
-    op(54, &[Type::Bytes96, Type::Int64], Type::Bytes96),
-    op(54, &[Type::Bytes96, Type::Bytes32], Type::Bytes96),
-    op(54, &[Type::Bytes96, Type::Bytes48], Type::Bytes96),
-    op(54, &[Type::Bytes96, Type::Bytes96], Type::Bytes96),
+    op(54, &[Type::G2Point, Type::Int64], Type::G2Point),
+    op(54, &[Type::G2Point, Type::Bytes32], Type::G2Point),
+    op(54, &[Type::G2Point, Type::Bytes96], Type::G2Point),
     // bls_g2_negate
-    op(55, &[Type::Bytes96], Type::Bytes96),
+    op(55, &[Type::G2Point], Type::G2Point),
     // bls_map_to_g1
-    op(56, &[Type::AnyAtom, Type::AnyAtom], Type::Bytes48),
+    op(56, &[Type::AnyAtom, Type::AnyAtom], Type::G1Point),
+    op(56, &[Type::AnyAtom], Type::G1Point),
     // bls_map_to_g2
-    op(57, &[Type::AnyAtom, Type::AnyAtom], Type::Bytes96),
-    op(57, &[Type::AnyAtom], Type::Bytes96),
+    op(57, &[Type::AnyAtom, Type::AnyAtom], Type::G2Point),
+    op(57, &[Type::AnyAtom], Type::G2Point),
     // bls_pairing_identity
-    op(58, &[Type::PointPair], Type::Bool),
-    op(58, &[Type::PointPair, Type::PointPair], Type::Bool),
+    op(58, &[Type::G2Point, Type::G1Point], Type::Zero),
     op(
         58,
-        &[Type::PointPair, Type::PointPair, Type::PointPair],
-        Type::Bool,
+        &[Type::G2Point, Type::G1Point, Type::G2Point, Type::G1Point],
+        Type::Zero,
     ),
     op(
         58,
         &[
-            Type::PointPair,
-            Type::PointPair,
-            Type::PointPair,
-            Type::PointPair,
+            Type::G2Point,
+            Type::G1Point,
+            Type::G2Point,
+            Type::G1Point,
+            Type::G2Point,
+            Type::G1Point,
         ],
-        Type::Bool,
-    ),
-    op(
-        58,
-        &[
-            Type::PointPair,
-            Type::PointPair,
-            Type::PointPair,
-            Type::PointPair,
-            Type::PointPair,
-        ],
-        Type::Bool,
+        Type::Zero,
     ),
     // bls_verify
-    op(59, &[Type::Bytes96], Type::Bool),
-    op(59, &[Type::Bytes96, Type::PointPair], Type::Bool),
+    op(59, &[Type::G2Point], Type::Zero),
     op(
         59,
-        &[Type::Bytes96, Type::PointPair, Type::PointPair],
-        Type::Bool,
+        &[Type::G2Point, Type::G1Point, Type::Bytes20],
+        Type::Zero,
+    ),
+    op(
+        59,
+        &[Type::G2Point, Type::G1Point, Type::AnyAtom],
+        Type::Zero,
     ),
     op(
         59,
         &[
-            Type::Bytes96,
-            Type::PointPair,
-            Type::PointPair,
-            Type::PointPair,
+            Type::G2Point,
+            Type::G1Point,
+            Type::AnyAtom,
+            Type::G1Point,
+            Type::AnyAtom,
         ],
-        Type::Bool,
+        Type::Zero,
     ),
     op(
         59,
         &[
-            Type::Bytes96,
-            Type::PointPair,
-            Type::PointPair,
-            Type::PointPair,
-            Type::PointPair,
+            Type::G2Point,
+            Type::G1Point,
+            Type::AnyAtom,
+            Type::G1Point,
+            Type::AnyAtom,
+            Type::G1Point,
+            Type::AnyAtom,
         ],
-        Type::Bool,
+        Type::Zero,
     ),
 ];
 
@@ -284,13 +287,24 @@ const INTERESTING_U64: [u64; 8] = [
     0x7fffffffffffffff,
 ];
 
-fn generate_u32<R: Rng>(rng: &mut R) -> u32 {
-    *sample(rng, &INTERESTING_U32)
-}
+const G1POINTS: [[u8; 48]; 3] = [
+    hex!("c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+    hex!("8b202593319bce41b090f3309986de59861ab1e2ff32aef871d83f9aac232c7253c01f1f649c6f69879c441286319de4"),
+    hex!("b7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"),
+];
 
-fn generate_u64<R: Rng>(rng: &mut R) -> u64 {
-    *sample(rng, &INTERESTING_U64)
-}
+const G2POINTS: [[u8; 96]; 3] = [
+    hex!("c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+    hex!("80c37921e62092ef55f85f9eccb21bd80cfaafc0bce9cbdd6999b1a8cabadc8f23720f0261efafaf53cbcc74580b9432007b66d824668900a94934f184bc41bf9ccf9ec141c6f7da610aa7296cd0a181ae8fe176b607aa4c367f15ee0cb985d7"),
+    hex!("942adad4dbeadcfd75aaa11940a5e5e16a8d8e91742029a3944610635ccc0572eceeb1c89d8a0e904c5d30b9497e700312dee7b833535effef24953dbf8f8aa770e2f1a8e01d3b6f6844e01a635ed95664babe9d62a2572651d0258461c8ba00"),
+];
+
+const BYTES20: [[u8; 20]; 1] = [hex!("39cb1950dba19a7bee9924b5bd2b29f190ffe4ef")];
+
+const BYTES32: [[u8; 32]; 2] = [
+    hex!("9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"),
+    hex!("74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668"),
+];
 
 fn type_convertible(from: Type, to: Type) -> bool {
     from == to
@@ -298,6 +312,22 @@ fn type_convertible(from: Type, to: Type) -> bool {
         || to == Type::Tree && from == Type::List
         || to == Type::Zero && from == Type::Int32
         || to == Type::Cost && from == Type::Int64
+}
+
+fn write_int(buf: &mut Vec<u8>, val: u64) {
+    if val == 0 {
+        buf.push(0x80);
+        return;
+    }
+
+    let bytes = val.to_be_bytes();
+
+    // strip redundant leading zeroes
+    let mut slice: &[u8] = &bytes;
+    while slice.len() > 1 && slice[0] == 0 && (slice[1] & 0x80) == 0 {
+        slice = &slice[1..];
+    }
+    write_atom(buf, slice).expect("write_atom failed");
 }
 
 fn generate_program<R: Rng>(op: &OperatorInfo, rng: &mut R, buffer: &mut Vec<u8>) {
@@ -314,10 +344,14 @@ fn generate_program<R: Rng>(op: &OperatorInfo, rng: &mut R, buffer: &mut Vec<u8>
                 .filter(|o| type_convertible(o.result, *arg))
                 .collect();
             if potential_ops.is_empty() {
-                println!("no operator returns {:?}", arg);
+                // quoted value
+                buffer.push(0xff); // cons
+                buffer.push(1); // quote
+                generate(*arg, rng, buffer);
+            } else {
+                let sub_op = sample(rng, &potential_ops);
+                generate_program(sub_op, rng, buffer);
             }
-            let sub_op = sample(rng, &potential_ops);
-            generate_program(sub_op, rng, buffer);
         } else {
             // quoted value
             buffer.push(0xff); // cons
@@ -365,11 +399,6 @@ fn generate<R: Rng>(t: Type, rng: &mut R, buffer: &mut Vec<u8>) {
             }
             buffer.push(0x80); // NIL
         }
-        Type::PointPair => {
-            buffer.push(0xff); // cons
-            generate(Type::Bytes48, rng, buffer);
-            generate(Type::Bytes96, rng, buffer);
-        }
         Type::Program => {
             let op = sample(rng, &OPERATORS);
             generate_program(op, rng, buffer);
@@ -382,10 +411,10 @@ fn generate<R: Rng>(t: Type, rng: &mut R, buffer: &mut Vec<u8>) {
             }
         }
         Type::Int64 => {
-            write_atom(buffer, &generate_u64(rng).to_be_bytes()).expect("write_atom failed");
+            write_int(buffer, *sample(rng, &INTERESTING_U64));
         }
         Type::Int32 => {
-            write_atom(buffer, &generate_u32(rng).to_be_bytes()).expect("write_atom failed");
+            write_int(buffer, *sample(rng, &INTERESTING_U32) as u64);
         }
         Type::Zero => {
             buffer.push(0x80);
@@ -393,11 +422,21 @@ fn generate<R: Rng>(t: Type, rng: &mut R, buffer: &mut Vec<u8>) {
         Type::Cost => {
             write_atom(buffer, &8000000000_u64.to_be_bytes()).expect("write_atom failed");
         }
-        Type::Bytes32 => {
-            write_atom(buffer, &ZEROS[..32]).expect("write_atom failed");
+        Type::G1Point => {
+            #[allow(clippy::borrow_deref_ref)]
+            write_atom(buffer, &*sample(rng, &G1POINTS)).expect("write_atom failed");
         }
-        Type::Bytes48 => {
-            write_atom(buffer, &ZEROS[..48]).expect("write_atom failed");
+        Type::G2Point => {
+            #[allow(clippy::borrow_deref_ref)]
+            write_atom(buffer, &*sample(rng, &G2POINTS)).expect("write_atom failed");
+        }
+        Type::Bytes20 => {
+            #[allow(clippy::borrow_deref_ref)]
+            write_atom(buffer, &*sample(rng, &BYTES20)).expect("write_atom failed");
+        }
+        Type::Bytes32 => {
+            #[allow(clippy::borrow_deref_ref)]
+            write_atom(buffer, &*sample(rng, &BYTES32)).expect("write_atom failed");
         }
         Type::Bytes96 => {
             write_atom(buffer, &ZEROS[..96]).expect("write_atom failed");
@@ -421,7 +460,7 @@ pub fn main() {
     create_dir_all("../fuzz/corpus/fuzz_run_program").expect("failed to create directory");
     create_dir_all("../fuzz/corpus/operators").expect("failed to create directory");
 
-    for i in 0..20000 {
+    for i in 0..40000 {
         buffer.truncate(0);
 
         let op = &OPERATORS[i % OPERATORS.len()];
@@ -434,7 +473,7 @@ pub fn main() {
         out.write_all(&buffer).expect("failed to write file");
     }
 
-    for i in 0..20000 {
+    for i in 0..40000 {
         buffer.truncate(0);
 
         let op = &OPERATORS[i % OPERATORS.len()];
