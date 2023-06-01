@@ -523,7 +523,7 @@ pub fn op_concat(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
         )?;
         match arg.sexp() {
             SExp::Pair(_, _) => return arg.err("concat on list"),
-            SExp::Atom(b) => total_size += b.len(),
+            SExp::Atom() => total_size += arg.len(),
         };
         terms.push(arg.node);
     }

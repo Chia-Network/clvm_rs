@@ -15,13 +15,21 @@ impl<'a> Node<'a> {
         Node::new(self.allocator, node)
     }
 
+    pub fn len(&self) -> usize {
+        self.allocator.atom_len(self.node)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.allocator.atom_len(self.node) == 0
+    }
+
     pub fn sexp(&self) -> SExp {
         self.allocator.sexp(self.node)
     }
 
     pub fn atom(&self) -> Option<&'a [u8]> {
         match self.sexp() {
-            SExp::Atom(_) => Some(self.allocator.atom(self.node)),
+            SExp::Atom() => Some(self.allocator.atom(self.node)),
             _ => None,
         }
     }
@@ -35,7 +43,7 @@ impl<'a> Node<'a> {
 
     pub fn nullp(&self) -> bool {
         match self.sexp() {
-            SExp::Atom(a) => a.is_empty(),
+            SExp::Atom() => self.is_empty(),
             _ => false,
         }
     }
@@ -88,7 +96,7 @@ impl<'a> fmt::Debug for Node<'a> {
                 .field(&self.with_node(l))
                 .field(&self.with_node(r))
                 .finish(),
-            SExp::Atom(a) => self.allocator.buf(&a).fmt(f),
+            SExp::Atom() => self.allocator.atom(self.node).fmt(f),
         }
     }
 }

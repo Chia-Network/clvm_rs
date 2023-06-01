@@ -79,7 +79,7 @@ fn test_arg_count() {
 
 pub fn int_atom(args: Node, op_name: &str) -> Result<(Number, usize), EvalErr> {
     match args.sexp() {
-        Atom(_) => Ok((
+        Atom() => Ok((
             args.allocator.number(args.node),
             args.allocator.atom_len(args.node),
         )),
@@ -89,7 +89,7 @@ pub fn int_atom(args: Node, op_name: &str) -> Result<(Number, usize), EvalErr> {
 
 pub fn atom_len(args: Node, op_name: &str) -> Result<usize, EvalErr> {
     match args.sexp() {
-        Atom(_) => Ok(args.allocator.atom_len(args.node)),
+        Atom() => Ok(args.allocator.atom_len(args.node)),
         _ => args.err(&format!("{op_name} requires an atom")),
     }
 }

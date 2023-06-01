@@ -31,7 +31,7 @@ impl LazyNode {
     #[wasm_bindgen(getter)]
     pub fn atom(&self) -> Option<Vec<u8>> {
         match &self.allocator.sexp(self.node) {
-            SExp::Atom(atom) => Some(self.allocator.buf(atom).into()),
+            SExp::Atom() => Some(self.allocator.atom(self.node).into()),
             _ => None,
         }
     }

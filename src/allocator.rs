@@ -5,23 +5,17 @@ use crate::reduction::EvalErr;
 pub type NodePtr = i32;
 
 pub enum SExp {
-    Atom(AtomBuf),
+    Atom(),
     Pair(NodePtr, NodePtr),
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct AtomBuf {
+struct AtomBuf {
     start: u32,
     end: u32,
 }
 
 impl AtomBuf {
-    pub fn idx_range(&self) -> (u32, u32) {
-        (self.start, self.end)
-    }
-    pub fn is_empty(&self) -> bool {
-        self.start == self.end
-    }
     pub fn len(&self) -> usize {
         (self.end - self.start) as usize
     }
@@ -233,10 +227,6 @@ impl Allocator {
         &self.u8_vec[atom.start as usize..atom.end as usize]
     }
 
-    pub fn buf<'a>(&'a self, node: &AtomBuf) -> &'a [u8] {
-        &self.u8_vec[node.start as usize..node.end as usize]
-    }
-
     pub fn atom_len(&self, node: NodePtr) -> usize {
         self.atom(node).len()
     }
@@ -250,8 +240,7 @@ impl Allocator {
             let pair = self.pair_vec[node as usize];
             SExp::Pair(pair.first, pair.rest)
         } else {
-            let atom = self.atom_vec[(-node - 1) as usize];
-            SExp::Atom(atom)
+            SExp::Atom()
         }
     }
 
@@ -285,7 +274,7 @@ fn test_null() {
     assert_eq!(a.atom(a.null()), b"");
 
     let buf = match a.sexp(a.null()) {
-        SExp::Atom(b) => a.buf(&b),
+        SExp::Atom() => a.atom(a.null()),
         SExp::Pair(_, _) => panic!("unexpected"),
     };
     assert_eq!(buf, b"");
@@ -297,7 +286,7 @@ fn test_one() {
     assert_eq!(a.atom(a.one()), b"\x01");
     assert_eq!(
         match a.sexp(a.one()) {
-            SExp::Atom(b) => a.buf(&b),
+            SExp::Atom() => a.atom(a.one()),
             SExp::Pair(_, _) => panic!("unexpected"),
         },
         b"\x01"
@@ -311,7 +300,7 @@ fn test_allocate_atom() {
     assert_eq!(a.atom(atom), b"foobar");
     assert_eq!(
         match a.sexp(atom) {
-            SExp::Atom(b) => a.buf(&b),
+            SExp::Atom() => a.atom(atom),
             SExp::Pair(_, _) => panic!("unexpected"),
         },
         b"foobar"
@@ -327,7 +316,7 @@ fn test_allocate_pair() {
 
     assert_eq!(
         match a.sexp(pair) {
-            SExp::Atom(_) => panic!("unexpected"),
+            SExp::Atom() => panic!("unexpected"),
             SExp::Pair(left, right) => (left, right),
         },
         (atom1, atom2)
@@ -336,7 +325,7 @@ fn test_allocate_pair() {
     let pair2 = a.new_pair(pair, pair).unwrap();
     assert_eq!(
         match a.sexp(pair2) {
-            SExp::Atom(_) => panic!("unexpected"),
+            SExp::Atom() => panic!("unexpected"),
             SExp::Pair(left, right) => (left, right),
         },
         (pair, pair)
@@ -452,21 +441,21 @@ fn test_sexp() {
 
     assert_eq!(
         match a.sexp(atom1) {
-            SExp::Atom(_) => 0,
+            SExp::Atom() => 0,
             SExp::Pair(_, _) => 1,
         },
         0
     );
     assert_eq!(
         match a.sexp(atom2) {
-            SExp::Atom(_) => 0,
+            SExp::Atom() => 0,
             SExp::Pair(_, _) => 1,
         },
         0
     );
     assert_eq!(
         match a.sexp(pair) {
-            SExp::Atom(_) => 0,
+            SExp::Atom() => 0,
             SExp::Pair(_, _) => 1,
         },
         1

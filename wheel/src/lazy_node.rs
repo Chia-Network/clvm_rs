@@ -37,7 +37,7 @@ impl LazyNode {
     #[getter(atom)]
     pub fn atom(&self, py: Python) -> Option<PyObject> {
         match &self.allocator.sexp(self.node) {
-            SExp::Atom(atom) => Some(PyBytes::new(py, self.allocator.buf(atom)).into()),
+            SExp::Atom() => Some(PyBytes::new(py, self.allocator.atom(self.node)).into()),
             _ => None,
         }
     }
