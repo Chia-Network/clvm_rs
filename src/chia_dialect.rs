@@ -23,9 +23,6 @@ pub const NO_UNKNOWN_OPS: u32 = 0x0002;
 // the number of pairs
 pub const LIMIT_HEAP: u32 = 0x0004;
 
-// When set, enforce a stack size limit for CLVM programs
-pub const LIMIT_STACK: u32 = 0x0008;
-
 // When set, we allow softfork with extension 0 (which includes coinid and the
 // BLS operators). This remains disabled until the soft-fork activates
 pub const ENABLE_BLS_OPS: u32 = 0x0010;
@@ -36,7 +33,7 @@ pub const ENABLE_BLS_OPS_OUTSIDE_GUARD: u32 = 0x0020;
 
 // The default mode when running grnerators in mempool-mode (i.e. the stricter
 // mode)
-pub const MEMPOOL_MODE: u32 = NO_UNKNOWN_OPS | LIMIT_HEAP | LIMIT_STACK;
+pub const MEMPOOL_MODE: u32 = NO_UNKNOWN_OPS | LIMIT_HEAP;
 
 fn unknown_operator(
     allocator: &mut Allocator,
@@ -174,14 +171,6 @@ impl Dialect for ChiaDialect {
             }
             // new extensions go here
             _ => OperatorSet::Default,
-        }
-    }
-
-    fn stack_limit(&self) -> usize {
-        if (self.flags & LIMIT_STACK) != 0 {
-            20000000
-        } else {
-            usize::MAX
         }
     }
 

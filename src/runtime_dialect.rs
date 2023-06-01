@@ -71,10 +71,6 @@ impl Dialect for RuntimeDialect {
         OperatorSet::Default
     }
 
-    fn stack_limit(&self) -> usize {
-        usize::MAX
-    }
-
     fn allow_unknown_ops(&self) -> bool {
         (self.flags & NO_UNKNOWN_OPS) == 0
     }

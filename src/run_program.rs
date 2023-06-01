@@ -16,6 +16,10 @@ const GUARD_COST: Cost = 140;
 // mandatory base cost for every operator we execute
 const OP_COST: Cost = 1;
 
+// The max number of elements allowed on the stack. The program fails if this is
+// exceeded
+const STACK_SIZE_LIMIT: usize = 20000000;
+
 #[cfg(feature = "pre-eval")]
 pub type PreEval =
     Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<PostEval>>, EvalErr>>;
@@ -89,7 +93,6 @@ struct RunProgramContext<'a, D> {
     env_stack: Vec<NodePtr>,
     op_stack: Vec<Operation>,
     softfork_stack: Vec<SoftforkGuard>,
-    stack_limit: usize,
     #[cfg(feature = "counters")]
     pub counters: Counters,
 
@@ -154,7 +157,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
     pub fn push(&mut self, node: NodePtr) -> Result<(), EvalErr> {
-        if self.val_stack.len() == self.stack_limit {
+        if self.val_stack.len() == STACK_SIZE_LIMIT {
             return err(node, "value stack limit reached");
         }
         self.val_stack.push(node);
@@ -163,7 +166,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     }
 
     pub fn push_env(&mut self, env: NodePtr) -> Result<(), EvalErr> {
-        if self.env_stack.len() == self.stack_limit {
+        if self.env_stack.len() == STACK_SIZE_LIMIT {
             return err(env, "environment stack limit reached");
         }
         self.env_stack.push(env);
@@ -184,7 +187,6 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             env_stack: Vec::new(),
             op_stack: Vec::new(),
             softfork_stack: Vec::new(),
-            stack_limit: dialect.stack_limit(),
             #[cfg(feature = "counters")]
             counters: Counters::new(),
             pre_eval,
@@ -200,7 +202,6 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             env_stack: Vec::new(),
             op_stack: Vec::new(),
             softfork_stack: Vec::new(),
-            stack_limit: dialect.stack_limit(),
             #[cfg(feature = "counters")]
             counters: Counters::new(),
             #[cfg(feature = "pre-eval")]
