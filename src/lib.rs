@@ -22,8 +22,7 @@ pub use chia_dialect::ChiaDialect;
 pub use run_program::run_program;
 
 pub use chia_dialect::{
-    ENABLE_BLS_OPS, ENABLE_BLS_OPS_OUTSIDE_GUARD, LIMIT_HEAP, LIMIT_STACK, MEMPOOL_MODE,
-    NO_UNKNOWN_OPS,
+    ENABLE_BLS_OPS, ENABLE_BLS_OPS_OUTSIDE_GUARD, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS,
 };
 
 #[cfg(feature = "counters")]

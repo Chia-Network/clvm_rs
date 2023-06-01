@@ -22,6 +22,5 @@ pub trait Dialect {
         max_cost: Cost,
         extensions: OperatorSet,
     ) -> Response;
-    fn stack_limit(&self) -> usize;
     fn allow_unknown_ops(&self) -> bool;
 }
