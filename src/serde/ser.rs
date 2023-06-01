@@ -45,9 +45,8 @@ pub fn node_to_stream<W: io::Write>(node: &Node, f: &mut W) -> io::Result<()> {
     while let Some(v) = values.pop() {
         let n = a.sexp(v);
         match n {
-            SExp::Atom(atom_ptr) => {
-                let atom = a.buf(&atom_ptr);
-                write_atom(f, atom)?;
+            SExp::Atom() => {
+                write_atom(f, a.atom(v))?;
             }
             SExp::Pair(left, right) => {
                 f.write_all(&[CONS_BOX_MARKER])?;

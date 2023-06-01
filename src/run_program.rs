@@ -1,5 +1,5 @@
 use super::traverse_path::traverse_path;
-use crate::allocator::{Allocator, AtomBuf, Checkpoint, NodePtr, SExp};
+use crate::allocator::{Allocator, Checkpoint, NodePtr, SExp};
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;
@@ -221,12 +221,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
     fn eval_op_atom(
         &mut self,
-        op_buf: &AtomBuf,
         operator_node: NodePtr,
         operand_list: NodePtr,
         env: NodePtr,
     ) -> Result<Cost, EvalErr> {
-        let op_atom = self.allocator.buf(op_buf);
+        let op_atom = self.allocator.atom(operator_node);
         // special case check for quote
         if op_atom == self.dialect.quote_kw() {
             self.push(operand_list)?;
@@ -276,8 +275,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         // put a bunch of ops on op_stack
         let (op_node, op_list) = match self.allocator.sexp(program) {
             // the program is just a bitfield path through the env tree
-            SExp::Atom(path) => {
-                let r: Reduction = traverse_path(self.allocator, self.allocator.buf(&path), env)?;
+            SExp::Atom() => {
+                let r: Reduction =
+                    traverse_path(self.allocator, self.allocator.atom(program), env)?;
                 self.push(r.1)?;
                 return Ok(r.0);
             }
@@ -298,7 +298,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 self.account_op_push();
                 Ok(APPLY_COST)
             }
-            SExp::Atom(op_atom) => self.eval_op_atom(&op_atom, op_node, op_list, env),
+            SExp::Atom() => self.eval_op_atom(op_node, op_list, env),
         }
     }
 

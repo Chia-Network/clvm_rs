@@ -179,8 +179,8 @@ pub fn node_eq(a: &Allocator, a0: NodePtr, a1: NodePtr) -> bool {
                 false
             }
         }
-        SExp::Atom(_) => {
-            if let SExp::Atom(_) = a.sexp(a1) {
+        SExp::Atom() => {
+            if let SExp::Atom() = a.sexp(a1) {
                 a.atom(a0) == a.atom(a1)
             } else {
                 false
@@ -363,9 +363,9 @@ fn equal_sexp(allocator: &Allocator, s1: NodePtr, s2: NodePtr) -> bool {
         (SExp::Pair(s1a, s1b), SExp::Pair(s2a, s2b)) => {
             equal_sexp(allocator, s1a, s2a) && equal_sexp(allocator, s1b, s2b)
         }
-        (SExp::Atom(b1), SExp::Atom(b2)) => {
-            let abuf1 = allocator.buf(&b1);
-            let abuf2 = allocator.buf(&b2);
+        (SExp::Atom(), SExp::Atom()) => {
+            let abuf1 = allocator.atom(s1);
+            let abuf2 = allocator.atom(s2);
             abuf1 == abuf2
         }
         _ => false,
