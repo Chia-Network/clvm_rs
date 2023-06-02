@@ -248,7 +248,7 @@ impl Allocator {
 
     pub fn g1(&self, node: NodePtr) -> Result<G1Projective, EvalErr> {
         let blob = match self.sexp(node) {
-            SExp::Atom(buf) => self.buf(&buf),
+            SExp::Atom() => self.atom(node),
             _ => {
                 return err(node, "pair found, expected G1 point");
             }
@@ -267,7 +267,7 @@ impl Allocator {
 
     pub fn g2(&self, node: NodePtr) -> Result<G2Projective, EvalErr> {
         let blob = match self.sexp(node) {
-            SExp::Atom(buf) => self.buf(&buf),
+            SExp::Atom() => self.atom(node),
             _ => {
                 return err(node, "pair found, expected G2 point");
             }
