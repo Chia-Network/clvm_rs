@@ -236,6 +236,9 @@ jobs:
             toolchain: stable
             components: rustfmt, clippy
 
+      - name: build
+        run: cargo build --workspace
+
       - name: cargo test (default)
         run: cargo test && cargo test --release
 
