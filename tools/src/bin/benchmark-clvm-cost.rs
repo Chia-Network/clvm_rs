@@ -1,8 +1,15 @@
-use clvmr::allocator::{Allocator, NodePtr, SExp};
+use clvmr::allocator::{Allocator, NodePtr};
 use clvmr::chia_dialect::{ChiaDialect, ENABLE_BLS_OPS_OUTSIDE_GUARD};
 use clvmr::run_program::run_program;
 use linreg::linear_regression_of;
 use std::time::Instant;
+
+#[derive(Clone, Copy)]
+enum OpArgs {
+    None,
+    SingleArg(NodePtr),
+    TwoArgs(NodePtr, NodePtr),
+}
 
 // builds calls in the form:
 // (<op> arg arg ...)
@@ -11,23 +18,20 @@ use std::time::Instant;
 fn build_call(
     a: &mut Allocator,
     op: u32,
-    arg: NodePtr,
+    arg: OpArgs,
     num: i32,
     extra: Option<NodePtr>,
 ) -> NodePtr {
     let mut args = a.null();
     for _i in 0..num {
-        match a.sexp(arg) {
-            SExp::Pair(first, second) => {
-                if first == a.one() {
-                    args = a.new_pair(arg, args).unwrap();
-                } else {
-                    args = a.new_pair(second, args).unwrap();
-                    args = a.new_pair(first, args).unwrap();
-                }
+        match arg {
+            OpArgs::None => {}
+            OpArgs::SingleArg(a1) => {
+                args = a.new_pair(a1, args).unwrap();
             }
-            _ => {
-                panic!("unexpected");
+            OpArgs::TwoArgs(first, second) => {
+                args = a.new_pair(second, args).unwrap();
+                args = a.new_pair(first, args).unwrap();
             }
         }
     }
@@ -44,21 +48,35 @@ fn build_call(
 fn build_nested_call(
     a: &mut Allocator,
     op: u32,
-    mut arg: NodePtr,
+    mut arg: OpArgs,
     num: i32,
     extra: Option<NodePtr>,
 ) -> NodePtr {
     let op_code = a.new_number(op.into()).unwrap();
     for _i in 0..num {
         let mut args = a.null();
-        args = a.new_pair(arg, args).unwrap();
+        match arg {
+            OpArgs::None => {}
+            OpArgs::SingleArg(a1) => {
+                args = a.new_pair(a1, args).unwrap();
+            }
+            OpArgs::TwoArgs(first, second) => {
+                args = a.new_pair(second, args).unwrap();
+                args = a.new_pair(first, args).unwrap();
+            }
+        }
         if let Some(extra) = extra {
             args = a.new_pair(extra, args).unwrap();
         }
         args = a.new_pair(op_code, args).unwrap();
-        arg = args;
+        arg = OpArgs::SingleArg(args);
     }
-    arg
+    match arg {
+        OpArgs::SingleArg(ret) => ret,
+        _ => {
+            panic!("unexpected");
+        }
+    }
 }
 
 fn quote(a: &mut Allocator, v: NodePtr) -> NodePtr {
@@ -86,7 +104,7 @@ fn time_per_byte(a: &mut Allocator, op: u32, extra: Option<NodePtr>) -> f64 {
         let op_code = a.new_number(op.into()).unwrap();
         let call = a.new_pair(op_code, args).unwrap();
         let start = Instant::now();
-        run_program(a, &dialect, call, a.null(), 11000000000).unwrap();
+        let _ = run_program(a, &dialect, call, a.null(), 11000000000).unwrap();
         let duration = start.elapsed();
         samples.push((i as f64, duration.as_nanos() as f64));
         a.restore_checkpoint(&checkpoint);
@@ -99,7 +117,7 @@ fn time_per_byte(a: &mut Allocator, op: u32, extra: Option<NodePtr>) -> f64 {
 // returns the time per argument
 // measures the run-time of many calls with varying number of arguments, to
 // establish how much time each additional argument contributes
-fn time_per_arg(a: &mut Allocator, op: u32, arg: NodePtr, extra: Option<NodePtr>) -> f64 {
+fn time_per_arg(a: &mut Allocator, op: u32, arg: OpArgs, extra: Option<NodePtr>) -> f64 {
     let checkpoint = a.checkpoint();
     let mut samples = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD);
@@ -108,7 +126,7 @@ fn time_per_arg(a: &mut Allocator, op: u32, arg: NodePtr, extra: Option<NodePtr>
         for i in 0..100 {
             let call = build_call(a, op, arg, i, extra);
             let start = Instant::now();
-            run_program(a, &dialect, call, a.null(), 11000000000).unwrap();
+            let _ = run_program(a, &dialect, call, a.null(), 11000000000);
             let duration = start.elapsed();
             samples.push((i as f64, duration.as_nanos() as f64));
 
@@ -127,7 +145,7 @@ fn base_call_time(
     a: &mut Allocator,
     op: u32,
     per_arg_time: f64,
-    arg: NodePtr,
+    arg: OpArgs,
     extra: Option<NodePtr>,
 ) -> f64 {
     let checkpoint = a.checkpoint();
@@ -139,7 +157,7 @@ fn base_call_time(
             a.restore_checkpoint(&checkpoint);
             let call = build_nested_call(a, op, arg, i, extra);
             let start = Instant::now();
-            run_program(a, &dialect, call, a.null(), 11000000000).unwrap();
+            let _ = run_program(a, &dialect, call, a.null(), 11000000000);
             let duration = start.elapsed();
             let duration = (duration.as_nanos() as f64) - (per_arg_time * i as f64);
             samples.push((i as f64, duration));
@@ -155,7 +173,7 @@ fn base_call_time(
 fn base_call_time_no_nest(
     a: &mut Allocator,
     op: u32,
-    arg: NodePtr,
+    arg: OpArgs,
     per_arg_time: f64,
     extra: Option<NodePtr>,
 ) -> f64 {
@@ -170,7 +188,7 @@ fn base_call_time_no_nest(
             a.restore_checkpoint(&checkpoint);
             let call = build_call(a, op, arg, 1, extra);
             let start = Instant::now();
-            run_program(a, &dialect, call, a.null(), 11000000000).unwrap();
+            let _ = run_program(a, &dialect, call, a.null(), 11000000000);
             let duration = start.elapsed();
             total_time += duration.as_nanos() as u64;
             num_samples += 1;
@@ -192,7 +210,7 @@ enum Mode {
 struct Operator {
     opcode: u32,
     name: &'static str,
-    arg: NodePtr,
+    arg: OpArgs,
     extra: Option<NodePtr>,
     mode: Mode,
 }
@@ -205,90 +223,89 @@ pub fn main() {
 
     let g1 = quote(&mut a, g1);
     let g2 = quote(&mut a, g2);
-    let g1_g2_pair = a.new_pair(g1, g2).unwrap();
 
     let ops: [Operator; 12] = [
         Operator {
             opcode: 29,
             name: "point_add",
-            arg: g1,
+            arg: OpArgs::SingleArg(g1),
             extra: None,
             mode: Mode::Nesting,
         },
         Operator {
             opcode: 49,
             name: "g1_subtract",
-            arg: g1,
+            arg: OpArgs::SingleArg(g1),
             extra: None,
             mode: Mode::Nesting,
         },
         Operator {
             opcode: 50,
             name: "g1_multiply",
-            arg: g1,
+            arg: OpArgs::None,
             extra: Some(g1),
             mode: Mode::FreeBytes,
         },
         Operator {
             opcode: 51,
             name: "g1_negate",
-            arg: g1,
+            arg: OpArgs::SingleArg(g1),
             extra: None,
             mode: Mode::Unary,
         },
         Operator {
             opcode: 52,
             name: "g2_add",
-            arg: g2,
+            arg: OpArgs::SingleArg(g2),
             extra: None,
             mode: Mode::Nesting,
         },
         Operator {
             opcode: 53,
             name: "g2_subtract",
-            arg: g2,
+            arg: OpArgs::SingleArg(g2),
             extra: None,
             mode: Mode::Nesting,
         },
         Operator {
             opcode: 54,
             name: "g2_multiply",
-            arg: g2,
+            arg: OpArgs::None,
             extra: Some(g2),
             mode: Mode::FreeBytes,
         },
         Operator {
             opcode: 55,
             name: "g2_negate",
-            arg: g2,
+            arg: OpArgs::SingleArg(g2),
             extra: None,
             mode: Mode::Unary,
         },
         Operator {
             opcode: 56,
             name: "g1_map",
-            arg: 0,
+            arg: OpArgs::None,
             extra: None,
             mode: Mode::FreeBytes,
         },
         Operator {
             opcode: 57,
             name: "g2_map",
-            arg: 0,
+            arg: OpArgs::None,
             extra: None,
             mode: Mode::FreeBytes,
         },
         Operator {
             opcode: 58,
             name: "bls_pairing_identity",
-            arg: g1_g2_pair,
+            arg: OpArgs::TwoArgs(g1, g2),
             extra: None,
             mode: Mode::MultiArg,
         },
         Operator {
             opcode: 59,
             name: "bls_verify",
-            arg: g1_g2_pair,
+            arg: OpArgs::TwoArgs(g1, g2),
             extra: Some(g2),
             mode: Mode::MultiArg,
         },
@@ -323,8 +340,9 @@ pub fn main() {
                 println!("   cost: base: {:.0}", base_call_time * cost_scale);
             }
             Mode::FreeBytes => {
-                let time_per_byte = time_per_byte(&mut a, op.opcode, Some(op.arg));
-                let base_call_time = base_call_time(&mut a, op.opcode, 0.0, g1, op.extra);
+                let time_per_byte = time_per_byte(&mut a, op.opcode, op.extra);
+                let base_call_time =
+                    base_call_time(&mut a, op.opcode, 0.0, OpArgs::SingleArg(g1), op.extra);
                 println!("   time: base: {base_call_time:.2}ns per-byte: {time_per_byte:.2}ns");
                 println!(
                     "   cost: base: {:.0} per-byte: {:.0}",
