@@ -1,5 +1,5 @@
 use clvmr::allocator::{Allocator, NodePtr};
-use clvmr::chia_dialect::{ChiaDialect, ENABLE_BLS_OPS_OUTSIDE_GUARD};
+use clvmr::chia_dialect::{ChiaDialect, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_SECP_OPS};
 use clvmr::run_program::run_program;
 use linreg::linear_regression_of;
 use std::time::Instant;
@@ -9,6 +9,7 @@ enum OpArgs {
     None,
     SingleArg(NodePtr),
     TwoArgs(NodePtr, NodePtr),
+    ThreeArgs(NodePtr, NodePtr, NodePtr),
 }
 
 // builds calls in the form:
@@ -30,6 +31,11 @@ fn build_call(
                 args = a.new_pair(a1, args).unwrap();
             }
             OpArgs::TwoArgs(first, second) => {
+                args = a.new_pair(second, args).unwrap();
+                args = a.new_pair(first, args).unwrap();
+            }
+            OpArgs::ThreeArgs(first, second, third) => {
+                args = a.new_pair(third, args).unwrap();
                 args = a.new_pair(second, args).unwrap();
                 args = a.new_pair(first, args).unwrap();
             }
@@ -64,6 +70,11 @@ fn build_nested_call(
                 args = a.new_pair(second, args).unwrap();
                 args = a.new_pair(first, args).unwrap();
             }
+            OpArgs::ThreeArgs(first, second, third) => {
+                args = a.new_pair(third, args).unwrap();
+                args = a.new_pair(second, args).unwrap();
+                args = a.new_pair(first, args).unwrap();
+            }
         }
         if let Some(extra) = extra {
             args = a.new_pair(extra, args).unwrap();
@@ -88,7 +99,7 @@ fn quote(a: &mut Allocator, v: NodePtr) -> NodePtr {
 fn time_per_byte(a: &mut Allocator, op: u32, extra: Option<NodePtr>) -> f64 {
     let checkpoint = a.checkpoint();
     let mut samples = Vec::<(f64, f64)>::new();
-    let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD);
+    let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS);
 
     let atom = vec![0; 10000000];
     for i in (0..10000000).step_by(1000) {
@@ -120,7 +131,7 @@ fn time_per_byte(a: &mut Allocator, op: u32, extra: Option<NodePtr>) -> f64 {
 fn time_per_arg(a: &mut Allocator, op: u32, arg: OpArgs, extra: Option<NodePtr>) -> f64 {
     let checkpoint = a.checkpoint();
     let mut samples = Vec::<(f64, f64)>::new();
-    let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD);
+    let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS);
 
     for _k in 0..3 {
         for i in 0..100 {
@@ -150,7 +161,7 @@ fn base_call_time(
 ) -> f64 {
     let checkpoint = a.checkpoint();
     let mut samples = Vec::<(f64, f64)>::new();
-    let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD);
+    let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS);
 
     for _k in 0..3 {
         for i in 1..100 {
@@ -178,7 +189,7 @@ fn base_call_time_no_nest(
     extra: Option<NodePtr>,
 ) -> f64 {
     let checkpoint = a.checkpoint();
-    let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD);
+    let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS);
 
     let mut total_time: u64 = 0;
     let mut num_samples = 0;
@@ -200,11 +211,35 @@ fn base_call_time_no_nest(
     (total_time as f64 - per_arg_time * num_samples as f64) / num_samples as f64
 }
 
+fn base_call_time_arg_list(a: &mut Allocator, op: u32, arg: OpArgs) -> f64 {
+    let checkpoint = a.checkpoint();
+    let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS);
+
+    let mut total_time: u64 = 0;
+    let mut num_samples = 0;
+
+    for _i in 0..300 {
+        a.restore_checkpoint(&checkpoint);
+        let call = build_call(a, op, arg, 1, None);
+
+        let start = Instant::now();
+        let _ = run_program(a, &dialect, call, a.null(), 11000000000);
+        let duration = start.elapsed();
+        total_time += duration.as_nanos() as u64;
+        num_samples += 1;
+
+        a.restore_checkpoint(&checkpoint);
+    }
+
+    total_time as f64 / num_samples as f64
+}
+
 enum Mode {
     Nesting,
     Unary,
     FreeBytes,
     MultiArg,
+    FixedArg, // the arg field is a list of all arguments
 }
 
 struct Operator {
@@ -224,7 +259,38 @@ pub fn main() {
     let g1 = quote(&mut a, g1);
     let g2 = quote(&mut a, g2);
 
-    let ops: [Operator; 12] = [
+    // for secp256k1_verify
+    let k1_pk = a
+        .new_atom(
+            &hex::decode("02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439")
+                .unwrap(),
+        )
+        .unwrap();
+    let k1_pk = quote(&mut a, k1_pk);
+    let k1_msg = a
+        .new_atom(
+            &hex::decode("74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668")
+                .unwrap(),
+        )
+        .unwrap();
+    let k1_msg = quote(&mut a, k1_msg);
+    let k1_sig = a.new_atom(&hex::decode("1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c018").unwrap()).unwrap();
+    let k1_sig = quote(&mut a, k1_sig);
+
+    // for secp256r1_verify
+    let r1_pk = a.new_atom(&hex::decode("0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9").unwrap()).unwrap();
+    let r1_pk = quote(&mut a, r1_pk);
+    let r1_msg = a
+        .new_atom(
+            &hex::decode("9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08")
+                .unwrap(),
+        )
+        .unwrap();
+    let r1_msg = quote(&mut a, r1_msg);
+    let r1_sig = a.new_atom(&hex::decode("e8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffc").unwrap()).unwrap();
+    let r1_sig = quote(&mut a, r1_sig);
+
+    let ops: [Operator; 14] = [
         Operator {
             opcode: 29,
             name: "point_add",
@@ -309,6 +375,20 @@ pub fn main() {
             extra: Some(g2),
             mode: Mode::MultiArg,
         },
+        Operator {
+            opcode: 0x0cf84f00,
+            name: "secp256k1_verify",
+            arg: OpArgs::ThreeArgs(k1_pk, k1_msg, k1_sig),
+            extra: None,
+            mode: Mode::FixedArg,
+        },
+        Operator {
+            opcode: 0x1c3a8f00,
+            name: "secp256r1_verify",
+            arg: OpArgs::ThreeArgs(r1_pk, r1_msg, r1_sig),
+            extra: None,
+            mode: Mode::FixedArg,
+        },
     ];
 
     // this "magic" scaling depends on the computer you run the tests on.
@@ -336,6 +416,11 @@ pub fn main() {
             }
             Mode::Unary => {
                 let base_call_time = base_call_time(&mut a, op.opcode, 0.0, op.arg, op.extra);
+                println!("   time: base: {base_call_time:.2}ns");
+                println!("   cost: base: {:.0}", base_call_time * cost_scale);
+            }
+            Mode::FixedArg => {
+                let base_call_time = base_call_time_arg_list(&mut a, op.opcode, op.arg);
                 println!("   time: base: {base_call_time:.2}ns");
                 println!("   cost: base: {:.0}", base_call_time * cost_scale);
             }
