@@ -104,7 +104,7 @@ fn time_per_byte(a: &mut Allocator, op: u32, extra: Option<NodePtr>) -> f64 {
         let op_code = a.new_number(op.into()).unwrap();
         let call = a.new_pair(op_code, args).unwrap();
         let start = Instant::now();
-        let _ = run_program(a, &dialect, call, a.null(), 11000000000).unwrap();
+        let _ = run_program(a, &dialect, call, a.null(), 11000000000);
         let duration = start.elapsed();
         samples.push((i as f64, duration.as_nanos() as f64));
         a.restore_checkpoint(&checkpoint);
