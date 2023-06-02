@@ -23,6 +23,8 @@ Follow this checklist when adding operators:
 * Include the new operators in the fuzzer `fuzz/fuzz_targets/operators.rs`
 * Include the new operators and their signatures in `tools/src/bin/generate-fuzz-corpus.rs`.
   Make sure to run this and fuzz for some time before landing the PR.
+* extend the benchmark-clvm-cost.rs to include benchmarks for the new operator,
+  to establish its cost.
 * The opcode decoding and dispatching happens in `src/ChiaDialect.rs`
 * Add a new flag (in `src/chia_dialect.rs`) that controls whether the
   operators are activated or not. This is required in order for the chain to exist
