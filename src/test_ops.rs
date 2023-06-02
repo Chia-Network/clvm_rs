@@ -232,6 +232,7 @@ use rstest::rstest;
 #[case("test-blspy-verify")]
 #[case("test-secp-verify")]
 #[case("test-secp256k1")]
+#[case("test-secp256r1")]
 fn test_ops(#[case] filename: &str) {
     use std::fs::read_to_string;
 
