@@ -20,13 +20,15 @@ enum Type {
     Cost,
     G1Point,
     G2Point,
+    Sec1,
+    Sig,
     Bytes20,
     Bytes32,
     Bytes96,
     AnyAtom,
 }
 
-const ATOMS: [Type; 10] = [
+const ATOMS: [Type; 12] = [
     Type::Bool,
     Type::Int64,
     Type::Int32,
@@ -34,18 +36,20 @@ const ATOMS: [Type; 10] = [
     Type::Cost,
     Type::G1Point,
     Type::G2Point,
+    Type::Sec1,
+    Type::Sig,
     Type::Bytes20,
     Type::Bytes32,
     Type::Bytes96,
 ];
 
 struct OperatorInfo {
-    opcode: u8,
+    opcode: u32,
     result: Type,
     operands: &'static [Type],
 }
 
-const fn op(opcode: u8, operands: &'static [Type], result: Type) -> OperatorInfo {
+const fn op(opcode: u32, operands: &'static [Type], result: Type) -> OperatorInfo {
     OperatorInfo {
         opcode,
         result,
@@ -53,7 +57,7 @@ const fn op(opcode: u8, operands: &'static [Type], result: Type) -> OperatorInfo
     }
 }
 
-const OPERATORS: [OperatorInfo; 76] = [
+const OPERATORS: [OperatorInfo; 79] = [
     // apply
     op(2, &[Type::Program, Type::Tree], Type::AnyAtom),
     // if
@@ -94,6 +98,11 @@ const OPERATORS: [OperatorInfo; 76] = [
     // concat
     op(14, &[Type::AnyAtom, Type::AnyAtom], Type::AnyAtom),
     op(14, &[Type::Int64, Type::Int64, Type::Int32], Type::Bytes20),
+    op(
+        14,
+        &[Type::Bytes32, Type::Bytes32, Type::Bytes32],
+        Type::Bytes96,
+    ),
     op(
         14,
         &[Type::AnyAtom, Type::AnyAtom, Type::AnyAtom],
@@ -260,6 +269,18 @@ const OPERATORS: [OperatorInfo; 76] = [
         ],
         Type::Zero,
     ),
+    // op_secp256k1_verify
+    op(
+        0x0cf84f00,
+        &[Type::Sec1, Type::Bytes32, Type::Sig],
+        Type::Zero,
+    ),
+    // op_secp256r1_verify
+    op(
+        0x1c3a8f00,
+        &[Type::Sec1, Type::Bytes32, Type::Sig],
+        Type::Zero,
+    ),
 ];
 
 const ZEROS: [u8; 96] = [0; 96];
@@ -306,6 +327,16 @@ const BYTES32: [[u8; 32]; 2] = [
     hex!("74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668"),
 ];
 
+const SEC1: [&[u8]; 2] = [
+    &hex!("02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439"),
+    &hex!("0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9"),
+];
+
+const SIG: [[u8;64]; 2] = [
+    hex!("1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c018"),
+    hex!("e8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffc"),
+];
+
 fn type_convertible(from: Type, to: Type) -> bool {
     from == to
         || to == Type::AnyAtom && ATOMS.contains(&from)
@@ -332,7 +363,7 @@ fn write_int(buf: &mut Vec<u8>, val: u64) {
 
 fn generate_program<R: Rng>(op: &OperatorInfo, rng: &mut R, buffer: &mut Vec<u8>) {
     buffer.push(0xff); // cons
-    buffer.push(op.opcode);
+    write_int(buffer, op.opcode as u64);
     for arg in op.operands {
         buffer.push(0xff); // cons
 
@@ -436,7 +467,20 @@ fn generate<R: Rng>(t: Type, rng: &mut R, buffer: &mut Vec<u8>) {
         }
         Type::Bytes32 => {
             #[allow(clippy::borrow_deref_ref)]
+            #[allow(clippy::needless_borrow)]
             write_atom(buffer, &*sample(rng, &BYTES32)).expect("write_atom failed");
+        }
+        Type::Sec1 => {
+            #[allow(clippy::borrow_deref_ref)]
+            #[allow(clippy::needless_borrow)]
+            #[allow(clippy::explicit_auto_deref)]
+            write_atom(buffer, &*sample(rng, &SEC1)).expect("write_atom failed");
+        }
+        Type::Sig => {
+            #[allow(clippy::borrow_deref_ref)]
+            #[allow(clippy::needless_borrow)]
+            #[allow(clippy::explicit_auto_deref)]
+            write_atom(buffer, &*sample(rng, &SIG)).expect("write_atom failed");
         }
         Type::Bytes96 => {
             write_atom(buffer, &ZEROS[..96]).expect("write_atom failed");
