@@ -3,8 +3,7 @@ use crate::allocator::{Allocator, Checkpoint, NodePtr, SExp};
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;
-use crate::node::Node;
-use crate::op_utils::uint_atom;
+use crate::op_utils::{atom, first, get_args, uint_atom};
 use crate::reduction::{EvalErr, Reduction, Response};
 
 // lowered from 46
@@ -291,8 +290,8 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
         match self.allocator.sexp(op_node) {
             SExp::Pair(new_operator, _) => {
-                let op_node = Node::new(self.allocator, op_node);
-                if !op_node.arg_count_is(1) || op_node.first()?.atom().is_none() {
+                let [inner] = get_args::<1>(self.allocator, op_node, "((X)...) syntax")?;
+                if let SExp::Pair(_, _) = self.allocator.sexp(inner) {
                     return err(program, "in ((X)...) syntax X must be lone atom");
                 }
                 self.push_env(env)?;
@@ -324,65 +323,46 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
     fn parse_softfork_arguments(
         &self,
-        args: &Node,
+        args: NodePtr,
     ) -> Result<(OperatorSet, NodePtr, NodePtr), EvalErr> {
-        if !args.arg_count_is(4) {
-            return Err(EvalErr(
-                args.node,
-                "softfork takes exactly 4 arguments".to_string(),
-            ));
-        }
-        let args = args.rest()?;
+        let [_cost, extension, program, env] = get_args::<4>(self.allocator, args, "softfork")?;
 
-        let extension = self.dialect.softfork_extension(uint_atom::<4>(
-            self.allocator,
-            args.first()?.node,
-            "softfork",
-        )? as u32);
+        let extension =
+            self.dialect
+                .softfork_extension(uint_atom::<4>(self.allocator, extension, "softfork")? as u32);
         if extension == OperatorSet::Default {
-            return Err(EvalErr(args.node, "unknown softfork extension".to_string()));
+            err(args, "unknown softfork extension")
+        } else {
+            Ok((extension, program, env))
         }
-        let args = args.rest()?;
-        let program = args.first()?.node;
-        let args = args.rest()?;
-        let env = args.first()?.node;
-
-        Ok((extension, program, env))
     }
 
     fn apply_op(&mut self, current_cost: Cost, max_cost: Cost) -> Result<Cost, EvalErr> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
-        let operand_list = Node::new(self.allocator, operand_list);
-        let operator = Node::new(self.allocator, operator);
-        let op_atom = operator
-            .atom()
-            .ok_or_else(|| EvalErr(operator.node, "internal error".into()))?;
-        self.env_stack
-            .pop()
-            .ok_or_else(|| EvalErr(operator.node, "runtime error: env stack empty".into()))?;
+        let op_atom = atom(self.allocator, operator, "(internal error) apply")?;
+        if self.env_stack.pop().is_none() {
+            return err(operator, "runtime error: env stack empty");
+        }
         if op_atom == self.dialect.apply_kw() {
-            if !operand_list.arg_count_is(2) {
-                return err(operand_list.node, "apply requires exactly 2 parameters");
-            }
-
-            let new_operator = operand_list.first()?.node;
-            let env = operand_list.rest()?.first()?.node;
-
+            let [new_operator, env] = get_args::<2>(self.allocator, operand_list, "apply")?;
             self.eval_pair(new_operator, env).map(|c| c + APPLY_COST)
         } else if op_atom == self.dialect.softfork_kw() {
-            let expected_cost =
-                uint_atom::<8>(self.allocator, operand_list.first()?.node, "softfork")?;
+            let expected_cost = uint_atom::<8>(
+                self.allocator,
+                first(self.allocator, operand_list)?,
+                "softfork",
+            )?;
             if expected_cost > max_cost {
-                return err(self.allocator.null(), "cost exceeded");
+                return err(operand_list, "cost exceeded");
             }
             if expected_cost == 0 {
-                return err(self.allocator.null(), "cost must be > 0");
+                return err(operand_list, "cost must be > 0");
             }
 
             // we can't blindly propagate errors here, since we handle errors
             // differently depending on whether we allow unknown ops or not
-            let (ext, prg, env) = match self.parse_softfork_arguments(&operand_list) {
+            let (ext, prg, env) = match self.parse_softfork_arguments(operand_list) {
                 Ok(ret_values) => ret_values,
                 Err(err) => {
                     if self.dialect.allow_unknown_ops() {
@@ -419,8 +399,8 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
             let r = self.dialect.op(
                 self.allocator,
-                operator.node,
-                operand_list.node,
+                operator,
+                operand_list,
                 max_cost,
                 current_extensions,
             )?;
@@ -723,7 +703,7 @@ const TEST_CASES: &[RunProgramTest] = &[
         flags: 0,
         result: None,
         cost: 0,
-        err: "apply requires exactly 2 parameters",
+        err: "apply takes exactly 2 arguments",
     },
     RunProgramTest {
         prg: "(a (q 0x00ffffffffffffffffffff00) (q ()))",
@@ -739,7 +719,7 @@ const TEST_CASES: &[RunProgramTest] = &[
         flags: 0,
         result: None,
         cost: 0,
-        err: "apply requires exactly 2 parameters",
+        err: "apply takes exactly 2 arguments",
     },
     RunProgramTest {
         prg: "(a (q . 1) (q . (100 200)))",
@@ -763,7 +743,7 @@ const TEST_CASES: &[RunProgramTest] = &[
         flags: 0,
         result: None,
         cost: 0,
-        err: "in ((X)...) syntax X must be lone atom",
+        err: "((X)...) syntax takes exactly 1 argument",
     },
     RunProgramTest {
         prg: "((#c) (q . 3) (q . 4))",
