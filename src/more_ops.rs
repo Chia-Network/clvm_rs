@@ -425,15 +425,9 @@ pub fn op_div(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
         if a0.sign() == Sign::Minus || a1.sign() == Sign::Minus {
             return args.err("div operator with negative operands is deprecated");
         }
-        let (mut q, r) = a0.div_mod_floor(&a1);
-
-        // this is to preserve a buggy behavior from the initial implementation
-        // of this operator.
-        if q == (-1).into() && r != 0.into() {
-            q += 1;
-        }
-        let q1 = a.new_number(q)?;
-        Ok(malloc_cost(a, cost, q1))
+        let q = a0.div_floor(&a1);
+        let q = a.new_number(q)?;
+        Ok(malloc_cost(a, cost, q))
     }
 }
 
@@ -448,7 +442,7 @@ pub fn op_divmod(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
         let q1 = a.new_number(q)?;
         let r1 = a.new_number(r)?;
 
-        let c = (a.atom(q1).len() + a.atom(r1).len()) as Cost * MALLOC_COST_PER_BYTE;
+        let c = (a.atom_len(q1) + a.atom_len(r1)) as Cost * MALLOC_COST_PER_BYTE;
         let r: NodePtr = a.new_pair(q1, r1)?;
         Ok(Reduction(cost + c, r))
     }
