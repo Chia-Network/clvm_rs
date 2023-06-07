@@ -297,6 +297,18 @@ impl Allocator {
         }
     }
 
+    // this is meant to be used when iterating lists:
+    // while let Some((i, rest)) = a.next(node) {
+    //     node = rest;
+    //     ...
+    // }
+    pub fn next(&self, n: NodePtr) -> Option<(NodePtr, NodePtr)> {
+        match self.sexp(n) {
+            SExp::Pair(first, rest) => Some((first, rest)),
+            SExp::Atom() => None,
+        }
+    }
+
     pub fn null(&self) -> NodePtr {
         -1
     }
@@ -944,4 +956,60 @@ fn test_roundtrip(#[case] test_value: &str, #[case] make: MakeFun, #[case] check
     let mut a = Allocator::new();
     let node = make(&mut a, &value);
     check(&mut a, node, &value);
+}
+
+#[cfg(test)]
+#[rstest]
+#[case(&[], 0)]
+#[case(&[1], 1)]
+#[case(&[1,2], 2)]
+#[case(&[1,2,3,4,5,6,7,8,9], 9)]
+#[case(&[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18], 18)]
+fn test_atom_len(#[case] buf: &[u8], #[case] expected: usize) {
+    let mut a = Allocator::new();
+    let atom = a.new_atom(buf).unwrap();
+    assert_eq!(a.atom_len(atom), expected);
+}
+
+#[cfg(test)]
+#[rstest]
+#[case(0.into(), 0)]
+#[case(42.into(), 1)]
+#[case(127.into(), 1)]
+#[case(1337.into(), 2)]
+#[case(0x7fffff.into(), 3)]
+#[case(0xffffff.into(), 4)]
+#[case((-1).into(), 1)]
+#[case((-128).into(), 1)]
+fn test_atom_len_number(#[case] value: Number, #[case] expected: usize) {
+    let mut a = Allocator::new();
+    let atom = a.new_number(value).unwrap();
+    assert_eq!(a.atom_len(atom), expected);
+}
+
+#[cfg(test)]
+#[rstest]
+#[case("97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb", 48)]
+#[case("a572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e", 48)]
+fn test_atom_len_g1(#[case] buffer_hex: &str, #[case] expected: usize) {
+    let mut a = Allocator::new();
+    let buffer = &hex::decode(buffer_hex).unwrap();
+    let g1 =
+        G1Projective::from(G1Affine::from_compressed(&buffer[..].try_into().unwrap()).unwrap());
+    let atom = a.new_g1(g1).unwrap();
+    assert_eq!(a.atom_len(atom), expected);
+}
+
+#[cfg(test)]
+#[rstest]
+#[case("93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8", 96)]
+#[case("aa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053", 96)]
+fn test_atom_len_g2(#[case] buffer_hex: &str, #[case] expected: usize) {
+    let mut a = Allocator::new();
+
+    let buffer = &hex::decode(buffer_hex).unwrap();
+    let g2 =
+        G2Projective::from(G2Affine::from_compressed(&buffer[..].try_into().unwrap()).unwrap());
+    let atom = a.new_g2(g2).unwrap();
+    assert_eq!(a.atom_len(atom), expected);
 }

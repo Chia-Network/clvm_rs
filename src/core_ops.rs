@@ -1,8 +1,7 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::Cost;
 use crate::err_utils::err;
-use crate::node::Node;
-use crate::op_utils::check_arg_count;
+use crate::op_utils::{first, get_args, nullp, rest};
 use crate::reduction::{EvalErr, Reduction, Response};
 
 const FIRST_COST: Cost = 30;
@@ -17,69 +16,54 @@ const EQ_BASE_COST: Cost = 117;
 const EQ_COST_PER_BYTE: Cost = 1;
 
 pub fn op_if(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
-    let args = Node::new(a, input);
-    check_arg_count(&args, 3, "i")?;
-    let cond = args.first()?;
-    let mut chosen_node = args.rest()?;
-    if cond.nullp() {
-        chosen_node = chosen_node.rest()?;
-    }
-    Ok(Reduction(IF_COST, chosen_node.first()?.node))
+    let [cond, affirmative, negative] = get_args::<3>(a, input, "i")?;
+    let chosen_node = if nullp(a, cond) {
+        negative
+    } else {
+        affirmative
+    };
+    Ok(Reduction(IF_COST, chosen_node))
 }
 
 pub fn op_cons(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
-    let args = Node::new(a, input);
-    check_arg_count(&args, 2, "c")?;
-    let a1 = args.first()?;
-    let a2 = args.rest()?.first()?;
-    let n1 = a1.node;
-    let n2 = a2.node;
+    let [n1, n2] = get_args::<2>(a, input, "c")?;
     let r = a.new_pair(n1, n2)?;
     Ok(Reduction(CONS_COST, r))
 }
 
 pub fn op_first(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
-    let args = Node::new(a, input);
-    check_arg_count(&args, 1, "f")?;
-    Ok(Reduction(FIRST_COST, args.first()?.first()?.node))
+    let [n] = get_args::<1>(a, input, "f")?;
+    Ok(Reduction(FIRST_COST, first(a, n)?))
 }
 
 pub fn op_rest(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
-    let args = Node::new(a, input);
-    check_arg_count(&args, 1, "r")?;
-    Ok(Reduction(REST_COST, args.first()?.rest()?.node))
+    let [n] = get_args::<1>(a, input, "r")?;
+    Ok(Reduction(REST_COST, rest(a, n)?))
 }
 
 pub fn op_listp(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
-    let args = Node::new(a, input);
-    check_arg_count(&args, 1, "l")?;
-    match args.first()?.pair() {
-        Some((_first, _rest)) => Ok(Reduction(LISTP_COST, a.one())),
+    let [n] = get_args::<1>(a, input, "l")?;
+    match a.sexp(n) {
+        SExp::Pair(_, _) => Ok(Reduction(LISTP_COST, a.one())),
         _ => Ok(Reduction(LISTP_COST, a.null())),
     }
 }
 
 pub fn op_raise(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
-    let args = Node::new(a, input);
     // if given a single argument we should raise the single argument rather
     // than the full list of arguments. brun also used to behave this way.
     // if the single argument here is a pair then don't throw it unwrapped
     // as it'd potentially look the same as a throw of multiple arguments.
-    let throw_value = args
-        .pair()
-        .as_ref()
-        .and_then(|(_first, _rest)| {
-            _first.atom().and_then(|_| {
-                if _rest.nullp() {
-                    Some(args.first().unwrap())
-                } else {
-                    None
-                }
-            })
-        })
-        .unwrap_or(args);
+    let throw_value = if let Ok([value]) = get_args::<1>(a, input, "") {
+        match a.sexp(value) {
+            SExp::Atom() => value,
+            _ => input,
+        }
+    } else {
+        input
+    };
 
-    err(throw_value.node, "clvm raise")
+    err(throw_value, "clvm raise")
 }
 
 fn ensure_atom(a: &Allocator, n: NodePtr, op: &str) -> Result<(), EvalErr> {
@@ -91,10 +75,7 @@ fn ensure_atom(a: &Allocator, n: NodePtr, op: &str) -> Result<(), EvalErr> {
 }
 
 pub fn op_eq(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
-    let args = Node::new(a, input);
-    check_arg_count(&args, 2, "=")?;
-    let s0 = args.first()?.node;
-    let s1 = args.rest()?.first()?.node;
+    let [s0, s1] = get_args::<2>(a, input, "=")?;
     ensure_atom(a, s0, "=")?;
     ensure_atom(a, s1, "=")?;
     let eq = a.atom_eq(s0, s1);
