@@ -23,8 +23,8 @@ pub use chia_dialect::ChiaDialect;
 pub use run_program::run_program;
 
 pub use chia_dialect::{
-    ENABLE_BLS_OPS, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_SECP_OPS, LIMIT_HEAP, MEMPOOL_MODE,
-    NO_UNKNOWN_OPS,
+    ENABLE_BLS_OPS, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_FIXED_DIV, ENABLE_SECP_OPS, LIMIT_HEAP,
+    MEMPOOL_MODE, NO_UNKNOWN_OPS,
 };
 
 #[cfg(feature = "counters")]
