@@ -786,23 +786,10 @@ pub fn op_point_add(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respon
     let mut cost = POINT_ADD_BASE_COST;
     let mut total: G1Projective = G1Projective::identity();
     for arg in &args {
-        let blob = atom(arg, "point_add")?;
-        let mut is_ok: bool = blob.len() == 48;
-        if is_ok {
-            let v = G1Affine::from_compressed(&blob.try_into().unwrap());
-            is_ok = v.is_some().into();
-            if is_ok {
-                let point = v.unwrap();
-                cost += POINT_ADD_COST_PER_ARG;
-                check_cost(a, cost, max_cost)?;
-                total += &point;
-            }
-        }
-        if !is_ok {
-            let blob: String = hex::encode(blob);
-            let msg = format!("point_add expects blob, got {blob}: Length of bytes object not equal to G1Element::SIZE");
-            return args.err(&msg);
-        }
+        let point = a.g1(arg.node)?;
+        cost += POINT_ADD_COST_PER_ARG;
+        check_cost(a, cost, max_cost)?;
+        total += &point;
     }
     Ok(Reduction(
         cost + 48 * MALLOC_COST_PER_BYTE,
