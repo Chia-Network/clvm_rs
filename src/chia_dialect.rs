@@ -9,9 +9,9 @@ use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;
 use crate::more_ops::{
-    op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
-    op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add,
-    op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract, op_unknown,
+    op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_div_fixed, op_divmod, op_gr,
+    op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not,
+    op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract, op_unknown,
 };
 use crate::reduction::Response;
 use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
@@ -34,6 +34,10 @@ pub const ENABLE_BLS_OPS_OUTSIDE_GUARD: u32 = 0x0020;
 
 // enables the secp operators. This is a soft-fork
 pub const ENABLE_SECP_OPS: u32 = 0x0040;
+
+// enabling this is a hard fork. This will allow negative numbers in the
+// division operator
+pub const ENABLE_FIXED_DIV: u32 = 0x0080;
 
 // The default mode when running grnerators in mempool-mode (i.e. the stricter
 // mode)
@@ -124,7 +128,13 @@ impl Dialect for ChiaDialect {
             16 => op_add,
             17 => op_subtract,
             18 => op_multiply,
-            19 => op_div,
+            19 => {
+                if (self.flags & ENABLE_FIXED_DIV) != 0 {
+                    op_div_fixed
+                } else {
+                    op_div
+                }
+            }
             20 => op_divmod,
             21 => op_gr,
             22 => op_ash,

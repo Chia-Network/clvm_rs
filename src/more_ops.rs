@@ -431,6 +431,19 @@ pub fn op_div(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     }
 }
 
+pub fn op_div_fixed(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+    let args = Node::new(a, input);
+    let (a0, l0, a1, l1) = two_ints(&args, "/")?;
+    let cost = DIV_BASE_COST + ((l0 + l1) as Cost) * DIV_COST_PER_BYTE;
+    if a1.sign() == Sign::NoSign {
+        args.first()?.err("div with 0")
+    } else {
+        let q = a0.div_floor(&a1);
+        let q = a.new_number(q)?;
+        Ok(malloc_cost(a, cost, q))
+    }
+}
+
 pub fn op_divmod(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     let (a0, l0, a1, l1) = two_ints(&args, "divmod")?;

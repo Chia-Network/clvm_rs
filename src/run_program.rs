@@ -568,16 +568,52 @@ struct RunProgramTest {
 use crate::test_ops::parse_exp;
 
 #[cfg(test)]
-use crate::chia_dialect::ENABLE_BLS_OPS;
-#[cfg(test)]
-use crate::chia_dialect::ENABLE_BLS_OPS_OUTSIDE_GUARD;
-#[cfg(test)]
-use crate::chia_dialect::ENABLE_SECP_OPS;
-#[cfg(test)]
-use crate::chia_dialect::NO_UNKNOWN_OPS;
+use crate::chia_dialect::{
+    ENABLE_BLS_OPS, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_FIXED_DIV, ENABLE_SECP_OPS, NO_UNKNOWN_OPS,
+};
 
 #[cfg(test)]
 const TEST_CASES: &[RunProgramTest] = &[
+    RunProgramTest {
+        prg: "(/ (q . 10) (q . -3))",
+        args: "()",
+        flags: 0,
+        result: None,
+        cost: 0,
+        err: "div operator with negative operands is deprecated",
+    },
+    RunProgramTest {
+        prg: "(/ (q . -10) (q . 3))",
+        args: "()",
+        flags: 0,
+        result: None,
+        cost: 0,
+        err: "div operator with negative operands is deprecated",
+    },
+    RunProgramTest {
+        prg: "(/ (q . 10) (q . -3))",
+        args: "()",
+        flags: ENABLE_FIXED_DIV,
+        result: Some("-4"),
+        cost: 1047,
+        err: "",
+    },
+    RunProgramTest {
+        prg: "(/ (q . -10) (q . 3))",
+        args: "()",
+        flags: ENABLE_FIXED_DIV,
+        result: Some("-4"),
+        cost: 1047,
+        err: "",
+    },
+    RunProgramTest {
+        prg: "(/ (q . -1) (q . 2))",
+        args: "()",
+        flags: ENABLE_FIXED_DIV,
+        result: Some("-1"),
+        cost: 1047,
+        err: "",
+    },
     // (mod (X N) (defun power (X N) (if (= N 0) 1 (* X (power X (- N 1))))) (power X N))
     RunProgramTest {
         prg: "(a (q 2 2 (c 2 (c 5 (c 11 ())))) (c (q 2 (i (= 11 ()) (q 1 . 1) (q 18 5 (a 2 (c 2 (c 5 (c (- 11 (q . 1)) ())))))) 1) 1))",
