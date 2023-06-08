@@ -6,8 +6,7 @@ use std::io::Cursor;
 use super::object_cache::{serialized_length, treehash, ObjectCache};
 use super::read_cache_lookup::ReadCacheLookup;
 use super::write_atom::write_atom;
-use crate::allocator::{NodePtr, SExp};
-use crate::node::Node;
+use crate::allocator::{Allocator, NodePtr, SExp};
 
 const BACK_REFERENCE: u8 = 0xfe;
 const CONS_BOX_MARKER: u8 = 0xff;
@@ -25,10 +24,13 @@ enum ReadOp {
 // print(bytes(a).hex())
 // print(a.get_tree_hash().hex())
 
-pub fn node_to_stream_backrefs<W: io::Write>(node: &Node, f: &mut W) -> io::Result<()> {
-    let allocator = node.allocator;
+pub fn node_to_stream_backrefs<W: io::Write>(
+    allocator: &Allocator,
+    node: NodePtr,
+    f: &mut W,
+) -> io::Result<()> {
     let mut read_op_stack: Vec<ReadOp> = vec![ReadOp::Parse];
-    let mut write_stack: Vec<NodePtr> = vec![node.node];
+    let mut write_stack: Vec<NodePtr> = vec![node];
 
     let mut read_cache_lookup = ReadCacheLookup::new();
 
@@ -75,10 +77,10 @@ pub fn node_to_stream_backrefs<W: io::Write>(node: &Node, f: &mut W) -> io::Resu
     Ok(())
 }
 
-pub fn node_to_bytes_backrefs(node: &Node) -> io::Result<Vec<u8>> {
+pub fn node_to_bytes_backrefs(a: &Allocator, node: NodePtr) -> io::Result<Vec<u8>> {
     let mut buffer = Cursor::new(Vec::new());
 
-    node_to_stream_backrefs(node, &mut buffer)?;
+    node_to_stream_backrefs(a, node, &mut buffer)?;
     let vec = buffer.into_inner();
     Ok(vec)
 }
