@@ -103,6 +103,12 @@ pub fn op_bls_g1_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
     if blob.len() != 48 {
         return err(args.first()?.node, "atom is not G1 size, 48 bytes");
     }
+    if G1Affine::from_compressed(blob.try_into().expect("G1 slice is not 48 bytes"))
+        .is_none()
+        .into()
+    {
+        return err(args.first()?.node, "atom is not a valid G1 point");
+    }
     if (blob[0] & 0xe0) == 0xc0 {
         // This is compressed infinity. negating it is a no-op
         // we can just pass through the same atom as we received. We'll charge
@@ -188,6 +194,13 @@ pub fn op_bls_g2_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
     let blob = atom(args.first()?, "G2 atom")?;
     if blob.len() != 96 {
         return err(args.first()?.node, "atom is not G2 size, 96 bytes");
+    }
+
+    if G2Affine::from_compressed(blob.try_into().expect("G2 slice is not 96 bytes"))
+        .is_none()
+        .into()
+    {
+        return err(args.first()?.node, "atom is not a valid G2 point");
     }
     if (blob[0] & 0xe0) == 0xc0 {
         // This is compressed infinity. negating it is a no-op
