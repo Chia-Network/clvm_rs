@@ -83,8 +83,11 @@ struct SoftforkGuard {
     start_cost: Cost,
 }
 
-// `run_program` has two stacks: the operand stack (of `Node` objects) and the
-// operator stack (of Operation)
+// `run_program` has three stacks:
+// 1. the operand stack of `NodePtr` objects. val_stack
+// 2. the operator stack of Operation. op_stack
+// 3. the environment stack (points to the environment for the current
+//    operation). env_stack
 
 struct RunProgramContext<'a, D> {
     allocator: &'a mut Allocator,
