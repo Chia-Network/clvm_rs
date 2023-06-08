@@ -9,10 +9,12 @@ i 1 1 => FAIL
 i 1 1 1 1 => FAIL
 i 1 "true" "false" => "true" | 33
 i 0 "true" "false" => "false" | 33
-i 0 "true" "false" => "false" | 33
 i "" "true" "false" => "false" | 33
 i 10 "true" "false" => "true" | 33
 i -1 "true" "false" => "true" | 33
+i (1 2) "true" "false" => "true" | 33
+i (1) "true" "false" => "true" | 33
+i () "true" "false" => "false" | 33
 
 ; tests ported from clvm
 i 100 200 300 => 200 | 33
