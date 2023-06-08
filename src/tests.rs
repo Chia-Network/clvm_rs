@@ -3,25 +3,19 @@ use super::node::Node;
 use super::serde::node_from_bytes;
 use super::serde::node_to_bytes;
 
-impl<'a> PartialEq for Node<'a> {
-    fn eq(&self, other: &Self) -> bool {
-        match (self.sexp(), other.sexp()) {
-            (SExp::Pair(l0, l1), SExp::Pair(r0, r1)) => {
-                self.with_node(l0) == self.with_node(r0) && self.with_node(l1) == self.with_node(r1)
-            }
-            (SExp::Atom(), SExp::Atom()) => {
-                self.allocator.atom(self.node) == self.allocator.atom(other.node)
-            }
-            _ => false,
-        }
+#[cfg(test)]
+fn node_eq(a: &Allocator, lhs: NodePtr, rhs: NodePtr) -> bool {
+    match (a.sexp(lhs), a.sexp(rhs)) {
+        (SExp::Pair(l0, l1), SExp::Pair(r0, r1)) => node_eq(a, l0, r0) && node_eq(a, l1, r1),
+        (SExp::Atom(), SExp::Atom()) => a.atom(lhs) == a.atom(rhs),
+        _ => false,
     }
 }
 
 fn test_serialize_roundtrip(a: &mut Allocator, n: NodePtr) {
     let vec = node_to_bytes(&Node::new(a, n)).unwrap();
     let n0 = node_from_bytes(a, &vec).unwrap();
-    let n1 = Node::new(a, n0);
-    assert_eq!(Node::new(a, n), n1);
+    assert!(node_eq(a, n, n0));
 }
 
 #[test]
