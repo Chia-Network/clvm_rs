@@ -18,16 +18,14 @@ fn check_round_trip(obj_ser_br_hex: &str) {
     let mut allocator = Allocator::new();
     let obj = node_from_bytes_backrefs(&mut allocator, &obj_ser_br).unwrap();
 
-    let node = Node::new(&allocator, obj);
-    let obj_ser_no_br_1 = node_to_bytes(&node).unwrap();
+    let obj_ser_no_br_1 = node_to_bytes(&allocator, obj).unwrap();
 
     // deserialize using `node_from_bytes_backrefs` (even though there are no backrefs)
     // and reserialized without back-refs
     let mut allocator = Allocator::new();
     let obj = node_from_bytes_backrefs(&mut allocator, &obj_ser_no_br_1).unwrap();
 
-    let node = Node::new(&allocator, obj);
-    let obj_ser_no_br_2 = node_to_bytes(&node).unwrap();
+    let obj_ser_no_br_2 = node_to_bytes(&allocator, obj).unwrap();
 
     // compare both reserializations (without back-refs)
     assert_eq!(obj_ser_no_br_1, obj_ser_no_br_2);

@@ -7,7 +7,6 @@ use clvmr::allocator::Allocator;
 use clvmr::chia_dialect::ChiaDialect;
 use clvmr::chia_dialect::NO_UNKNOWN_OPS as _no_unknown_ops;
 use clvmr::cost::Cost;
-use clvmr::node::Node;
 use clvmr::run_program::run_program;
 use clvmr::serde::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
 
@@ -52,7 +51,7 @@ pub fn run_clvm(program: &[u8], args: &[u8]) -> Vec<u8> {
         max_cost,
     );
     match r {
-        Ok(reduction) => node_to_bytes(&Node::new(&allocator, reduction.1)).unwrap(),
+        Ok(reduction) => node_to_bytes(&allocator, reduction.1).unwrap(),
         Err(_eval_err) => format!("{:?}", _eval_err).into(),
     }
 }

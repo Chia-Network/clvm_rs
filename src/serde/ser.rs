@@ -4,8 +4,7 @@ use std::io::ErrorKind;
 use std::io::Write;
 
 use super::write_atom::write_atom;
-use crate::allocator::{NodePtr, SExp};
-use crate::node::Node;
+use crate::allocator::{Allocator, NodePtr, SExp};
 
 const CONS_BOX_MARKER: u8 = 0xff;
 
@@ -39,9 +38,8 @@ impl<W: io::Write> Write for LimitedWriter<W> {
 }
 
 /// serialize a node
-pub fn node_to_stream<W: io::Write>(node: &Node, f: &mut W) -> io::Result<()> {
-    let mut values: Vec<NodePtr> = vec![node.node];
-    let a = node.allocator;
+pub fn node_to_stream<W: io::Write>(a: &Allocator, node: NodePtr, f: &mut W) -> io::Result<()> {
+    let mut values: Vec<NodePtr> = vec![node];
     while let Some(v) = values.pop() {
         let n = a.sexp(v);
         match n {
@@ -58,20 +56,17 @@ pub fn node_to_stream<W: io::Write>(node: &Node, f: &mut W) -> io::Result<()> {
     Ok(())
 }
 
-pub fn node_to_bytes_limit(node: &Node, limit: usize) -> io::Result<Vec<u8>> {
+pub fn node_to_bytes_limit(a: &Allocator, node: NodePtr, limit: usize) -> io::Result<Vec<u8>> {
     let buffer = Cursor::new(Vec::new());
     let mut writer = LimitedWriter::new(buffer, limit);
-    node_to_stream(node, &mut writer)?;
+    node_to_stream(a, node, &mut writer)?;
     let vec = writer.into_inner().into_inner();
     Ok(vec)
 }
 
-pub fn node_to_bytes(node: &Node) -> io::Result<Vec<u8>> {
-    node_to_bytes_limit(node, 2000000)
+pub fn node_to_bytes(a: &Allocator, node: NodePtr) -> io::Result<Vec<u8>> {
+    node_to_bytes_limit(a, node, 2000000)
 }
-
-#[cfg(test)]
-use crate::allocator::Allocator;
 
 #[test]
 fn test_serialize_limit() {
@@ -85,7 +80,7 @@ fn test_serialize_limit() {
     {
         let buffer = Cursor::new(Vec::new());
         let mut writer = LimitedWriter::new(buffer, 55);
-        node_to_stream(&Node::new(&a, l3), &mut writer).unwrap();
+        node_to_stream(&a, l3, &mut writer).unwrap();
         let vec = writer.into_inner().into_inner();
         assert_eq!(
             vec,
@@ -101,9 +96,7 @@ fn test_serialize_limit() {
         let buffer = Cursor::new(Vec::new());
         let mut writer = LimitedWriter::new(buffer, 54);
         assert_eq!(
-            node_to_stream(&Node::new(&a, l3), &mut writer)
-                .unwrap_err()
-                .kind(),
+            node_to_stream(&a, l3, &mut writer).unwrap_err().kind(),
             io::ErrorKind::OutOfMemory
         );
     }
