@@ -1,5 +1,4 @@
-use crate::allocator::Allocator;
-use crate::allocator::SExp::Atom;
+use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::Cost;
 use crate::err_utils::err;
 use crate::node::Node;
@@ -80,7 +79,7 @@ fn test_arg_count() {
 
 pub fn int_atom(args: Node, op_name: &str) -> Result<(Number, usize), EvalErr> {
     match args.sexp() {
-        Atom() => Ok((
+        SExp::Atom() => Ok((
             args.allocator.number(args.node),
             args.allocator.atom_len(args.node),
         )),
@@ -90,16 +89,20 @@ pub fn int_atom(args: Node, op_name: &str) -> Result<(Number, usize), EvalErr> {
 
 pub fn atom_len(args: Node, op_name: &str) -> Result<usize, EvalErr> {
     match args.sexp() {
-        Atom() => Ok(args.allocator.atom_len(args.node)),
+        SExp::Atom() => Ok(args.allocator.atom_len(args.node)),
         _ => err(args.node, &format!("{op_name} requires an atom")),
     }
 }
 
-pub fn uint_atom<const SIZE: usize>(args: &Node, op_name: &str) -> Result<u64, EvalErr> {
-    let bytes = match args.atom() {
-        Some(a) => a,
+pub fn uint_atom<const SIZE: usize>(
+    a: &Allocator,
+    args: NodePtr,
+    op_name: &str,
+) -> Result<u64, EvalErr> {
+    let bytes = match a.sexp(args) {
+        SExp::Atom() => a.atom(args),
         _ => {
-            return err(args.node, &format!("{op_name} requires int arg"));
+            return err(args, &format!("{op_name} requires int arg"));
         }
     };
 
@@ -108,7 +111,7 @@ pub fn uint_atom<const SIZE: usize>(args: &Node, op_name: &str) -> Result<u64, E
     }
 
     if (bytes[0] & 0x80) != 0 {
-        return err(args.node, &format!("{op_name} requires positive int arg"));
+        return err(args, &format!("{op_name} requires positive int arg"));
     }
 
     // strip leading zeros
@@ -118,7 +121,7 @@ pub fn uint_atom<const SIZE: usize>(args: &Node, op_name: &str) -> Result<u64, E
     }
 
     if buf.len() > SIZE {
-        return err(args.node, &format!("{op_name} requires u{} arg", SIZE * 8));
+        return err(args, &format!("{op_name} requires u{} arg", SIZE * 8));
     }
 
     let mut ret = 0;
@@ -148,7 +151,7 @@ fn test_uint_atom_4_success(#[case] buf: &[u8], #[case] expected: u64) {
     use crate::allocator::Allocator;
     let mut a = Allocator::new();
     let n = a.new_atom(buf).unwrap();
-    assert!(uint_atom::<4>(&Node::new(&a, n), "test") == Ok(expected));
+    assert!(uint_atom::<4>(&a, n, "test") == Ok(expected));
 }
 
 // u32, 4 bytes
@@ -163,7 +166,7 @@ fn test_uint_atom_4_failure(#[case] buf: &[u8], #[case] expected: &str) {
     use crate::allocator::Allocator;
     let mut a = Allocator::new();
     let n = a.new_atom(buf).unwrap();
-    assert!(uint_atom::<4>(&Node::new(&a, n), "test") == err(n, expected));
+    assert!(uint_atom::<4>(&a, n, "test") == err(n, expected));
 }
 
 #[test]
@@ -172,7 +175,7 @@ fn test_uint_atom_4_pair() {
     let mut a = Allocator::new();
     let n = a.new_atom(&[0, 0]).unwrap();
     let p = a.new_pair(n, n).unwrap();
-    assert!(uint_atom::<4>(&Node::new(&a, p), "test") == err(p, "test requires int arg"));
+    assert!(uint_atom::<4>(&a, p, "test") == err(p, "test requires int arg"));
 }
 
 // u64, 8 bytes
@@ -195,7 +198,7 @@ fn test_uint_atom_8_success(#[case] buf: &[u8], #[case] expected: u64) {
     use crate::allocator::Allocator;
     let mut a = Allocator::new();
     let n = a.new_atom(buf).unwrap();
-    assert!(uint_atom::<8>(&Node::new(&a, n), "test") == Ok(expected));
+    assert!(uint_atom::<8>(&a, n, "test") == Ok(expected));
 }
 
 // u64, 8 bytes
@@ -211,7 +214,7 @@ fn test_uint_atom_8_failure(#[case] buf: &[u8], #[case] expected: &str) {
     use crate::allocator::Allocator;
     let mut a = Allocator::new();
     let n = a.new_atom(buf).unwrap();
-    assert!(uint_atom::<8>(&Node::new(&a, n), "test") == err(n, expected));
+    assert!(uint_atom::<8>(&a, n, "test") == err(n, expected));
 }
 
 #[test]
@@ -220,7 +223,7 @@ fn test_uint_atom_8_pair() {
     let mut a = Allocator::new();
     let n = a.new_atom(&[0, 0]).unwrap();
     let p = a.new_pair(n, n).unwrap();
-    assert!(uint_atom::<8>(&Node::new(&a, p), "test") == err(p, "test requires int arg"));
+    assert!(uint_atom::<8>(&a, p, "test") == err(p, "test requires int arg"));
 }
 
 pub fn atom<'a>(args: Node<'a>, op_name: &str) -> Result<&'a [u8], EvalErr> {
