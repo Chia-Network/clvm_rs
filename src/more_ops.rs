@@ -420,10 +420,10 @@ pub fn op_div(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let (a0, l0, a1, l1) = two_ints(&args, "/")?;
     let cost = DIV_BASE_COST + ((l0 + l1) as Cost) * DIV_COST_PER_BYTE;
     if a1.sign() == Sign::NoSign {
-        args.first()?.err("div with 0")
+        err(input, "div with 0")
     } else {
         if a0.sign() == Sign::Minus || a1.sign() == Sign::Minus {
-            return args.err("div operator with negative operands is deprecated");
+            return err(input, "div operator with negative operands is deprecated");
         }
         let q = a0.div_floor(&a1);
         let q = a.new_number(q)?;
@@ -436,7 +436,7 @@ pub fn op_div_fixed(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Respo
     let (a0, l0, a1, l1) = two_ints(&args, "/")?;
     let cost = DIV_BASE_COST + ((l0 + l1) as Cost) * DIV_COST_PER_BYTE;
     if a1.sign() == Sign::NoSign {
-        args.first()?.err("div with 0")
+        err(input, "div with 0")
     } else {
         let q = a0.div_floor(&a1);
         let q = a.new_number(q)?;
@@ -449,7 +449,7 @@ pub fn op_divmod(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
     let (a0, l0, a1, l1) = two_ints(&args, "divmod")?;
     let cost = DIVMOD_BASE_COST + ((l0 + l1) as Cost) * DIVMOD_COST_PER_BYTE;
     if a1.sign() == Sign::NoSign {
-        args.first()?.err("divmod with 0")
+        err(input, "divmod with 0")
     } else {
         let (q, r) = a0.div_mod_floor(&a1);
         let q1 = a.new_number(q)?;
@@ -492,7 +492,7 @@ pub fn op_substr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
     let args = Node::new(a, input);
     let ac = arg_count(&args, 3);
     if !(2..=3).contains(&ac) {
-        return args.err("substr takes exactly 2 or 3 arguments");
+        return err(input, "substr takes exactly 2 or 3 arguments");
     }
     let a0 = args.first()?;
     let s0 = atom(a0.clone(), "substr")?;
@@ -507,7 +507,7 @@ pub fn op_substr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
         size as i32
     };
     if i2 < 0 || i1 < 0 || i2 as usize > size || i2 < i1 {
-        args.err("invalid indices for substr")
+        err(input, "invalid indices for substr")
     } else {
         let atom_node = a0.node;
         let r = a.new_substr(atom_node, i1 as u32, i2 as u32)?;
@@ -529,7 +529,7 @@ pub fn op_concat(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
             max_cost,
         )?;
         match arg.sexp() {
-            SExp::Pair(_, _) => return arg.err("concat on list"),
+            SExp::Pair(_, _) => return err(arg.node, "concat on list"),
             SExp::Atom() => total_size += arg.len(),
         };
         terms.push(arg.node);
@@ -549,7 +549,7 @@ pub fn op_ash(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let rest = args.rest()?;
     let a1 = i32_atom(&rest.first()?, "ash")?;
     if !(-65535..=65535).contains(&a1) {
-        return args.rest()?.first()?.err("shift too large");
+        return err(rest.first()?.node, "shift too large");
     }
 
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
@@ -625,7 +625,7 @@ pub fn op_lsh(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let rest = args.rest()?;
     let a1 = i32_atom(&rest.first()?, "lsh")?;
     if !(-65535..=65535).contains(&a1) {
-        return args.rest()?.first()?.err("shift too large");
+        return err(rest.first()?.node, "shift too large");
     }
 
     let i0: Number = i0.into();
@@ -810,26 +810,32 @@ pub fn op_coinid(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
 
     let parent_coin = atom(args.first()?, "coinid")?;
     if parent_coin.len() != 32 {
-        return args.err("coinid: invalid parent coin id (must be 32 bytes)");
+        return err(input, "coinid: invalid parent coin id (must be 32 bytes)");
     }
     let args = args.rest()?;
     let puzzle_hash = atom(args.first()?, "coinid")?;
     if puzzle_hash.len() != 32 {
-        return args.err("coinid: invalid puzzle hash (must be 32 bytes)");
+        return err(input, "coinid: invalid puzzle hash (must be 32 bytes)");
     }
     let args = args.rest()?;
     let amount = atom(args.first()?, "coinid")?;
     if !amount.is_empty() {
         if (amount[0] & 0x80) != 0 {
-            return args.err("coinid: invalid amount (may not be negative");
+            return err(input, "coinid: invalid amount (may not be negative");
         }
         if amount == [0_u8] || (amount.len() > 1 && amount[0] == 0 && (amount[1] & 0x80) == 0) {
-            return args.err("coinid: invalid amount (may not have redundant leading zero)");
+            return err(
+                input,
+                "coinid: invalid amount (may not have redundant leading zero)",
+            );
         }
         // the only valid coin value that's 9 bytes is when a leading zero is
         // required to not have the value interpreted as negative
         if amount.len() > 9 || (amount.len() == 9 && amount[0] != 0) {
-            return args.err("coinid: invalid amount (may not exceed max coin amount)");
+            return err(
+                input,
+                "coinid: invalid amount (may not exceed max coin amount)",
+            );
         }
     }
 

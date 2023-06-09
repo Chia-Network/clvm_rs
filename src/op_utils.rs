@@ -16,12 +16,13 @@ pub const MALLOC_COST_PER_BYTE: Cost = 10;
 
 pub fn check_arg_count(args: &Node, expected: usize, name: &str) -> Result<(), EvalErr> {
     if arg_count(args, expected) != expected {
-        args.err(&format!(
-            "{} takes exactly {} argument{}",
-            name,
-            expected,
-            if expected == 1 { "" } else { "s" }
-        ))
+        err(
+            args.node,
+            &format!(
+                "{name} takes exactly {expected} argument{}",
+                if expected == 1 { "" } else { "s" }
+            ),
+        )
     } else {
         Ok(())
     }
@@ -83,14 +84,14 @@ pub fn int_atom(args: Node, op_name: &str) -> Result<(Number, usize), EvalErr> {
             args.allocator.number(args.node),
             args.allocator.atom_len(args.node),
         )),
-        _ => args.err(&format!("{op_name} requires int args")),
+        _ => err(args.node, &format!("{op_name} requires int args")),
     }
 }
 
 pub fn atom_len(args: Node, op_name: &str) -> Result<usize, EvalErr> {
     match args.sexp() {
         Atom() => Ok(args.allocator.atom_len(args.node)),
-        _ => args.err(&format!("{op_name} requires an atom")),
+        _ => err(args.node, &format!("{op_name} requires an atom")),
     }
 }
 
@@ -98,7 +99,7 @@ pub fn uint_atom<const SIZE: usize>(args: &Node, op_name: &str) -> Result<u64, E
     let bytes = match args.atom() {
         Some(a) => a,
         _ => {
-            return args.err(&format!("{op_name} requires int arg"));
+            return err(args.node, &format!("{op_name} requires int arg"));
         }
     };
 
@@ -107,7 +108,7 @@ pub fn uint_atom<const SIZE: usize>(args: &Node, op_name: &str) -> Result<u64, E
     }
 
     if (bytes[0] & 0x80) != 0 {
-        return args.err(&format!("{op_name} requires positive int arg"));
+        return err(args.node, &format!("{op_name} requires positive int arg"));
     }
 
     // strip leading zeros
@@ -117,7 +118,7 @@ pub fn uint_atom<const SIZE: usize>(args: &Node, op_name: &str) -> Result<u64, E
     }
 
     if buf.len() > SIZE {
-        return args.err(&format!("{op_name} requires u{} arg", SIZE * 8));
+        return err(args.node, &format!("{op_name} requires u{} arg", SIZE * 8));
     }
 
     let mut ret = 0;
@@ -162,7 +163,7 @@ fn test_uint_atom_4_failure(#[case] buf: &[u8], #[case] expected: &str) {
     use crate::allocator::Allocator;
     let mut a = Allocator::new();
     let n = a.new_atom(buf).unwrap();
-    assert!(uint_atom::<4>(&Node::new(&a, n), "test") == Err(EvalErr(n, expected.to_string())));
+    assert!(uint_atom::<4>(&Node::new(&a, n), "test") == err(n, expected));
 }
 
 #[test]
@@ -171,10 +172,7 @@ fn test_uint_atom_4_pair() {
     let mut a = Allocator::new();
     let n = a.new_atom(&[0, 0]).unwrap();
     let p = a.new_pair(n, n).unwrap();
-    assert!(
-        uint_atom::<4>(&Node::new(&a, p), "test")
-            == Err(EvalErr(p, "test requires int arg".to_string()))
-    );
+    assert!(uint_atom::<4>(&Node::new(&a, p), "test") == err(p, "test requires int arg"));
 }
 
 // u64, 8 bytes
@@ -213,7 +211,7 @@ fn test_uint_atom_8_failure(#[case] buf: &[u8], #[case] expected: &str) {
     use crate::allocator::Allocator;
     let mut a = Allocator::new();
     let n = a.new_atom(buf).unwrap();
-    assert!(uint_atom::<8>(&Node::new(&a, n), "test") == Err(EvalErr(n, expected.to_string())));
+    assert!(uint_atom::<8>(&Node::new(&a, n), "test") == err(n, expected));
 }
 
 #[test]
@@ -222,16 +220,13 @@ fn test_uint_atom_8_pair() {
     let mut a = Allocator::new();
     let n = a.new_atom(&[0, 0]).unwrap();
     let p = a.new_pair(n, n).unwrap();
-    assert!(
-        uint_atom::<8>(&Node::new(&a, p), "test")
-            == Err(EvalErr(p, "test requires int arg".to_string()))
-    );
+    assert!(uint_atom::<8>(&Node::new(&a, p), "test") == err(p, "test requires int arg"));
 }
 
 pub fn atom<'a>(args: Node<'a>, op_name: &str) -> Result<&'a [u8], EvalErr> {
     match args.atom() {
         Some(a) => Ok(a),
-        _ => args.err(&format!("{op_name} on list")),
+        _ => err(args.node, &format!("{op_name} on list")),
     }
 }
 
@@ -364,14 +359,15 @@ pub fn i32_atom(args: &Node, op_name: &str) -> Result<i32, EvalErr> {
     let buf = match args.atom() {
         Some(a) => a,
         _ => {
-            return args.err(&format!("{op_name} requires int32 args"));
+            return err(args.node, &format!("{op_name} requires int32 args"));
         }
     };
     match i32_from_u8(buf) {
         Some(v) => Ok(v),
-        _ => args.err(&format!(
-            "{op_name} requires int32 args (with no leading zeros)"
-        )),
+        _ => err(
+            args.node,
+            &format!("{op_name} requires int32 args (with no leading zeros)"),
+        ),
     }
 }
 
@@ -379,19 +375,15 @@ impl<'a> Node<'a> {
     pub fn first(&self) -> Result<Node<'a>, EvalErr> {
         match self.pair() {
             Some((p1, _)) => Ok(self.with_node(p1.node)),
-            _ => self.err("first of non-cons"),
+            _ => err(self.node, "first of non-cons"),
         }
     }
 
     pub fn rest(&self) -> Result<Node<'a>, EvalErr> {
         match self.pair() {
             Some((_, p2)) => Ok(self.with_node(p2.node)),
-            _ => self.err("rest of non-cons"),
+            _ => err(self.node, "rest of non-cons"),
         }
-    }
-
-    pub fn err<T>(&self, msg: &str) -> Result<T, EvalErr> {
-        err(self.node, msg)
     }
 }
 

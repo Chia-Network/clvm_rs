@@ -1,5 +1,6 @@
 use crate::allocator::{Allocator, NodePtr};
 use crate::cost::{check_cost, Cost};
+use crate::err_utils::err;
 use crate::node::Node;
 use crate::op_utils::{
     arg_count, atom, check_arg_count, int_atom, mod_group_order, new_atom_and_cost,
@@ -100,7 +101,7 @@ pub fn op_bls_g1_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
     // point once the allocator preserves native representation of points
     let blob = atom(args.first()?, "G1 atom")?;
     if blob.len() != 48 {
-        return args.first()?.err("atom is not G1 size, 48 bytes");
+        return err(args.first()?.node, "atom is not G1 size, 48 bytes");
     }
     if (blob[0] & 0xe0) == 0xc0 {
         // This is compressed infinity. negating it is a no-op
@@ -186,7 +187,7 @@ pub fn op_bls_g2_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
     // point once the allocator preserves native representation of points
     let blob = atom(args.first()?, "G2 atom")?;
     if blob.len() != 96 {
-        return args.first()?.err("atom is not G2 size, 96 bytes");
+        return err(args.first()?.node, "atom is not G2 size, 96 bytes");
     }
     if (blob[0] & 0xe0) == 0xc0 {
         // This is compressed infinity. negating it is a no-op
@@ -207,7 +208,7 @@ pub fn op_bls_map_to_g1(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Re
     let args = Node::new(a, input);
     let ac = arg_count(&args, 2);
     if !(1..=2).contains(&ac) {
-        return args.err("g_1_map takes exactly 1 or 2 arguments");
+        return err(input, "g_1_map takes exactly 1 or 2 arguments");
     }
     let mut cost: Cost = BLS_MAP_TO_G1_BASE_COST;
     check_cost(a, cost, max_cost)?;
@@ -237,7 +238,7 @@ pub fn op_bls_map_to_g2(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Re
     let args = Node::new(a, input);
     let ac = arg_count(&args, 2);
     if !(1..=2).contains(&ac) {
-        return args.err("g2_map takes exactly 1 or 2 arguments");
+        return err(input, "g2_map takes exactly 1 or 2 arguments");
     }
     let mut cost: Cost = BLS_MAP_TO_G2_BASE_COST;
     check_cost(a, cost, max_cost)?;
@@ -293,7 +294,7 @@ pub fn op_bls_pairing_identity(a: &mut Allocator, input: NodePtr, max_cost: Cost
         .is_identity()
         .into();
     if !identity {
-        Node::new(a, input).err("bls_pairing_identity failed")
+        err(input, "bls_pairing_identity failed")
     } else {
         Ok(Reduction(cost, a.null()))
     }
@@ -353,7 +354,7 @@ pub fn op_bls_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respo
         .is_identity()
         .into();
     if !identity {
-        Node::new(a, input).err("bls_verify failed")
+        err(input, "bls_verify failed")
     } else {
         Ok(Reduction(cost, a.null()))
     }

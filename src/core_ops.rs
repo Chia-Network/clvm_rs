@@ -1,5 +1,6 @@
 use crate::allocator::{Allocator, NodePtr};
 use crate::cost::Cost;
+use crate::err_utils::err;
 use crate::node::Node;
 use crate::op_utils::{atom, check_arg_count};
 use crate::reduction::{Reduction, Response};
@@ -78,7 +79,7 @@ pub fn op_raise(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response 
         })
         .unwrap_or(args);
 
-    throw_value.err("clvm raise")
+    err(throw_value.node, "clvm raise")
 }
 
 pub fn op_eq(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
