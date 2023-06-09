@@ -334,9 +334,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
         let args = args.rest()?;
 
-        let extension = self
-            .dialect
-            .softfork_extension(uint_atom::<4>(&args.first()?, "softfork")? as u32);
+        let extension = self.dialect.softfork_extension(uint_atom::<4>(
+            self.allocator,
+            args.first()?.node,
+            "softfork",
+        )? as u32);
         if extension == OperatorSet::Default {
             return Err(EvalErr(args.node, "unknown softfork extension".to_string()));
         }
@@ -369,7 +371,8 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
             self.eval_pair(new_operator, env).map(|c| c + APPLY_COST)
         } else if op_atom == self.dialect.softfork_kw() {
-            let expected_cost = uint_atom::<8>(&operand_list.first()?, "softfork")?;
+            let expected_cost =
+                uint_atom::<8>(self.allocator, operand_list.first()?.node, "softfork")?;
             if expected_cost > max_cost {
                 return err(self.allocator.null(), "cost exceeded");
             }
