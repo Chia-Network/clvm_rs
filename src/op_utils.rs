@@ -358,17 +358,17 @@ fn test_u64_from_bytes() {
     );
 }
 
-pub fn i32_atom(args: &Node, op_name: &str) -> Result<i32, EvalErr> {
-    let buf = match args.atom() {
-        Some(a) => a,
+pub fn i32_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<i32, EvalErr> {
+    let buf = match a.sexp(args) {
+        SExp::Atom() => a.atom(args),
         _ => {
-            return err(args.node, &format!("{op_name} requires int32 args"));
+            return err(args, &format!("{op_name} requires int32 args"));
         }
     };
     match i32_from_u8(buf) {
         Some(v) => Ok(v),
         _ => err(
-            args.node,
+            args,
             &format!("{op_name} requires int32 args (with no leading zeros)"),
         ),
     }
