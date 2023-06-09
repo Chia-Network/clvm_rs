@@ -498,11 +498,11 @@ pub fn op_substr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
     let s0 = atom(a0.clone(), "substr")?;
     let size = s0.len();
     let rest = args.rest()?;
-    let i1 = i32_atom(&rest.first()?, "substr")?;
+    let i1 = i32_atom(a, rest.first()?.node, "substr")?;
     let rest = rest.rest()?;
 
     let i2 = if ac == 3 {
-        i32_atom(&rest.first()?, "substr")?
+        i32_atom(a, rest.first()?.node, "substr")?
     } else {
         size as i32
     };
@@ -547,7 +547,7 @@ pub fn op_ash(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     check_arg_count(&args, 2, "ash")?;
     let (i0, l0) = int_atom(args.first()?, "ash")?;
     let rest = args.rest()?;
-    let a1 = i32_atom(&rest.first()?, "ash")?;
+    let a1 = i32_atom(a, rest.first()?.node, "ash")?;
     if !(-65535..=65535).contains(&a1) {
         return err(rest.first()?.node, "shift too large");
     }
@@ -623,7 +623,7 @@ pub fn op_lsh(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let i0 = BigUint::from_bytes_be(b0);
     let l0 = b0.len();
     let rest = args.rest()?;
-    let a1 = i32_atom(&rest.first()?, "lsh")?;
+    let a1 = i32_atom(a, rest.first()?.node, "lsh")?;
     if !(-65535..=65535).contains(&a1) {
         return err(rest.first()?.node, "shift too large");
     }
