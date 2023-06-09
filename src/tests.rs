@@ -1,5 +1,4 @@
 use super::allocator::{Allocator, NodePtr, SExp};
-use super::node::Node;
 use super::serde::node_from_bytes;
 use super::serde::node_to_bytes;
 

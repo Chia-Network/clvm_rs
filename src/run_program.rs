@@ -361,7 +361,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             .ok_or_else(|| EvalErr(operator.node, "runtime error: env stack empty".into()))?;
         if op_atom == self.dialect.apply_kw() {
             if !operand_list.arg_count_is(2) {
-                return operand_list.err("apply requires exactly 2 parameters");
+                return err(operand_list.node, "apply requires exactly 2 parameters");
             }
 
             let new_operator = operand_list.first()?.node;
