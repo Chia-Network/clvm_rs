@@ -232,6 +232,10 @@ impl Allocator {
         Ok(-(self.atom_vec.len() as i32))
     }
 
+    pub fn atom_eq(&self, lhs: NodePtr, rhs: NodePtr) -> bool {
+        self.atom(lhs) == self.atom(rhs)
+    }
+
     pub fn atom(&self, node: NodePtr) -> &[u8] {
         assert!(node < 0, "expected atom, got pair");
         let atom = self.atom_vec[(-node - 1) as usize];
@@ -315,6 +319,52 @@ impl Allocator {
     pub fn heap_size(&self) -> usize {
         self.u8_vec.len()
     }
+}
+
+#[test]
+fn test_atom_eq() {
+    let mut a = Allocator::new();
+    let a0 = a.null();
+    let a1 = a.one();
+    let a2 = a.new_atom(&[1]).unwrap();
+    let a3 = a.new_atom(&[0x5, 0x39]).unwrap();
+    let a4 = a.new_number(1.into()).unwrap();
+    let a5 = a.new_number(1337.into()).unwrap();
+
+    assert!(a.atom_eq(a0, a0));
+    assert!(!a.atom_eq(a0, a1));
+    assert!(!a.atom_eq(a0, a2));
+    assert!(!a.atom_eq(a0, a3));
+    assert!(!a.atom_eq(a0, a4));
+    assert!(!a.atom_eq(a0, a5));
+
+    assert!(!a.atom_eq(a1, a0));
+    assert!(a.atom_eq(a1, a1));
+    assert!(a.atom_eq(a1, a2));
+    assert!(!a.atom_eq(a1, a3));
+    assert!(a.atom_eq(a1, a4));
+    assert!(!a.atom_eq(a1, a5));
+
+    assert!(!a.atom_eq(a2, a0));
+    assert!(a.atom_eq(a2, a1));
+    assert!(a.atom_eq(a2, a2));
+    assert!(!a.atom_eq(a2, a3));
+    assert!(a.atom_eq(a2, a4));
+    assert!(!a.atom_eq(a2, a5));
+
+    assert!(!a.atom_eq(a3, a0));
+    assert!(!a.atom_eq(a3, a1));
+    assert!(!a.atom_eq(a3, a2));
+    assert!(a.atom_eq(a3, a3));
+    assert!(!a.atom_eq(a3, a4));
+    assert!(a.atom_eq(a3, a5));
+
+    assert!(!a.atom_eq(a4, a0));
+    assert!(a.atom_eq(a4, a1));
+    assert!(a.atom_eq(a4, a2));
+    assert!(!a.atom_eq(a4, a3));
+    assert!(a.atom_eq(a4, a4));
+    assert!(!a.atom_eq(a4, a5));
 }
 
 #[test]
