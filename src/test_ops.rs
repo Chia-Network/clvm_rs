@@ -173,22 +173,13 @@ pub fn parse_exp<'a>(a: &mut Allocator, v: &'a str) -> (NodePtr, &'a str) {
     }
 }
 
-pub fn node_eq(a: &Allocator, a0: NodePtr, a1: NodePtr) -> bool {
-    match a.sexp(a0) {
-        SExp::Pair(left0, right0) => {
-            if let SExp::Pair(left1, right1) = a.sexp(a1) {
-                node_eq(a, left0, left1) && node_eq(a, right0, right1)
-            } else {
-                false
-            }
+pub fn node_eq(allocator: &Allocator, s1: NodePtr, s2: NodePtr) -> bool {
+    match (allocator.sexp(s1), allocator.sexp(s2)) {
+        (SExp::Pair(s1a, s1b), SExp::Pair(s2a, s2b)) => {
+            node_eq(allocator, s1a, s2a) && node_eq(allocator, s1b, s2b)
         }
-        SExp::Atom() => {
-            if let SExp::Atom() = a.sexp(a1) {
-                a.atom(a0) == a.atom(a1)
-            } else {
-                false
-            }
-        }
+        (SExp::Atom(), SExp::Atom()) => allocator.atom_eq(s1, s2),
+        _ => false,
     }
 }
 
@@ -367,21 +358,6 @@ struct EvalFTracker {
 }
 
 #[cfg(feature = "pre-eval")]
-fn equal_sexp(allocator: &Allocator, s1: NodePtr, s2: NodePtr) -> bool {
-    match (allocator.sexp(s1), allocator.sexp(s2)) {
-        (SExp::Pair(s1a, s1b), SExp::Pair(s2a, s2b)) => {
-            equal_sexp(allocator, s1a, s2a) && equal_sexp(allocator, s1b, s2b)
-        }
-        (SExp::Atom(), SExp::Atom()) => {
-            let abuf1 = allocator.atom(s1);
-            let abuf2 = allocator.atom(s2);
-            abuf1 == abuf2
-        }
-        _ => false,
-    }
-}
-
-#[cfg(feature = "pre-eval")]
 use crate::chia_dialect::{ChiaDialect, NO_UNKNOWN_OPS};
 #[cfg(feature = "pre-eval")]
 use crate::run_program::run_program_with_pre_eval;
@@ -475,7 +451,7 @@ fn test_pre_eval_and_post_eval() {
     )
     .unwrap();
 
-    assert!(equal_sexp(&allocator, result.1, a99));
+    assert!(node_eq(&allocator, result.1, a99));
 
     // Should produce these:
     // (q 99 101) => (99 101)
@@ -502,9 +478,9 @@ fn test_pre_eval_and_post_eval() {
     let tracking_examine = tracking.borrow();
     for (_, v) in tracking_examine.iter() {
         let found = desired_outcomes.iter().position(|(p, a, o)| {
-            equal_sexp(&allocator, *p, v.prog)
-                && equal_sexp(&allocator, *a, v.args)
-                && equal_sexp(&allocator, v.outcome.unwrap(), *o)
+            node_eq(&allocator, *p, v.prog)
+                && node_eq(&allocator, *a, v.args)
+                && node_eq(&allocator, v.outcome.unwrap(), *o)
         });
         found_outcomes.insert(found);
         assert!(found.is_some());

@@ -1,9 +1,9 @@
-use crate::allocator::{Allocator, NodePtr};
+use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::Cost;
 use crate::err_utils::err;
 use crate::node::Node;
-use crate::op_utils::{atom, check_arg_count};
-use crate::reduction::{Reduction, Response};
+use crate::op_utils::check_arg_count;
+use crate::reduction::{EvalErr, Reduction, Response};
 
 const FIRST_COST: Cost = 30;
 const IF_COST: Cost = 33;
@@ -82,11 +82,22 @@ pub fn op_raise(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response 
     err(throw_value.node, "clvm raise")
 }
 
+fn ensure_atom(a: &Allocator, n: NodePtr, op: &str) -> Result<(), EvalErr> {
+    if let SExp::Atom() = a.sexp(n) {
+        Ok(())
+    } else {
+        Err(EvalErr(n, format!("{op} on list")))
+    }
+}
+
 pub fn op_eq(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let args = Node::new(a, input);
     check_arg_count(&args, 2, "=")?;
-    let s0 = atom(args.first()?, "=")?;
-    let s1 = atom(args.rest()?.first()?, "=")?;
-    let cost = EQ_BASE_COST + (s0.len() as Cost + s1.len() as Cost) * EQ_COST_PER_BYTE;
-    Ok(Reduction(cost, if s0 == s1 { a.one() } else { a.null() }))
+    let s0 = args.first()?.node;
+    let s1 = args.rest()?.first()?.node;
+    ensure_atom(a, s0, "=")?;
+    ensure_atom(a, s1, "=")?;
+    let eq = a.atom_eq(s0, s1);
+    let cost = EQ_BASE_COST + (a.atom_len(s0) as Cost + a.atom_len(s1) as Cost) * EQ_COST_PER_BYTE;
+    Ok(Reduction(cost, if eq { a.one() } else { a.null() }))
 }

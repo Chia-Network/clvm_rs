@@ -1,15 +1,9 @@
-use super::allocator::{Allocator, NodePtr, SExp};
+use super::allocator::{Allocator, NodePtr};
 use super::serde::node_from_bytes;
 use super::serde::node_to_bytes;
 
 #[cfg(test)]
-fn node_eq(a: &Allocator, lhs: NodePtr, rhs: NodePtr) -> bool {
-    match (a.sexp(lhs), a.sexp(rhs)) {
-        (SExp::Pair(l0, l1), SExp::Pair(r0, r1)) => node_eq(a, l0, r0) && node_eq(a, l1, r1),
-        (SExp::Atom(), SExp::Atom()) => a.atom(lhs) == a.atom(rhs),
-        _ => false,
-    }
-}
+use super::test_ops::node_eq;
 
 fn test_serialize_roundtrip(a: &mut Allocator, n: NodePtr) {
     let vec = node_to_bytes(a, n).unwrap();
