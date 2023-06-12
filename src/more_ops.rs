@@ -87,6 +87,13 @@ const PUBKEY_COST_PER_BYTE: Cost = 38;
 const COINID_COST: Cost =
     SHA256_BASE_COST + SHA256_COST_PER_ARG * 3 + SHA256_COST_PER_BYTE * (32 + 32 + 8) - 153;
 
+const MODPOW_BASE_COST: Cost = 17000;
+const MODPOW_COST_PER_BYTE_BASE_VALUE: Cost = 38;
+// the cost for exponent and modular scale by the square of the size of the
+// respective operands
+const MODPOW_COST_PER_BYTE_EXPONENT: Cost = 3;
+const MODPOW_COST_PER_BYTE_MOD: Cost = 21;
+
 fn limbs_for_int(v: &Number) -> usize {
     ((v.bits() + 7) / 8) as usize
 }
@@ -458,6 +465,19 @@ pub fn op_divmod(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
         let c = (a.atom_len(q1) + a.atom_len(r1)) as Cost * MALLOC_COST_PER_BYTE;
         let r: NodePtr = a.new_pair(q1, r1)?;
         Ok(Reduction(cost + c, r))
+    }
+}
+
+pub fn op_mod(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+    let args = Node::new(a, input);
+    let (a0, l0, a1, l1) = two_ints(&args, "mod")?;
+    let cost = DIV_BASE_COST + ((l0 + l1) as Cost) * DIV_COST_PER_BYTE;
+    if a1.sign() == Sign::NoSign {
+        err(input, "mod with 0")
+    } else {
+        let q = a.new_number(a0.mod_floor(&a1))?;
+        let c = a.atom_len(q) as Cost * MALLOC_COST_PER_BYTE;
+        Ok(Reduction(cost + c, q))
     }
 }
 
@@ -850,4 +870,34 @@ pub fn op_coinid(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
         .expect("sha256 hash is not 32 bytes");
 
     new_atom_and_cost(a, COINID_COST, &ret)
+}
+
+pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+    let args = Node::new(a, input);
+    check_arg_count(&args, 3, "modpow")?;
+
+    let mut cost = MODPOW_BASE_COST;
+    let (base, bsize) = int_atom(args.first()?, "modpow")?;
+    cost += bsize as Cost * MODPOW_COST_PER_BYTE_BASE_VALUE;
+    check_cost(a, cost, max_cost)?;
+    let args = args.rest()?;
+    let (exponent, esize) = int_atom(args.first()?, "modpow")?;
+    cost += (esize * esize) as Cost * MODPOW_COST_PER_BYTE_EXPONENT;
+    check_cost(a, cost, max_cost)?;
+    let args = args.rest()?;
+    let (modulus, msize) = int_atom(args.first()?, "modpow")?;
+    cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
+    check_cost(a, cost, max_cost)?;
+
+    if exponent.sign() == Sign::Minus {
+        return err(input, "modpow with negative exponent");
+    }
+
+    if modulus.sign() == Sign::NoSign {
+        return err(input, "modpow with 0 modulus");
+    }
+
+    let ret = base.modpow(&exponent, &modulus);
+    let ret = a.new_number(ret)?;
+    Ok(malloc_cost(a, cost, ret))
 }

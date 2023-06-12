@@ -10,8 +10,9 @@ use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_div_fixed, op_divmod, op_gr,
-    op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not,
-    op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract, op_unknown,
+    op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow,
+    op_multiply, op_not, op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr,
+    op_subtract, op_unknown,
 };
 use crate::reduction::Response;
 use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
@@ -168,6 +169,8 @@ impl Dialect for ChiaDialect {
                         57 => op_bls_map_to_g2,
                         58 => op_bls_pairing_identity,
                         59 => op_bls_verify,
+                        60 => op_modpow,
+                        61 => op_mod,
                         _ => {
                             return unknown_operator(
                                 allocator,

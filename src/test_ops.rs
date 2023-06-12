@@ -8,8 +8,8 @@ use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_re
 use crate::cost::Cost;
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
-    op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add,
-    op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
+    op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not,
+    op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
 };
 use crate::number::Number;
 use crate::reduction::{EvalErr, Reduction, Response};
@@ -244,6 +244,7 @@ fn test_ops(#[case] filename: &str) {
         ("*", op_multiply as Opf),
         ("/", op_div as Opf),
         ("divmod", op_divmod as Opf),
+        ("%", op_mod as Opf),
         ("substr", op_substr as Opf),
         ("strlen", op_strlen as Opf),
         ("point_add", op_point_add as Opf),
@@ -276,6 +277,7 @@ fn test_ops(#[case] filename: &str) {
         ("bls_verify", op_bls_verify as Opf),
         ("secp256k1_verify", op_secp256k1_verify as Opf),
         ("secp256r1_verify", op_secp256r1_verify as Opf),
+        ("modpow", op_modpow as Opf),
     ]);
 
     println!("Test cases from: {filename}");
