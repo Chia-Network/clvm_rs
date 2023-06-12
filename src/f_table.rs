@@ -10,8 +10,8 @@ use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_re
 use crate::cost::Cost;
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_concat, op_div, op_divmod, op_gr, op_gr_bytes, op_logand,
-    op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add, op_pubkey_for_exp,
-    op_sha256, op_strlen, op_substr, op_subtract,
+    op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not, op_point_add,
+    op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
 };
 use crate::reduction::Response;
 use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
@@ -21,7 +21,7 @@ type OpFn = fn(&mut Allocator, NodePtr, Cost) -> Response;
 pub type FLookup = [Option<OpFn>; 256];
 
 pub fn opcode_by_name(name: &str) -> Option<OpFn> {
-    let opcode_lookup: [(OpFn, &str); 42] = [
+    let opcode_lookup: [(OpFn, &str); 44] = [
         (op_if, "op_if"),
         (op_cons, "op_cons"),
         (op_first, "op_first"),
@@ -33,7 +33,9 @@ pub fn opcode_by_name(name: &str) -> Option<OpFn> {
         (op_add, "op_add"),
         (op_subtract, "op_subtract"),
         (op_multiply, "op_multiply"),
+        (op_modpow, "op_modpow"),
         (op_divmod, "op_divmod"),
+        (op_mod, "op_mod"),
         (op_substr, "op_substr"),
         (op_strlen, "op_strlen"),
         (op_point_add, "op_point_add"),
