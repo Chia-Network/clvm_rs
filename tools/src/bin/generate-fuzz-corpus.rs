@@ -57,7 +57,7 @@ const fn op(opcode: u32, operands: &'static [Type], result: Type) -> OperatorInf
     }
 }
 
-const OPERATORS: [OperatorInfo; 79] = [
+const OPERATORS: [OperatorInfo; 83] = [
     // apply
     op(2, &[Type::Program, Type::Tree], Type::AnyAtom),
     // if
@@ -281,6 +281,16 @@ const OPERATORS: [OperatorInfo; 79] = [
         &[Type::Sec1, Type::Bytes32, Type::Sig],
         Type::Zero,
     ),
+    // modpow
+    op(60, &[Type::Int64, Type::Int64, Type::Int64], Type::Int64),
+    op(
+        60,
+        &[Type::Bytes32, Type::Int64, Type::Bytes32],
+        Type::Bytes32,
+    ),
+    // mod
+    op(61, &[Type::Int64, Type::Int64], Type::Int64),
+    op(61, &[Type::Bytes32, Type::Bytes32], Type::Bytes32),
 ];
 
 const ZEROS: [u8; 96] = [0; 96];
