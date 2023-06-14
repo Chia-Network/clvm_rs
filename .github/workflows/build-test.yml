@@ -63,9 +63,7 @@ jobs:
           bash -exc '\
             curl -L https://sh.rustup.rs > rustup-init.sh && \
             sh rustup-init.sh -y && \
-            yum clean all --enablerepo=*; yum update --disablerepo=epel && \
-            yum update && \
-            yum -y install openssl-devel && \
+            yum -y --disablerepo=epel install openssl-devel && \
             source $HOME/.cargo/env && \
             rustup target add x86_64-unknown-linux-musl && \
             PY_VERSION=${{ matrix.python }}
