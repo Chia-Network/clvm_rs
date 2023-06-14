@@ -57,8 +57,8 @@ jobs:
     - name: Build Linux in manylinux2014 with maturin on Python ${{ matrix.python }}
       if: startsWith(matrix.os, 'ubuntu')
       run: |
-        podman run --rm=true \
-          -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
+        docker run --rm \
+          -v ${{ github.workspace }}:/ws --workdir=/ws \
           quay.io/pypa/manylinux2014_x86_64 \
           bash -exc '\
             curl -L https://sh.rustup.rs > rustup-init.sh && \

@@ -13,7 +13,7 @@ on:
 
 jobs:
   build_wheels:
-    name: ARM64 Python Wheels on ubuntu-latest
+    name: ARM64 Python Wheels on ARM64 Ubuntu
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -27,17 +27,10 @@ jobs:
       with:
         fetch-depth: 1
 
-    - name: Set up QEMU on x86_64
-      if: startsWith(matrix.os, 'ubuntu-latest')
-      id: qemu
-      uses: docker/setup-qemu-action@v2
-      with:
-        platforms: arm64
-
     - name: Build Python wheels
       run: |
-        podman run --rm=true \
-          -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
+        docker run --rm \
+          -v ${{ github.workspace }}:/ws --workdir=/ws \
           quay.io/pypa/manylinux2014_aarch64 \
           bash -exc '\
             echo $PATH && \
