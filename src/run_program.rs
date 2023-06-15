@@ -1264,7 +1264,7 @@ const TEST_CASES: &[RunProgramTest] = &[
         args: "()",
         flags: ENABLE_SECP_OPS,
         result: Some("0"),
-        cost: 850061,
+        cost: 1300061,
         err: "",
     },
     // invalid signature
@@ -1281,7 +1281,7 @@ const TEST_CASES: &[RunProgramTest] = &[
         args: "()",
         flags: 0,
         result: Some("0"),
-        cost: 850061,
+        cost: 1300061,
         err: "",
     },
 

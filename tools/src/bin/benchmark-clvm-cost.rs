@@ -376,7 +376,7 @@ pub fn main() {
             mode: Mode::MultiArg,
         },
         Operator {
-            opcode: 0x0cf84f00,
+            opcode: 0x13d61f00,
             name: "secp256k1_verify",
             arg: OpArgs::ThreeArgs(k1_pk, k1_msg, k1_sig),
             extra: None,

@@ -92,11 +92,11 @@ impl Dialect for ChiaDialect {
             let opcode = u32::from_be_bytes(b.try_into().unwrap());
 
             if (self.flags & ENABLE_SECP_OPS) != 0 {
-                // the secp operators have a fixed cost of 1850000 and 850000,
+                // the secp operators have a fixed cost of 1850000 and 1300000,
                 // which makes the multiplier 0x1c3a8f and 0x0cf84f (there is an
                 // implied +1) and cost function 0
                 let f = match opcode {
-                    0x0cf84f00 => op_secp256k1_verify,
+                    0x13d61f00 => op_secp256k1_verify,
                     0x1c3a8f00 => op_secp256r1_verify,
                     _ => {
                         return unknown_operator(allocator, o, argument_list, self.flags, max_cost);

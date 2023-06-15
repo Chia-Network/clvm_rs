@@ -271,7 +271,7 @@ const OPERATORS: [OperatorInfo; 79] = [
     ),
     // op_secp256k1_verify
     op(
-        0x0cf84f00,
+        0x13d61f00,
         &[Type::Sec1, Type::Bytes32, Type::Sig],
         Type::Zero,
     ),

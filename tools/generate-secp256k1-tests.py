@@ -11,7 +11,7 @@ def flip_bit(b: bytes) -> bytearray:
 
 def print_validation_test_case(f, num_cases, filter_pk, filter_msg, filter_sig, expect: str):
     sks = sample(secret_keys, num_cases)
-    cost = 850000
+    cost = 1300000
     sigs = []
 
     args = ""
