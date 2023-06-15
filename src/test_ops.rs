@@ -99,7 +99,7 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
             "g2_map" => a.new_atom(&[57]).unwrap(),
             "bls_pairing_identity" => a.new_atom(&[58]).unwrap(),
             "bls_verify" => a.new_atom(&[59]).unwrap(),
-            "secp256k1_verify" => a.new_atom(&[0x0c, 0xf8, 0x4f, 0x00]).unwrap(),
+            "secp256k1_verify" => a.new_atom(&[0x13, 0xd6, 0x1f, 0x00]).unwrap(),
             "secp256r1_verify" => a.new_atom(&[0x1c, 0x3a, 0x8f, 0x00]).unwrap(),
             _ => {
                 panic!("atom not supported \"{}\"", v);

@@ -9,7 +9,7 @@ use p256::ecdsa::signature::hazmat::PrehashVerifier;
 use p256::ecdsa::{Signature as P1Signature, VerifyingKey as P1VerifyingKey};
 
 const SECP256R1_VERIFY_COST: Cost = 1850000;
-const SECP256K1_VERIFY_COST: Cost = 850000;
+const SECP256K1_VERIFY_COST: Cost = 1300000;
 
 // expects: pubkey msg sig
 pub fn op_secp256r1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
