@@ -1,7 +1,10 @@
+use clap::Parser;
 use clvmr::allocator::{Allocator, NodePtr};
 use clvmr::chia_dialect::{ChiaDialect, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_SECP_OPS};
 use clvmr::run_program::run_program;
 use linreg::linear_regression_of;
+use std::fs::{create_dir_all, File};
+use std::io::{sink, Write};
 use std::time::Instant;
 
 #[derive(Clone, Copy)]
@@ -132,7 +135,7 @@ fn time_invocation(a: &mut Allocator, op: u32, arg: OpArgs, flags: u32) -> f64 {
 
 // returns the time per byte
 // measures run-time of many calls
-fn time_per_byte(a: &mut Allocator, op: &Operator) -> f64 {
+fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64 {
     let checkpoint = a.checkpoint();
     let mut samples = Vec::<(f64, f64)>::new();
     let mut atom = vec![0; 10000000];
@@ -149,11 +152,12 @@ fn time_per_byte(a: &mut Allocator, op: &Operator) -> f64 {
 
             let subst = a.new_atom(&atom[0..(i * scale)]).unwrap();
             let arg = substitute(op.arg, quote(a, subst));
-            samples.push((
+            let sample = (
                 i as f64 * scale as f64,
                 time_invocation(a, op.opcode, arg, op.flags),
-            ));
-
+            );
+            writeln!(output, "{}\t{}", sample.0, sample.1).expect("failed to write");
+            samples.push(sample);
             a.restore_checkpoint(&checkpoint);
         }
     }
@@ -165,7 +169,7 @@ fn time_per_byte(a: &mut Allocator, op: &Operator) -> f64 {
 // returns the time per argument
 // measures the run-time of many calls with varying number of arguments, to
 // establish how much time each additional argument contributes
-fn time_per_arg(a: &mut Allocator, op: &Operator) -> f64 {
+fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64 {
     let mut samples = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS);
 
@@ -183,7 +187,9 @@ fn time_per_arg(a: &mut Allocator, op: &Operator) -> f64 {
                 r.unwrap();
             }
             let duration = start.elapsed();
-            samples.push((i as f64, duration.as_nanos() as f64));
+            let sample = (i as f64, duration.as_nanos() as f64);
+            writeln!(output, "{}\t{}", sample.0, sample.1).expect("failed to write");
+            samples.push(sample);
 
             a.restore_checkpoint(&checkpoint);
         }
@@ -196,7 +202,12 @@ fn time_per_arg(a: &mut Allocator, op: &Operator) -> f64 {
 // measure run-time of many *nested* calls, to establish how much longer it
 // takes, approximately, for each additional nesting. The per_arg_time is
 // subtracted to get the base cost
-fn base_call_time(a: &mut Allocator, op: &Operator, per_arg_time: f64) -> f64 {
+fn base_call_time(
+    a: &mut Allocator,
+    op: &Operator,
+    per_arg_time: f64,
+    output: &mut dyn Write,
+) -> f64 {
     let mut samples = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS);
 
@@ -216,7 +227,9 @@ fn base_call_time(a: &mut Allocator, op: &Operator, per_arg_time: f64) -> f64 {
             }
             let duration = start.elapsed();
             let duration = (duration.as_nanos() as f64) - (per_arg_time * i as f64);
-            samples.push((i as f64, duration));
+            let sample = (i as f64, duration);
+            writeln!(output, "{}\t{}", sample.0, sample.1).expect("failed to write");
+            samples.push(sample);
         }
     }
 
@@ -257,7 +270,56 @@ struct Operator {
     flags: u32,
 }
 
+/// Measure CPU cost of CLVM operators to aid in determining their cost
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// enable plotting of measurements
+    #[arg(short, long, default_value_t = false)]
+    plot: bool,
+}
+
+fn maybe_open(plot: bool, op: &str, name: &str) -> Box<dyn Write> {
+    if plot {
+        create_dir_all("measurements").expect("failed to create directory");
+        Box::new(
+            File::create(format!("measurements/{}-{}", op, name)).expect("failed to open file"),
+        )
+    } else {
+        Box::new(sink())
+    }
+}
+
+fn write_gnuplot_header(gnuplot: &mut dyn Write, op: &Operator, out: &str, xlabel: &str) {
+    writeln!(
+        gnuplot,
+        "set output \"{}-{out}.png\"
+set title \"{}\"
+set xlabel \"{xlabel}\"
+set ylabel \"nanoseconds{}\"",
+        op.name,
+        op.name,
+        if (op.flags & EXPONENTIAL_COST) != 0 {
+            " log"
+        } else {
+            ""
+        }
+    )
+    .expect("failed to write");
+}
+
+fn print_plot(gnuplot: &mut dyn Write, a: &f64, b: &f64, op: &str, name: &str) {
+    writeln!(gnuplot, "f(x) = {a}*x+{b}").expect("failed to write");
+    writeln!(
+        gnuplot,
+        "plot \"{op}-{name}.log\" using 1:2 with dots title \"measured\", f(x) title \"fitting\""
+    )
+    .expect("failed to write");
+}
+
 pub fn main() {
+    let options = Args::parse();
+
     let mut a = Allocator::new();
 
     let g1 = a.new_atom(&hex::decode("97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb").unwrap()).unwrap();
@@ -431,27 +493,73 @@ pub fn main() {
     println!("base cost scale: {base_cost_scale}");
     println!("arg cost scale: {arg_cost_scale}");
 
+    let mut gnuplot = maybe_open(options.plot, "gen", "graphs.gnuplot");
+    writeln!(gnuplot, "set term png size 1200,600").expect("failed to write");
+    writeln!(gnuplot, "set key top right").expect("failed to write");
+
     for op in &ops {
         println!("opcode: {} ({})", op.name, op.opcode);
-        let mut arg_timing: f64 = 0.0;
-        if (op.flags & PER_BYTE_COST) != 0 {
-            let time_per_byte = time_per_byte(&mut a, op);
+        let time_per_byte = if (op.flags & PER_BYTE_COST) != 0 {
+            let mut output = maybe_open(options.plot, op.name, "per-byte.log");
+            let time_per_byte = time_per_byte(&mut a, op, &mut *output);
             println!("   time: per-byte: {time_per_byte:.2}ns");
             println!("   cost: per-byte: {:.0}", time_per_byte * cost_scale);
-        }
-        if (op.flags & PER_ARG_COST) != 0 {
-            arg_timing = time_per_arg(&mut a, op);
-            println!("   time: per-arg: {arg_timing:.2}ns");
-            println!("   cost: per-arg: {:.0}", arg_timing * arg_cost_scale);
-        }
-        if (op.flags & NESTING_BASE_COST) != 0 {
-            let base_call_time = base_call_time(&mut a, op, arg_timing);
-            println!("   time: base: {base_call_time:.2}ns");
-            println!("   cost: base: {:.0}", base_call_time * base_cost_scale);
+            time_per_byte
         } else {
-            let base_call_time = base_call_time_no_nest(&mut a, op, arg_timing);
+            0.0
+        };
+        let time_per_arg = if (op.flags & PER_ARG_COST) != 0 {
+            let mut output = maybe_open(options.plot, op.name, "per-arg.log");
+            let time_per_arg = time_per_arg(&mut a, op, &mut *output);
+            println!("   time: per-arg: {time_per_arg:.2}ns");
+            println!("   cost: per-arg: {:.0}", time_per_arg * arg_cost_scale);
+            time_per_arg
+        } else {
+            0.0
+        };
+        let base_call_time = if (op.flags & NESTING_BASE_COST) != 0 {
+            let mut output = maybe_open(options.plot, op.name, "base.log");
+            write_gnuplot_header(&mut *gnuplot, op, "base", "num nested calls");
+            let base_call_time = base_call_time(&mut a, op, time_per_arg, &mut *output);
             println!("   time: base: {base_call_time:.2}ns");
             println!("   cost: base: {:.0}", base_call_time * base_cost_scale);
+
+            print_plot(&mut *gnuplot, &base_call_time, &0.0, op.name, "base");
+            base_call_time
+        } else {
+            let base_call_time = base_call_time_no_nest(&mut a, op, time_per_arg);
+            println!("   time: base: {base_call_time:.2}ns");
+            println!("   cost: base: {:.0}", base_call_time * base_cost_scale);
+            base_call_time
+        };
+
+        // we adjust the base_Call_time here to make the curve fitting match
+        let base_call_time = if (op.flags & EXPONENTIAL_COST) != 0 {
+            base_call_time.sqrt()
+        } else {
+            base_call_time
+        };
+        if (op.flags & PER_ARG_COST) != 0 {
+            write_gnuplot_header(&mut *gnuplot, op, "per-arg", "num arguments");
+            print_plot(
+                &mut *gnuplot,
+                &time_per_arg,
+                &base_call_time,
+                op.name,
+                "per-arg",
+            );
+        } else if (op.flags & PER_BYTE_COST) != 0 {
+            write_gnuplot_header(&mut *gnuplot, op, "per-byte", "num bytes");
+            print_plot(
+                &mut *gnuplot,
+                &time_per_byte,
+                &base_call_time,
+                op.name,
+                "per-byte",
+            );
         }
+    }
+    if options.plot {
+        println!("To generate plots, run:\n   (cd measurements; gnuplot gen-graphs.gnuplot)");
     }
 }
