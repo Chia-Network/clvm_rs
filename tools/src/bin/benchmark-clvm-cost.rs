@@ -173,7 +173,12 @@ fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64
     let mut samples = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS);
 
-    let subst = a.new_number(1337.into()).unwrap();
+    let subst = a
+        .new_atom(
+            &hex::decode("123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0")
+                .unwrap(),
+        )
+        .unwrap();
     let arg = substitute(op.arg, quote(a, subst));
 
     let checkpoint = a.checkpoint();
@@ -211,7 +216,12 @@ fn base_call_time(
     let mut samples = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS);
 
-    let subst = a.new_number(1337.into()).unwrap();
+    let subst = a
+        .new_atom(
+            &hex::decode("123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0")
+                .unwrap(),
+        )
+        .unwrap();
     let arg = substitute(op.arg, quote(a, subst));
 
     let checkpoint = a.checkpoint();
@@ -241,7 +251,12 @@ fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -
     let mut total_time: f64 = 0.0;
     let mut num_samples = 0;
 
-    let subst = a.new_number(1337.into()).unwrap();
+    let subst = a
+        .new_atom(
+            &hex::decode("123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0")
+                .unwrap(),
+        )
+        .unwrap();
     let arg = substitute(op.arg, quote(a, subst));
 
     let checkpoint = a.checkpoint();
@@ -359,7 +374,12 @@ pub fn main() {
     let r1_sig = a.new_atom(&hex::decode("e8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffc").unwrap()).unwrap();
     let r1_sig = quote(&mut a, r1_sig);
 
-    let number = a.new_number(123456789.into()).unwrap();
+    let number = a
+        .new_atom(
+            &hex::decode("123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0")
+                .unwrap(),
+        )
+        .unwrap();
     let number = quote(&mut a, number);
 
     let ops: [Operator; 17] = [
