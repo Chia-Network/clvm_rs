@@ -290,7 +290,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
         match self.allocator.sexp(op_node) {
             SExp::Pair(new_operator, _) => {
-                let [inner] = get_args::<1>(self.allocator, op_node, "((X)...) syntax")?;
+                let [inner] = get_args::<1>(
+                    self.allocator,
+                    op_node,
+                    "in the ((X)...) syntax, the inner list",
+                )?;
                 if let SExp::Pair(_, _) = self.allocator.sexp(inner) {
                     return err(program, "in ((X)...) syntax X must be lone atom");
                 }
@@ -743,7 +747,7 @@ const TEST_CASES: &[RunProgramTest] = &[
         flags: 0,
         result: None,
         cost: 0,
-        err: "((X)...) syntax takes exactly 1 argument",
+        err: "in the ((X)...) syntax, the inner list takes exactly 1 argument",
     },
     RunProgramTest {
         prg: "((#c) (q . 3) (q . 4))",
@@ -751,6 +755,14 @@ const TEST_CASES: &[RunProgramTest] = &[
         flags: 0,
         result: Some("((1 . 3) 1 . 4)"),
         cost: 140,
+        err: "",
+    },
+    RunProgramTest {
+        prg: "((#+) 1 2 3)",
+        args: "()",
+        flags: 0,
+        result: Some("6"),
+        cost: 1168,
         err: "",
     },
     RunProgramTest {
