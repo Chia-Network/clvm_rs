@@ -702,8 +702,18 @@ fn test_point_atom_pair(#[case] fun: TestFun, #[case] expected: &str) {
 
 #[cfg(test)]
 #[rstest]
-#[case("97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb")]
-#[case("a572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e")]
+#[case(
+    "\
+97f1d3a73197d7942695638c4fa9ac0f\
+c3688c4f9774b905a14e3a3f171bac58\
+6c55e83ff97a1aeffb3af00adb22c6bb"
+)]
+#[case(
+    "\
+a572cbea904d67468808c8eb50a9450c\
+9721db309128012543902d0ac358a62a\
+e28f75bb8f1c7c42c39a8c5529bf0f4e"
+)]
 fn test_g1_roundtrip(#[case] atom: &str) {
     let mut a = Allocator::new();
     let n = a.new_atom(&hex::decode(atom).unwrap()).unwrap();
@@ -731,8 +741,24 @@ fn test_g1_roundtrip(#[case] atom: &str) {
 
 #[cfg(test)]
 #[rstest]
-#[case("93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8")]
-#[case("aa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053")]
+#[case(
+    "\
+93e02b6052719f607dacd3a088274f65\
+596bd0d09920b61ab5da61bbdc7f5049\
+334cf11213945d57e5ac7d055d042b7e\
+024aa2b2f08f0a91260805272dc51051\
+c6e47ad4fa403b02b4510b647ae3d177\
+0bac0326a805bbefd48056c8c121bdb8"
+)]
+#[case(
+    "\
+aa4edef9c1ed7f729f520e47730a124f\
+d70662a904ba1074728114d1031e1572\
+c6c886f6b57ec72a6178288c47c33577\
+1638533957d540a9d2370f17cc7ed586\
+3bc0b995b8825e0ee1ea1e1e4d00dbae\
+81f14b0bf3611b78c952aacab827a053"
+)]
 fn test_g2_roundtrip(#[case] atom: &str) {
     let mut a = Allocator::new();
     let n = a.new_atom(&hex::decode(atom).unwrap()).unwrap();
@@ -860,10 +886,19 @@ const EMPTY: &str = "";
 const SMALL_BUF: &str = "133742";
 
 #[cfg(test)]
-const VALID_G1: &str = "a572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e";
+const VALID_G1: &str = "\
+a572cbea904d67468808c8eb50a9450c\
+9721db309128012543902d0ac358a62a\
+e28f75bb8f1c7c42c39a8c5529bf0f4e";
 
 #[cfg(test)]
-const VALID_G2: &str = "aa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053";
+const VALID_G2: &str = "\
+aa4edef9c1ed7f729f520e47730a124f\
+d70662a904ba1074728114d1031e1572\
+c6c886f6b57ec72a6178288c47c33577\
+1638533957d540a9d2370f17cc7ed586\
+3bc0b995b8825e0ee1ea1e1e4d00dbae\
+81f14b0bf3611b78c952aacab827a053";
 
 /*
   We want to exercise round-tripping avery kind of value via every other kind
@@ -989,8 +1024,20 @@ fn test_atom_len_number(#[case] value: Number, #[case] expected: usize) {
 
 #[cfg(test)]
 #[rstest]
-#[case("97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb", 48)]
-#[case("a572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e", 48)]
+#[case(
+    "\
+97f1d3a73197d7942695638c4fa9ac0f\
+c3688c4f9774b905a14e3a3f171bac58\
+6c55e83ff97a1aeffb3af00adb22c6bb",
+    48
+)]
+#[case(
+    "\
+a572cbea904d67468808c8eb50a9450c\
+9721db309128012543902d0ac358a62a\
+e28f75bb8f1c7c42c39a8c5529bf0f4e",
+    48
+)]
 fn test_atom_len_g1(#[case] buffer_hex: &str, #[case] expected: usize) {
     let mut a = Allocator::new();
     let buffer = &hex::decode(buffer_hex).unwrap();
@@ -1002,8 +1049,26 @@ fn test_atom_len_g1(#[case] buffer_hex: &str, #[case] expected: usize) {
 
 #[cfg(test)]
 #[rstest]
-#[case("93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8", 96)]
-#[case("aa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053", 96)]
+#[case(
+    "\
+93e02b6052719f607dacd3a088274f65\
+596bd0d09920b61ab5da61bbdc7f5049\
+334cf11213945d57e5ac7d055d042b7e\
+024aa2b2f08f0a91260805272dc51051\
+c6e47ad4fa403b02b4510b647ae3d177\
+0bac0326a805bbefd48056c8c121bdb8",
+    96
+)]
+#[case(
+    "\
+aa4edef9c1ed7f729f520e47730a124f\
+d70662a904ba1074728114d1031e1572\
+c6c886f6b57ec72a6178288c47c33577\
+1638533957d540a9d2370f17cc7ed586\
+3bc0b995b8825e0ee1ea1e1e4d00dbae\
+81f14b0bf3611b78c952aacab827a053",
+    96
+)]
 fn test_atom_len_g2(#[case] buffer_hex: &str, #[case] expected: usize) {
     let mut a = Allocator::new();
 
