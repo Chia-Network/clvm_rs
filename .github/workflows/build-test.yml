@@ -118,6 +118,11 @@ jobs:
         python -m pip install pytest
         python -m pip install blspy
 
+    # we need this for brun and opc
+    - name: install clvm_tools
+      run: |
+        cargo install clvm_tools_rs
+
     - name: Run tests from wheel
       run: |
         . ./activate
@@ -250,8 +255,6 @@ jobs:
           cargo test --release --workspace
           python -m venv venv
           source venv/bin/activate
-          git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
-          pip install ./clvm_tools
           pip install colorama maturin pytest pytest-cov
           maturin develop --release -m wheel/Cargo.toml --features=openssl
           (cd tests && python generate-programs.py && python run-programs.py) || true
