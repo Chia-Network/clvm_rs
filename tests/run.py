@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 
-from clvm_rs import Program
+from clvm_rs import run_serialized_chia_program
 
 
 def run_clvm(fn, env=None):
 
-    program = Program.fromhex(open(fn, 'r').read())
+    program = bytes.fromhex(open(fn, 'r').read())
     if env is not None:
-        env = Program.fromhex(open(env, 'r').read())
+        env = bytes.fromhex(open(env, 'r').read())
     else:
-        env = Program.fromhex("ff80")
+        env = bytes.fromhex("ff80")
     # constants from the main chia blockchain:
     # https://github.com/Chia-Network/chia-blockchain/blob/main/chia/consensus/default_constants.py
     max_cost = 11000000000
     cost_per_byte = 12000
 
-    max_cost -= (len(bytes(program)) + len(bytes(env))) * cost_per_byte
-    return program.run_with_cost(
+    max_cost -= (len(program) + len(env)) * cost_per_byte
+    return run_serialized_chia_program(
+        program,
         env,
         max_cost,
         0,

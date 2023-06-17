@@ -6,7 +6,7 @@ import sys
 import os
 import time
 import random
-from clvm_rs import Program
+from clvm_rs import run_serialized_chia_program
 from colorama import init, Fore, Style
 
 init()
@@ -201,11 +201,12 @@ for n in range(5):
         else:
             if "-v" in sys.argv:
                 print(fn)
-            program = Program.fromhex(open(fn, 'r').read())
-            env = Program.fromhex(open(env_fn, 'r').read())
+            program = bytes.fromhex(open(fn, 'r').read())
+            env = bytes.fromhex(open(env_fn, 'r').read())
 
             time_start = time.perf_counter()
-            cost, result = program.run_with_cost(
+            cost, result = run_serialized_chia_program(
+                program,
                 env,
                 max_cost,
                 flags,
