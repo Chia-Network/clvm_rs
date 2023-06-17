@@ -269,13 +269,13 @@ jobs:
           export LLVM_PROFILE_FILE=$(pwd)/target/clvm_rs-%p-%m.profraw
           export CARGO_TARGET_DIR=$(pwd)/target
           export RUST_TEST_THREADS=$(nproc)
-          cargo test --workspace
+          cargo test --release --workspace
           python -m venv venv
           source venv/bin/activate
           git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
           pip install ./clvm_tools
           pip install colorama maturin pytest pytest-cov
-          maturin develop -m wheel/Cargo.toml --features=openssl
+          maturin develop --release -m wheel/Cargo.toml --features=openssl
           (cd tests && python generate-programs.py && python run-programs.py) || true
           pytest wheel/python/tests --cov=clvm_rs --cov-report lcov:py_cov.info --cov-branch
           grcov . --binary-path target -s . --branch --ignore-not-existing --ignore='*/.cargo/*' --ignore='target/*' -o pre_rust_cov.info
