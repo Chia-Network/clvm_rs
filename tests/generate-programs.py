@@ -1,7 +1,41 @@
 #!/usr/bin/env python3
 
 import os
-from clvm import KEYWORD_TO_ATOM
+
+KEYWORD_TO_ATOM = {
+    "q": 0x1,
+    "a": 0x2,
+    "i": 0x3,
+    "c": 0x4,
+    "f": 0x5,
+    "r": 0x6,
+    "l": 0x7,
+    "x": 0x8,
+    "=": 0x9,
+    ">s": 0xA,
+    "sha256": 0xB,
+    "substr": 0xC,
+    "strlen": 0xD,
+    "concat": 0xE,
+    "+": 0x10,
+    "-": 0x11,
+    "*": 0x12,
+    "/": 0x13,
+    "divmod": 0x14,
+    ">": 0x15,
+    "ash": 0x16,
+    "lsh": 0x17,
+    "logand": 0x18,
+    "logior": 0x19,
+    "logxor": 0x1A,
+    "lognot": 0x1B,
+    "point_add": 0x1D,
+    "pubkey_for_exp": 0x1C,
+    "not": 0x20,
+    "any": 0x21,
+    "all": 0x22,
+    "softfork": 0x24,
+}
 
 def recursive_cons(filename, num):
     with open(filename, 'w+') as f:
@@ -47,7 +81,7 @@ def many_args(filename, op, num):
             # in this case we need a length prefix for the atom
             hexop = '8%x' % (len(hexop) // 2) + hexop
     else:
-        hexop = KEYWORD_TO_ATOM[op].hex()
+        hexop = '%02x' % KEYWORD_TO_ATOM[op]
 
     with open(filename[:-4] + 'hex', 'w+') as f:
         f.write('ff02ffff01ff02ff06ffff04ff02ffff04ffff02ff04ffff04ff02ffff04ff05ffff'

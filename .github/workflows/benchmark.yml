@@ -40,42 +40,8 @@ jobs:
       with:
         toolchain: stable
 
-    - name: Install dependencies
-      run: |
-        python -m pip install maturin
-        rustup target add x86_64-unknown-linux-musl
-
-    - name: Build Windows
-      if: startsWith(matrix.os, 'windows')
-      run: |
-        python -m venv venv
-        . .\venv\Scripts\Activate.ps1
-        ln -s venv\Scripts\Activate.ps1 activate
-        python -m pip install colorama
-        maturin develop -m wheel/Cargo.toml --release
-
-    - name: Run benchmarks (Windows)
-      if: startsWith(matrix.os, 'windows')
-      run: |
-        . .\venv\Scripts\Activate.ps1
-        python benchmark/run-benchmark.py
-
-    - name: Build
-      if: ${{ !startsWith(matrix.os, 'windows') }}
-      env:
-        CC: gcc
-      run: |
-        python -m venv venv
-        ln -s venv/bin/activate
-        . ./activate
-        python -m pip install colorama
-        maturin develop -m wheel/Cargo.toml --release --features=openssl
-
     - name: Run benchmarks
-      if: ${{ !startsWith(matrix.os, 'windows') }}
-      run: |
-        . ./activate
-        python benchmark/run-benchmark.py
+      run: cargo bench
 
   max-cost-checks:
     name: Cost checks
@@ -104,6 +70,11 @@ jobs:
       run: |
         python -m pip install maturin
         rustup target add x86_64-unknown-linux-musl
+
+    # we need this for brun and opc
+    - name: install clvm_tools
+      run: |
+        cargo install clvm_tools_rs
 
     - name: Build
       env:
