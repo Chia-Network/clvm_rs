@@ -59,10 +59,8 @@ jobs:
       run: |
         docker run --rm \
           -v ${{ github.workspace }}:/ws --workdir=/ws \
-          quay.io/pypa/manylinux2014_x86_64 \
+          ghcr.io/chia-network/build-images/centos-pypa-rust-x86_64 \
           bash -exc '\
-            curl -L https://sh.rustup.rs > rustup-init.sh && \
-            sh rustup-init.sh -y && \
             yum -y --disablerepo=epel install openssl-devel && \
             source $HOME/.cargo/env && \
             rustup target add x86_64-unknown-linux-musl && \
