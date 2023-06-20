@@ -60,16 +60,16 @@ jobs:
         rm -rf venv
         rm -rf dist
 
-publish_wheels:
-  name: Publish ARM64 Python Wheels
-  runs-on: ubuntu-latest
-  needs: build_wheels
-  steps:
-  - name: Fetch wheels from previous job
-    uses: actions/download-artifact@v3
-    with:
-      name: wheels
-      path: target/wheels/
+  publish_wheels:
+    name: Publish ARM64 Python Wheels
+    runs-on: ubuntu-latest
+    needs: build_wheels
+    steps:
+    - name: Fetch wheels from previous job
+      uses: actions/download-artifact@v3
+      with:
+        name: wheels
+        path: target/wheels/
 
     - name: Install Twine
       run: |

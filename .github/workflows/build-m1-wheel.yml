@@ -35,7 +35,7 @@ jobs:
         curl https://static.rust-lang.org/rustup/dist/aarch64-unknown-linux-gnu/rustup-init.sha256 | awk '{print $1 " rustup-init"}' > checksum.txt
         curl -O https://static.rust-lang.org/rustup/dist/aarch64-unknown-linux-gnu/rustup-init
         cat checksum.txt
-        sha256sum -c checksum.txt
+        shasum -a 512 checksum.txt
 
     - name: Install rust
       run: |
