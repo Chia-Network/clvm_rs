@@ -40,7 +40,7 @@ bls12_381 = { version = "=0.8.0", features = ["experimental"] }
 # the newer sha2 crate doesn't implement the digest traits required by HKDF
 group = "=0.13.0"
 sha2 = "=0.9.9"
-openssl = { version = "=0.10.52", features = ["vendored"], optional = true }
+openssl = { version = ">=0.10.55", features = ["vendored"], optional = true }
 getrandom = { version = "=0.2.9", features = ["js" ]}
 # for secp sigs
 k256 = { version = "0.13.1", features = ["ecdsa"] }
