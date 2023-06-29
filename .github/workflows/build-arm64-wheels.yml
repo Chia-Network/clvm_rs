@@ -17,7 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ARM64, Linux]
+        os: [[ARM64, Linux]]
     container:
           image: ghcr.io/chia-network/build-images/centos-pypa-rust-aarch64:latest
 
