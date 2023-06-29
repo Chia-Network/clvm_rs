@@ -13,13 +13,10 @@ on:
 
 jobs:
   build_wheels:
-    name: ARM64 Python Wheels on ARM64 Ubuntu
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [[ARM64, Linux]]
+    name: Build ARM64 Python Wheels
+    runs-on: [ARM64, Linux]
     container:
-          image: ghcr.io/chia-network/build-images/centos-pypa-rust-aarch64:latest
+      image: ghcr.io/chia-network/build-images/centos-pypa-rust-aarch64:latest
 
     steps:
     - uses: Chia-Network/actions/clean-workspace@main
