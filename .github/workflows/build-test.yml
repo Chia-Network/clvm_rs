@@ -192,6 +192,7 @@ jobs:
           cargo fmt -- --files-with-diff --check
       - name: clippy
         run: |
+          rustup update
           cd fuzz
           cargo clippy
       - name: cargo-fuzz
@@ -199,6 +200,7 @@ jobs:
       # TODO: it would be nice to save and restore the corpus between runs
       - name: build corpus
         run: |
+          cargo update -p syn --precise 1.0.99; cargo update -p proc-macro2 --precise 1.0.43
           cd tools
           cargo run --bin generate-fuzz-corpus
       - name: build
