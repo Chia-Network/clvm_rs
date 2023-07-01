@@ -49,10 +49,10 @@ pub fn node_from_stream_backrefs(
                 }
             }
             ParseOp::Cons => {
-                if let SExp::Pair(v1, v2) = allocator.sexp(values) {
-                    if let SExp::Pair(v3, v4) = allocator.sexp(v2) {
-                        let new_root = allocator.new_pair(v3, v1)?;
-                        values = allocator.new_pair(new_root, v4)?;
+                if let SExp::Pair(value_1, value_2) = allocator.sexp(values) {
+                    if let SExp::Pair(value_3, value_4) = allocator.sexp(value_2) {
+                        let new_root = allocator.new_pair(value_3, value_1)?;
+                        values = allocator.new_pair(new_root, value_4)?;
                     }
                 }
             }
@@ -77,13 +77,14 @@ mod tests {
     use hex::FromHex;
 
     fn deserialize_check(hex: &str, hash_hex: &str) {
-        let bytes = Vec::from_hex(hex).unwrap();
         let mut allocator = Allocator::new();
+        let bytes = Vec::from_hex(hex).unwrap();
         let node = node_from_bytes_backrefs(&mut allocator, &bytes).unwrap();
 
         let mut object_cache = ObjectCache::new(&allocator, treehash);
         let calculated_hash = object_cache.get_or_calculate(&node).unwrap();
         let expected_hash: Vec<u8> = Vec::from_hex(hash_hex).unwrap();
+
         assert_eq!(expected_hash, calculated_hash);
     }
 

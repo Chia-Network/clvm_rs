@@ -47,11 +47,11 @@ pub fn node_to_stream<W: io::Write>(
     writer: &mut W,
 ) -> io::Result<()> {
     let mut values: Vec<NodePtr> = vec![node];
-    while let Some(v) = values.pop() {
-        let n = allocator.sexp(v);
-        match n {
+
+    while let Some(value) = values.pop() {
+        match allocator.sexp(value) {
             SExp::Atom() => {
-                write_atom(writer, allocator.atom(v))?;
+                write_atom(writer, allocator.atom(value))?;
             }
             SExp::Pair(left, right) => {
                 writer.write_all(&[CONS_BOX_MARKER])?;
@@ -60,19 +60,24 @@ pub fn node_to_stream<W: io::Write>(
             }
         }
     }
+
     Ok(())
 }
 
-pub fn node_to_bytes_limit(a: &Allocator, node: NodePtr, limit: usize) -> io::Result<Vec<u8>> {
+pub fn node_to_bytes_limit(
+    allocator: &Allocator,
+    node: NodePtr,
+    limit: usize,
+) -> io::Result<Vec<u8>> {
     let buffer = Cursor::new(Vec::new());
     let mut writer = LimitedWriter::new(buffer, limit);
-    node_to_stream(a, node, &mut writer)?;
+    node_to_stream(allocator, node, &mut writer)?;
     let vec = writer.into_inner().into_inner();
     Ok(vec)
 }
 
-pub fn node_to_bytes(a: &Allocator, node: NodePtr) -> io::Result<Vec<u8>> {
-    node_to_bytes_limit(a, node, 2000000)
+pub fn node_to_bytes(allocator: &Allocator, node: NodePtr) -> io::Result<Vec<u8>> {
+    node_to_bytes_limit(allocator, node, 2000000)
 }
 
 #[cfg(test)]
@@ -81,17 +86,17 @@ mod tests {
 
     #[test]
     fn test_serialize_limit() {
-        let mut a = Allocator::new();
+        let mut allocator = Allocator::new();
 
-        let leaf = a.new_atom(&[1, 2, 3, 4, 5]).unwrap();
-        let l1 = a.new_pair(leaf, leaf).unwrap();
-        let l2 = a.new_pair(l1, l1).unwrap();
-        let l3 = a.new_pair(l2, l2).unwrap();
+        let leaf = allocator.new_atom(&[1, 2, 3, 4, 5]).unwrap();
+        let l1 = allocator.new_pair(leaf, leaf).unwrap();
+        let l2 = allocator.new_pair(l1, l1).unwrap();
+        let l3 = allocator.new_pair(l2, l2).unwrap();
 
         {
             let buffer = Cursor::new(Vec::new());
             let mut writer = LimitedWriter::new(buffer, 55);
-            node_to_stream(&a, l3, &mut writer).unwrap();
+            node_to_stream(&allocator, l3, &mut writer).unwrap();
             let vec = writer.into_inner().into_inner();
             assert_eq!(
                 vec,
@@ -107,7 +112,9 @@ mod tests {
             let buffer = Cursor::new(Vec::new());
             let mut writer = LimitedWriter::new(buffer, 54);
             assert_eq!(
-                node_to_stream(&a, l3, &mut writer).unwrap_err().kind(),
+                node_to_stream(&allocator, l3, &mut writer)
+                    .unwrap_err()
+                    .kind(),
                 io::ErrorKind::OutOfMemory
             );
         }

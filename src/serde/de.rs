@@ -39,9 +39,9 @@ pub fn node_from_stream(
                 }
             }
             ParseOp::Cons => {
-                let v2 = values.pop();
-                let v1 = values.pop();
-                values.push(allocator.new_pair(v1.unwrap(), v2.unwrap())?);
+                let value_2 = values.pop();
+                let value_1 = values.pop();
+                values.push(allocator.new_pair(value_1.unwrap(), value_2.unwrap())?);
             }
         }
     }

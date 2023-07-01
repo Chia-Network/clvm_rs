@@ -16,13 +16,13 @@ pub struct ObjectCache<'a, T> {
     cache: Vec<Option<T>>,
     allocator: &'a Allocator,
 
-    /// The function `cached_function` is expected to calculate its T value recursively based
-    /// on the T values for the left and right child for a pair. For an atom, the
-    /// function f must calculate the T value directly.
+    /// The `cached_function` is expected to calculate its T value recursively based
+    /// on the T values for the left and right child for a pair. For an atom, `cached_function`
+    /// must calculate the T value directly.
     ///
     /// If a pair is passed and one of the children does not have its T value cached
-    /// in `ObjectCache` yet, return `None` and f will be called with each child in turn.
-    /// Don't recurse in f; that's the point of this structure.
+    /// in `ObjectCache` yet, return `None` and `cached_function` will be called with each child in turn.
+    /// Don't recurse in `cached_function`. That's the point of this structure.
     cached_function: CachedFunction<T>,
 }
 
@@ -67,12 +67,12 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
     }
 
     /// Set the cached value for a node.
-    fn set(&mut self, node: &NodePtr, v: T) {
+    fn set(&mut self, node: &NodePtr, value: T) {
         let index = node_to_index(node);
         if index >= self.cache.len() {
             self.cache.resize(index + 1, None);
         }
-        self.cache[index] = Some(v)
+        self.cache[index] = Some(value)
     }
 
     /// Calculate the function's value for the given node, traversing uncached children
@@ -187,27 +187,36 @@ mod tests {
         }
     }
 
-    fn check_cached_function<T>(obj_as_hex: &str, expected_value: T, f: CachedFunction<T>)
-    where
+    fn check_cached_function<T>(
+        obj_as_hex: &str,
+        expected_value: T,
+        cached_function: CachedFunction<T>,
+    ) where
         T: Clone + Eq + Debug,
     {
         let mut allocator = Allocator::new();
         let blob: Vec<u8> = Vec::from_hex(obj_as_hex).unwrap();
         let mut cursor: Cursor<&[u8]> = Cursor::new(&blob);
         let obj = node_from_stream(&mut allocator, &mut cursor).unwrap();
-        let mut oc = ObjectCache::new(&allocator, f);
+        let mut object_cache = ObjectCache::new(&allocator, cached_function);
 
-        assert_eq!(oc.get_from_cache(&obj), None);
+        assert_eq!(object_cache.get_from_cache(&obj), None);
 
-        oc.calculate(&obj);
+        object_cache.calculate(&obj);
 
-        assert_eq!(oc.get_from_cache(&obj), Some(&expected_value));
-        assert_eq!(oc.get_or_calculate(&obj).unwrap().clone(), expected_value);
-        assert_eq!(oc.get_from_cache(&obj), Some(&expected_value));
+        assert_eq!(object_cache.get_from_cache(&obj), Some(&expected_value));
+        assert_eq!(
+            object_cache.get_or_calculate(&obj).unwrap().clone(),
+            expected_value
+        );
+        assert_eq!(object_cache.get_from_cache(&obj), Some(&expected_value));
 
         // do it again, but the simple way
-        let mut oc = ObjectCache::new(&allocator, f);
-        assert_eq!(oc.get_or_calculate(&obj).unwrap().clone(), expected_value);
+        let mut object_cache = ObjectCache::new(&allocator, cached_function);
+        assert_eq!(
+            object_cache.get_or_calculate(&obj).unwrap().clone(),
+            expected_value
+        );
     }
 
     #[test]
@@ -276,14 +285,20 @@ mod tests {
         }
 
         let expected_value = LIST_SIZE * 2 + 1;
-        let mut oc = ObjectCache::new(&allocator, serialized_length);
-        assert_eq!(oc.get_or_calculate(&top).unwrap().clone(), expected_value);
+        let mut object_cache = ObjectCache::new(&allocator, serialized_length);
+        assert_eq!(
+            object_cache.get_or_calculate(&top).unwrap().clone(),
+            expected_value
+        );
 
         let expected_value = <[u8; 32]>::from_hex(
             "a168fce695099a30c0745075e6db3722ed7f059e0d7cc4d7e7504e215db5017b",
         )
         .unwrap();
-        let mut oc = ObjectCache::new(&allocator, treehash);
-        assert_eq!(oc.get_or_calculate(&top).unwrap().clone(), expected_value);
+        let mut object_cache = ObjectCache::new(&allocator, treehash);
+        assert_eq!(
+            object_cache.get_or_calculate(&top).unwrap().clone(),
+            expected_value
+        );
     }
 }

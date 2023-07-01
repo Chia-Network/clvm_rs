@@ -186,18 +186,20 @@ impl ReadCacheLookup {
 /// Turn a list of 0/1 values (for "left/right") into `Vec<u8>` representing
 /// the corresponding clvm path in the standard way.
 /// `[]` => `1`
-/// If `A` => `v` then `[A] + [0]` => `v * 2` and `[A] + [1]` => `v * 2 + 1`
+/// If `A` => `value` then `[A] + [0]` => `value * 2` and `[A] + [1]` => `value * 2 + 1`
 /// Then the integer is turned into the minimal-length array of `u8` representing
 /// that value as an unsigned integer.
 fn reversed_path_to_vec_u8(path: &[u8]) -> Vec<u8> {
     let byte_count = (path.len() + 1 + 7) >> 3;
-    let mut v = vec![0; byte_count];
+    let mut value = vec![0; byte_count];
     let mut index = byte_count - 1;
     let mut mask: u8 = 1;
+
     for p in path.iter().rev() {
         if *p != 0 {
-            v[index] |= mask;
+            value[index] |= mask;
         }
+
         mask = {
             if mask == 0x80 {
                 index -= 1;
@@ -207,8 +209,9 @@ fn reversed_path_to_vec_u8(path: &[u8]) -> Vec<u8> {
             }
         };
     }
-    v[index] |= mask;
-    v
+
+    value[index] |= mask;
+    value
 }
 
 #[cfg(test)]

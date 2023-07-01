@@ -13,19 +13,22 @@ enum ParseOp {
     Cons,
 }
 
-pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
-    let mut f = Cursor::new(b);
+pub fn serialized_length_from_bytes(bytes: &[u8]) -> io::Result<u64> {
+    let mut cursor = Cursor::new(bytes);
     let mut ops = vec![ParseOp::SExp];
-    let mut b = [0; 1];
+    let mut bytes = [0; 1];
+
     loop {
         let op = ops.pop();
+
         if op.is_none() {
             break;
         }
+
         match op.unwrap() {
             ParseOp::SExp => {
-                f.read_exact(&mut b)?;
-                if b[0] == CONS_BOX_MARKER {
+                cursor.read_exact(&mut bytes)?;
+                if bytes[0] == CONS_BOX_MARKER {
                     // since all we're doing is to determing the length of the
                     // serialized buffer, we don't need to do anything about
                     // "cons". So we skip pushing it to lower the pressure on
@@ -33,14 +36,14 @@ pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
                     //ops.push(ParseOp::Cons);
                     ops.push(ParseOp::SExp);
                     ops.push(ParseOp::SExp);
-                } else if b[0] == 0x80 || b[0] <= MAX_SINGLE_BYTE {
+                } else if bytes[0] == 0x80 || bytes[0] <= MAX_SINGLE_BYTE {
                     // This one byte we just read was the whole atom.
                     // or the
                     // special case of NIL
                 } else {
-                    let blob_size = decode_size(&mut f, b[0])?;
-                    f.seek(SeekFrom::Current(blob_size as i64))?;
-                    if (f.get_ref().len() as u64) < f.position() {
+                    let blob_size = decode_size(&mut cursor, bytes[0])?;
+                    cursor.seek(SeekFrom::Current(blob_size as i64))?;
+                    if (cursor.get_ref().len() as u64) < cursor.position() {
                         return Err(bad_encoding());
                     }
                 }
@@ -51,7 +54,8 @@ pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
             }
         }
     }
-    Ok(f.position())
+
+    Ok(cursor.position())
 }
 
 use crate::sha2::{Digest, Sha256};
@@ -72,11 +76,11 @@ fn hash_pair(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
 }
 
 // computes the tree-hash of a CLVM structure in serialized form
-pub fn tree_hash_from_stream(f: &mut Cursor<&[u8]>) -> io::Result<[u8; 32]> {
+pub fn tree_hash_from_stream(cursor: &mut Cursor<&[u8]>) -> io::Result<[u8; 32]> {
     let mut values: Vec<[u8; 32]> = Vec::new();
     let mut ops = vec![ParseOp::SExp];
+    let mut byte = [0; 1];
 
-    let mut b = [0; 1];
     loop {
         let op = ops.pop();
         if op.is_none() {
@@ -84,33 +88,33 @@ pub fn tree_hash_from_stream(f: &mut Cursor<&[u8]>) -> io::Result<[u8; 32]> {
         }
         match op.unwrap() {
             ParseOp::SExp => {
-                f.read_exact(&mut b)?;
-                if b[0] == CONS_BOX_MARKER {
+                cursor.read_exact(&mut byte)?;
+                if byte[0] == CONS_BOX_MARKER {
                     ops.push(ParseOp::Cons);
                     ops.push(ParseOp::SExp);
                     ops.push(ParseOp::SExp);
-                } else if b[0] == 0x80 {
+                } else if byte[0] == 0x80 {
                     values.push(hash_atom(&[]));
-                } else if b[0] <= MAX_SINGLE_BYTE {
-                    values.push(hash_atom(&b));
+                } else if byte[0] <= MAX_SINGLE_BYTE {
+                    values.push(hash_atom(&byte));
                 } else {
-                    let blob_size = decode_size(f, b[0])?;
-                    let blob = &f.get_ref()[f.position() as usize..];
+                    let blob_size = decode_size(cursor, byte[0])?;
+                    let blob = &cursor.get_ref()[cursor.position() as usize..];
                     if (blob.len() as u64) < blob_size {
                         return Err(bad_encoding());
                     }
-                    f.set_position(f.position() + blob_size);
+                    cursor.set_position(cursor.position() + blob_size);
                     values.push(hash_atom(&blob[..blob_size as usize]));
                 }
             }
             ParseOp::Cons => {
-                // cons
-                let v2 = values.pop();
-                let v1 = values.pop();
-                values.push(hash_pair(&v1.unwrap(), &v2.unwrap()));
+                let value_2 = values.pop();
+                let value_1 = values.pop();
+                values.push(hash_pair(&value_1.unwrap(), &value_2.unwrap()));
             }
         }
     }
+
     Ok(values.pop().unwrap())
 }
 

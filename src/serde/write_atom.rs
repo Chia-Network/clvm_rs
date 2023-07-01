@@ -6,33 +6,33 @@ use std::io::ErrorKind;
 /// writes the correct prefix for an atom of size `size` whose first byte is `atom_0`.
 /// If the atom is of size 0, use any placeholder first byte, as it's ignored anyway.
 fn write_atom_encoding_prefix_with_size<W: io::Write>(
-    f: &mut W,
+    writer: &mut W,
     atom_0: u8,
     size: u64,
 ) -> io::Result<()> {
     if size == 0 {
-        f.write_all(&[0x80])
+        writer.write_all(&[0x80])
     } else if size == 1 && atom_0 < 0x80 {
         Ok(())
     } else if size < 0x40 {
-        f.write_all(&[0x80 | (size as u8)])
+        writer.write_all(&[0x80 | (size as u8)])
     } else if size < 0x2000 {
-        f.write_all(&[0xc0 | (size >> 8) as u8, size as u8])
+        writer.write_all(&[0xc0 | (size >> 8) as u8, size as u8])
     } else if size < 0x10_0000 {
-        f.write_all(&[
+        writer.write_all(&[
             (0xe0 | (size >> 16)) as u8,
             ((size >> 8) & 0xff) as u8,
             ((size) & 0xff) as u8,
         ])
     } else if size < 0x800_0000 {
-        f.write_all(&[
+        writer.write_all(&[
             (0xf0 | (size >> 24)) as u8,
             ((size >> 16) & 0xff) as u8,
             ((size >> 8) & 0xff) as u8,
             ((size) & 0xff) as u8,
         ])
     } else if size < 0x4_0000_0000 {
-        f.write_all(&[
+        writer.write_all(&[
             (0xf8 | (size >> 32)) as u8,
             ((size >> 24) & 0xff) as u8,
             ((size >> 16) & 0xff) as u8,
@@ -45,10 +45,10 @@ fn write_atom_encoding_prefix_with_size<W: io::Write>(
 }
 
 /// Serialize an atom.
-pub fn write_atom<W: io::Write>(f: &mut W, atom: &[u8]) -> io::Result<()> {
+pub fn write_atom<W: io::Write>(writer: &mut W, atom: &[u8]) -> io::Result<()> {
     let u8_0 = if !atom.is_empty() { atom[0] } else { 0 };
-    write_atom_encoding_prefix_with_size(f, u8_0, atom.len() as u64)?;
-    f.write_all(atom)
+    write_atom_encoding_prefix_with_size(writer, u8_0, atom.len() as u64)?;
+    writer.write_all(atom)
 }
 
 #[cfg(test)]
@@ -61,15 +61,15 @@ mod tests {
         assert!(write_atom_encoding_prefix_with_size(&mut buf, 0, 0).is_ok());
         assert_eq!(buf, vec![0x80]);
 
-        for v in 0..0x7f {
+        for value in 0..0x7f {
             let mut buf = Vec::<u8>::new();
-            assert!(write_atom_encoding_prefix_with_size(&mut buf, v, 1).is_ok());
+            assert!(write_atom_encoding_prefix_with_size(&mut buf, value, 1).is_ok());
             assert_eq!(buf, vec![]);
         }
 
-        for v in 0x80..0xff {
+        for value in 0x80..0xff {
             let mut buf = Vec::<u8>::new();
-            assert!(write_atom_encoding_prefix_with_size(&mut buf, v, 1).is_ok());
+            assert!(write_atom_encoding_prefix_with_size(&mut buf, value, 1).is_ok());
             assert_eq!(buf, vec![0x81]);
         }
 
