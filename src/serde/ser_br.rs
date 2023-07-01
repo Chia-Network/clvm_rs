@@ -17,17 +17,10 @@ enum ReadOp {
     Cons,
 }
 
-// these test cases were produced by:
-
-// from chia.types.blockchain_format.program import Program
-// a = Program.to(...)
-// print(bytes(a).hex())
-// print(a.get_tree_hash().hex())
-
 pub fn node_to_stream_backrefs<W: io::Write>(
     allocator: &Allocator,
     node: NodePtr,
-    f: &mut W,
+    writer: &mut W,
 ) -> io::Result<()> {
     let mut read_op_stack: Vec<ReadOp> = vec![ReadOp::Parse];
     let mut write_stack: Vec<NodePtr> = vec![node];
@@ -49,13 +42,13 @@ pub fn node_to_stream_backrefs<W: io::Write>(
             .expect("can't get treehash");
         match read_cache_lookup.find_path(node_tree_hash, node_serialized_length) {
             Some(path) => {
-                f.write_all(&[BACK_REFERENCE])?;
-                write_atom(f, &path)?;
+                writer.write_all(&[BACK_REFERENCE])?;
+                write_atom(writer, &path)?;
                 read_cache_lookup.push(*node_tree_hash);
             }
             None => match allocator.sexp(node_to_write) {
                 SExp::Pair(left, right) => {
-                    f.write_all(&[CONS_BOX_MARKER])?;
+                    writer.write_all(&[CONS_BOX_MARKER])?;
                     write_stack.push(right);
                     write_stack.push(left);
                     read_op_stack.push(ReadOp::Cons);
@@ -64,7 +57,7 @@ pub fn node_to_stream_backrefs<W: io::Write>(
                 }
                 SExp::Atom() => {
                     let atom = allocator.atom(node_to_write);
-                    write_atom(f, atom)?;
+                    write_atom(writer, atom)?;
                     read_cache_lookup.push(*node_tree_hash);
                 }
             },
@@ -77,10 +70,10 @@ pub fn node_to_stream_backrefs<W: io::Write>(
     Ok(())
 }
 
-pub fn node_to_bytes_backrefs(a: &Allocator, node: NodePtr) -> io::Result<Vec<u8>> {
+pub fn node_to_bytes_backrefs(allocator: &Allocator, node: NodePtr) -> io::Result<Vec<u8>> {
     let mut buffer = Cursor::new(Vec::new());
 
-    node_to_stream_backrefs(a, node, &mut buffer)?;
+    node_to_stream_backrefs(allocator, node, &mut buffer)?;
     let vec = buffer.into_inner();
     Ok(vec)
 }

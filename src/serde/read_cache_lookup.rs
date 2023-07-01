@@ -26,12 +26,12 @@ pub struct ReadCacheLookup {
 
     /// the stack is a cons-based list of objects. The
     /// `read_stack` corresponds to cons cells and contains
-    /// the tree hashes of the contents on the left and right
+    /// the tree hashes of the contents on the left and right.
     read_stack: Vec<(Bytes32, Bytes32)>,
 
     count: HashMap<Bytes32, u32>,
 
-    /// a mapping of tree hashes to `(parent, is_right)` tuples
+    /// A mapping of tree hashes to `(parent, is_right)` tuples.
     parent_lookup: HashMap<Bytes32, Vec<(Bytes32, u8)>>,
 }
 
@@ -189,7 +189,6 @@ impl ReadCacheLookup {
 /// If `A` => `v` then `[A] + [0]` => `v * 2` and `[A] + [1]` => `v * 2 + 1`
 /// Then the integer is turned into the minimal-length array of `u8` representing
 /// that value as an unsigned integer.
-
 fn reversed_path_to_vec_u8(path: &[u8]) -> Vec<u8> {
     let byte_count = (path.len() + 1 + 7) >> 3;
     let mut v = vec![0; byte_count];
@@ -212,164 +211,169 @@ fn reversed_path_to_vec_u8(path: &[u8]) -> Vec<u8> {
     v
 }
 
-#[test]
-fn test_path_to_vec_u8() {
-    assert_eq!(reversed_path_to_vec_u8(&[]), vec!(0b1));
-    assert_eq!(reversed_path_to_vec_u8(&[0]), vec!(0b10));
-    assert_eq!(reversed_path_to_vec_u8(&[1]), vec!(0b11));
-    assert_eq!(reversed_path_to_vec_u8(&[0, 0]), vec!(0b100));
-    assert_eq!(reversed_path_to_vec_u8(&[0, 1]), vec!(0b101));
-    assert_eq!(reversed_path_to_vec_u8(&[1, 0]), vec!(0b110));
-    assert_eq!(reversed_path_to_vec_u8(&[1, 1]), vec!(0b111));
-    assert_eq!(reversed_path_to_vec_u8(&[1, 1, 1]), vec!(0b1111));
-    assert_eq!(reversed_path_to_vec_u8(&[0, 1, 1, 1]), vec!(0b10111));
-    assert_eq!(reversed_path_to_vec_u8(&[1, 0, 1, 1, 1]), vec!(0b110111));
-    assert_eq!(
-        reversed_path_to_vec_u8(&[1, 1, 0, 1, 1, 1]),
-        vec!(0b1110111)
-    );
-    assert_eq!(
-        reversed_path_to_vec_u8(&[0, 1, 1, 0, 1, 1, 1]),
-        vec!(0b10110111)
-    );
-    assert_eq!(
-        reversed_path_to_vec_u8(&[0, 0, 1, 1, 0, 1, 1, 1]),
-        vec!(0b1, 0b00110111)
-    );
-    assert_eq!(
-        reversed_path_to_vec_u8(&[1, 0, 0, 1, 1, 0, 1, 1, 1]),
-        vec!(0b11, 0b00110111)
-    );
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn test_read_cache_lookup() {
-    let large_max = 30;
-    let mut rcl = ReadCacheLookup::new();
+    #[test]
+    fn test_path_to_vec_u8() {
+        assert_eq!(reversed_path_to_vec_u8(&[]), vec!(0b1));
+        assert_eq!(reversed_path_to_vec_u8(&[0]), vec!(0b10));
+        assert_eq!(reversed_path_to_vec_u8(&[1]), vec!(0b11));
+        assert_eq!(reversed_path_to_vec_u8(&[0, 0]), vec!(0b100));
+        assert_eq!(reversed_path_to_vec_u8(&[0, 1]), vec!(0b101));
+        assert_eq!(reversed_path_to_vec_u8(&[1, 0]), vec!(0b110));
+        assert_eq!(reversed_path_to_vec_u8(&[1, 1]), vec!(0b111));
+        assert_eq!(reversed_path_to_vec_u8(&[1, 1, 1]), vec!(0b1111));
+        assert_eq!(reversed_path_to_vec_u8(&[0, 1, 1, 1]), vec!(0b10111));
+        assert_eq!(reversed_path_to_vec_u8(&[1, 0, 1, 1, 1]), vec!(0b110111));
+        assert_eq!(
+            reversed_path_to_vec_u8(&[1, 1, 0, 1, 1, 1]),
+            vec!(0b1110111)
+        );
+        assert_eq!(
+            reversed_path_to_vec_u8(&[0, 1, 1, 0, 1, 1, 1]),
+            vec!(0b10110111)
+        );
+        assert_eq!(
+            reversed_path_to_vec_u8(&[0, 0, 1, 1, 0, 1, 1, 1]),
+            vec!(0b1, 0b00110111)
+        );
+        assert_eq!(
+            reversed_path_to_vec_u8(&[1, 0, 0, 1, 1, 0, 1, 1, 1]),
+            vec!(0b11, 0b00110111)
+        );
+    }
 
-    // the only thing cached right now is a nil, right at the top of the tree (ie. `1`)
-    let hash_of_nil = hash_blob(&[1]);
-    assert_eq!(rcl.find_paths(&hash_of_nil, large_max), [[1]]);
+    #[test]
+    fn test_read_cache_lookup() {
+        let large_max = 30;
+        let mut rcl = ReadCacheLookup::new();
 
-    assert_eq!(rcl.count.get(&hash_of_nil).unwrap(), &1);
+        // the only thing cached right now is a nil, right at the top of the tree (ie. `1`)
+        let hash_of_nil = hash_blob(&[1]);
+        assert_eq!(rcl.find_paths(&hash_of_nil, large_max), [[1]]);
 
-    // the atom `1` is not in the tree anywhere
-    let hash_of_1_atom = hash_blobs(&[&[1], &[1]]);
-    assert!(rcl.find_paths(&hash_of_1_atom, large_max).is_empty());
+        assert_eq!(rcl.count.get(&hash_of_nil).unwrap(), &1);
 
-    // now let's push a `5` atom to the top
-    // tree: `(5 . 0)`
-    let hash_of_5_atom = hash_blobs(&[&[1], &[5]]);
-    rcl.push(hash_of_5_atom);
-    let hash_of_cons_5_nil = hash_blobs(&[&[2], &hash_of_5_atom, &hash_of_nil]);
-    assert_eq!(rcl.find_paths(&hash_of_cons_5_nil, large_max), [[1]]);
-    assert_eq!(rcl.find_paths(&hash_of_5_atom, large_max), [[2]]);
-    assert_eq!(rcl.find_paths(&hash_of_nil, large_max), [[3]]);
+        // the atom `1` is not in the tree anywhere
+        let hash_of_1_atom = hash_blobs(&[&[1], &[1]]);
+        assert!(rcl.find_paths(&hash_of_1_atom, large_max).is_empty());
 
-    assert_eq!(rcl.count.get(&hash_of_cons_5_nil).unwrap(), &1);
-    assert_eq!(rcl.count.get(&hash_of_5_atom).unwrap(), &1);
-    assert_eq!(rcl.count.get(&hash_of_nil).unwrap(), &1);
+        // now let's push a `5` atom to the top
+        // tree: `(5 . 0)`
+        let hash_of_5_atom = hash_blobs(&[&[1], &[5]]);
+        rcl.push(hash_of_5_atom);
+        let hash_of_cons_5_nil = hash_blobs(&[&[2], &hash_of_5_atom, &hash_of_nil]);
+        assert_eq!(rcl.find_paths(&hash_of_cons_5_nil, large_max), [[1]]);
+        assert_eq!(rcl.find_paths(&hash_of_5_atom, large_max), [[2]]);
+        assert_eq!(rcl.find_paths(&hash_of_nil, large_max), [[3]]);
 
-    // the atom `1` is still not in the tree anywhere
-    assert!(rcl.find_paths(&hash_of_1_atom, large_max).is_empty());
+        assert_eq!(rcl.count.get(&hash_of_cons_5_nil).unwrap(), &1);
+        assert_eq!(rcl.count.get(&hash_of_5_atom).unwrap(), &1);
+        assert_eq!(rcl.count.get(&hash_of_nil).unwrap(), &1);
 
-    // now let's push a `9` atom to the top
-    // tree: `(9 . (5 . 0))`
-    let hash_of_9_atom = hash_blobs(&[&[1], &[9]]);
-    rcl.push(hash_of_9_atom);
-    let hash_of_cons_9_cons_5_nil = hash_blobs(&[&[2], &hash_of_9_atom, &hash_of_cons_5_nil]);
+        // the atom `1` is still not in the tree anywhere
+        assert!(rcl.find_paths(&hash_of_1_atom, large_max).is_empty());
 
-    assert_eq!(rcl.find_paths(&hash_of_cons_9_cons_5_nil, large_max), [[1]]);
-    assert_eq!(rcl.find_paths(&hash_of_9_atom, large_max), [[2]]);
-    assert_eq!(rcl.find_paths(&hash_of_cons_5_nil, large_max), [[3]]);
-    assert_eq!(rcl.find_paths(&hash_of_5_atom, large_max), [[5]]);
-    assert_eq!(rcl.find_paths(&hash_of_nil, large_max), [[7]]);
+        // now let's push a `9` atom to the top
+        // tree: `(9 . (5 . 0))`
+        let hash_of_9_atom = hash_blobs(&[&[1], &[9]]);
+        rcl.push(hash_of_9_atom);
+        let hash_of_cons_9_cons_5_nil = hash_blobs(&[&[2], &hash_of_9_atom, &hash_of_cons_5_nil]);
 
-    assert_eq!(rcl.count.get(&hash_of_cons_9_cons_5_nil).unwrap(), &1);
-    assert_eq!(rcl.count.get(&hash_of_9_atom).unwrap(), &1);
-    assert_eq!(rcl.count.get(&hash_of_cons_5_nil).unwrap(), &1);
-    assert_eq!(rcl.count.get(&hash_of_5_atom).unwrap(), &1);
-    assert_eq!(rcl.count.get(&hash_of_nil).unwrap(), &1);
+        assert_eq!(rcl.find_paths(&hash_of_cons_9_cons_5_nil, large_max), [[1]]);
+        assert_eq!(rcl.find_paths(&hash_of_9_atom, large_max), [[2]]);
+        assert_eq!(rcl.find_paths(&hash_of_cons_5_nil, large_max), [[3]]);
+        assert_eq!(rcl.find_paths(&hash_of_5_atom, large_max), [[5]]);
+        assert_eq!(rcl.find_paths(&hash_of_nil, large_max), [[7]]);
 
-    // the atom `1` is still not in the tree anywhere
-    assert!(rcl.find_paths(&hash_of_1_atom, large_max).is_empty());
+        assert_eq!(rcl.count.get(&hash_of_cons_9_cons_5_nil).unwrap(), &1);
+        assert_eq!(rcl.count.get(&hash_of_9_atom).unwrap(), &1);
+        assert_eq!(rcl.count.get(&hash_of_cons_5_nil).unwrap(), &1);
+        assert_eq!(rcl.count.get(&hash_of_5_atom).unwrap(), &1);
+        assert_eq!(rcl.count.get(&hash_of_nil).unwrap(), &1);
 
-    // now let's push a `10` atom to the top
-    // tree: `(10 . (9 . (5 . 0)))`
+        // the atom `1` is still not in the tree anywhere
+        assert!(rcl.find_paths(&hash_of_1_atom, large_max).is_empty());
 
-    let hash_of_10_atom = hash_blobs(&[&[1], &[10]]);
-    rcl.push(hash_of_10_atom);
-    let hash_of_cons_10_cons_9_cons_5_nil =
-        hash_blobs(&[&[2], &hash_of_10_atom, &hash_of_cons_9_cons_5_nil]);
-    assert_eq!(
-        rcl.find_paths(&hash_of_cons_10_cons_9_cons_5_nil, large_max),
-        [[1]]
-    );
-    assert_eq!(rcl.find_paths(&hash_of_10_atom, large_max), [[2]]);
-    assert_eq!(rcl.find_paths(&hash_of_cons_9_cons_5_nil, large_max), [[3]]);
-    assert_eq!(rcl.find_paths(&hash_of_9_atom, large_max), [[5]]);
-    assert_eq!(rcl.find_paths(&hash_of_cons_5_nil, large_max), [[7]]);
-    assert_eq!(rcl.find_paths(&hash_of_5_atom, large_max), [[11]]);
-    assert_eq!(rcl.find_paths(&hash_of_nil, large_max), [[15]]);
+        // now let's push a `10` atom to the top
+        // tree: `(10 . (9 . (5 . 0)))`
 
-    assert_eq!(
-        rcl.count.get(&hash_of_cons_10_cons_9_cons_5_nil).unwrap(),
-        &1
-    );
-    assert_eq!(rcl.count.get(&hash_of_10_atom).unwrap(), &1);
-    assert_eq!(rcl.count.get(&hash_of_cons_9_cons_5_nil).unwrap(), &1);
-    assert_eq!(rcl.count.get(&hash_of_9_atom).unwrap(), &1);
-    assert_eq!(rcl.count.get(&hash_of_cons_5_nil).unwrap(), &1);
-    assert_eq!(rcl.count.get(&hash_of_5_atom).unwrap(), &1);
-    assert_eq!(rcl.count.get(&hash_of_nil).unwrap(), &1);
+        let hash_of_10_atom = hash_blobs(&[&[1], &[10]]);
+        rcl.push(hash_of_10_atom);
+        let hash_of_cons_10_cons_9_cons_5_nil =
+            hash_blobs(&[&[2], &hash_of_10_atom, &hash_of_cons_9_cons_5_nil]);
+        assert_eq!(
+            rcl.find_paths(&hash_of_cons_10_cons_9_cons_5_nil, large_max),
+            [[1]]
+        );
+        assert_eq!(rcl.find_paths(&hash_of_10_atom, large_max), [[2]]);
+        assert_eq!(rcl.find_paths(&hash_of_cons_9_cons_5_nil, large_max), [[3]]);
+        assert_eq!(rcl.find_paths(&hash_of_9_atom, large_max), [[5]]);
+        assert_eq!(rcl.find_paths(&hash_of_cons_5_nil, large_max), [[7]]);
+        assert_eq!(rcl.find_paths(&hash_of_5_atom, large_max), [[11]]);
+        assert_eq!(rcl.find_paths(&hash_of_nil, large_max), [[15]]);
 
-    // the atom `1` is still not in the tree anywhere
-    assert!(rcl.find_paths(&hash_of_1_atom, large_max).is_empty());
+        assert_eq!(
+            rcl.count.get(&hash_of_cons_10_cons_9_cons_5_nil).unwrap(),
+            &1
+        );
+        assert_eq!(rcl.count.get(&hash_of_10_atom).unwrap(), &1);
+        assert_eq!(rcl.count.get(&hash_of_cons_9_cons_5_nil).unwrap(), &1);
+        assert_eq!(rcl.count.get(&hash_of_9_atom).unwrap(), &1);
+        assert_eq!(rcl.count.get(&hash_of_cons_5_nil).unwrap(), &1);
+        assert_eq!(rcl.count.get(&hash_of_5_atom).unwrap(), &1);
+        assert_eq!(rcl.count.get(&hash_of_nil).unwrap(), &1);
 
-    // now let's do a `pop2_and_cons`
-    // tree: `((9 . 10) . (5 . 0))`
-    // 2 => (9 . 10)
-    // 3 => (5 . 0)
-    // 4 => 9
-    // 5 => 5
-    // 6 => 10
-    // 7 => 0
-    rcl.pop2_and_cons();
-    let hash_of_cons_9_10 = hash_blobs(&[&[2], &hash_of_9_atom, &hash_of_10_atom]);
-    let hash_of_cons_cons_9_10_cons_5_nil =
-        hash_blobs(&[&[2], &hash_of_cons_9_10, &hash_of_cons_5_nil]);
-    assert_eq!(
-        rcl.find_paths(&hash_of_cons_cons_9_10_cons_5_nil, large_max),
-        [[1]]
-    );
-    assert_eq!(rcl.find_paths(&hash_of_cons_9_10, large_max), [[2]]);
-    assert_eq!(rcl.find_paths(&hash_of_cons_5_nil, large_max), [[3]]);
-    assert_eq!(rcl.find_paths(&hash_of_9_atom, large_max), [[4]]);
-    assert_eq!(rcl.find_paths(&hash_of_10_atom, large_max), [[6]]);
-    assert_eq!(rcl.find_paths(&hash_of_5_atom, large_max), [[5]]);
-    assert_eq!(rcl.find_paths(&hash_of_nil, large_max), [[7]]);
+        // the atom `1` is still not in the tree anywhere
+        assert!(rcl.find_paths(&hash_of_1_atom, large_max).is_empty());
 
-    // `(9 . (5 . 0))` is no longer in the tree
-    assert!(rcl
-        .find_paths(&hash_of_cons_9_cons_5_nil, large_max)
-        .is_empty());
+        // now let's do a `pop2_and_cons`
+        // tree: `((9 . 10) . (5 . 0))`
+        // 2 => (9 . 10)
+        // 3 => (5 . 0)
+        // 4 => 9
+        // 5 => 5
+        // 6 => 10
+        // 7 => 0
+        rcl.pop2_and_cons();
+        let hash_of_cons_9_10 = hash_blobs(&[&[2], &hash_of_9_atom, &hash_of_10_atom]);
+        let hash_of_cons_cons_9_10_cons_5_nil =
+            hash_blobs(&[&[2], &hash_of_cons_9_10, &hash_of_cons_5_nil]);
+        assert_eq!(
+            rcl.find_paths(&hash_of_cons_cons_9_10_cons_5_nil, large_max),
+            [[1]]
+        );
+        assert_eq!(rcl.find_paths(&hash_of_cons_9_10, large_max), [[2]]);
+        assert_eq!(rcl.find_paths(&hash_of_cons_5_nil, large_max), [[3]]);
+        assert_eq!(rcl.find_paths(&hash_of_9_atom, large_max), [[4]]);
+        assert_eq!(rcl.find_paths(&hash_of_10_atom, large_max), [[6]]);
+        assert_eq!(rcl.find_paths(&hash_of_5_atom, large_max), [[5]]);
+        assert_eq!(rcl.find_paths(&hash_of_nil, large_max), [[7]]);
 
-    assert_eq!(
-        rcl.count.get(&hash_of_cons_cons_9_10_cons_5_nil).unwrap(),
-        &1
-    );
-    assert_eq!(rcl.count.get(&hash_of_cons_9_10).unwrap(), &1);
-    assert_eq!(rcl.count.get(&hash_of_cons_5_nil).unwrap(), &1);
-    assert_eq!(rcl.count.get(&hash_of_9_atom).unwrap(), &1);
-    assert_eq!(rcl.count.get(&hash_of_10_atom).unwrap(), &1);
-    assert_eq!(rcl.count.get(&hash_of_5_atom).unwrap(), &1);
-    assert_eq!(rcl.count.get(&hash_of_nil).unwrap(), &1);
+        // `(9 . (5 . 0))` is no longer in the tree
+        assert!(rcl
+            .find_paths(&hash_of_cons_9_cons_5_nil, large_max)
+            .is_empty());
 
-    // `(9 . (5 . 0))` is no longer in the tree
-    assert_eq!(rcl.count.get(&hash_of_cons_9_cons_5_nil).unwrap(), &0);
+        assert_eq!(
+            rcl.count.get(&hash_of_cons_cons_9_10_cons_5_nil).unwrap(),
+            &1
+        );
+        assert_eq!(rcl.count.get(&hash_of_cons_9_10).unwrap(), &1);
+        assert_eq!(rcl.count.get(&hash_of_cons_5_nil).unwrap(), &1);
+        assert_eq!(rcl.count.get(&hash_of_9_atom).unwrap(), &1);
+        assert_eq!(rcl.count.get(&hash_of_10_atom).unwrap(), &1);
+        assert_eq!(rcl.count.get(&hash_of_5_atom).unwrap(), &1);
+        assert_eq!(rcl.count.get(&hash_of_nil).unwrap(), &1);
 
-    // the atom `1` is still not in the tree anywhere
-    assert!(rcl.find_paths(&hash_of_1_atom, large_max).is_empty());
+        // `(9 . (5 . 0))` is no longer in the tree
+        assert_eq!(rcl.count.get(&hash_of_cons_9_cons_5_nil).unwrap(), &0);
 
-    assert!(rcl.count.get(&hash_of_1_atom).is_none());
+        // the atom `1` is still not in the tree anywhere
+        assert!(rcl.find_paths(&hash_of_1_atom, large_max).is_empty());
+
+        assert!(rcl.count.get(&hash_of_1_atom).is_none());
+    }
 }

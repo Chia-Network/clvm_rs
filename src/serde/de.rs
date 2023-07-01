@@ -13,40 +13,43 @@ enum ParseOp {
     Cons,
 }
 
-/// deserialize a clvm node from a `std::io::Cursor`
-pub fn node_from_stream(allocator: &mut Allocator, f: &mut Cursor<&[u8]>) -> io::Result<NodePtr> {
+/// Deserializes a CLVM node from a `std::io::Cursor`.
+pub fn node_from_stream(
+    allocator: &mut Allocator,
+    cursor: &mut Cursor<&[u8]>,
+) -> io::Result<NodePtr> {
     let mut values: Vec<NodePtr> = Vec::new();
     let mut ops = vec![ParseOp::SExp];
+    let mut byte = [0; 1];
 
-    let mut b = [0; 1];
     loop {
-        let op = ops.pop();
-        if op.is_none() {
+        let Some(op) = ops.pop() else {
             break;
-        }
-        match op.unwrap() {
+        };
+
+        match op {
             ParseOp::SExp => {
-                f.read_exact(&mut b)?;
-                if b[0] == CONS_BOX_MARKER {
+                cursor.read_exact(&mut byte)?;
+                if byte[0] == CONS_BOX_MARKER {
                     ops.push(ParseOp::Cons);
                     ops.push(ParseOp::SExp);
                     ops.push(ParseOp::SExp);
                 } else {
-                    values.push(parse_atom(allocator, b[0], f)?);
+                    values.push(parse_atom(allocator, byte[0], cursor)?);
                 }
             }
             ParseOp::Cons => {
-                // cons
                 let v2 = values.pop();
                 let v1 = values.pop();
                 values.push(allocator.new_pair(v1.unwrap(), v2.unwrap())?);
             }
         }
     }
+
     Ok(values.pop().unwrap())
 }
 
-pub fn node_from_bytes(allocator: &mut Allocator, b: &[u8]) -> io::Result<NodePtr> {
-    let mut buffer = Cursor::new(b);
+pub fn node_from_bytes(allocator: &mut Allocator, bytes: &[u8]) -> io::Result<NodePtr> {
+    let mut buffer = Cursor::new(bytes);
     node_from_stream(allocator, &mut buffer)
 }

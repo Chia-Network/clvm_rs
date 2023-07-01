@@ -14,8 +14,11 @@ pub struct LimitedWriter<W: io::Write> {
 }
 
 impl<W: io::Write> LimitedWriter<W> {
-    pub fn new(w: W, limit: usize) -> LimitedWriter<W> {
-        LimitedWriter { inner: w, limit }
+    pub fn new(writer: W, limit: usize) -> LimitedWriter<W> {
+        LimitedWriter {
+            inner: writer,
+            limit,
+        }
     }
 
     pub fn into_inner(self) -> W {
@@ -38,16 +41,20 @@ impl<W: io::Write> Write for LimitedWriter<W> {
 }
 
 /// serialize a node
-pub fn node_to_stream<W: io::Write>(a: &Allocator, node: NodePtr, f: &mut W) -> io::Result<()> {
+pub fn node_to_stream<W: io::Write>(
+    allocator: &Allocator,
+    node: NodePtr,
+    writer: &mut W,
+) -> io::Result<()> {
     let mut values: Vec<NodePtr> = vec![node];
     while let Some(v) = values.pop() {
-        let n = a.sexp(v);
+        let n = allocator.sexp(v);
         match n {
             SExp::Atom() => {
-                write_atom(f, a.atom(v))?;
+                write_atom(writer, allocator.atom(v))?;
             }
             SExp::Pair(left, right) => {
-                f.write_all(&[CONS_BOX_MARKER])?;
+                writer.write_all(&[CONS_BOX_MARKER])?;
                 values.push(right);
                 values.push(left);
             }
@@ -68,36 +75,41 @@ pub fn node_to_bytes(a: &Allocator, node: NodePtr) -> io::Result<Vec<u8>> {
     node_to_bytes_limit(a, node, 2000000)
 }
 
-#[test]
-fn test_serialize_limit() {
-    let mut a = Allocator::new();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let leaf = a.new_atom(&[1, 2, 3, 4, 5]).unwrap();
-    let l1 = a.new_pair(leaf, leaf).unwrap();
-    let l2 = a.new_pair(l1, l1).unwrap();
-    let l3 = a.new_pair(l2, l2).unwrap();
+    #[test]
+    fn test_serialize_limit() {
+        let mut a = Allocator::new();
 
-    {
-        let buffer = Cursor::new(Vec::new());
-        let mut writer = LimitedWriter::new(buffer, 55);
-        node_to_stream(&a, l3, &mut writer).unwrap();
-        let vec = writer.into_inner().into_inner();
-        assert_eq!(
-            vec,
-            &[
-                0xff, 0xff, 0xff, 133, 1, 2, 3, 4, 5, 133, 1, 2, 3, 4, 5, 0xff, 133, 1, 2, 3, 4, 5,
-                133, 1, 2, 3, 4, 5, 0xff, 0xff, 133, 1, 2, 3, 4, 5, 133, 1, 2, 3, 4, 5, 0xff, 133,
-                1, 2, 3, 4, 5, 133, 1, 2, 3, 4, 5
-            ]
-        );
-    }
+        let leaf = a.new_atom(&[1, 2, 3, 4, 5]).unwrap();
+        let l1 = a.new_pair(leaf, leaf).unwrap();
+        let l2 = a.new_pair(l1, l1).unwrap();
+        let l3 = a.new_pair(l2, l2).unwrap();
 
-    {
-        let buffer = Cursor::new(Vec::new());
-        let mut writer = LimitedWriter::new(buffer, 54);
-        assert_eq!(
-            node_to_stream(&a, l3, &mut writer).unwrap_err().kind(),
-            io::ErrorKind::OutOfMemory
-        );
+        {
+            let buffer = Cursor::new(Vec::new());
+            let mut writer = LimitedWriter::new(buffer, 55);
+            node_to_stream(&a, l3, &mut writer).unwrap();
+            let vec = writer.into_inner().into_inner();
+            assert_eq!(
+                vec,
+                &[
+                    0xff, 0xff, 0xff, 133, 1, 2, 3, 4, 5, 133, 1, 2, 3, 4, 5, 0xff, 133, 1, 2, 3,
+                    4, 5, 133, 1, 2, 3, 4, 5, 0xff, 0xff, 133, 1, 2, 3, 4, 5, 133, 1, 2, 3, 4, 5,
+                    0xff, 133, 1, 2, 3, 4, 5, 133, 1, 2, 3, 4, 5
+                ]
+            );
+        }
+
+        {
+            let buffer = Cursor::new(Vec::new());
+            let mut writer = LimitedWriter::new(buffer, 54);
+            assert_eq!(
+                node_to_stream(&a, l3, &mut writer).unwrap_err().kind(),
+                io::ErrorKind::OutOfMemory
+            );
+        }
     }
 }

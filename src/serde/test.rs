@@ -39,26 +39,31 @@ fn check_round_trip(obj_ser_br_hex: &str) {
     assert_eq!(obj_ser_br, obj_ser_br_1);
 }
 
-#[test]
-fn test_round_trip() {
-    let check = check_round_trip;
-    check("01"); // 1
-    check("ff83666f6f83626172"); // (foo . bar)
-    check("ff83666f6fff8362617280"); // (foo bar)
-    check("ffff0102ff0304"); // ((1 . 2) . (3 . 4))
-    check("ff01ff02ff03ff04ff05ff0680"); // (1 2 3 4 5 6)
-    check("ff83666f6ffe02"); // (foo . foo)
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    // (long string of long text string)
-    check("ff846c6f6e67ff86737472696e67ff826f66fffe0bff8474657874fffe1780");
+    #[test]
+    fn test_round_trip() {
+        let check = check_round_trip;
+        check("01"); // 1
+        check("ff83666f6f83626172"); // (foo . bar)
+        check("ff83666f6fff8362617280"); // (foo bar)
+        check("ffff0102ff0304"); // ((1 . 2) . (3 . 4))
+        check("ff01ff02ff03ff04ff05ff0680"); // (1 2 3 4 5 6)
+        check("ff83666f6ffe02"); // (foo . foo)
 
-    /*
-    (foo (foo) ((foo) foo) (((foo) foo) (foo) foo) ((((foo) foo) (foo) foo) ((foo) foo)
-        (foo) foo) (((((foo) foo) (foo) foo) ((foo) foo) (foo) foo) (((foo) foo) (foo) foo)
-        ((foo) foo) (foo) foo) ((((((foo) foo) (foo) foo) ((foo) foo) (foo) foo) (((foo) foo)
-        (foo) foo) ((foo) foo) (foo) foo) ((((foo) foo) (foo) foo) ((foo) foo) (foo) foo)
-        (((foo) foo) (foo) foo) ((foo) foo) (foo) foo))
-    */
+        // (long string of long text string)
+        check("ff846c6f6e67ff86737472696e67ff826f66fffe0bff8474657874fffe1780");
 
-    check("ff83666f6ffffe01fffe01fffe01fffe01fffe01fffe0180");
+        /*
+        (foo (foo) ((foo) foo) (((foo) foo) (foo) foo) ((((foo) foo) (foo) foo) ((foo) foo)
+            (foo) foo) (((((foo) foo) (foo) foo) ((foo) foo) (foo) foo) (((foo) foo) (foo) foo)
+            ((foo) foo) (foo) foo) ((((((foo) foo) (foo) foo) ((foo) foo) (foo) foo) (((foo) foo)
+            (foo) foo) ((foo) foo) (foo) foo) ((((foo) foo) (foo) foo) ((foo) foo) (foo) foo)
+            (((foo) foo) (foo) foo) ((foo) foo) (foo) foo))
+        */
+
+        check("ff83666f6ffffe01fffe01fffe01fffe01fffe01fffe0180");
+    }
 }

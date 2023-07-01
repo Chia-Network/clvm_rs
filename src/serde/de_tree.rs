@@ -62,42 +62,49 @@ enum ParseOpRef {
 }
 
 fn sha_blobs(blobs: &[&[u8]]) -> [u8; 32] {
-    let mut h = Sha256::new();
+    let mut hasher = Sha256::new();
+
     for blob in blobs {
-        h.update(blob);
+        hasher.update(blob);
     }
-    h.finalize()
+
+    hasher
+        .finalize()
         .as_slice()
         .try_into()
         .expect("wrong slice length")
 }
 
-fn tree_hash_for_byte(b: u8, calculate_tree_hashes: bool) -> Option<[u8; 32]> {
+fn tree_hash_for_byte(byte: u8, calculate_tree_hashes: bool) -> Option<[u8; 32]> {
     if calculate_tree_hashes {
-        Some(sha_blobs(&[&[1, b]]))
+        Some(sha_blobs(&[&[1, byte]]))
     } else {
         None
     }
 }
 
 fn skip_or_sha_bytes<R: Read>(
-    f: &mut R,
+    reader: &mut R,
     size: u64,
     calculate_tree_hashes: bool,
 ) -> Result<Option<[u8; 32]>> {
     if calculate_tree_hashes {
-        let mut h = Sha256::new();
-        h.update([1]);
-        let mut w = ShaWrapper(h);
-        copy_exactly(f, &mut w, size)?;
-        let r: [u8; 32] =
-            w.0.finalize()
+        let mut hasher = Sha256::new();
+        hasher.update([1]);
+
+        let mut wrapper = ShaWrapper(hasher);
+        copy_exactly(reader, &mut wrapper, size)?;
+
+        Ok(Some(
+            wrapper
+                .0
+                .finalize()
                 .as_slice()
                 .try_into()
-                .expect("wrong slice length");
-        Ok(Some(r))
+                .expect("wrong slice length"),
+        ))
     } else {
-        skip_bytes(f, size)?;
+        skip_bytes(reader, size)?;
         Ok(None)
     }
 }
@@ -118,13 +125,14 @@ fn skip_or_sha_bytes<R: Read>(
 type ParsedTriplesOutput = (Vec<ParsedTriple>, Option<Vec<[u8; 32]>>);
 
 pub fn parse_triples<R: Read>(
-    f: &mut R,
+    reader: &mut R,
     calculate_tree_hashes: bool,
 ) -> Result<ParsedTriplesOutput> {
-    let mut r = Vec::new();
+    let mut result = Vec::new();
     let mut tree_hashes = Vec::new();
     let mut op_stack = vec![ParseOpRef::ParseObj];
     let mut cursor: u64 = 0;
+
     loop {
         match op_stack.pop() {
             None => {
@@ -132,67 +140,77 @@ pub fn parse_triples<R: Read>(
             }
             Some(op) => match op {
                 ParseOpRef::ParseObj => {
-                    let mut b: [u8; 1] = [0];
-                    f.read_exact(&mut b)?;
+                    let mut byte_array: [u8; 1] = [0];
+                    reader.read_exact(&mut byte_array)?;
+
                     let start = cursor;
                     cursor += 1;
-                    let b = b[0];
-                    if b == CONS_BOX_MARKER {
-                        let index = r.len();
+
+                    let byte = byte_array[0];
+
+                    if byte == CONS_BOX_MARKER {
+                        let index = result.len();
                         let new_obj = ParsedTriple::Pair {
                             start,
                             end: 0,
                             right_index: 0,
                         };
-                        r.push(new_obj);
+
+                        result.push(new_obj);
+
                         if calculate_tree_hashes {
                             tree_hashes.push([0; 32])
                         }
+
                         op_stack.push(ParseOpRef::SaveEnd(index));
                         op_stack.push(ParseOpRef::ParseObj);
                         op_stack.push(ParseOpRef::SaveRightIndex(index));
                         op_stack.push(ParseOpRef::ParseObj);
                     } else {
                         let (start, end, atom_offset, tree_hash) = {
-                            if b <= MAX_SINGLE_BYTE {
+                            if byte <= MAX_SINGLE_BYTE {
                                 (
                                     start,
                                     start + 1,
                                     0,
-                                    tree_hash_for_byte(b, calculate_tree_hashes),
+                                    tree_hash_for_byte(byte, calculate_tree_hashes),
                                 )
                             } else {
-                                let (atom_offset, atom_size) = decode_size_with_offset(f, b)?;
+                                let (atom_offset, atom_size) =
+                                    decode_size_with_offset(reader, byte)?;
                                 let end = start + (atom_offset as u64) + atom_size;
-                                let h = skip_or_sha_bytes(f, atom_size, calculate_tree_hashes)?;
-                                (start, end, atom_offset as u32, h)
+                                let hash =
+                                    skip_or_sha_bytes(reader, atom_size, calculate_tree_hashes)?;
+                                (start, end, atom_offset as u32, hash)
                             }
                         };
+
                         if calculate_tree_hashes {
                             tree_hashes.push(tree_hash.expect("failed unwrap"))
                         }
-                        let new_obj = ParsedTriple::Atom {
+
+                        let new_object = ParsedTriple::Atom {
                             start,
                             end,
                             atom_offset,
                         };
+
                         cursor = end;
-                        r.push(new_obj);
+                        result.push(new_object);
                     }
                 }
-                ParseOpRef::SaveEnd(index) => match &mut r[index] {
+                ParseOpRef::SaveEnd(index) => match &mut result[index] {
                     ParsedTriple::Pair {
                         start: _,
                         end,
                         right_index,
                     } => {
                         if calculate_tree_hashes {
-                            let h = sha_blobs(&[
+                            tree_hashes[index] = sha_blobs(&[
                                 &[2],
                                 &tree_hashes[index + 1],
                                 &tree_hashes[*right_index as usize],
                             ]);
-                            tree_hashes[index] = h;
                         }
                         *end = cursor;
                     }
@@ -201,8 +219,8 @@ pub fn parse_triples<R: Read>(
                     }
                 },
                 ParseOpRef::SaveRightIndex(index) => {
-                    let new_index = r.len() as u32;
-                    match &mut r[index] {
+                    let new_index = result.len() as u32;
+                    match &mut result[index] {
                         ParsedTriple::Pair {
                             start: _,
                             end: _,
@@ -218,8 +236,9 @@ pub fn parse_triples<R: Read>(
             },
         }
     }
+
     Ok((
-        r,
+        result,
         if calculate_tree_hashes {
             Some(tree_hashes)
         } else {
@@ -229,136 +248,140 @@ pub fn parse_triples<R: Read>(
 }
 
 #[cfg(test)]
-use std::io::Cursor;
+mod tests {
+    use super::*;
+    use hex::FromHex;
+    use std::io::Cursor;
 
-#[cfg(test)]
-use hex::FromHex;
+    fn check_parse_tree(
+        hex: &str,
+        expected_triple: Vec<ParsedTriple>,
+        expected_sha_tree_hex: &str,
+    ) {
+        let bytes = Vec::from_hex(hex).unwrap();
+        println!("{:?}", bytes);
+        let mut cursor = Cursor::new(bytes);
+        let (parsed_triple, tree_hash) = parse_triples(&mut cursor, false).unwrap();
+        assert_eq!(parsed_triple, expected_triple);
+        assert_eq!(tree_hash, None);
 
-#[cfg(test)]
-fn check_parse_tree(h: &str, expected: Vec<ParsedTriple>, expected_sha_tree_hex: &str) {
-    let b = Vec::from_hex(h).unwrap();
-    println!("{:?}", b);
-    let mut f = Cursor::new(b);
-    let (p, tree_hash) = parse_triples(&mut f, false).unwrap();
-    assert_eq!(p, expected);
-    assert_eq!(tree_hash, None);
+        let bytes = Vec::from_hex(hex).unwrap();
+        let mut cursor = Cursor::new(bytes);
+        let (parsed_triple, tree_hash) = parse_triples(&mut cursor, true).unwrap();
+        assert_eq!(parsed_triple, expected_triple);
 
-    let b = Vec::from_hex(h).unwrap();
-    let mut f = Cursor::new(b);
-    let (p, tree_hash) = parse_triples(&mut f, true).unwrap();
-    assert_eq!(p, expected);
+        let expected_hash = Vec::from_hex(expected_sha_tree_hex).unwrap();
+        let actual_hash = tree_hash.unwrap()[0].to_vec();
+        assert_eq!(expected_hash, actual_hash);
+    }
 
-    let est = Vec::from_hex(expected_sha_tree_hex).unwrap();
-    assert_eq!(tree_hash.unwrap()[0].to_vec(), est);
-}
+    fn check_sha_blobs(hex: &str, blobs: &[&[u8]]) {
+        let expected = Vec::from_hex(hex).unwrap();
+        let actual = sha_blobs(blobs);
+        assert_eq!(expected, actual);
+    }
 
-#[cfg(test)]
-fn check_sha_blobs(h: &str, blobs: &[&[u8]]) {
-    let exp_sha = Vec::from_hex(h).unwrap();
-    let actual_sha = sha_blobs(blobs);
-    assert_eq!(exp_sha, actual_sha);
-}
+    #[test]
+    fn test_sha_blobs() {
+        check_sha_blobs(
+            "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+            &[&[1_u8]],
+        );
+        check_sha_blobs(
+            "9dcf97a184f32623d11a73124ceb99a5709b083721e878a16d78f596718ba7b2",
+            &[&[1], &[1]],
+        );
+        check_sha_blobs(
+            "812195e02ed84360ceafab26f9fa6072f8aa76ba34a735894c3f3c2e4fe6911d",
+            &[&[1, 250, 17], &[28]],
+        );
+    }
 
-#[test]
-fn test_sha_blobs() {
-    check_sha_blobs(
-        "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
-        &[&[1_u8]],
-    );
-    check_sha_blobs(
-        "9dcf97a184f32623d11a73124ceb99a5709b083721e878a16d78f596718ba7b2",
-        &[&[1], &[1]],
-    );
-    check_sha_blobs(
-        "812195e02ed84360ceafab26f9fa6072f8aa76ba34a735894c3f3c2e4fe6911d",
-        &[&[1, 250, 17], &[28]],
-    );
-}
-
-#[test]
-fn test_parse_tree() {
-    check_parse_tree(
-        "80",
-        vec![ParsedTriple::Atom {
-            start: 0,
-            end: 1,
-            atom_offset: 1,
-        }],
-        "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
-    );
-
-    check_parse_tree(
-        "ff648200c8",
-        vec![
-            ParsedTriple::Pair {
+    #[test]
+    fn test_parse_tree() {
+        check_parse_tree(
+            "80",
+            vec![ParsedTriple::Atom {
                 start: 0,
-                end: 5,
-                right_index: 2,
-            },
-            ParsedTriple::Atom {
-                start: 1,
-                end: 2,
-                atom_offset: 0,
-            },
-            ParsedTriple::Atom {
-                start: 2,
-                end: 5,
+                end: 1,
                 atom_offset: 1,
-            },
-        ],
-        "247f7d3f63b346ea93ca47f571cd0f4455392348b888a4286072bef0ac6069b5",
-    );
+            }],
+            "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+        );
 
-    check_parse_tree(
-        "ff83666f6fff83626172ff8362617a80", // `(foo bar baz)`
-        vec![
-            ParsedTriple::Pair {
+        check_parse_tree(
+            "ff648200c8",
+            vec![
+                ParsedTriple::Pair {
+                    start: 0,
+                    end: 5,
+                    right_index: 2,
+                },
+                ParsedTriple::Atom {
+                    start: 1,
+                    end: 2,
+                    atom_offset: 0,
+                },
+                ParsedTriple::Atom {
+                    start: 2,
+                    end: 5,
+                    atom_offset: 1,
+                },
+            ],
+            "247f7d3f63b346ea93ca47f571cd0f4455392348b888a4286072bef0ac6069b5",
+        );
+
+        check_parse_tree(
+            "ff83666f6fff83626172ff8362617a80", // `(foo bar baz)`
+            vec![
+                ParsedTriple::Pair {
+                    start: 0,
+                    end: 16,
+                    right_index: 2,
+                },
+                ParsedTriple::Atom {
+                    start: 1,
+                    end: 5,
+                    atom_offset: 1,
+                },
+                ParsedTriple::Pair {
+                    start: 5,
+                    end: 16,
+                    right_index: 4,
+                },
+                ParsedTriple::Atom {
+                    start: 6,
+                    end: 10,
+                    atom_offset: 1,
+                },
+                ParsedTriple::Pair {
+                    start: 10,
+                    end: 16,
+                    right_index: 6,
+                },
+                ParsedTriple::Atom {
+                    start: 11,
+                    end: 15,
+                    atom_offset: 1,
+                },
+                ParsedTriple::Atom {
+                    start: 15,
+                    end: 16,
+                    atom_offset: 1,
+                },
+            ],
+            "47f30bf9935e25e4262023124fb5e986d755b9ed65a28ac78925c933bfd57dbd",
+        );
+
+        let hex = "c0a0".to_owned() + &hex::encode([0x31u8; 160]);
+        check_parse_tree(
+            &hex,
+            vec![ParsedTriple::Atom {
                 start: 0,
-                end: 16,
-                right_index: 2,
-            },
-            ParsedTriple::Atom {
-                start: 1,
-                end: 5,
-                atom_offset: 1,
-            },
-            ParsedTriple::Pair {
-                start: 5,
-                end: 16,
-                right_index: 4,
-            },
-            ParsedTriple::Atom {
-                start: 6,
-                end: 10,
-                atom_offset: 1,
-            },
-            ParsedTriple::Pair {
-                start: 10,
-                end: 16,
-                right_index: 6,
-            },
-            ParsedTriple::Atom {
-                start: 11,
-                end: 15,
-                atom_offset: 1,
-            },
-            ParsedTriple::Atom {
-                start: 15,
-                end: 16,
-                atom_offset: 1,
-            },
-        ],
-        "47f30bf9935e25e4262023124fb5e986d755b9ed65a28ac78925c933bfd57dbd",
-    );
-
-    let s = "c0a0".to_owned() + &hex::encode([0x31u8; 160]);
-    check_parse_tree(
-        &s,
-        vec![ParsedTriple::Atom {
-            start: 0,
-            end: 162,
-            atom_offset: 2,
-        }],
-        "d1c109981a9c5a3bbe2d98795a186a0f057dc9a3a7f5e1eb4dfb63a1636efa2d",
-    );
+                end: 162,
+                atom_offset: 2,
+            }],
+            "d1c109981a9c5a3bbe2d98795a186a0f057dc9a3a7f5e1eb4dfb63a1636efa2d",
+        );
+    }
 }
