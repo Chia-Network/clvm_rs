@@ -175,7 +175,7 @@ fn test_truncated_decode_size() {
 fn check_parse_atom(blob: &[u8], expected_atom: &[u8]) {
     let mut cursor = Cursor::<&[u8]>::new(blob);
     let mut first: [u8; 1] = [0];
-    cursor.read(&mut first).unwrap();
+    cursor.read_exact(&mut first).unwrap();
     let first = first[0];
 
     let mut allocator = Allocator::new();
