@@ -78,9 +78,9 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
     /// Calculate the function's value for the given node, traversing uncached children
     /// as necessary.
     fn calculate(&mut self, root_node: &NodePtr) {
-        let mut obj_list = vec![*root_node];
+        let mut list = vec![*root_node];
         loop {
-            match obj_list.pop() {
+            match list.pop() {
                 None => {
                     return;
                 }
@@ -89,9 +89,9 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
                     None => match (self.cached_function)(self, self.allocator, node) {
                         None => match self.allocator.sexp(node) {
                             SExp::Pair(left, right) => {
-                                obj_list.push(node);
-                                obj_list.push(left);
-                                obj_list.push(right);
+                                list.push(node);
+                                list.push(left);
+                                list.push(right);
                             }
                             _ => panic!("f returned `None` for atom"),
                         },
@@ -124,7 +124,6 @@ pub fn treehash(
 
 /// Calculate the serialized length (without backrefs) of a node. This is used
 /// to check if using backrefs is actually smaller.
-
 pub fn serialized_length(
     cache: &mut ObjectCache<u64>,
     allocator: &Allocator,
@@ -140,21 +139,22 @@ pub fn serialized_length(
             }),
         },
         SExp::Atom() => {
-            let buf = allocator.atom(node);
-            let lb: u64 = buf.len().try_into().unwrap_or(u64::MAX);
-            Some(if lb == 0 || (lb == 1 && buf[0] < 128) {
+            let bytes = allocator.atom(node);
+            let length = bytes.len().try_into().unwrap_or(u64::MAX);
+            let result = if length == 0 || (length == 1 && bytes[0] < 128) {
                 1
-            } else if lb < 0x40 {
-                1 + lb
-            } else if lb < 0x2000 {
-                2 + lb
-            } else if lb < 0x100000 {
-                3 + lb
-            } else if lb < 0x8000000 {
-                4 + lb
+            } else if length < 0x40 {
+                1 + length
+            } else if length < 0x2000 {
+                2 + length
+            } else if length < 0x100000 {
+                3 + length
+            } else if length < 0x8000000 {
+                4 + length
             } else {
-                5 + lb
-            })
+                5 + length
+            };
+            Some(result)
         }
     }
 }
@@ -187,34 +187,30 @@ mod tests {
         }
     }
 
-    fn check_cached_function<T>(
-        obj_as_hex: &str,
-        expected_value: T,
-        cached_function: CachedFunction<T>,
-    ) where
+    fn check_cached_function<T>(hex: &str, expected_value: T, cached_function: CachedFunction<T>)
+    where
         T: Clone + Eq + Debug,
     {
         let mut allocator = Allocator::new();
-        let blob: Vec<u8> = Vec::from_hex(obj_as_hex).unwrap();
-        let mut cursor: Cursor<&[u8]> = Cursor::new(&blob);
-        let obj = node_from_stream(&mut allocator, &mut cursor).unwrap();
+        let blob: Vec<u8> = Vec::from_hex(hex).unwrap();
+        let object = node_from_stream(&mut allocator, &mut Cursor::new(&blob)).unwrap();
         let mut object_cache = ObjectCache::new(&allocator, cached_function);
 
-        assert_eq!(object_cache.get_from_cache(&obj), None);
+        assert_eq!(object_cache.get_from_cache(&object), None);
 
-        object_cache.calculate(&obj);
+        object_cache.calculate(&object);
 
-        assert_eq!(object_cache.get_from_cache(&obj), Some(&expected_value));
+        assert_eq!(object_cache.get_from_cache(&object), Some(&expected_value));
         assert_eq!(
-            object_cache.get_or_calculate(&obj).unwrap().clone(),
+            object_cache.get_or_calculate(&object).unwrap().clone(),
             expected_value
         );
-        assert_eq!(object_cache.get_from_cache(&obj), Some(&expected_value));
+        assert_eq!(object_cache.get_from_cache(&object), Some(&expected_value));
 
-        // do it again, but the simple way
+        // Do it again, but the simple way.
         let mut object_cache = ObjectCache::new(&allocator, cached_function);
         assert_eq!(
-            object_cache.get_or_calculate(&obj).unwrap().clone(),
+            object_cache.get_or_calculate(&object).unwrap().clone(),
             expected_value
         );
     }
@@ -272,9 +268,9 @@ mod tests {
     #[cfg(not(debug_assertions))]
     #[test]
     fn test_very_long_list() {
-        // in this test, we check that `treehash` and `serialized_length` can handle very deep trees that
+        // In this test, we check that `treehash` and `serialized_length` can handle very deep trees that
         // would normally blow out the stack. It's expensive to create such a long list, so we do both
-        // tests here so we only have to to create the list once
+        // tests here so we only have to to create the list once.
 
         const LIST_SIZE: u64 = 20_000_000;
         let mut allocator = Allocator::new();

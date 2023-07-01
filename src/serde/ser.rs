@@ -89,14 +89,14 @@ mod tests {
         let mut allocator = Allocator::new();
 
         let leaf = allocator.new_atom(&[1, 2, 3, 4, 5]).unwrap();
-        let l1 = allocator.new_pair(leaf, leaf).unwrap();
-        let l2 = allocator.new_pair(l1, l1).unwrap();
-        let l3 = allocator.new_pair(l2, l2).unwrap();
+        let leaf_1 = allocator.new_pair(leaf, leaf).unwrap();
+        let leaf_2 = allocator.new_pair(leaf_1, leaf_1).unwrap();
+        let leaf_3 = allocator.new_pair(leaf_2, leaf_2).unwrap();
 
         {
             let buffer = Cursor::new(Vec::new());
             let mut writer = LimitedWriter::new(buffer, 55);
-            node_to_stream(&allocator, l3, &mut writer).unwrap();
+            node_to_stream(&allocator, leaf_3, &mut writer).unwrap();
             let vec = writer.into_inner().into_inner();
             assert_eq!(
                 vec,
@@ -112,7 +112,7 @@ mod tests {
             let buffer = Cursor::new(Vec::new());
             let mut writer = LimitedWriter::new(buffer, 54);
             assert_eq!(
-                node_to_stream(&allocator, l3, &mut writer)
+                node_to_stream(&allocator, leaf_3, &mut writer)
                     .unwrap_err()
                     .kind(),
                 io::ErrorKind::OutOfMemory

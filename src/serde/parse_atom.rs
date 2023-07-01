@@ -36,7 +36,7 @@ pub fn decode_size_with_offset<R: Read>(reader: &mut R, initial_byte: u8) -> Res
         reader.read_exact(remaining_buffer)?;
     }
 
-    // need to convert size_blob to an int
+    // Need to convert size_blob to an int.
 
     let mut atom_size: u64 = 0;
 
@@ -116,14 +116,14 @@ mod tests {
 
     #[test]
     fn test_decode_size() {
-        // single-byte length prefix
+        // Single-byte length prefix.
         let mut buffer = Cursor::new(&[]);
         assert_eq!(
             decode_size_with_offset(&mut buffer, 0x80 | 0x20).unwrap(),
             (1, 0x20)
         );
 
-        // two-byte length prefix
+        // Two-byte length prefix.
         let first = 0b11001111;
         let mut buffer = Cursor::new(&[0xaa]);
         assert_eq!(
@@ -134,26 +134,24 @@ mod tests {
 
     #[test]
     fn test_large_decode_size() {
-        // this is an atom length-prefix 0xffffffffffff, or (2^48 - 1).
+        // This is an atom length-prefix 0xffffffffffff, or (2^48 - 1).
         // We don't support atoms this large and we should fail before attempting to
-        // allocate this much memory
+        // allocate this much memory.
         let first = 0b11111110;
         let mut buffer = Cursor::new(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
-        let ret = decode_size_with_offset(&mut buffer, first);
-        let e = ret.unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
+        let error = decode_size_with_offset(&mut buffer, first).unwrap_err();
+        assert_eq!(error.kind(), bad_encoding().kind());
+        assert_eq!(error.to_string(), "bad encoding");
 
-        // this is still too large
+        // This is still too large.
         let first = 0b11111100;
         let mut buffer = Cursor::new(&[0x4, 0, 0, 0, 0]);
-        let ret = decode_size_with_offset(&mut buffer, first);
-        let e = ret.unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
+        let error = decode_size_with_offset(&mut buffer, first).unwrap_err();
+        assert_eq!(error.kind(), bad_encoding().kind());
+        assert_eq!(error.to_string(), "bad encoding");
 
-        // But this is *just* within what we support
-        // Still a very large blob, probably enough for a DoS attack
+        // But this is *just* within what we support.
+        // Still a very large blob, probably enough for a DoS attack.
         let first = 0b11111100;
         let mut buffer = Cursor::new(&[0x3, 0xff, 0xff, 0xff, 0xff]);
         assert_eq!(
@@ -161,35 +159,31 @@ mod tests {
             (6, 0x3ffffffff)
         );
 
-        // this ensures a fuzzer-found bug doesn't reoccur
+        // This ensures a fuzzer-found bug doesn't reoccur.
         let mut buffer = Cursor::new(&[0xff, 0xfe]);
-        let ret = decode_size_with_offset(&mut buffer, first);
-        let e = ret.unwrap_err();
-        assert_eq!(e.kind(), ErrorKind::UnexpectedEof);
-        assert_eq!(e.to_string(), "failed to fill whole buffer");
+        let error = decode_size_with_offset(&mut buffer, first).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::UnexpectedEof);
+        assert_eq!(error.to_string(), "failed to fill whole buffer");
     }
 
     #[test]
     fn test_truncated_decode_size() {
-        // the stream is truncated
+        // The stream is truncated.
         let first = 0b11111100;
         let mut cursor = Cursor::new(&[0x4, 0, 0, 0]);
-        let ret = decode_size_with_offset(&mut cursor, first);
-        let e = ret.unwrap_err();
-        assert_eq!(e.kind(), ErrorKind::UnexpectedEof);
+        let error = decode_size_with_offset(&mut cursor, first).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::UnexpectedEof);
     }
 
     fn check_parse_atom(blob: &[u8], expected_atom: &[u8]) {
-        let mut cursor = Cursor::<&[u8]>::new(blob);
+        let mut cursor = Cursor::new(blob);
         let mut first: [u8; 1] = [0];
         cursor.read_exact(&mut first).unwrap();
         let first = first[0];
 
         let mut allocator = Allocator::new();
         let atom_node = parse_atom(&mut allocator, first, &mut cursor).unwrap();
-
         let atom_ptr = allocator.atom(atom_node);
-
         assert_eq!(expected_atom, atom_ptr);
     }
 
@@ -202,37 +196,42 @@ mod tests {
     #[test]
     fn test_parse_atom() {
         check_parse_atom_str("80", "");
-        // try "00", "01", "02", ..., "7f"
-        for idx in 0..128 {
-            check_parse_atom(&[idx], &[idx]);
+
+        // Try "00", "01", "02", ..., "7f".
+        for i in 0..128 {
+            check_parse_atom(&[i], &[i]);
         }
 
-        // check a short atom
+        // Check a short atom.
         check_parse_atom_str("83666f6f", "666f6f");
 
-        // check long atoms near boundary conditions
-        let n = 3;
-        let base_lengths = [0, 0x40 - n, 0x2000 - n, 0x100000 - n, 0x08000000 - n];
+        // Check long atoms near boundary conditions.
+        let value = 3;
+        let base_lengths = [
+            0,
+            0x40 - value,
+            0x2000 - value,
+            0x100000 - value,
+            0x08000000 - value,
+        ];
         let mut atom_vec = vec![];
         for base_length in base_lengths.iter() {
             for size_offset in 0..6 {
                 let size = base_length + size_offset;
                 atom_vec.resize(size, 0x66);
                 let mut buffer: Vec<u8> = vec![];
-                let mut cursor = Cursor::new(&mut buffer);
-                write_atom(&mut cursor, &atom_vec).unwrap();
+                write_atom(&mut Cursor::new(&mut buffer), &atom_vec).unwrap();
             }
         }
     }
 
     #[test]
     fn test_truncated_parse_atom() {
-        // the stream is truncated
+        // The stream is truncated.
         let first = 0b11111100;
         let mut cursor = Cursor::<&[u8]>::new(&[0x4, 0, 0, 0]);
         let mut allocator = Allocator::new();
-        let ret = parse_atom(&mut allocator, first, &mut cursor);
-        let err = ret.unwrap_err();
-        assert_eq!(err.kind(), ErrorKind::UnexpectedEof);
+        let error = parse_atom(&mut allocator, first, &mut cursor).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::UnexpectedEof);
     }
 }

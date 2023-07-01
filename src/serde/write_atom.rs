@@ -164,9 +164,9 @@ mod tests {
             (0x10_0000, vec![0xf0, 0x10, 0x00, 0x00]),
             (0x7ff_ffff, vec![0xf7, 0xff, 0xff, 0xff]),
             (0x800_0000, vec![0xf8, 0x08, 0x00, 0x00, 0x00]),
-            // the next one represents 17 GB of memory, which it then has to serialize
+            // The next one represents 17 GB of memory, which it then has to serialize
             // so let's not do it until some time in the future when all machines have
-            // 64 GB of memory
+            // 64 GB of memory.
             // (0x3_ffff_ffff, vec![0xfb, 0xff, 0xff, 0xff, 0xff]),
         ] {
             let mut buf = Vec::<u8>::new();

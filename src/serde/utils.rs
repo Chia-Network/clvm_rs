@@ -7,8 +7,8 @@ pub fn copy_exactly<R: Read, W: ?Sized + Write>(
     expected_size: u64,
 ) -> io::Result<()> {
     let mut reader = reader.by_ref().take(expected_size);
-
     let count = copy(&mut reader, writer)?;
+
     if count < expected_size {
         Err(Error::new(
             std::io::ErrorKind::UnexpectedEof,

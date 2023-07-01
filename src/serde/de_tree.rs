@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::io::{Error, Read, Result, Write};
 
 use sha2::Digest;
@@ -18,6 +17,7 @@ impl Write for ShaWrapper {
         self.0.update(blob);
         Ok(blob.len())
     }
+
     fn flush(&mut self) -> std::result::Result<(), Error> {
         Ok(())
     }
@@ -37,17 +37,18 @@ impl Write for ShaWrapper {
 /// need to save that); for an atom, the third number corresponds to an
 /// offset of where the atom's binary data is relative to
 /// `blob[start_offset]` (so the atom data is at `blob[triple[0] +
-/// triple[2]:triple[1]]`)
+/// triple[2]:triple[1]]`).
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ParsedTriple {
-    // if `buffer[start] != 0xff`, this is an atom
+    // If `buffer[start] != 0xff`, this is an atom.
     Atom {
         start: u64,
         end: u64,
         atom_offset: u32,
     },
-    // otherwise, it's an pair
+
+    // Otherwise, it's a pair.
     Pair {
         start: u64,
         end: u64,
@@ -63,16 +64,10 @@ enum ParseOpRef {
 
 fn sha_blobs(blobs: &[&[u8]]) -> [u8; 32] {
     let mut hasher = Sha256::new();
-
     for blob in blobs {
         hasher.update(blob);
     }
-
-    hasher
-        .finalize()
-        .as_slice()
-        .try_into()
-        .expect("wrong slice length")
+    hasher.finalize().into()
 }
 
 fn tree_hash_for_byte(byte: u8, calculate_tree_hashes: bool) -> Option<[u8; 32]> {
@@ -95,14 +90,7 @@ fn skip_or_sha_bytes<R: Read>(
         let mut wrapper = ShaWrapper(hasher);
         copy_exactly(reader, &mut wrapper, size)?;
 
-        Ok(Some(
-            wrapper
-                .0
-                .finalize()
-                .as_slice()
-                .try_into()
-                .expect("wrong slice length"),
-        ))
+        Ok(Some(wrapper.0.finalize().into()))
     } else {
         skip_bytes(reader, size)?;
         Ok(None)
@@ -119,7 +107,6 @@ fn skip_or_sha_bytes<R: Read>(
 ///
 /// Since these values are offsets into the original buffer, that buffer needs
 /// to be kept around to get the original atoms.
-
 type ParsedTriplesOutput = (Vec<ParsedTriple>, Option<Vec<[u8; 32]>>);
 
 /// Parse a serialized clvm object tree to an array of `ParsedTriple` objects.
@@ -180,6 +167,7 @@ pub fn parse_triples<R: Read>(
                                 let end = start + (atom_offset as u64) + atom_size;
                                 let hash =
                                     skip_or_sha_bytes(reader, atom_size, calculate_tree_hashes)?;
+
                                 (start, end, atom_offset as u32, hash)
                             }
                         };

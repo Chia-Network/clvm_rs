@@ -19,38 +19,36 @@ pub fn serialized_length_from_bytes(bytes: &[u8]) -> io::Result<u64> {
     let mut bytes = [0; 1];
 
     loop {
-        let op = ops.pop();
-
-        if op.is_none() {
+        let Some(op) = ops.pop() else {
             break;
-        }
+        };
 
-        match op.unwrap() {
+        match op {
             ParseOp::SExp => {
                 cursor.read_exact(&mut bytes)?;
                 if bytes[0] == CONS_BOX_MARKER {
-                    // since all we're doing is to determing the length of the
+                    // Since all we're doing is to determing the length of the
                     // serialized buffer, we don't need to do anything about
                     // "cons". So we skip pushing it to lower the pressure on
-                    // the op stack
-                    //ops.push(ParseOp::Cons);
+                    // the op stack.
+
+                    // ops.push(ParseOp::Cons);
                     ops.push(ParseOp::SExp);
                     ops.push(ParseOp::SExp);
                 } else if bytes[0] == 0x80 || bytes[0] <= MAX_SINGLE_BYTE {
-                    // This one byte we just read was the whole atom.
-                    // or the
-                    // special case of NIL
+                    // This one byte we just read was the whole atom, or the
+                    // special case of NIL.
                 } else {
                     let blob_size = decode_size(&mut cursor, bytes[0])?;
                     cursor.seek(SeekFrom::Current(blob_size as i64))?;
+
                     if (cursor.get_ref().len() as u64) < cursor.position() {
                         return Err(bad_encoding());
                     }
                 }
             }
             ParseOp::Cons => {
-                // cons. No need to construct any structure here. Just keep
-                // going
+                // No need to construct any structure here. Just keep going.
             }
         }
     }
@@ -60,10 +58,10 @@ pub fn serialized_length_from_bytes(bytes: &[u8]) -> io::Result<u64> {
 
 use crate::sha2::{Digest, Sha256};
 
-fn hash_atom(buf: &[u8]) -> [u8; 32] {
+fn hash_atom(bytes: &[u8]) -> [u8; 32] {
     let mut ctx = Sha256::new();
     ctx.update([1_u8]);
-    ctx.update(buf);
+    ctx.update(bytes);
     ctx.finalize().into()
 }
 
@@ -82,11 +80,11 @@ pub fn tree_hash_from_stream(cursor: &mut Cursor<&[u8]>) -> io::Result<[u8; 32]>
     let mut byte = [0; 1];
 
     loop {
-        let op = ops.pop();
-        if op.is_none() {
+        let Some(op) = ops.pop() else {
             break;
-        }
-        match op.unwrap() {
+        };
+
+        match op {
             ParseOp::SExp => {
                 cursor.read_exact(&mut byte)?;
                 if byte[0] == CONS_BOX_MARKER {
@@ -100,9 +98,11 @@ pub fn tree_hash_from_stream(cursor: &mut Cursor<&[u8]>) -> io::Result<[u8; 32]>
                 } else {
                     let blob_size = decode_size(cursor, byte[0])?;
                     let blob = &cursor.get_ref()[cursor.position() as usize..];
+
                     if (blob.len() as u64) < blob_size {
                         return Err(bad_encoding());
                     }
+
                     cursor.set_position(cursor.position() + blob_size);
                     values.push(hash_atom(&blob[..blob_size as usize]));
                 }
@@ -174,28 +174,21 @@ mod tests {
     #[test]
     fn test_tree_hash_overlong() {
         let mut cursor = Cursor::<&[u8]>::new(&[0x8f, 0xff]);
-        let e = tree_hash_from_stream(&mut cursor).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
+        let error = tree_hash_from_stream(&mut cursor).unwrap_err();
+        assert_eq!(error.kind(), bad_encoding().kind());
 
         let mut cursor = Cursor::<&[u8]>::new(&[0b11001111, 0xff]);
-        let e = tree_hash_from_stream(&mut cursor).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
+        let error = tree_hash_from_stream(&mut cursor).unwrap_err();
+        assert_eq!(error.kind(), bad_encoding().kind());
 
         let mut cursor = Cursor::<&[u8]>::new(&[0b11001111, 0xff, 0, 0]);
-        let e = tree_hash_from_stream(&mut cursor).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
+        let error = tree_hash_from_stream(&mut cursor).unwrap_err();
+        assert_eq!(error.kind(), bad_encoding().kind());
     }
-
-    // these test cases were produced by:
-
-    // from chia.types.blockchain_format.program import Program
-    // a = Program.to(...)
-    // print(bytes(a).hex())
-    // print(a.get_tree_hash().hex())
 
     #[test]
     fn test_tree_hash_list() {
-        // this is the list (1 (2 (3 (4 (5 ())))))
+        // This is the list (1 (2 (3 (4 (5 ()))))).
         let buf = Vec::from_hex("ff01ff02ff03ff04ff0580").unwrap();
         let mut cursor = Cursor::<&[u8]>::new(&buf);
         assert_eq!(
@@ -207,7 +200,7 @@ mod tests {
 
     #[test]
     fn test_tree_hash_tree() {
-        // this is the tree ((1, 2), (3, 4))
+        // This is the tree ((1, 2), (3, 4)).
         let buf = Vec::from_hex("ffff0102ff0304").unwrap();
         let mut cursor = Cursor::<&[u8]>::new(&buf);
         assert_eq!(
@@ -219,7 +212,7 @@ mod tests {
 
     #[test]
     fn test_tree_hash_tree_large_atom() {
-        // this is the tree ((1, 2), (3, b"foobar"))
+        // This is the tree ((1, 2), (3, b"foobar")).
         let buf = Vec::from_hex("ffff0102ff0386666f6f626172").unwrap();
         let mut cursor = Cursor::<&[u8]>::new(&buf);
         assert_eq!(
@@ -248,17 +241,17 @@ mod tests {
             5
         );
 
-        let e = serialized_length_from_bytes(&[0x8f, 0xff]).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
+        let error = serialized_length_from_bytes(&[0x8f, 0xff]).unwrap_err();
+        assert_eq!(error.kind(), bad_encoding().kind());
+        assert_eq!(error.to_string(), "bad encoding");
 
-        let e = serialized_length_from_bytes(&[0b11001111, 0xff]).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
+        let error = serialized_length_from_bytes(&[0b11001111, 0xff]).unwrap_err();
+        assert_eq!(error.kind(), bad_encoding().kind());
+        assert_eq!(error.to_string(), "bad encoding");
 
-        let e = serialized_length_from_bytes(&[0b11001111, 0xff, 0, 0]).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
+        let error = serialized_length_from_bytes(&[0b11001111, 0xff, 0, 0]).unwrap_err();
+        assert_eq!(error.kind(), bad_encoding().kind());
+        assert_eq!(error.to_string(), "bad encoding");
 
         assert_eq!(
             serialized_length_from_bytes(&[0x8f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])

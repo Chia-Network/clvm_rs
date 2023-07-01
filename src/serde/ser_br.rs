@@ -27,17 +27,17 @@ pub fn node_to_stream_backrefs<W: io::Write>(
 
     let mut read_cache_lookup = ReadCacheLookup::new();
 
-    let mut thc = ObjectCache::new(allocator, treehash);
-    let mut slc = ObjectCache::new(allocator, serialized_length);
+    let mut tree_hash_cache = ObjectCache::new(allocator, treehash);
+    let mut serialize_cache = ObjectCache::new(allocator, serialized_length);
 
     while let Some(node_to_write) = write_stack.pop() {
         let op = read_op_stack.pop();
         assert!(op == Some(ReadOp::Parse));
 
-        let node_serialized_length = *slc
+        let node_serialized_length = *serialize_cache
             .get_or_calculate(&node_to_write)
             .expect("couldn't calculate serialized length");
-        let node_tree_hash = thc
+        let node_tree_hash = tree_hash_cache
             .get_or_calculate(&node_to_write)
             .expect("can't get treehash");
         match read_cache_lookup.find_path(node_tree_hash, node_serialized_length) {

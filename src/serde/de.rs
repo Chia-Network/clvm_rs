@@ -30,6 +30,7 @@ pub fn node_from_stream(
         match op {
             ParseOp::SExp => {
                 cursor.read_exact(&mut byte)?;
+
                 if byte[0] == CONS_BOX_MARKER {
                     ops.push(ParseOp::Cons);
                     ops.push(ParseOp::SExp);
