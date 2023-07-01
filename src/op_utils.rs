@@ -172,12 +172,12 @@ fn test_nullp() {
     let a4 = a.new_atom(&[]).unwrap();
     let a5 = a.null();
     let pair = a.new_pair(a0, a1).unwrap();
-    assert_eq!(nullp(&a, pair), false);
-    assert_eq!(nullp(&a, a0), false);
-    assert_eq!(nullp(&a, a1), false);
-    assert_eq!(nullp(&a, a3), true);
-    assert_eq!(nullp(&a, a4), true);
-    assert_eq!(nullp(&a, a5), true);
+    assert!(!nullp(&a, pair));
+    assert!(!nullp(&a, a0));
+    assert!(!nullp(&a, a1));
+    assert!(nullp(&a, a3));
+    assert!(nullp(&a, a4));
+    assert!(nullp(&a, a5));
 }
 
 pub fn first(a: &Allocator, n: NodePtr) -> Result<NodePtr, EvalErr> {
@@ -267,12 +267,12 @@ fn test_atom_len() {
     let a1 = a.new_number(1337.into()).unwrap();
     let pair = a.new_pair(a0, a1).unwrap();
 
-    let r = atom_len(&mut a, pair, "test").unwrap_err();
+    let r = atom_len(&a, pair, "test").unwrap_err();
     assert_eq!(r.0, pair);
     assert_eq!(r.1, "test requires an atom");
 
-    assert_eq!(atom_len(&mut a, a0, "test").unwrap(), 1);
-    assert_eq!(atom_len(&mut a, a1, "test").unwrap(), 2);
+    assert_eq!(atom_len(&a, a0, "test").unwrap(), 1);
+    assert_eq!(atom_len(&a, a1, "test").unwrap(), 2);
 }
 
 pub fn uint_atom<const SIZE: usize>(
@@ -557,20 +557,20 @@ fn test_i32_atom() {
 
     let pair = a.new_pair(a0, a1).unwrap();
 
-    let r = i32_atom(&mut a, pair, "test").unwrap_err();
+    let r = i32_atom(&a, pair, "test").unwrap_err();
     assert_eq!(r.0, pair);
     assert_eq!(r.1, "test requires int32 args");
 
-    assert_eq!(i32_atom(&mut a, a0, "test").unwrap(), 42);
-    assert_eq!(i32_atom(&mut a, a1, "test").unwrap(), 1337);
+    assert_eq!(i32_atom(&a, a0, "test").unwrap(), 42);
+    assert_eq!(i32_atom(&a, a1, "test").unwrap(), 1337);
 
     let a2 = a.new_number(0x100000000_i64.into()).unwrap();
-    let r = i32_atom(&mut a, a2, "test").unwrap_err();
+    let r = i32_atom(&a, a2, "test").unwrap_err();
     assert_eq!(r.0, a2);
     assert_eq!(r.1, "test requires int32 args (with no leading zeros)");
 
     let a3 = a.new_number((-0xffffffff_i64).into()).unwrap();
-    let r = i32_atom(&mut a, a3, "test").unwrap_err();
+    let r = i32_atom(&a, a3, "test").unwrap_err();
     assert_eq!(r.0, a3);
     assert_eq!(r.1, "test requires int32 args (with no leading zeros)");
 }

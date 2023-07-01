@@ -46,7 +46,8 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
     if let Ok(num) = Number::from_str_radix(v, 10) {
         a.new_number(num).unwrap()
     } else {
-        let v = if v.starts_with('#') { &v[1..] } else { v };
+        let v = v.strip_prefix('#').unwrap_or(v);
+
         match v {
             "q" => a.new_atom(&[1]).unwrap(),
             "a" => a.new_atom(&[2]).unwrap(),
@@ -110,8 +111,8 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
 
 fn pop_token(s: &str) -> (&str, &str) {
     let s = s.trim();
-    if s.starts_with('\"') {
-        if let Some(second_quote) = &s[1..].find('\"') {
+    if let Some(after_quote) = s.strip_prefix('\"') {
+        if let Some(second_quote) = after_quote.find('\"') {
             let (first, rest) = s.split_at(second_quote + 2);
             (first.trim(), rest.trim())
         } else {
@@ -124,8 +125,8 @@ fn pop_token(s: &str) -> (&str, &str) {
         let space = s.find(' ');
         let close = s.find(')');
 
-        let split_pos = if space.is_some() && close.is_some() {
-            min(space.unwrap(), close.unwrap())
+        let split_pos = if let (Some(space), Some(close)) = (space, close) {
+            min(space, close)
         } else if let Some(pos) = space {
             pos
         } else if let Some(pos) = close {
