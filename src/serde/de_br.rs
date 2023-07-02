@@ -24,14 +24,8 @@ pub fn node_from_stream_backrefs(
     let mut ops = vec![ParseOp::SExp];
     let mut byte = [0; 1];
 
-    loop {
-        let op = ops.pop();
-
-        if op.is_none() {
-            break;
-        }
-
-        match op.unwrap() {
+    while let Some(op) = ops.pop() {
+        match op {
             ParseOp::SExp => {
                 cursor.read_exact(&mut byte)?;
                 if byte[0] == CONS_BOX_MARKER {

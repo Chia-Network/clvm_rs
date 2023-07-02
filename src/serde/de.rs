@@ -22,11 +22,7 @@ pub fn node_from_stream(
     let mut ops = vec![ParseOp::SExp];
     let mut byte = [0; 1];
 
-    loop {
-        let Some(op) = ops.pop() else {
-            break;
-        };
-
+    while let Some(op) = ops.pop() {
         match op {
             ParseOp::SExp => {
                 cursor.read_exact(&mut byte)?;
