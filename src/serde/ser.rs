@@ -84,6 +84,8 @@ pub fn node_to_bytes(allocator: &Allocator, node: NodePtr) -> io::Result<Vec<u8>
 mod tests {
     use super::*;
 
+    use hex_literal::hex;
+
     #[test]
     fn test_serialize_limit() {
         let mut allocator = Allocator::new();
@@ -98,14 +100,13 @@ mod tests {
             let mut writer = LimitedWriter::new(buffer, 55);
             node_to_stream(&allocator, leaf_3, &mut writer).unwrap();
             let vec = writer.into_inner().into_inner();
-            assert_eq!(
-                vec,
-                &[
-                    0xff, 0xff, 0xff, 133, 1, 2, 3, 4, 5, 133, 1, 2, 3, 4, 5, 0xff, 133, 1, 2, 3,
-                    4, 5, 133, 1, 2, 3, 4, 5, 0xff, 0xff, 133, 1, 2, 3, 4, 5, 133, 1, 2, 3, 4, 5,
-                    0xff, 133, 1, 2, 3, 4, 5, 133, 1, 2, 3, 4, 5
-                ]
+            let hex = hex!(
+                "
+                ffffff850102030405850102030405ff850102030405850102030405ffff8501
+                02030405850102030405ff850102030405850102030405
+                "
             );
+            assert_eq!(vec, hex);
         }
 
         {
