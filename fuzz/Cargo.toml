@@ -5,6 +5,9 @@ authors = ["Arvid Norberg <arvid@chia.net>"]
 publish = false
 edition = "2021"
 
+[workspace]
+members = ["."]
+
 [package.metadata]
 cargo-fuzz = true
 
@@ -14,10 +17,6 @@ libfuzzer-sys = "0.4.6"
 [dependencies.clvmr]
 path = ".."
 default-features = false
-
-# Prevent this from interfering with workspaces
-[workspace]
-members = ["."]
 
 [[bin]]
 name = "fuzz_run_program"
