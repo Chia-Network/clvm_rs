@@ -9,6 +9,9 @@ homepage = "https://github.com/Chia-Network/clvm_rs/"
 repository = "https://github.com/Chia-Network/clvm_rs/"
 readme = "README.md"
 
+[workspace]
+members = ["."]
+
 [lib]
 name = "clvm_rs"
 crate-type = ["cdylib"]
