@@ -6,7 +6,7 @@ on:
       - main
       - dev
     tags:
-        - '**'
+      - '**'
   pull_request:
     branches:
       - '**'
@@ -22,133 +22,133 @@ jobs:
         python: [3.7]
 
     steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-    - uses: chia-network/actions/setup-python@main
-      name: Install Python ${{ matrix.python }}
-      with:
-        python-version: ${{ matrix.python }}
+      - uses: chia-network/actions/setup-python@main
+        name: Install Python ${{ matrix.python }}
+        with:
+          python-version: ${{ matrix.python }}
 
-    - name: Update pip
-      run: |
+      - name: Update pip
+        run: |
           python -m pip install --upgrade pip
 
-    - name: Set up rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
+      - name: Set up rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
 
-    - name: Install dependencies
-      run: |
+      - name: Install dependencies
+        run: |
           python -m pip install maturin
 
-    - name: Build MacOs with maturin on Python ${{ matrix.python }}
-      if: startsWith(matrix.os, 'macos')
-      env:
-        MACOSX_DEPLOYMENT_TARGET: '10.14'
-      run: |
-        python -m venv venv
-        ln -s venv/bin/activate
-        . ./activate
-        maturin build -m wheel/Cargo.toml --sdist -i python --release --strip --features=openssl
+      - name: Build MacOs with maturin on Python ${{ matrix.python }}
+        if: startsWith(matrix.os, 'macos')
+        env:
+          MACOSX_DEPLOYMENT_TARGET: '10.14'
+        run: |
+          python -m venv venv
+          ln -s venv/bin/activate
+          . ./activate
+          maturin build -m wheel/Cargo.toml --sdist -i python --release --strip --features=openssl
 
-    - name: Build Linux in manylinux2014 with maturin on Python ${{ matrix.python }}
-      if: startsWith(matrix.os, 'ubuntu')
-      run: |
-        docker run --rm \
-          -v ${{ github.workspace }}:/ws --workdir=/ws \
-          quay.io/pypa/manylinux2014_x86_64 \
-          bash -exc '\
-            curl -L https://sh.rustup.rs > rustup-init.sh && \
-            sh rustup-init.sh -y && \
-            yum -y --disablerepo=epel install openssl-devel && \
-            source $HOME/.cargo/env && \
-            rustup target add x86_64-unknown-linux-musl && \
-            PY_VERSION=${{ matrix.python }}
-            PY_VERSION=${PY_VERSION/.} && \
-            echo "Python version with dot removed is $PY_VERSION" && \
-            if [ "$PY_VERSION" = "37" ]; \
-            then export SCND_VERSION="${PY_VERSION}m"; \
-            else export SCND_VERSION="$PY_VERSION"; fi && \
-            echo "Exporting path /opt/python/cp$PY_VERSION-cp$SCND_VERSION/bin" && \
-            export PATH=/opt/python/cp$PY_VERSION-cp$SCND_VERSION/bin/:$PATH && \
-            /opt/python/cp38-cp38/bin/python -m venv /venv && \
-            . /venv/bin/activate && \
-            pip install --upgrade pip && \
-            pip install maturin && \
-            CC=gcc maturin build -m wheel/Cargo.toml --release --strip --manylinux 2014 --features=openssl \
-          '
-        python -m venv venv
-        ln -s venv/bin/activate
+      - name: Build Linux in manylinux2014 with maturin on Python ${{ matrix.python }}
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/ws --workdir=/ws \
+            quay.io/pypa/manylinux2014_x86_64 \
+            bash -exc '\
+              curl -L https://sh.rustup.rs > rustup-init.sh && \
+              sh rustup-init.sh -y && \
+              yum -y --disablerepo=epel install openssl-devel && \
+              source $HOME/.cargo/env && \
+              rustup target add x86_64-unknown-linux-musl && \
+              PY_VERSION=${{ matrix.python }}
+              PY_VERSION=${PY_VERSION/.} && \
+              echo "Python version with dot removed is $PY_VERSION" && \
+              if [ "$PY_VERSION" = "37" ]; \
+              then export SCND_VERSION="${PY_VERSION}m"; \
+              else export SCND_VERSION="$PY_VERSION"; fi && \
+              echo "Exporting path /opt/python/cp$PY_VERSION-cp$SCND_VERSION/bin" && \
+              export PATH=/opt/python/cp$PY_VERSION-cp$SCND_VERSION/bin/:$PATH && \
+              /opt/python/cp38-cp38/bin/python -m venv /venv && \
+              . /venv/bin/activate && \
+              pip install --upgrade pip && \
+              pip install maturin && \
+              CC=gcc maturin build -m wheel/Cargo.toml --release --strip --manylinux 2014 --features=openssl \
+            '
+          python -m venv venv
+          ln -s venv/bin/activate
 
-    - name: Build Windows with maturin on Python ${{ matrix.python }}
-      if: startsWith(matrix.os, 'windows')
-      run: |
-        python -m venv venv
-        . .\venv\Scripts\Activate.ps1
-        ln -s venv\Scripts\Activate.ps1 activate
-        maturin build -m wheel/Cargo.toml -i python --release --strip
-        # this will install into the venv
-        # it'd be better to use the wheel, but I can't figure out how to do that
-        # TODO: figure this out
-        # this does NOT work: pip install wheel/target/wheels/clvm_rs-*.whl
-        maturin develop --release -m wheel/Cargo.toml
-        # the line above also doesn't seem to work
+      - name: Build Windows with maturin on Python ${{ matrix.python }}
+        if: startsWith(matrix.os, 'windows')
+        run: |
+          python -m venv venv
+          . .\venv\Scripts\Activate.ps1
+          ln -s venv\Scripts\Activate.ps1 activate
+          maturin build -m wheel/Cargo.toml -i python --release --strip
+          # this will install into the venv
+          # it'd be better to use the wheel, but I can't figure out how to do that
+          # TODO: figure this out
+          # this does NOT work: pip install wheel/target/wheels/clvm_rs-*.whl
+          maturin develop --release -m wheel/Cargo.toml
+          # the line above also doesn't seem to work
 
-    - name: Install clvm_rs wheel
-      if: ${{ !startsWith(matrix.os, 'windows') }}
-      run: |
-        . ./activate
-        ls wheel/target/wheels/
-        # this mess puts the name of the `.whl` file into `$WHEEL_PATH`
-        # remove the dot, use the `glob` lib to grab the file from the directory
-        WHEEL_PATH=$(echo ${{ matrix.python }} | python -c 'DOTLESS=input().replace(".", ""); import glob; print(" ".join(glob.glob("wheel/target/wheels/clvm_rs-*-cp%s-abi3-*.whl" % DOTLESS)))' )
-        echo ${WHEEL_PATH}
-        pip install ${WHEEL_PATH}
+      - name: Install clvm_rs wheel
+        if: ${{ !startsWith(matrix.os, 'windows') }}
+        run: |
+          . ./activate
+          ls wheel/target/wheels/
+          # this mess puts the name of the `.whl` file into `$WHEEL_PATH`
+          # remove the dot, use the `glob` lib to grab the file from the directory
+          WHEEL_PATH=$(echo ${{ matrix.python }} | python -c 'DOTLESS=input().replace(".", ""); import glob; print(" ".join(glob.glob("wheel/target/wheels/clvm_rs-*-cp%s-abi3-*.whl" % DOTLESS)))' )
+          echo ${WHEEL_PATH}
+          pip install ${WHEEL_PATH}
 
-    - name: Install other wheels
-      run: |
-        . ./activate
-        python -m pip install pytest
-        python -m pip install blspy
+      - name: Install other wheels
+        run: |
+          . ./activate
+          python -m pip install pytest
+          python -m pip install blspy
 
-    - name: Run tests from wheel
-      run: |
-        . ./activate
-        cd wheel/python
-        pytest --import-mode append tests
-        # we use `append` because otherwise the `clvm_rs` source is added
-        # to `sys.path` and it uses that instead of the wheel (and so
-        # ignoring `clvm_rs.so`, which is pretty important)
+      - name: Run tests from wheel
+        run: |
+          . ./activate
+          cd wheel/python
+          pytest --import-mode append tests
+          # we use `append` because otherwise the `clvm_rs` source is added
+          # to `sys.path` and it uses that instead of the wheel (and so
+          # ignoring `clvm_rs.so`, which is pretty important)
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: wheels
-        path: ./wheel/target/wheels/
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: ./wheel/target/wheels/
 
-    - name: Install Twine
-      run: pip install twine
+      - name: Install Twine
+        run: pip install twine
 
-    - name: Test for secrets access
-      id: check_secrets
-      shell: bash
-      run: |
-        unset HAS_SECRET
-        if [ -n "$SECRET" ]; then HAS_SECRET='true' ; fi
-        echo "HAS_SECRET=${HAS_SECRET}" >>$GITHUB_OUTPUT
-      env:
-        SECRET: "${{ secrets.test_pypi_password }}"
+      - name: Test for secrets access
+        id: check_secrets
+        shell: bash
+        run: |
+          unset HAS_SECRET
+          if [ -n "$SECRET" ]; then HAS_SECRET='true' ; fi
+          echo "HAS_SECRET=${HAS_SECRET}" >>$GITHUB_OUTPUT
+        env:
+          SECRET: '${{ secrets.test_pypi_password }}'
 
-    - name: publish (PyPi)
-      if: startsWith(github.event.ref, 'refs/tags') && steps.check_secrets.outputs.HAS_SECRET
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_NON_INTERACTIVE: 1
-        TWINE_PASSWORD: ${{ secrets.pypi_password }}
-      run: twine upload --non-interactive --skip-existing --verbose 'wheel/target/wheels/*'
+      - name: publish (PyPi)
+        if: startsWith(github.event.ref, 'refs/tags') && steps.check_secrets.outputs.HAS_SECRET
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_NON_INTERACTIVE: 1
+          TWINE_PASSWORD: ${{ secrets.pypi_password }}
+        run: twine upload --non-interactive --skip-existing --verbose 'wheel/target/wheels/*'
 
   fmt:
     runs-on: ubuntu-20.04
@@ -160,9 +160,9 @@ jobs:
       - name: Install rust
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: stable
-            override: true
-            components: rustfmt, clippy
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
       - name: fmt
         run: cargo fmt --all -- --files-with-diff --check
 
@@ -197,9 +197,9 @@ jobs:
       - name: Install rust
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: nightly
-            override: true
-            components: rustfmt, clippy
+          toolchain: nightly
+          override: true
+          components: rustfmt, clippy
       - name: fmt
         run: |
           cd fuzz
@@ -233,8 +233,8 @@ jobs:
       - name: Install rust
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: stable
-            components: rustfmt, clippy
+          toolchain: stable
+          components: rustfmt, clippy
 
       - name: build
         run: cargo build --workspace
@@ -257,7 +257,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
-            toolchain: stable
+          toolchain: stable
       - name: Run for coverage
         run: |
           sudo apt-get update

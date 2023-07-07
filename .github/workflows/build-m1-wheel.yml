@@ -6,7 +6,7 @@ on:
       - main
       - dev
     tags:
-        - '**'
+      - '**'
   pull_request:
     branches:
       - '**'
@@ -23,103 +23,103 @@ jobs:
       fail-fast: false
 
     steps:
-    - uses: Chia-Network/actions/clean-workspace@main
+      - uses: Chia-Network/actions/clean-workspace@main
 
-    - name: Checkout code
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-    - name: Set up rust
-      run: |
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rust.sh
-        arch -arm64 sh rust.sh -y
+      - name: Set up rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rust.sh
+          arch -arm64 sh rust.sh -y
 
-    - name: Build m1 wheels
-      run: |
-        arch -arm64 python3 -m venv venv
-        . ./venv/bin/activate
-        export PATH=~/.cargo/bin:$PATH
-        arch -arm64 pip install maturin
-        arch -arm64 maturin build -m wheel/Cargo.toml -i python --release --strip --features=openssl
+      - name: Build m1 wheels
+        run: |
+          arch -arm64 python3 -m venv venv
+          . ./venv/bin/activate
+          export PATH=~/.cargo/bin:$PATH
+          arch -arm64 pip install maturin
+          arch -arm64 maturin build -m wheel/Cargo.toml -i python --release --strip --features=openssl
 
-    - name: Install clvm_rs wheel
-      run: |
-        . ./venv/bin/activate
-        ls ./wheel/target/wheels/
-        arch -arm64 pip install ./wheel/target/wheels/clvm_rs*.whl
+      - name: Install clvm_rs wheel
+        run: |
+          . ./venv/bin/activate
+          ls ./wheel/target/wheels/
+          arch -arm64 pip install ./wheel/target/wheels/clvm_rs*.whl
 
-    - name: Install other wheels
-      run: |
-        . ./venv/bin/activate
-        arch -arm64 python -m pip install pytest
-        arch -arm64 python -m pip install blspy
+      - name: Install other wheels
+        run: |
+          . ./venv/bin/activate
+          arch -arm64 python -m pip install pytest
+          arch -arm64 python -m pip install blspy
 
-    - name: install clvm & clvm_tools
-      run: |
-        . ./venv/bin/activate
-        arch -arm64 git clone https://github.com/Chia-Network/clvm.git --branch=main --single-branch
-        arch -arm64 python -m pip install ./clvm
+      - name: install clvm & clvm_tools
+        run: |
+          . ./venv/bin/activate
+          arch -arm64 git clone https://github.com/Chia-Network/clvm.git --branch=main --single-branch
+          arch -arm64 python -m pip install ./clvm
 
-        arch -arm64 git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
-        arch -arm64 python -m pip install ./clvm_tools
+          arch -arm64 git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
+          arch -arm64 python -m pip install ./clvm_tools
 
-    - name: Ensure clvm, clvm_rs, clvm_tools are installed
-      run: |
-        . ./venv/bin/activate
-        arch -arm64 python -c 'import clvm'
-        arch -arm64 python -c 'import clvm; print(clvm.__file__)'
-        arch -arm64 python -c 'import clvm_rs; print(clvm_rs.__file__)'
-        arch -arm64 python -c 'import clvm_tools; print(clvm_tools.__file__)'
+      - name: Ensure clvm, clvm_rs, clvm_tools are installed
+        run: |
+          . ./venv/bin/activate
+          arch -arm64 python -c 'import clvm'
+          arch -arm64 python -c 'import clvm; print(clvm.__file__)'
+          arch -arm64 python -c 'import clvm_rs; print(clvm_rs.__file__)'
+          arch -arm64 python -c 'import clvm_tools; print(clvm_tools.__file__)'
 
-    - name: Run tests from clvm
-      run: |
-        . ./venv/bin/activate
-        cd clvm
-        arch -arm64 pytest tests
+      - name: Run tests from clvm
+        run: |
+          . ./venv/bin/activate
+          cd clvm
+          arch -arm64 pytest tests
 
-    - name: Run tests from clvm_tools
-      run: |
-        . ./venv/bin/activate
-        cd clvm_tools
-        arch -arm64 pytest tests
+      - name: Run tests from clvm_tools
+        run: |
+          . ./venv/bin/activate
+          cd clvm_tools
+          arch -arm64 pytest tests
 
-    - name: Run tests from wheel
-      run: |
-        . ./venv/bin/activate
-        cd wheel/python
-        pytest --import-mode append tests
-        # we use `append` because otherwise the `clvm_rs` source is added
-        # to `sys.path` and it uses that instead of the wheel (and so
-        # ignoring `clvm_rs.so`, which is pretty important)
+      - name: Run tests from wheel
+        run: |
+          . ./venv/bin/activate
+          cd wheel/python
+          pytest --import-mode append tests
+          # we use `append` because otherwise the `clvm_rs` source is added
+          # to `sys.path` and it uses that instead of the wheel (and so
+          # ignoring `clvm_rs.so`, which is pretty important)
 
-    - name: Upload wheels
-      uses: actions/upload-artifact@v3
-      with:
-        name: wheels
-        path: ./wheel/target/wheels
+      - name: Upload wheels
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: ./wheel/target/wheels
 
-    - name: Test for secrets access
-      id: check_secrets
-      shell: bash
-      run: |
-        unset HAS_SECRET
-        if [ -n "$SECRET" ]; then HAS_SECRET='true' ; fi
-        echo "HAS_SECRET=${HAS_SECRET}" >>$GITHUB_OUTPUT
-      env:
-        SECRET: "${{ secrets.test_pypi_password }}"
+      - name: Test for secrets access
+        id: check_secrets
+        shell: bash
+        run: |
+          unset HAS_SECRET
+          if [ -n "$SECRET" ]; then HAS_SECRET='true' ; fi
+          echo "HAS_SECRET=${HAS_SECRET}" >>$GITHUB_OUTPUT
+        env:
+          SECRET: '${{ secrets.test_pypi_password }}'
 
-    - name: Install twine
-      run: |
-        . ./venv/bin/activate
-        arch -arm64 pip install twine
+      - name: Install twine
+        run: |
+          . ./venv/bin/activate
+          arch -arm64 pip install twine
 
-    - name: Publish distribution to PyPI
-      if: startsWith(github.event.ref, 'refs/tags') && steps.check_secrets.outputs.HAS_SECRET
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_NON_INTERACTIVE: 1
-        TWINE_PASSWORD: ${{ secrets.pypi_password }}
-      run: |
-        . ./venv/bin/activate
-        arch -arm64 twine upload --non-interactive --skip-existing --verbose 'wheel/target/wheels/*'
+      - name: Publish distribution to PyPI
+        if: startsWith(github.event.ref, 'refs/tags') && steps.check_secrets.outputs.HAS_SECRET
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_NON_INTERACTIVE: 1
+          TWINE_PASSWORD: ${{ secrets.pypi_password }}
+        run: |
+          . ./venv/bin/activate
+          arch -arm64 twine upload --non-interactive --skip-existing --verbose 'wheel/target/wheels/*'
