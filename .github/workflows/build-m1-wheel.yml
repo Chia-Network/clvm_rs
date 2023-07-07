@@ -46,8 +46,8 @@ jobs:
       - name: Install clvm_rs wheel
         run: |
           . ./venv/bin/activate
-          ls ./wheel/target/wheels/
-          arch -arm64 pip install ./wheel/target/wheels/clvm_rs*.whl
+          ls ./target/wheels/
+          arch -arm64 pip install ./target/wheels/clvm_rs*.whl
 
       - name: Install other wheels
         run: |
@@ -97,7 +97,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: wheels
-          path: ./wheel/target/wheels
+          path: ./target/wheels
 
       - name: Test for secrets access
         id: check_secrets
@@ -122,4 +122,4 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.pypi_password }}
         run: |
           . ./venv/bin/activate
-          arch -arm64 twine upload --non-interactive --skip-existing --verbose 'wheel/target/wheels/*'
+          arch -arm64 twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
