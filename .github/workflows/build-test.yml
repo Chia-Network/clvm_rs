@@ -237,7 +237,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: build
-        run: cargo build --workspace
+        run: cargo build --workspace --exclude clvm_rs-fuzz
 
       - name: cargo test (default)
         run: cargo test && cargo test --release
