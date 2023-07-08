@@ -59,7 +59,7 @@ jobs:
 
       - name: Install Twine
         run: |
-          if [ ! -f "venv" ]; then rm -rf venv; fi
+          if [ ! -f "venv" ]; then sudo rm -rf venv; fi
           sudo apt-get install python3-venv python3-pip -y
           python3 -m venv venv
           if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi
