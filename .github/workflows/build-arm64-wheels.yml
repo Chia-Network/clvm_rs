@@ -55,7 +55,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: wheels
-        path: wheel/target/wheels/
+        path: target/wheels/
 
     - name: Install Twine
       run: |
@@ -85,7 +85,7 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.pypi_password }}
       run: |
         . ./activate
-        twine upload --non-interactive --skip-existing --verbose 'wheel/target/wheels/*'
+        twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
 
     - name: Clean up AMR64
       if: startsWith(matrix.os, 'ARM64')
