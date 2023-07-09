@@ -1,6 +1,5 @@
 [workspace]
-members = ["tools", "wasm"]
-exclude = ["wheel"]
+members = ["fuzz", "tools", "wasm", "wheel"]
 
 [package]
 name = "clvmr"
