@@ -7,47 +7,26 @@ use super::parse_atom::decode_size;
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const CONS_BOX_MARKER: u8 = 0xff;
 
-#[repr(u8)]
-enum ParseOp {
-    SExp,
-    Cons,
-}
-
 pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
     let mut f = Cursor::new(b);
-    let mut ops = vec![ParseOp::SExp];
+    let mut ops_counter = 1;
     let mut b = [0; 1];
-    loop {
-        let op = ops.pop();
-        if op.is_none() {
-            break;
-        }
-        match op.unwrap() {
-            ParseOp::SExp => {
-                f.read_exact(&mut b)?;
-                if b[0] == CONS_BOX_MARKER {
-                    // since all we're doing is to determing the length of the
-                    // serialized buffer, we don't need to do anything about
-                    // "cons". So we skip pushing it to lower the pressure on
-                    // the op stack
-                    //ops.push(ParseOp::Cons);
-                    ops.push(ParseOp::SExp);
-                    ops.push(ParseOp::SExp);
-                } else if b[0] == 0x80 || b[0] <= MAX_SINGLE_BYTE {
-                    // This one byte we just read was the whole atom.
-                    // or the
-                    // special case of NIL
-                } else {
-                    let blob_size = decode_size(&mut f, b[0])?;
-                    f.seek(SeekFrom::Current(blob_size as i64))?;
-                    if (f.get_ref().len() as u64) < f.position() {
-                        return Err(bad_encoding());
-                    }
-                }
-            }
-            ParseOp::Cons => {
-                // cons. No need to construct any structure here. Just keep
-                // going
+    while ops_counter > 0 {
+        ops_counter -= 1;
+        f.read_exact(&mut b)?;
+        if b[0] == CONS_BOX_MARKER {
+            // we expect to parse two more items from the strem
+            // the left and right sub tree
+            ops_counter += 2;
+        } else if b[0] == 0x80 || b[0] <= MAX_SINGLE_BYTE {
+            // This one byte we just read was the whole atom.
+            // or the
+            // special case of NIL
+        } else {
+            let blob_size = decode_size(&mut f, b[0])?;
+            f.seek(SeekFrom::Current(blob_size as i64))?;
+            if (f.get_ref().len() as u64) < f.position() {
+                return Err(bad_encoding());
             }
         }
     }
@@ -69,6 +48,12 @@ fn hash_pair(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
     ctx.update(left);
     ctx.update(right);
     ctx.finalize().into()
+}
+
+#[repr(u8)]
+enum ParseOp {
+    SExp,
+    Cons,
 }
 
 // computes the tree-hash of a CLVM structure in serialized form
