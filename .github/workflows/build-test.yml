@@ -164,7 +164,7 @@ jobs:
             override: true
             components: rustfmt, clippy
       - name: Clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --all-targets --workspace -- -D warnings
       - name: fmt
         run: cargo fmt --all -- --files-with-diff --check
 
