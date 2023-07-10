@@ -150,9 +150,9 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.pypi_password }}
       run: twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
 
-  fmt:
+  checks:
     runs-on: ubuntu-20.04
-    name: cargo fmt
+    name: Checks
     steps:
       - uses: actions/checkout@v3
         with:
@@ -163,22 +163,10 @@ jobs:
             toolchain: stable
             override: true
             components: rustfmt, clippy
+      - name: Clippy
+        run: cargo clippy --all-targets --workspace -- -D warnings
       - name: fmt
         run: cargo fmt --all -- --files-with-diff --check
-
-  clippy:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          components: clippy
-          override: true
-      - uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --workspace --all-features
 
   # leaving out Windows fuzzing for now though it seems supported
   # https://llvm.org/docs/LibFuzzer.html#q-does-libfuzzer-support-windows
