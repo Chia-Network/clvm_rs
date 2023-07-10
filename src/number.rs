@@ -260,11 +260,11 @@ fn roundtrip_i64(v: i64) {
     use std::cmp::Ordering;
 
     let num: Number = v.into();
-    
+
     match v.cmp(&0) {
         Ordering::Equal => assert!(num.sign() == Sign::NoSign),
-        Ordering::Less => assert!(num.sign() == Sign::Minus),   
-        Ordering::Greater => assert!(num.sign() == Sign::Plus)
+        Ordering::Less => assert!(num.sign() == Sign::Minus),
+        Ordering::Greater => assert!(num.sign() == Sign::Plus),
     }
 
     assert!(num.bits() <= 64);
