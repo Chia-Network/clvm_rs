@@ -630,13 +630,13 @@ fn test_checkpoints() {
     let mut a = Allocator::new();
 
     let atom1 = a.new_atom(&[1, 2, 3]).unwrap();
-    assert!(a.atom(atom1) == &[1, 2, 3]);
+    assert!(a.atom(atom1) == [1, 2, 3]);
 
     let checkpoint = a.checkpoint();
 
     let atom2 = a.new_atom(&[4, 5, 6]).unwrap();
-    assert!(a.atom(atom1) == &[1, 2, 3]);
-    assert!(a.atom(atom2) == &[4, 5, 6]);
+    assert!(a.atom(atom1) == [1, 2, 3]);
+    assert!(a.atom(atom2) == [4, 5, 6]);
 
     // at this point we have two atoms and a checkpoint from before the second
     // atom was created
@@ -645,9 +645,9 @@ fn test_checkpoints() {
 
     a.restore_checkpoint(&checkpoint);
 
-    assert!(a.atom(atom1) == &[1, 2, 3]);
+    assert!(a.atom(atom1) == [1, 2, 3]);
     let atom3 = a.new_atom(&[6, 7, 8]).unwrap();
-    assert!(a.atom(atom3) == &[6, 7, 8]);
+    assert!(a.atom(atom3) == [6, 7, 8]);
 
     // since atom2 was removed, atom3 should actually be using that slot
     assert_eq!(atom2, atom3);
@@ -683,7 +683,7 @@ fn test_point_size_error(#[case] fun: TestFun, #[case] size: usize, #[case] expe
     let mut buf = Vec::<u8>::new();
     buf.resize(size, 0xcc);
     let n = a.new_atom(&buf).unwrap();
-    let r = fun(&mut a, n);
+    let r = fun(&a, n);
     assert_eq!(r.0, n);
     assert_eq!(r.1, expected.to_string());
 }
@@ -695,7 +695,7 @@ fn test_point_size_error(#[case] fun: TestFun, #[case] size: usize, #[case] expe
 fn test_point_atom_pair(#[case] fun: TestFun, #[case] expected: &str) {
     let mut a = Allocator::new();
     let n = a.new_pair(a.null(), a.one()).unwrap();
-    let r = fun(&mut a, n);
+    let r = fun(&a, n);
     assert_eq!(r.0, n);
     assert_eq!(r.1, expected.to_string());
 }
@@ -990,7 +990,7 @@ fn test_roundtrip(#[case] test_value: &str, #[case] make: MakeFun, #[case] check
     let value = hex::decode(test_value).unwrap();
     let mut a = Allocator::new();
     let node = make(&mut a, &value);
-    check(&mut a, node, &value);
+    check(&a, node, &value);
 }
 
 #[cfg(test)]

@@ -139,8 +139,8 @@ fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f6
     let checkpoint = a.checkpoint();
     let mut samples = Vec::<(f64, f64)>::new();
     let mut atom = vec![0; 10000000];
-    for i in 0..atom.len() {
-        atom[i] = (i + 1) as u8;
+    for (i, value) in atom.iter_mut().enumerate() {
+        *value = (i + 1) as u8;
     }
     for _k in 0..3 {
         for i in 1..1000 {

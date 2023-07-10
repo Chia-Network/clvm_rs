@@ -118,7 +118,7 @@ fn roundtrip_bytes(b: &[u8]) {
         let round_trip = num.to_signed_bytes_be();
         // num-bigin produces a single 0 byte for the value 0. We expect an
         // empty array
-        let round_trip = if round_trip == &[0] {
+        let round_trip = if round_trip == [0] {
             &round_trip[1..]
         } else {
             &round_trip
@@ -131,7 +131,7 @@ fn roundtrip_bytes(b: &[u8]) {
 
         // there's a special case for empty input buffers, which will result in
         // a single 0 byte here
-        if b == &[] {
+        if b.is_empty() {
             assert_eq!(buf_le, &[0]);
             buf_le.remove(0);
         }
@@ -162,7 +162,7 @@ fn roundtrip_bytes(b: &[u8]) {
         let unsigned_num: Number = BigUint::from_bytes_be(b).into();
         assert!(unsigned_num.sign() != Sign::Minus);
         let unsigned_round_trip = unsigned_num.to_signed_bytes_be();
-        let unsigned_round_trip = if unsigned_round_trip == &[0] {
+        let unsigned_round_trip = if unsigned_round_trip == [0] {
             &unsigned_round_trip[1..]
         } else {
             &unsigned_round_trip
@@ -257,13 +257,14 @@ fn test_round_trip_u64() {
 
 #[cfg(test)]
 fn roundtrip_i64(v: i64) {
+    use std::cmp::Ordering;
+
     let num: Number = v.into();
-    if v == 0 {
-        assert!(num.sign() == Sign::NoSign);
-    } else if v < 0 {
-        assert!(num.sign() == Sign::Minus);
-    } else if v > 0 {
-        assert!(num.sign() == Sign::Plus);
+    
+    match v.cmp(&0) {
+        Ordering::Equal => assert!(num.sign() == Sign::NoSign),
+        Ordering::Less => assert!(num.sign() == Sign::Minus),   
+        Ordering::Greater => assert!(num.sign() == Sign::Plus)
     }
 
     assert!(num.bits() <= 64);
