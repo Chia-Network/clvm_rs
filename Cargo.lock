@@ -160,7 +160,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_rs"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "clvmr",
  "pyo3",
@@ -176,7 +176,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_wasm"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "clvmr",
  "js-sys",
@@ -186,7 +186,7 @@ dependencies = [
 
 [[package]]
 name = "clvmr"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "bls12_381",
  "getrandom",
@@ -215,9 +215,9 @@ dependencies = [
 
 [[package]]
 name = "const-oid"
-version = "0.9.3"
+version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6340df57935414636969091153f35f68d9f00bbc8fb4a9c6054706c213e6c6bc"
+checksum = "795bc6e66a8e340f075fcf6227e417a2dc976b92b91f3cdc778bb858778b6747"
 
 [[package]]
 name = "cpufeatures"
@@ -1105,18 +1105,18 @@ checksum = "bebd363326d05ec3e2f532ab7660680f3b02130d780c299bca73469d521bc0ed"
 
 [[package]]
 name = "serde"
-version = "1.0.170"
+version = "1.0.171"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a56657f512baabca8f840542f9ca8152aecf182c473c26e46e58d6aab4f6e439"
+checksum = "30e27d1e4fd7659406c492fd6cfaf2066ba8773de45ca75e855590f856dc34a9"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.170"
+version = "1.0.171"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77d477848e6b23adba0db397777d5aad864555bc17fd9c89abb3b8009788b7b8"
+checksum = "389894603bd18c46fa56231694f8d827779c0951a667087194cf9de94ed24682"
 dependencies = [
  "proc-macro2",
  "quote",
