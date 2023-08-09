@@ -19,7 +19,7 @@ pub fn get_args<const N: usize>(
 ) -> Result<[NodePtr; N], EvalErr> {
     let mut next = args;
     let mut counter = 0;
-    let mut ret: [NodePtr; N] = [0; N];
+    let mut ret: [NodePtr; N] = [NodePtr(0); N];
 
     while let Some((first, rest)) = a.next(next) {
         next = rest;
@@ -92,7 +92,7 @@ pub fn get_varargs<const N: usize>(
 ) -> Result<([NodePtr; N], usize), EvalErr> {
     let mut next = args;
     let mut counter = 0;
-    let mut ret: [NodePtr; N] = [0; N];
+    let mut ret: [NodePtr; N] = [NodePtr(0); N];
 
     while let Some((first, rest)) = a.next(next) {
         next = rest;
@@ -132,19 +132,19 @@ fn test_get_varargs() {
     );
     assert_eq!(
         get_varargs::<4>(&a, args3, "test").unwrap(),
-        ([a1, a2, a3, 0], 3)
+        ([a1, a2, a3, NodePtr(0)], 3)
     );
     assert_eq!(
         get_varargs::<4>(&a, args2, "test").unwrap(),
-        ([a2, a3, 0, 0], 2)
+        ([a2, a3, NodePtr(0), NodePtr(0)], 2)
     );
     assert_eq!(
         get_varargs::<4>(&a, args1, "test").unwrap(),
-        ([a3, 0, 0, 0], 1)
+        ([a3, NodePtr(0), NodePtr(0), NodePtr(0)], 1)
     );
     assert_eq!(
         get_varargs::<4>(&a, args0, "test").unwrap(),
-        ([0, 0, 0, 0], 0)
+        ([NodePtr(0), NodePtr(0), NodePtr(0), NodePtr(0)], 0)
     );
 
     let r = get_varargs::<3>(&a, args4, "test").unwrap_err();

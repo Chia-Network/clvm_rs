@@ -16,7 +16,7 @@ enum OpArgs {
 
 // special argument to indicate it should be substituted for varied in the FreeBytes test to
 // measure cost per byte
-const VARIABLE: NodePtr = 999;
+const VARIABLE: NodePtr = NodePtr(999);
 
 // builds calls in the form:
 // (<op> arg arg ...)
