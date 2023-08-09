@@ -56,7 +56,7 @@ pub fn op_raise(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response 
     // as it'd potentially look the same as a throw of multiple arguments.
     let throw_value = if let Ok([value]) = get_args::<1>(a, input, "") {
         match a.sexp(value) {
-            SExp::Atom() => value,
+            SExp::Atom => value,
             _ => input,
         }
     } else {
@@ -67,7 +67,7 @@ pub fn op_raise(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response 
 }
 
 fn ensure_atom(a: &Allocator, n: NodePtr, op: &str) -> Result<(), EvalErr> {
-    if let SExp::Atom() = a.sexp(n) {
+    if let SExp::Atom = a.sexp(n) {
         Ok(())
     } else {
         Err(EvalErr(n, format!("{op} on list")))

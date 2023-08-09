@@ -551,7 +551,7 @@ pub fn op_concat(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
         )?;
         match a.sexp(arg) {
             SExp::Pair(_, _) => return err(arg, "concat on list"),
-            SExp::Atom() => total_size += a.atom_len(arg),
+            SExp::Atom => total_size += a.atom_len(arg),
         };
         terms.push(arg);
     }

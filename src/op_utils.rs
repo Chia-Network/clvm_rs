@@ -158,7 +158,7 @@ fn test_get_varargs() {
 
 pub fn nullp(a: &Allocator, n: NodePtr) -> bool {
     match a.sexp(n) {
-        SExp::Atom() => a.atom_len(n) == 0,
+        SExp::Atom => a.atom_len(n) == 0,
         _ => false,
     }
 }
@@ -222,7 +222,7 @@ fn test_rest() {
 
 pub fn int_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<(Number, usize), EvalErr> {
     match a.sexp(args) {
-        SExp::Atom() => Ok((a.number(args), a.atom_len(args))),
+        SExp::Atom => Ok((a.number(args), a.atom_len(args))),
         _ => err(args, &format!("{op_name} requires int args")),
     }
 }
@@ -254,7 +254,7 @@ fn test_int_atom_failure() {
 
 pub fn atom_len(a: &Allocator, args: NodePtr, op_name: &str) -> Result<usize, EvalErr> {
     match a.sexp(args) {
-        SExp::Atom() => Ok(a.atom_len(args)),
+        SExp::Atom => Ok(a.atom_len(args)),
         _ => err(args, &format!("{op_name} requires an atom")),
     }
 }
@@ -281,7 +281,7 @@ pub fn uint_atom<const SIZE: usize>(
     op_name: &str,
 ) -> Result<u64, EvalErr> {
     let bytes = match a.sexp(args) {
-        SExp::Atom() => a.atom(args),
+        SExp::Atom => a.atom(args),
         _ => {
             return err(args, &format!("{op_name} requires int arg"));
         }
@@ -409,7 +409,7 @@ fn test_uint_atom_8_pair() {
 
 pub fn atom<'a>(a: &'a Allocator, n: NodePtr, op_name: &str) -> Result<&'a [u8], EvalErr> {
     match a.sexp(n) {
-        SExp::Atom() => Ok(a.atom(n)),
+        SExp::Atom => Ok(a.atom(n)),
         _ => err(n, &format!("{op_name} on list")),
     }
 }
@@ -534,7 +534,7 @@ fn test_u64_from_bytes() {
 
 pub fn i32_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<i32, EvalErr> {
     let buf = match a.sexp(args) {
-        SExp::Atom() => a.atom(args),
+        SExp::Atom => a.atom(args),
         _ => {
             return err(args, &format!("{op_name} requires int32 args"));
         }

@@ -62,7 +62,7 @@ pub fn node_to_stream_backrefs<W: io::Write>(
                     read_op_stack.push(ReadOp::Parse);
                     read_op_stack.push(ReadOp::Parse);
                 }
-                SExp::Atom() => {
+                SExp::Atom => {
                     let atom = allocator.atom(node_to_write);
                     write_atom(f, atom)?;
                     read_cache_lookup.push(*node_tree_hash);
