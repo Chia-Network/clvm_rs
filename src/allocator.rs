@@ -6,7 +6,7 @@ use bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective};
 pub type NodePtr = i32;
 
 pub enum SExp {
-    Atom(),
+    Atom,
     Pair(NodePtr, NodePtr),
 }
 
@@ -252,7 +252,7 @@ impl Allocator {
 
     pub fn g1(&self, node: NodePtr) -> Result<G1Projective, EvalErr> {
         let blob = match self.sexp(node) {
-            SExp::Atom() => self.atom(node),
+            SExp::Atom => self.atom(node),
             _ => {
                 return err(node, "pair found, expected G1 point");
             }
@@ -271,7 +271,7 @@ impl Allocator {
 
     pub fn g2(&self, node: NodePtr) -> Result<G2Projective, EvalErr> {
         let blob = match self.sexp(node) {
-            SExp::Atom() => self.atom(node),
+            SExp::Atom => self.atom(node),
             _ => {
                 return err(node, "pair found, expected G2 point");
             }
@@ -293,7 +293,7 @@ impl Allocator {
             let pair = self.pair_vec[node as usize];
             SExp::Pair(pair.first, pair.rest)
         } else {
-            SExp::Atom()
+            SExp::Atom
         }
     }
 
@@ -305,7 +305,7 @@ impl Allocator {
     pub fn next(&self, n: NodePtr) -> Option<(NodePtr, NodePtr)> {
         match self.sexp(n) {
             SExp::Pair(first, rest) => Some((first, rest)),
-            SExp::Atom() => None,
+            SExp::Atom => None,
         }
     }
 
@@ -385,7 +385,7 @@ fn test_null() {
     assert_eq!(a.atom(a.null()), b"");
 
     let buf = match a.sexp(a.null()) {
-        SExp::Atom() => a.atom(a.null()),
+        SExp::Atom => a.atom(a.null()),
         SExp::Pair(_, _) => panic!("unexpected"),
     };
     assert_eq!(buf, b"");
@@ -397,7 +397,7 @@ fn test_one() {
     assert_eq!(a.atom(a.one()), b"\x01");
     assert_eq!(
         match a.sexp(a.one()) {
-            SExp::Atom() => a.atom(a.one()),
+            SExp::Atom => a.atom(a.one()),
             SExp::Pair(_, _) => panic!("unexpected"),
         },
         b"\x01"
@@ -411,7 +411,7 @@ fn test_allocate_atom() {
     assert_eq!(a.atom(atom), b"foobar");
     assert_eq!(
         match a.sexp(atom) {
-            SExp::Atom() => a.atom(atom),
+            SExp::Atom => a.atom(atom),
             SExp::Pair(_, _) => panic!("unexpected"),
         },
         b"foobar"
@@ -427,7 +427,7 @@ fn test_allocate_pair() {
 
     assert_eq!(
         match a.sexp(pair) {
-            SExp::Atom() => panic!("unexpected"),
+            SExp::Atom => panic!("unexpected"),
             SExp::Pair(left, right) => (left, right),
         },
         (atom1, atom2)
@@ -436,7 +436,7 @@ fn test_allocate_pair() {
     let pair2 = a.new_pair(pair, pair).unwrap();
     assert_eq!(
         match a.sexp(pair2) {
-            SExp::Atom() => panic!("unexpected"),
+            SExp::Atom => panic!("unexpected"),
             SExp::Pair(left, right) => (left, right),
         },
         (pair, pair)
@@ -552,21 +552,21 @@ fn test_sexp() {
 
     assert_eq!(
         match a.sexp(atom1) {
-            SExp::Atom() => 0,
+            SExp::Atom => 0,
             SExp::Pair(_, _) => 1,
         },
         0
     );
     assert_eq!(
         match a.sexp(atom2) {
-            SExp::Atom() => 0,
+            SExp::Atom => 0,
             SExp::Pair(_, _) => 1,
         },
         0
     );
     assert_eq!(
         match a.sexp(pair) {
-            SExp::Atom() => 0,
+            SExp::Atom => 0,
             SExp::Pair(_, _) => 1,
         },
         1

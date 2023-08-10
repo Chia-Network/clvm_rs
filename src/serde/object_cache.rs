@@ -121,7 +121,7 @@ pub fn treehash(
                 .get_from_cache(&right)
                 .map(|right_value| hash_blobs(&[&[2], left_value, right_value])),
         },
-        SExp::Atom() => Some(hash_blobs(&[&[1], allocator.atom(node)])),
+        SExp::Atom => Some(hash_blobs(&[&[1], allocator.atom(node)])),
     }
 }
 
@@ -142,7 +142,7 @@ pub fn serialized_length(
                     .saturating_add(*right_value)
             }),
         },
-        SExp::Atom() => {
+        SExp::Atom => {
             let buf = allocator.atom(node);
             let lb: u64 = buf.len().try_into().unwrap_or(u64::MAX);
             Some(if lb == 0 || (lb == 1 && buf[0] < 128) {
@@ -192,7 +192,7 @@ fn calculate_depth_simple(
                 .get_from_cache(&right)
                 .map(|right_value| 1 + max(*left_value, *right_value)),
         },
-        SExp::Atom() => Some(0),
+        SExp::Atom => Some(0),
     }
 }
 

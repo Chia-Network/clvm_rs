@@ -43,7 +43,7 @@ pub fn node_to_stream<W: io::Write>(a: &Allocator, node: NodePtr, f: &mut W) -> 
     while let Some(v) = values.pop() {
         let n = a.sexp(v);
         match n {
-            SExp::Atom() => {
+            SExp::Atom => {
                 write_atom(f, a.atom(v))?;
             }
             SExp::Pair(left, right) => {

@@ -278,7 +278,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         // put a bunch of ops on op_stack
         let (op_node, op_list) = match self.allocator.sexp(program) {
             // the program is just a bitfield path through the env tree
-            SExp::Atom() => {
+            SExp::Atom => {
                 let r: Reduction =
                     traverse_path(self.allocator, self.allocator.atom(program), env)?;
                 self.push(r.1)?;
@@ -305,7 +305,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 self.account_op_push();
                 Ok(APPLY_COST)
             }
-            SExp::Atom() => self.eval_op_atom(op_node, op_list, env),
+            SExp::Atom => self.eval_op_atom(op_node, op_list, env),
         }
     }
 
