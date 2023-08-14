@@ -160,7 +160,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_rs"
-version = "0.2.7"
+version = "0.3.0"
 dependencies = [
  "clvmr",
  "pyo3",
@@ -176,7 +176,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_wasm"
-version = "0.2.7"
+version = "0.3.0"
 dependencies = [
  "clvmr",
  "js-sys",
@@ -186,7 +186,7 @@ dependencies = [
 
 [[package]]
 name = "clvmr"
-version = "0.2.7"
+version = "0.3.0"
 dependencies = [
  "bls12_381",
  "getrandom",
