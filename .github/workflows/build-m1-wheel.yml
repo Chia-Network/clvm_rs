@@ -22,7 +22,7 @@ permissions:
 jobs:
   build_wheels:
     name: Build wheel on Mac M1
-    runs-on: [m1]
+    runs-on: [MacOS, ARM64]
     strategy:
       fail-fast: false
 
