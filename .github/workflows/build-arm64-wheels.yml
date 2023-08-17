@@ -69,7 +69,6 @@ jobs:
         if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi
         . ./activate
         pip install setuptools_rust
-        pip install twine
 
     - name: publish (PyPi)
       if: startsWith(github.event.ref, 'refs/tags')

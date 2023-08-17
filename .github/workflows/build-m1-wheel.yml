@@ -103,11 +103,6 @@ jobs:
         name: wheels
         path: ./target/wheels
 
-    - name: Install twine
-      run: |
-        . ./venv/bin/activate
-        pip install twine
-
     - name: Publish distribution to PyPI
       if: startsWith(github.event.ref, 'refs/tags')
       uses: pypa/gh-action-pypi-publish@release/v1
