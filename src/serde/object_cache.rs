@@ -78,30 +78,23 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
     /// as necessary
     fn calculate(&mut self, root_node: &NodePtr) {
         let mut obj_list = vec![*root_node];
-        loop {
-            match obj_list.pop() {
-                None => {
-                    return;
-                }
-                Some(node) => {
-                    let v = self.get_from_cache(&node);
-                    match v {
-                        Some(_) => {}
-                        None => match (self.f)(self, self.allocator, node) {
-                            None => match self.allocator.sexp(node) {
-                                SExp::Pair(left, right) => {
-                                    obj_list.push(node);
-                                    obj_list.push(left);
-                                    obj_list.push(right);
-                                }
-                                _ => panic!("f returned `None` for atom"),
-                            },
-                            Some(v) => {
-                                self.set(&node, v);
-                            }
-                        },
+        while let Some(node) = obj_list.pop() {
+            let v = self.get_from_cache(&node);
+            match v {
+                Some(_) => {}
+                None => match (self.f)(self, self.allocator, node) {
+                    None => match self.allocator.sexp(node) {
+                        SExp::Pair(left, right) => {
+                            obj_list.push(node);
+                            obj_list.push(left);
+                            obj_list.push(right);
+                        }
+                        _ => panic!("f returned `None` for atom"),
+                    },
+                    Some(v) => {
+                        self.set(&node, v);
                     }
-                }
+                },
             }
         }
     }

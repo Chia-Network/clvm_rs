@@ -19,12 +19,8 @@ pub fn node_from_stream(allocator: &mut Allocator, f: &mut Cursor<&[u8]>) -> io:
     let mut ops = vec![ParseOp::SExp];
 
     let mut b = [0; 1];
-    loop {
-        let op = ops.pop();
-        if op.is_none() {
-            break;
-        }
-        match op.unwrap() {
+    while let Some(op) = ops.pop() {
+        match op {
             ParseOp::SExp => {
                 f.read_exact(&mut b)?;
                 if b[0] == CONS_BOX_MARKER {
