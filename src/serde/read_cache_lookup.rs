@@ -135,10 +135,7 @@ impl ReadCacheLookup {
         seen_ids.insert(id);
         let mut partial_paths = vec![(*id, vec![])];
 
-        loop {
-            if partial_paths.is_empty() {
-                break;
-            }
+        while !partial_paths.is_empty() {
             let mut new_partial_paths = vec![];
             for (node, path) in partial_paths.iter_mut() {
                 if *node == self.root_hash {
