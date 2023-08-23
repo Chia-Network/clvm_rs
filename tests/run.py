@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from clvm_rs import run_serialized_chia_program
+from clvm_rs.clvm_rs import run_serialized_chia_program
 
 
 def run_clvm(fn, env=None):
