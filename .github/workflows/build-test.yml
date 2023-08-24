@@ -201,7 +201,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        python: [3.9]
+        python: [3.8]
     steps:
       - uses: actions/checkout@v3
         with:
