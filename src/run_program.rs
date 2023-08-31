@@ -475,8 +475,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             if cost > effective_max_cost {
                 return err(max_cost_ptr, "cost exceeded");
             }
-            let top = self.op_stack.pop();
-            let op = match top {
+            let op = match self.op_stack.pop() {
                 Some(f) => f,
                 None => break,
             };
