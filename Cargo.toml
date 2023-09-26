@@ -31,8 +31,8 @@ lto = true
 [dependencies]
 hex = "=0.4.3"
 lazy_static = "=1.4.0"
-num-bigint = "=0.4.3"
-num-traits = "=0.2.15"
+num-bigint = "=0.4.4"
+num-traits = "=0.2.16"
 num-integer = "=0.1.45"
 # the experimental feature enables hashing to curves
 bls12_381 = { version = "=0.8.0", features = ["experimental"] }
