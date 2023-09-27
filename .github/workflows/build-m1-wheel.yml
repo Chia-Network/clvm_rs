@@ -68,13 +68,34 @@ jobs:
         # to `sys.path` and it uses that instead of the wheel (and so
         # ignoring `clvm_rs.so`, which is pretty important)
 
-    - name: Upload wheels
+    - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
         name: wheels
-        path: ./target/wheels
+        path: ./target/wheels/
 
-    - name: Publish distribution to PyPI
+  upload:
+    name: Upload to PyPI
+    runs-on: ubuntu-latest
+    needs: build_wheels
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Install python
+      uses: Chia-Network/actions/setup-python@main
+      with:
+        python-version: "3.10"
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: wheels
+        path: ./target/wheels/
+
+    - name: publish (PyPi)
       if: startsWith(github.event.ref, 'refs/tags')
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
