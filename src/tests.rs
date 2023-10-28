@@ -34,8 +34,7 @@ fn test_roundtrip() {
     }
 
     // large blob
-    let mut buf = Vec::<u8>::new();
-    buf.resize(1000000, 0_u8);
+    let buf = vec![0; 1000000];
     let n = a.new_atom(&buf).unwrap();
     test_serialize_roundtrip(&mut a, n);
 
