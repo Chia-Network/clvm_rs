@@ -47,7 +47,6 @@ jobs:
             export PATH=/opt/python/cp310-cp310/bin/:$PATH && \
             export PATH=/opt/python/cp39-cp39/bin/:$PATH && \
             export PATH=/opt/python/cp38-cp38/bin/:$PATH && \
-            export PATH=/opt/python/cp37-cp37m/bin/:$PATH && \
             /opt/python/cp38-cp38/bin/python -m venv venv && \
             if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
             . ./activate && \
