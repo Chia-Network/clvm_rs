@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        python: [3.7]
+        python: ["3.8"]
 
     steps:
     - uses: actions/checkout@v3
@@ -73,7 +73,7 @@ jobs:
             PY_VERSION=${{ matrix.python }}
             PY_VERSION=${PY_VERSION/.} && \
             echo "Python version with dot removed is $PY_VERSION" && \
-            if [ "$PY_VERSION" = "37" ]; \
+            if [ "$PY_VERSION" = "38" ]; \
             then export SCND_VERSION="${PY_VERSION}m"; \
             else export SCND_VERSION="$PY_VERSION"; fi && \
             echo "Exporting path /opt/python/cp$PY_VERSION-cp$SCND_VERSION/bin" && \
@@ -188,7 +188,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest]
-        python: [3.7]
+        python: ["3.8"]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -224,7 +224,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        python: [3.7]
+        python: ["3.8"]
     steps:
       - uses: actions/checkout@v3
         with:
