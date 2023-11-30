@@ -555,9 +555,7 @@ struct RunProgramTest {
 use crate::test_ops::parse_exp;
 
 #[cfg(test)]
-use crate::chia_dialect::{
-    ENABLE_BLS_OPS, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_FIXED_DIV, ENABLE_SECP_OPS, NO_UNKNOWN_OPS,
-};
+use crate::chia_dialect::{ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_FIXED_DIV, NO_UNKNOWN_OPS};
 
 #[cfg(test)]
 const TEST_CASES: &[RunProgramTest] = &[
@@ -960,7 +958,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 979))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -976,7 +974,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 959) (q . 9))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -992,7 +990,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 939) (q . 9) (q x))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1010,7 +1008,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 919) (q . 9) (q x) (q . ()))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1019,7 +1017,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 0x00000397) (q . 9) (q x) (q . ()))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1037,7 +1035,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 919) (q . 0x00ffffffff) (q x) (q . ()))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1055,7 +1053,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 919) (q . -1) (q x) (q . ()))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1073,7 +1071,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 919) (q . 0x0100000000) (q x) (q . ()))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1091,7 +1089,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 919) (q 1 2 3) (q x) (q . ()))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1109,7 +1107,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 1000))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: None,
         cost: 1000,
         err: "cost exceeded",
@@ -1118,7 +1116,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork)",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: None,
         cost: 0,
         err: "first of non-cons",
@@ -1126,7 +1124,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 0))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: None,
         cost: 1000,
         err: "cost must be > 0",
@@ -1135,7 +1133,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . -1))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: None,
         cost: 1000,
         err: "softfork requires positive int arg",
@@ -1143,7 +1141,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q 1 2 3))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: None,
         cost: 1000,
         err: "softfork requires int arg",
@@ -1153,7 +1151,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 160) (q . 0) (q . (q . 42)) (q . ()))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: Some("()"),
         cost: 241,
         err: "",
@@ -1162,7 +1160,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 159) (q . 0) (q . (q . 42)) (q . ()))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: None,
         cost: 241,
         err: "cost exceeded",
@@ -1172,7 +1170,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 161) (q . 0) (q . (q . 42)) (q . ()))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: None,
         cost: 10000,
         err: "softfork specified cost mismatch",
@@ -1180,7 +1178,7 @@ const TEST_CASES: &[RunProgramTest] = &[
 
     // without the flag to enable the BLS extensions, it's an unknown extension
     RunProgramTest {
-        prg: "(softfork (q . 161) (q . 0) (q . (q . 42)) (q . ()))",
+        prg: "(softfork (q . 161) (q . 1) (q . (q . 42)) (q . ()))",
         args: "()",
         flags: NO_UNKNOWN_OPS,
         result: None,
@@ -1195,7 +1193,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 1432) (q . 0) (q a (i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q x) (q . 0)) (q . ())) (q . ()))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: None,
         cost: 1513,
         err: "clvm raise",
@@ -1205,7 +1203,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 1432) (q . 0) (q a (i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x)) (q . ())) (q . ()))",
         args: "()",
-        flags: ENABLE_BLS_OPS,
+        flags: 0,
         result: Some("()"),
         cost: 1513,
         err: "",
@@ -1242,19 +1240,10 @@ const TEST_CASES: &[RunProgramTest] = &[
 
     // secp261k1
 
-    // secp ops are unknown if flag not set
     RunProgramTest {
         prg: "(secp256k1_verify (q . 0x02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439) (q . 0x74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668) (q . 0x1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c018))",
         args: "()",
-        flags: NO_UNKNOWN_OPS,
-        result: None,
-        cost: 861,
-        err: "unimplemented operator",
-    },
-    RunProgramTest {
-        prg: "(secp256k1_verify (q . 0x02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439) (q . 0x74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668) (q . 0x1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c018))",
-        args: "()",
-        flags: ENABLE_SECP_OPS,
+        flags: 0,
         result: Some("0"),
         cost: 1300061,
         err: "",
@@ -1263,18 +1252,10 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(secp256k1_verify (q . 0x02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439) (q . 0x74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668) (q . 0x1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c019))",
         args: "()",
-        flags: ENABLE_SECP_OPS,
+        flags: 0,
         result: None,
         cost: 0,
         err: "secp256k1_verify failed",
-    },
-    RunProgramTest {
-        prg: "(secp256k1_verify (q . 0x02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439) (q . 0x74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668) (q . 0x1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c019))",
-        args: "()",
-        flags: 0,
-        result: Some("0"),
-        cost: 1300061,
-        err: "",
     },
 
     // secp261r1
@@ -1282,15 +1263,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(secp256r1_verify (q . 0x0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9) (q . 0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08) (q . 0xe8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffc))",
         args: "()",
-        flags: NO_UNKNOWN_OPS,
-        result: None,
-        cost: 861,
-        err: "unimplemented operator",
-    },
-    RunProgramTest {
-        prg: "(secp256r1_verify (q . 0x0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9) (q . 0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08) (q . 0xe8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffc))",
-        args: "()",
-        flags: ENABLE_SECP_OPS,
+        flags: 0,
         result: Some("0"),
         cost: 1850061,
         err: "",
@@ -1299,18 +1272,10 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(secp256r1_verify (q . 0x0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9) (q . 0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08) (q . 0xe8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffd))",
         args: "()",
-        flags: ENABLE_SECP_OPS,
+        flags: 0,
         result: None,
         cost: 0,
         err: "secp256r1_verify failed",
-    },
-    RunProgramTest {
-        prg: "(secp256r1_verify (q . 0x0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9) (q . 0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08) (q . 0xe8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffd))",
-        args: "()",
-        flags: 0,
-        result: Some("0"),
-        cost: 1850061,
-        err: "",
     },
 ];
 

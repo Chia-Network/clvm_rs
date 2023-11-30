@@ -25,16 +25,9 @@ pub const NO_UNKNOWN_OPS: u32 = 0x0002;
 // the number of pairs
 pub const LIMIT_HEAP: u32 = 0x0004;
 
-// When set, we allow softfork with extension 0 (which includes coinid and the
-// BLS operators). This remains disabled until the soft-fork activates
-pub const ENABLE_BLS_OPS: u32 = 0x0010;
-
 // enables the BLS ops extensions *outside* the softfork guard. This is a
 // hard-fork and should only be enabled when it activates
 pub const ENABLE_BLS_OPS_OUTSIDE_GUARD: u32 = 0x0020;
-
-// enables the secp operators. This is a soft-fork
-pub const ENABLE_SECP_OPS: u32 = 0x0040;
 
 // enabling this is a hard fork. This will allow negative numbers in the
 // division operator
@@ -92,20 +85,17 @@ impl Dialect for ChiaDialect {
 
             let opcode = u32::from_be_bytes(b.try_into().unwrap());
 
-            if (self.flags & ENABLE_SECP_OPS) != 0 {
-                // the secp operators have a fixed cost of 1850000 and 1300000,
-                // which makes the multiplier 0x1c3a8f and 0x0cf84f (there is an
-                // implied +1) and cost function 0
-                let f = match opcode {
-                    0x13d61f00 => op_secp256k1_verify,
-                    0x1c3a8f00 => op_secp256r1_verify,
-                    _ => {
-                        return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
-                    }
-                };
-                return f(allocator, argument_list, max_cost);
-            }
-            return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
+            // the secp operators have a fixed cost of 1850000 and 1300000,
+            // which makes the multiplier 0x1c3a8f and 0x0cf84f (there is an
+            // implied +1) and cost function 0
+            let f = match opcode {
+                0x13d61f00 => op_secp256k1_verify,
+                0x1c3a8f00 => op_secp256r1_verify,
+                _ => {
+                    return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
+                }
+            };
+            return f(allocator, argument_list, max_cost);
         }
         if b.len() != 1 {
             return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
@@ -203,18 +193,9 @@ impl Dialect for ChiaDialect {
 
     // interpret the extension argument passed to the softfork operator, and
     // return the Operators it enables (or None) if we don't know what it means
-    // We have to pretend that we don't know about the BLS extensions until
-    // after the soft-fork activation, which is controlled by the ENABLE_BLS_OPS
-    // flag
     fn softfork_extension(&self, ext: u32) -> OperatorSet {
         match ext {
-            0 => {
-                if (self.flags & ENABLE_BLS_OPS) == 0 {
-                    OperatorSet::Default
-                } else {
-                    OperatorSet::BLS
-                }
-            }
+            0 => OperatorSet::BLS,
             // new extensions go here
             _ => OperatorSet::Default,
         }
