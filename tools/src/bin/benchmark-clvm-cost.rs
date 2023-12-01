@@ -1,6 +1,6 @@
 use clap::Parser;
 use clvmr::allocator::{Allocator, NodePtr};
-use clvmr::chia_dialect::{ChiaDialect, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_SECP_OPS};
+use clvmr::chia_dialect::{ChiaDialect, ENABLE_BLS_OPS_OUTSIDE_GUARD};
 use clvmr::run_program::run_program;
 use linreg::linear_regression_of;
 use std::fs::{create_dir_all, File};
@@ -120,7 +120,7 @@ fn substitute(args: OpArgs, subst: NodePtr) -> OpArgs {
 fn time_invocation(a: &mut Allocator, op: u32, arg: OpArgs, flags: u32) -> f64 {
     let call = build_call(a, op, arg, 1, None);
     //println!("{:x?}", &Node::new(a, call));
-    let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS);
+    let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD);
     let start = Instant::now();
     let r = run_program(a, &dialect, call, a.null(), 11000000000);
     if (flags & ALLOW_FAILURE) == 0 {
@@ -171,7 +171,7 @@ fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f6
 // establish how much time each additional argument contributes
 fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64 {
     let mut samples = Vec::<(f64, f64)>::new();
-    let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS);
+    let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD);
 
     let subst = a
         .new_atom(
@@ -214,7 +214,7 @@ fn base_call_time(
     output: &mut dyn Write,
 ) -> f64 {
     let mut samples = Vec::<(f64, f64)>::new();
-    let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS);
+    let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD);
 
     let subst = a
         .new_atom(
