@@ -2,6 +2,7 @@ use crate::err_utils::err;
 use crate::number::{node_from_number, number_from_u8, Number};
 use crate::reduction::EvalErr;
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective};
+use clvm_traits::{ClvmDecoder, ClvmEncoder, FromClvmError, ToClvmError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NodePtr(pub i32);
@@ -331,6 +332,42 @@ impl Allocator {
     #[cfg(feature = "counters")]
     pub fn heap_size(&self) -> usize {
         self.u8_vec.len()
+    }
+}
+
+impl ClvmEncoder for Allocator {
+    type Node = NodePtr;
+
+    fn encode_atom(&mut self, bytes: &[u8]) -> Result<Self::Node, ToClvmError> {
+        self.new_atom(bytes).or(Err(ToClvmError::OutOfMemory))
+    }
+
+    fn encode_pair(
+        &mut self,
+        first: Self::Node,
+        rest: Self::Node,
+    ) -> Result<Self::Node, ToClvmError> {
+        self.new_pair(first, rest).or(Err(ToClvmError::OutOfMemory))
+    }
+}
+
+impl ClvmDecoder for Allocator {
+    type Node = NodePtr;
+
+    fn decode_atom(&self, node: &Self::Node) -> Result<&[u8], FromClvmError> {
+        if let SExp::Atom = self.sexp(*node) {
+            Ok(self.atom(*node))
+        } else {
+            Err(FromClvmError::ExpectedAtom)
+        }
+    }
+
+    fn decode_pair(&self, node: &Self::Node) -> Result<(Self::Node, Self::Node), FromClvmError> {
+        if let SExp::Pair(first, rest) = self.sexp(*node) {
+            Ok((first, rest))
+        } else {
+            Err(FromClvmError::ExpectedPair)
+        }
     }
 }
 

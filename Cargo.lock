@@ -208,6 +208,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "clvm-traits"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ffa5c29efcbfc09a80251da9974959fc603f87197452e822b3b80f8622639b78"
+dependencies = [
+ "num-bigint",
+ "thiserror",
+]
+
+[[package]]
 name = "clvm_rs"
 version = "0.3.0"
 dependencies = [
@@ -238,6 +248,7 @@ name = "clvmr"
 version = "0.3.0"
 dependencies = [
  "bls12_381",
+ "clvm-traits",
  "criterion",
  "getrandom",
  "group",
@@ -1520,6 +1531,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be55cf8942feac5c765c2c993422806843c9a9a45d4d5c407ad6dd2ea95eb9b6"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "thiserror"
+version = "1.0.50"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9a7210f5c9a7156bb50aa36aed4c95afb51df0df00713949448cf9e97d382d2"
+dependencies = [
+ "thiserror-impl",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "1.0.50"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "266b2e40bc00e5a6c09c3584011e08b06f123c00362c92b975ba9843aaaa14b8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.29",
 ]
 
 [[package]]
