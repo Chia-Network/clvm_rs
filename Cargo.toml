@@ -34,6 +34,7 @@ lazy_static = "=1.4.0"
 num-bigint = "=0.4.3"
 num-traits = "=0.2.15"
 num-integer = "=0.1.45"
+clvm-traits = { git = "https://github.com/Chia-Network/chia_rs" }
 # the experimental feature enables hashing to curves
 bls12_381 = { version = "=0.8.0", features = ["experimental"] }
 # the newer sha2 crate doesn't implement the digest traits required by HKDF

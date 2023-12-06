@@ -1,10 +1,61 @@
 use crate::err_utils::err;
 use crate::number::{node_from_number, number_from_u8, Number};
 use crate::reduction::EvalErr;
+
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective};
+use clvm_traits::{ClvmDecoder, ClvmEncoder, FromClvm, FromClvmError, ToClvm, ToClvmError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NodePtr(pub i32);
+
+pub trait ToNodePtr {
+    fn to_node_ptr(&self, a: &mut Allocator) -> Result<NodePtr, ToClvmError>;
+}
+
+impl<T> ToNodePtr for T
+where
+    T: ToClvm<NodePtr>,
+{
+    fn to_node_ptr(&self, a: &mut Allocator) -> Result<NodePtr, ToClvmError> {
+        self.to_clvm(a)
+    }
+}
+
+impl ToClvm<NodePtr> for NodePtr {
+    fn to_clvm(
+        &self,
+        _encoder: &mut impl ClvmEncoder<Node = NodePtr>,
+    ) -> Result<NodePtr, ToClvmError> {
+        Ok(*self)
+    }
+}
+
+pub trait FromNodePtr {
+    fn from_node_ptr(a: &Allocator, node: NodePtr) -> Result<Self, FromClvmError>
+    where
+        Self: Sized;
+}
+
+impl<T> FromNodePtr for T
+where
+    T: FromClvm<NodePtr>,
+{
+    fn from_node_ptr(a: &Allocator, node: NodePtr) -> Result<Self, FromClvmError>
+    where
+        Self: Sized,
+    {
+        T::from_clvm(a, node)
+    }
+}
+
+impl FromClvm<NodePtr> for NodePtr {
+    fn from_clvm(
+        _decoder: &impl ClvmDecoder<Node = NodePtr>,
+        node: NodePtr,
+    ) -> Result<Self, FromClvmError> {
+        Ok(node)
+    }
+}
 
 pub enum SExp {
     Atom,
@@ -332,6 +383,51 @@ impl Allocator {
     pub fn heap_size(&self) -> usize {
         self.u8_vec.len()
     }
+}
+
+impl ClvmEncoder for Allocator {
+    type Node = NodePtr;
+
+    fn encode_atom(&mut self, bytes: &[u8]) -> Result<Self::Node, ToClvmError> {
+        self.new_atom(bytes).or(Err(ToClvmError::OutOfMemory))
+    }
+
+    fn encode_pair(
+        &mut self,
+        first: Self::Node,
+        rest: Self::Node,
+    ) -> Result<Self::Node, ToClvmError> {
+        self.new_pair(first, rest).or(Err(ToClvmError::OutOfMemory))
+    }
+}
+
+impl ClvmDecoder for Allocator {
+    type Node = NodePtr;
+
+    fn decode_atom(&self, node: &Self::Node) -> Result<&[u8], FromClvmError> {
+        if let SExp::Atom = self.sexp(*node) {
+            Ok(self.atom(*node))
+        } else {
+            Err(FromClvmError::ExpectedAtom)
+        }
+    }
+
+    fn decode_pair(&self, node: &Self::Node) -> Result<(Self::Node, Self::Node), FromClvmError> {
+        if let SExp::Pair(first, rest) = self.sexp(*node) {
+            Ok((first, rest))
+        } else {
+            Err(FromClvmError::ExpectedPair)
+        }
+    }
+}
+
+#[test]
+fn test_encoder() {
+    let mut a = Allocator::new();
+    let value = (1, (2, (3, ())));
+    let ptr = value.to_node_ptr(&mut a).unwrap();
+    let roundtrip = FromClvm::from_clvm(&a, ptr).unwrap();
+    assert_eq!(value, roundtrip);
 }
 
 #[test]
