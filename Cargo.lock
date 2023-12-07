@@ -266,7 +266,7 @@ version = "0.1.0"
 dependencies = [
  "chia-bls",
  "clap",
- "clvmr 0.3.0",
+ "clvmr 0.3.1",
  "hex",
  "hex-literal",
  "linreg",
@@ -284,7 +284,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d64ffd2241dead56ca31fb0261b4d0f802ba0b98a1c1e6f4514bc06c6095a9a9"
 dependencies = [
  "clvm-derive",
- "clvmr 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clvmr 0.3.0",
  "num-bigint",
  "thiserror",
 ]
@@ -303,7 +303,7 @@ dependencies = [
 name = "clvm_rs"
 version = "0.3.0"
 dependencies = [
- "clvmr 0.3.0",
+ "clvmr 0.3.1",
  "pyo3",
 ]
 
@@ -311,7 +311,7 @@ dependencies = [
 name = "clvm_rs-fuzz"
 version = "1.0.0"
 dependencies = [
- "clvmr 0.3.0",
+ "clvmr 0.3.1",
  "libfuzzer-sys",
 ]
 
@@ -319,29 +319,10 @@ dependencies = [
 name = "clvm_wasm"
 version = "0.3.0"
 dependencies = [
- "clvmr 0.3.0",
+ "clvmr 0.3.1",
  "js-sys",
  "wasm-bindgen",
  "wasm-bindgen-test",
-]
-
-[[package]]
-name = "clvmr"
-version = "0.3.0"
-dependencies = [
- "chia-bls",
- "clvm-traits 0.3.0",
- "criterion",
- "hex",
- "k256",
- "lazy_static",
- "num-bigint",
- "num-integer",
- "num-traits",
- "openssl",
- "p256",
- "rstest",
- "sha2 0.10.8",
 ]
 
 [[package]]
@@ -361,6 +342,25 @@ dependencies = [
  "num-traits",
  "p256",
  "sha2 0.9.9",
+]
+
+[[package]]
+name = "clvmr"
+version = "0.3.1"
+dependencies = [
+ "chia-bls",
+ "clvm-traits 0.3.0",
+ "criterion",
+ "hex",
+ "k256",
+ "lazy_static",
+ "num-bigint",
+ "num-integer",
+ "num-traits",
+ "openssl",
+ "p256",
+ "rstest",
+ "sha2 0.10.8",
 ]
 
 [[package]]
