@@ -1,4 +1,3 @@
-use bls12_381::{G1Affine, G1Projective, Scalar};
 use num_bigint::{BigUint, Sign};
 use num_integer::Integer;
 use std::ops::BitAndAssign;
@@ -11,10 +10,11 @@ use crate::err_utils::err;
 use crate::number::Number;
 use crate::op_utils::{
     atom, atom_len, get_args, get_varargs, i32_atom, int_atom, mod_group_order, new_atom_and_cost,
-    nullp, number_to_scalar, u32_from_u8, MALLOC_COST_PER_BYTE,
+    nullp, u32_from_u8, MALLOC_COST_PER_BYTE,
 };
 use crate::reduction::{Reduction, Response};
 use crate::sha2::{Digest, Sha256};
+use chia_bls::G1Element;
 
 const ARITH_BASE_COST: Cost = 99;
 const ARITH_COST_PER_ARG: Cost = 320;
@@ -790,10 +790,11 @@ pub fn op_all(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
 pub fn op_pubkey_for_exp(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let [n] = get_args::<1>(a, input, "pubkey_for_exp")?;
     let (v0, v0_len) = int_atom(a, n, "pubkey_for_exp")?;
-    let exp: Number = mod_group_order(v0);
+    let bytes = mod_group_order(v0).to_bytes_be().1;
+
+    let point = G1Element::from_integer(&bytes);
+
     let cost = PUBKEY_BASE_COST + (v0_len as Cost) * PUBKEY_COST_PER_BYTE;
-    let exp: Scalar = number_to_scalar(exp);
-    let point: G1Projective = G1Affine::generator() * exp;
     Ok(Reduction(
         cost + 48 * MALLOC_COST_PER_BYTE,
         a.new_g1(point)?,
@@ -802,7 +803,7 @@ pub fn op_pubkey_for_exp(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> 
 
 pub fn op_point_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response {
     let mut cost = POINT_ADD_BASE_COST;
-    let mut total: G1Projective = G1Projective::identity();
+    let mut total = G1Element::default();
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         let point = a.g1(arg)?;

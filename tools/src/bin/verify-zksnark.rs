@@ -1,6 +1,4 @@
-use bls12_381::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Scalar};
-use group::Group;
-
+use chia_bls::{aggregate_pairing, G1Element, G2Element};
 use num_bigint::BigInt;
 use serde::Deserialize;
 
@@ -52,18 +50,23 @@ fn vec_pair(arr: &[String]) -> ([u8; 48], [u8; 48]) {
     )
 }
 
-fn vec_pair_g1(arr: &[String]) -> G1Affine {
+fn vec_pair_g1(arr: &[String]) -> G1Element {
     let (fp_1, fp_2) = vec_pair(arr);
     let data: [u8; 96] = [fp_1, fp_2].concat().try_into().unwrap();
-    G1Affine::from_uncompressed(&data).unwrap()
+    println!("G1 uncompressed: {}", hex::encode(data));
+    let ret = G1Element::from_uncompressed(&data).unwrap();
+    println!("G1 compressed: {}", hex::encode(ret.to_bytes()));
+    ret
 }
 
-fn vec_pair_g2(arr: &[Vec<String>]) -> G2Affine {
+fn vec_pair_g2(arr: &[Vec<String>]) -> G2Element {
     let (fp_1, fp_2) = vec_pair(&arr[0]);
     let (fp_3, fp_4) = vec_pair(&arr[1]);
     let data: [u8; 192] = [fp_2, fp_1, fp_4, fp_3].concat().try_into().unwrap();
-    let p = G2Affine::from_uncompressed(&data);
-    p.unwrap()
+    println!("G2 uncompressed: {}", hex::encode(data));
+    let ret = G2Element::from_uncompressed(&data).unwrap();
+    println!("G2 compressed: {}", hex::encode(ret.to_bytes()));
+    ret
 }
 
 pub fn main() {
@@ -91,22 +94,17 @@ pub fn main() {
 
     let ic0 = vec_pair_g1(&verification_key.ic[0]);
 
-    let mut cpub = G1Affine::identity();
+    let mut cpub = G1Element::default();
     for (i, public_i) in public.iter().enumerate() {
-        let ic = vec_pair_g1(&verification_key.ic[i + 1]);
-        let scalar: [u8; 32] = public_i
-            .parse::<BigInt>()
-            .unwrap()
-            .to_bytes_le()
-            .1
-            .try_into()
-            .unwrap();
-        let scalar = Scalar::from_bytes(&scalar).unwrap();
-        cpub = (cpub + ic * scalar).into();
+        let mut ic = vec_pair_g1(&verification_key.ic[i + 1]);
+        let scalar = public_i.parse::<BigInt>().unwrap().to_bytes_be().1;
+        ic.scalar_multiply(&scalar);
+        cpub += &ic;
     }
-    cpub = (cpub + G1Projective::from(ic0)).into();
+    cpub += &ic0;
 
-    let pi_a = vec_pair_g1(&proof.pi_a);
+    let mut pi_a = vec_pair_g1(&proof.pi_a);
+    pi_a.negate();
     let pi_b = vec_pair_g2(&proof.pi_b);
     let pi_c = vec_pair_g1(&proof.pi_c);
 
@@ -118,30 +116,23 @@ pub fn main() {
     // output the compressed values
     println!(
         "bls_pairing_identity 0x{} 0x{} 0x{} 0x{} 0x{} 0x{} 0x{} 0x{} => 0 | 7800000",
-        hex::encode((-pi_a).to_compressed()),
-        hex::encode(pi_b.to_compressed()),
-        hex::encode(cpub.to_compressed()),
-        hex::encode(vk_gamma_2.to_compressed()),
-        hex::encode(pi_c.to_compressed()),
-        hex::encode(vk_delta_2.to_compressed()),
-        hex::encode(vk_alpha_1.to_compressed()),
-        hex::encode(vk_beta_2.to_compressed())
+        hex::encode(pi_a.to_bytes()),
+        hex::encode(pi_b.to_bytes()),
+        hex::encode(cpub.to_bytes()),
+        hex::encode(vk_gamma_2.to_bytes()),
+        hex::encode(pi_c.to_bytes()),
+        hex::encode(vk_delta_2.to_bytes()),
+        hex::encode(vk_alpha_1.to_bytes()),
+        hex::encode(vk_beta_2.to_bytes())
     );
 
     // run the miller loop
-    let mut item_refs = Vec::<(&G1Affine, &G2Prepared)>::new();
-    let pi_a = -pi_a;
-    let pi_b = G2Prepared::from(pi_b);
-    let vk_gamma_2 = G2Prepared::from(vk_gamma_2);
-    let vk_delta_2 = G2Prepared::from(vk_delta_2);
-    let vk_beta_2 = G2Prepared::from(vk_beta_2);
-    item_refs.push((&pi_a, &pi_b));
-    item_refs.push((&cpub, &vk_gamma_2));
-    item_refs.push((&pi_c, &vk_delta_2));
-    item_refs.push((&vk_alpha_1, &vk_beta_2));
-    let identity: bool = multi_miller_loop(&item_refs)
-        .final_exponentiation()
-        .is_identity()
-        .into();
+    let item_refs: Vec<(&G1Element, &G2Element)> = vec![
+        (&pi_a, &pi_b),
+        (&cpub, &vk_gamma_2),
+        (&pi_c, &vk_delta_2),
+        (&vk_alpha_1, &vk_beta_2),
+    ];
+    let identity: bool = aggregate_pairing(item_refs);
     assert!(identity);
 }

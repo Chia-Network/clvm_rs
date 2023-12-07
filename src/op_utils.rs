@@ -4,7 +4,6 @@ use crate::err_utils::err;
 use crate::number::Number;
 use crate::reduction::EvalErr;
 use crate::reduction::{Reduction, Response};
-use bls12_381::Scalar;
 use lazy_static::lazy_static;
 use num_bigint::{BigUint, Sign};
 use num_integer::Integer;
@@ -573,18 +572,6 @@ fn test_i32_atom() {
     let r = i32_atom(&a, a3, "test").unwrap_err();
     assert_eq!(r.0, a3);
     assert_eq!(r.1, "test requires int32 args (with no leading zeros)");
-}
-
-pub fn number_to_scalar(n: Number) -> Scalar {
-    let (sign, as_u8): (Sign, Vec<u8>) = n.to_bytes_le();
-    let mut scalar_array: [u8; 32] = [0; 32];
-    scalar_array[..as_u8.len()].clone_from_slice(&as_u8[..]);
-    let exp: Scalar = Scalar::from_bytes(&scalar_array).unwrap();
-    if sign == Sign::Minus {
-        exp.neg()
-    } else {
-        exp
-    }
 }
 
 pub fn new_atom_and_cost(a: &mut Allocator, cost: Cost, buf: &[u8]) -> Response {

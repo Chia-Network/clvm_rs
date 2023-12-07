@@ -1,7 +1,7 @@
 use crate::err_utils::err;
 use crate::number::{node_from_number, number_from_u8, Number};
 use crate::reduction::EvalErr;
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective};
+use chia_bls::{G1Element, G2Element};
 use clvm_traits::{ClvmDecoder, ClvmEncoder, FromClvmError, ToClvmError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -149,14 +149,12 @@ impl Allocator {
         node_from_number(self, &v)
     }
 
-    pub fn new_g1(&mut self, g1: G1Projective) -> Result<NodePtr, EvalErr> {
-        let g1: G1Affine = g1.into();
-        self.new_atom(&g1.to_compressed())
+    pub fn new_g1(&mut self, g1: G1Element) -> Result<NodePtr, EvalErr> {
+        self.new_atom(&g1.to_bytes())
     }
 
-    pub fn new_g2(&mut self, g2: G2Projective) -> Result<NodePtr, EvalErr> {
-        let g2: G2Affine = g2.into();
-        self.new_atom(&g2.to_compressed())
+    pub fn new_g2(&mut self, g2: G2Element) -> Result<NodePtr, EvalErr> {
+        self.new_atom(&g2.to_bytes())
     }
 
     pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr> {
@@ -252,42 +250,32 @@ impl Allocator {
         number_from_u8(self.atom(node))
     }
 
-    pub fn g1(&self, node: NodePtr) -> Result<G1Projective, EvalErr> {
+    pub fn g1(&self, node: NodePtr) -> Result<G1Element, EvalErr> {
         let blob = match self.sexp(node) {
             SExp::Atom => self.atom(node),
             _ => {
                 return err(node, "pair found, expected G1 point");
             }
         };
-        if blob.len() != 48 {
-            return err(node, "atom is not G1 size, 48 bytes");
-        }
-
-        let affine: Option<G1Affine> =
-            G1Affine::from_compressed(blob.try_into().expect("G1 slice is not 48 bytes")).into();
-        match affine {
-            Some(point) => Ok(G1Projective::from(point)),
-            None => err(node, "atom is not a G1 point"),
-        }
+        let array: [u8; 48] = blob
+            .try_into()
+            .map_err(|_| EvalErr(node, "atom is not G1 size, 48 bytes".to_string()))?;
+        G1Element::from_bytes(&array)
+            .map_err(|_| EvalErr(node, "atom is not a G1 point".to_string()))
     }
 
-    pub fn g2(&self, node: NodePtr) -> Result<G2Projective, EvalErr> {
+    pub fn g2(&self, node: NodePtr) -> Result<G2Element, EvalErr> {
         let blob = match self.sexp(node) {
             SExp::Atom => self.atom(node),
             _ => {
                 return err(node, "pair found, expected G2 point");
             }
         };
-        if blob.len() != 96 {
-            return err(node, "atom is not G2 size, 96 bytes");
-        }
-
-        let affine: Option<G2Affine> =
-            G2Affine::from_compressed(blob.try_into().expect("G2 slice is not 96 bytes")).into();
-        match affine {
-            Some(point) => Ok(G2Projective::from(point)),
-            None => err(node, "atom is not a G2 point"),
-        }
+        let array = blob
+            .try_into()
+            .map_err(|_| EvalErr(node, "atom is not G2 size, 96 bytes".to_string()))?;
+        G2Element::from_bytes(&array)
+            .map_err(|_| EvalErr(node, "atom is not a G2 point".to_string()))
     }
 
     pub fn sexp(&self, node: NodePtr) -> SExp {
@@ -756,7 +744,7 @@ fn test_g1_roundtrip(#[case] atom: &str) {
     let mut a = Allocator::new();
     let n = a.new_atom(&hex::decode(atom).unwrap()).unwrap();
     let g1 = a.g1(n).unwrap();
-    assert_eq!(hex::encode(G1Affine::from(g1).to_compressed()), atom);
+    assert_eq!(hex::encode(g1.to_bytes()), atom);
 
     let g1_copy = a.new_g1(g1).unwrap();
     let g1_atom = a.atom(g1_copy);
@@ -801,7 +789,7 @@ fn test_g2_roundtrip(#[case] atom: &str) {
     let mut a = Allocator::new();
     let n = a.new_atom(&hex::decode(atom).unwrap()).unwrap();
     let g2 = a.g2(n).unwrap();
-    assert_eq!(hex::encode(G2Affine::from(g2).to_compressed()), atom);
+    assert_eq!(hex::encode(g2.to_bytes()), atom);
 
     let g2_copy = a.new_g2(g2).unwrap();
     let g2_atom = a.atom(g2_copy);
@@ -841,31 +829,25 @@ fn make_number(a: &mut Allocator, bytes: &[u8]) -> NodePtr {
 
 #[cfg(test)]
 fn make_g1(a: &mut Allocator, bytes: &[u8]) -> NodePtr {
-    let v: G1Projective = G1Affine::from_compressed(bytes.try_into().unwrap())
-        .unwrap()
-        .into();
+    let v = G1Element::from_bytes(bytes.try_into().unwrap()).unwrap();
     a.new_g1(v).unwrap()
 }
 
 #[cfg(test)]
 fn make_g2(a: &mut Allocator, bytes: &[u8]) -> NodePtr {
-    let v: G2Projective = G2Affine::from_compressed(bytes.try_into().unwrap())
-        .unwrap()
-        .into();
+    let v = G2Element::from_bytes(bytes.try_into().unwrap()).unwrap();
     a.new_g2(v).unwrap()
 }
 
 #[cfg(test)]
 fn make_g1_fail(a: &mut Allocator, bytes: &[u8]) -> NodePtr {
     assert!(<[u8; 48]>::try_from(bytes).is_err());
-    //assert!(G1Affine::from_compressed(bytes.try_into().unwrap()).is_none().unwrap_u8() != 0);
     a.new_atom(bytes).unwrap()
 }
 
 #[cfg(test)]
 fn make_g2_fail(a: &mut Allocator, bytes: &[u8]) -> NodePtr {
     assert!(<[u8; 96]>::try_from(bytes).is_err());
-    //assert!(G2Affine::from_compressed(bytes.try_into().unwrap()).is_none().unwrap_u8() != 0);
     a.new_atom(bytes).unwrap()
 }
 
@@ -888,32 +870,26 @@ fn check_number(a: &Allocator, n: NodePtr, bytes: &[u8]) {
 #[cfg(test)]
 fn check_g1(a: &Allocator, n: NodePtr, bytes: &[u8]) {
     let num = a.g1(n).unwrap();
-    let v: G1Projective = G1Affine::from_compressed(bytes.try_into().unwrap())
-        .unwrap()
-        .into();
+    let v = G1Element::from_bytes(bytes.try_into().unwrap()).unwrap();
     assert_eq!(num, v);
 }
 
 #[cfg(test)]
 fn check_g2(a: &Allocator, n: NodePtr, bytes: &[u8]) {
     let num = a.g2(n).unwrap();
-    let v: G2Projective = G2Affine::from_compressed(bytes.try_into().unwrap())
-        .unwrap()
-        .into();
+    let v = G2Element::from_bytes(bytes.try_into().unwrap()).unwrap();
     assert_eq!(num, v);
 }
 
 #[cfg(test)]
 fn check_g1_fail(a: &Allocator, n: NodePtr, bytes: &[u8]) {
     assert_eq!(a.g1(n).unwrap_err().0, n);
-    //assert!(G1Affine::from_compressed(bytes.try_into().unwrap()).is_none().unwrap_u8() != 0);
     assert!(<[u8; 48]>::try_from(bytes).is_err());
 }
 
 #[cfg(test)]
 fn check_g2_fail(a: &Allocator, n: NodePtr, bytes: &[u8]) {
     assert_eq!(a.g2(n).unwrap_err().0, n);
-    //assert!(G2Affine::from_compressed(bytes.try_into().unwrap()).is_none().unwrap_u8() != 0);
     assert!(<[u8; 96]>::try_from(bytes).is_err());
 }
 
@@ -1079,8 +1055,7 @@ e28f75bb8f1c7c42c39a8c5529bf0f4e",
 fn test_atom_len_g1(#[case] buffer_hex: &str, #[case] expected: usize) {
     let mut a = Allocator::new();
     let buffer = &hex::decode(buffer_hex).unwrap();
-    let g1 =
-        G1Projective::from(G1Affine::from_compressed(&buffer[..].try_into().unwrap()).unwrap());
+    let g1 = G1Element::from_bytes(&buffer[..].try_into().unwrap()).expect("invalid G1 point");
     let atom = a.new_g1(g1).unwrap();
     assert_eq!(a.atom_len(atom), expected);
 }
@@ -1111,8 +1086,7 @@ fn test_atom_len_g2(#[case] buffer_hex: &str, #[case] expected: usize) {
     let mut a = Allocator::new();
 
     let buffer = &hex::decode(buffer_hex).unwrap();
-    let g2 =
-        G2Projective::from(G2Affine::from_compressed(&buffer[..].try_into().unwrap()).unwrap());
+    let g2 = G2Element::from_bytes(&buffer[..].try_into().unwrap()).expect("invalid G2 point");
     let atom = a.new_g2(g2).unwrap();
     assert_eq!(a.atom_len(atom), expected);
 }

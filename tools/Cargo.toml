@@ -19,11 +19,10 @@ rand = "0.8.4"
 sha1 = "=0.10.5"
 linreg = "=0.2.0"
 clvmr = { path = ".." }
-bls12_381 = { version = "=0.8.0", features = ["experimental"] }
+chia-bls = ">=0.2.13"
 num-bigint = "0.4.3"
 serde = { version ="1.0.163", features = ["derive"] }
 serde_json = "1.0.96"
-group = "=0.13.0"
 clap = { version = "=4.0.29", features = ["derive"] }
 
 [[bin]]
