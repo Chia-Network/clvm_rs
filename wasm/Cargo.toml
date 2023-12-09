@@ -15,7 +15,8 @@ crate-type = ["cdylib"]
 path = "src/lib.rs"
 
 [dependencies]
-clvmr = { path = "..", features = [] }
+clvmr = { path = ".." }
 wasm-bindgen = "=0.2.87"
 wasm-bindgen-test = "=0.3.34"
 js-sys = "0.3.61"
+getrandom = { version = "0.2.9", features = ["js"] }
