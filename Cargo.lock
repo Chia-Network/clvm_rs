@@ -242,7 +242,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_rs"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
  "clvmr",
  "pyo3",
@@ -258,7 +258,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_wasm"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
  "clvmr",
  "js-sys",
@@ -268,7 +268,7 @@ dependencies = [
 
 [[package]]
 name = "clvmr"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "chia-bls",
  "clvm-traits",
