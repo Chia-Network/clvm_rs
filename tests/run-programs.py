@@ -7,6 +7,7 @@ import sys
 import platform
 from colorama import init, Fore, Style
 from run import run_clvm
+from os.path import isfile
 
 init()
 ret = 0
@@ -14,23 +15,30 @@ ret = 0
 for fn in glob.glob('programs/large-atom-*.hex.invalid'):
 
     try:
+        print(fn)
         run_clvm(fn)
         ret = 1
-        print("FAILED: expected parse failure")
+        print(Fore.RED + "FAILED: expected parse failure" + Style.RESET_ALL)
     except Exception as e:
-        print("expected failure: %s" % e)
+        print(Fore.GREEN + f"OK: expected: {e}" + Style.RESET_ALL)
 
 
 for fn in glob.glob('programs/*.clvm'):
 
     hexname = fn[:-4] + 'hex'
+    if isfile(hexname):
+        continue
     with open(hexname, 'w+') as out:
+        print(f"compiling {fn}")
         proc = subprocess.Popen(['opc', fn], stdout=out)
         proc.wait()
 
 for fn in glob.glob('programs/*.env'):
     hexenv = fn + 'hex'
+    if isfile(hexenv):
+        continue
     with open(hexenv, 'w+') as out:
+        print(f"compiling {fn}")
         proc = subprocess.Popen(['opc', fn], stdout=out)
         proc.wait()
 
@@ -38,7 +46,6 @@ for hexname in sorted(glob.glob('programs/*.hex')):
 
     hexenv = hexname[:-3] + 'envhex'
 
-#    command = ['brun', '-m', '11000000000', '-c', '--backend=rust', '--quiet', '--time', '--hex', hexname, hexenv]
     command = ['./run.py', hexname, hexenv]
 
     # prepend the size command, to measure RSS
