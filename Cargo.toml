@@ -49,3 +49,7 @@ criterion = "0.5.1"
 [[bench]]
 name = "run-program"
 harness = false
+
+[[bench]]
+name = "deserialize"
+harness = false
