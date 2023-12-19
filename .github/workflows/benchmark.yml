@@ -71,11 +71,6 @@ jobs:
         python -m pip install maturin
         rustup target add x86_64-unknown-linux-musl
 
-    # we need this for brun and opc
-    - name: install clvm_tools
-      run: |
-        cargo install clvm_tools_rs
-
     - name: Build
       env:
         CC: gcc
