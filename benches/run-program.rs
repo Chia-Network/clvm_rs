@@ -224,7 +224,6 @@ fn run_program_benchmark(c: &mut Criterion) {
     ] {
         a.restore_checkpoint(&test_case_checkpoint);
 
-        println!("benchmark/{test}.hex");
         let prg = read_to_string(format!("benchmark/{test}.hex"))
             .expect("failed to load benchmark program");
         let prg = hex::decode(prg.trim()).expect("invalid hex in benchmark program");
