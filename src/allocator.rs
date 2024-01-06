@@ -56,13 +56,10 @@ pub struct Allocator {
 
     // the atom_vec may not grow past this
     heap_limit: usize,
-
-    // the pair_vec may not grow past this
-    pair_limit: usize,
-
-    // the atom_vec may not grow past this
-    atom_limit: usize,
 }
+
+const MAX_NUM_ATOMS: usize = 62500000;
+const MAX_NUM_PAIRS: usize = 62500000;
 
 impl Default for Allocator {
     fn default() -> Self {
@@ -72,29 +69,18 @@ impl Default for Allocator {
 
 impl Allocator {
     pub fn new() -> Self {
-        Self::new_limited(
-            u32::MAX as usize,
-            i32::MAX as usize,
-            (i32::MAX - 1) as usize,
-        )
+        Self::new_limited(u32::MAX as usize)
     }
 
-    pub fn new_limited(heap_limit: usize, pair_limit: usize, atom_limit: usize) -> Self {
+    pub fn new_limited(heap_limit: usize) -> Self {
         // we have a maximum of 4 GiB heap, because pointers are 32 bit unsigned
         assert!(heap_limit <= u32::MAX as usize);
-        // the atoms and pairs share a single 32 bit address space, where
-        // negative numbers are atoms and positive numbers are pairs. That's why
-        // we have one more slot for pairs than atoms
-        assert!(pair_limit <= i32::MAX as usize);
-        assert!(atom_limit < i32::MAX as usize);
 
         let mut r = Self {
             u8_vec: Vec::new(),
             pair_vec: Vec::new(),
             atom_vec: Vec::new(),
             heap_limit,
-            pair_limit,
-            atom_limit,
         };
         r.u8_vec.reserve(1024 * 1024);
         r.atom_vec.reserve(256);
@@ -136,7 +122,7 @@ impl Allocator {
         if (self.heap_limit - start as usize) < v.len() {
             return err(self.null(), "out of memory");
         }
-        if self.atom_vec.len() == self.atom_limit {
+        if self.atom_vec.len() == MAX_NUM_ATOMS {
             return err(self.null(), "too many atoms");
         }
         self.u8_vec.extend_from_slice(v);
@@ -159,7 +145,7 @@ impl Allocator {
 
     pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr> {
         let r = self.pair_vec.len() as i32;
-        if self.pair_vec.len() == self.pair_limit {
+        if self.pair_vec.len() == MAX_NUM_PAIRS {
             return err(self.null(), "too many pairs");
         }
         self.pair_vec.push(IntPair { first, rest });
@@ -170,7 +156,7 @@ impl Allocator {
         if node.0 >= 0 {
             return err(node, "(internal error) substr expected atom, got pair");
         }
-        if self.atom_vec.len() == self.atom_limit {
+        if self.atom_vec.len() == MAX_NUM_ATOMS {
             return err(self.null(), "too many atoms");
         }
         let atom = self.atom_vec[(-node.0 - 1) as usize];
@@ -192,7 +178,7 @@ impl Allocator {
     }
 
     pub fn new_concat(&mut self, new_size: usize, nodes: &[NodePtr]) -> Result<NodePtr, EvalErr> {
-        if self.atom_vec.len() == self.atom_limit {
+        if self.atom_vec.len() == MAX_NUM_ATOMS {
             return err(self.null(), "too many atoms");
         }
         let start = self.u8_vec.len();
@@ -471,7 +457,7 @@ fn test_allocate_pair() {
 
 #[test]
 fn test_allocate_heap_limit() {
-    let mut a = Allocator::new_limited(6, i32::MAX as usize, (i32::MAX - 1) as usize);
+    let mut a = Allocator::new_limited(6);
     // we can't allocate 6 bytes
     assert_eq!(a.new_atom(b"foobar").unwrap_err().1, "out of memory");
     // but 5 is OK
@@ -480,7 +466,7 @@ fn test_allocate_heap_limit() {
 
 #[test]
 fn test_allocate_atom_limit() {
-    let mut a = Allocator::new_limited(u32::MAX as usize, i32::MAX as usize, 5);
+    let mut a = Allocator::new();
     // we can allocate 5 atoms total
     // keep in mind that we always have 2 pre-allocated atoms for null and one,
     // so with a limit of 5, we only have 3 slots left at this point.
@@ -490,17 +476,28 @@ fn test_allocate_atom_limit() {
 
     // the 4th fails and ensure not to append atom to the stack
     assert_eq!(a.u8_vec.len(), 10);
+    for _ in 3..MAX_NUM_ATOMS - 2 {
+        // exhaust the numebr of atoms allowed to be allocated
+        let _ = a.new_atom(b"foo").unwrap();
+    }
     assert_eq!(a.new_atom(b"foobar").unwrap_err().1, "too many atoms");
-    assert_eq!(a.u8_vec.len(), 10);
+
+    // the pre-allocated null() and one() also count against the limit, and they
+    // use 0 and 1 bytes respectively
+    assert_eq!(a.u8_vec.len(), MAX_NUM_ATOMS * 3 - 3 - 2);
 }
 
 #[test]
 fn test_allocate_pair_limit() {
-    let mut a = Allocator::new_limited(u32::MAX as usize, 1, (i32::MAX - 1) as usize);
+    let mut a = Allocator::new();
     let atom = a.new_atom(b"foo").unwrap();
     // one pair is OK
     let _pair1 = a.new_pair(atom, atom).unwrap();
-    // but not 2
+    for _ in 1..MAX_NUM_PAIRS {
+        // exhaust the numebr of pairs allowed to be allocated
+        let _ = a.new_pair(atom, atom).unwrap();
+    }
+
     assert_eq!(a.new_pair(atom, atom).unwrap_err().1, "too many pairs");
 }
 
@@ -601,7 +598,7 @@ fn test_sexp() {
 
 #[test]
 fn test_concat_limit() {
-    let mut a = Allocator::new_limited(9, i32::MAX as usize, (i32::MAX - 1) as usize);
+    let mut a = Allocator::new_limited(9);
     let atom1 = a.new_atom(b"f").unwrap();
     let atom2 = a.new_atom(b"o").unwrap();
     let atom3 = a.new_atom(b"o").unwrap();
