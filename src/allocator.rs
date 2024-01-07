@@ -4,8 +4,56 @@ use crate::reduction::EvalErr;
 use chia_bls::{G1Element, G2Element};
 use clvm_traits::{ClvmDecoder, ClvmEncoder, FromClvmError, ToClvmError};
 
+const MAX_NUM_ATOMS: usize = 62500000;
+const MAX_NUM_PAIRS: usize = 62500000;
+const NODE_PTR_IDX_BITS: u32 = 26;
+const NODE_PTR_IDX_MASK: u32 = (1 << NODE_PTR_IDX_BITS) - 1;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct NodePtr(pub i32);
+pub struct NodePtr(u32);
+
+enum ObjectType {
+    Pair,
+    Bytes,
+}
+
+// The top 6 bits of the NodePtr indicate what type of object it is
+impl NodePtr {
+    pub fn null() -> Self {
+        Self::new(ObjectType::Bytes, 0)
+    }
+
+    fn new(t: ObjectType, idx: usize) -> Self {
+        assert!(idx <= NODE_PTR_IDX_MASK as usize);
+        NodePtr(((t as u32) << NODE_PTR_IDX_BITS) | (idx as u32))
+    }
+
+    fn node_type(&self) -> (ObjectType, usize) {
+        (
+            match self.0 >> NODE_PTR_IDX_BITS {
+                0 => ObjectType::Pair,
+                1 => ObjectType::Bytes,
+                _ => {
+                    panic!("unknown NodePtr type");
+                }
+            },
+            (self.0 & NODE_PTR_IDX_MASK) as usize,
+        )
+    }
+
+    pub(crate) fn as_index(&self) -> usize {
+        match self.node_type() {
+            (ObjectType::Pair, idx) => idx * 2,
+            (ObjectType::Bytes, idx) => idx * 2 + 1,
+        }
+    }
+}
+
+impl Default for NodePtr {
+    fn default() -> Self {
+        Self::null()
+    }
+}
 
 pub enum SExp {
     Atom,
@@ -57,9 +105,6 @@ pub struct Allocator {
     // the atom_vec may not grow past this
     heap_limit: usize,
 }
-
-const MAX_NUM_ATOMS: usize = 62500000;
-const MAX_NUM_PAIRS: usize = 62500000;
 
 impl Default for Allocator {
     fn default() -> Self {
@@ -122,13 +167,14 @@ impl Allocator {
         if (self.heap_limit - start as usize) < v.len() {
             return err(self.null(), "out of memory");
         }
-        if self.atom_vec.len() == MAX_NUM_ATOMS {
+        let idx = self.atom_vec.len();
+        if idx == MAX_NUM_ATOMS {
             return err(self.null(), "too many atoms");
         }
         self.u8_vec.extend_from_slice(v);
         let end = self.u8_vec.len() as u32;
         self.atom_vec.push(AtomBuf { start, end });
-        Ok(NodePtr(-(self.atom_vec.len() as i32)))
+        Ok(NodePtr::new(ObjectType::Bytes, idx))
     }
 
     pub fn new_number(&mut self, v: Number) -> Result<NodePtr, EvalErr> {
@@ -144,22 +190,22 @@ impl Allocator {
     }
 
     pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr> {
-        let r = self.pair_vec.len() as i32;
-        if self.pair_vec.len() == MAX_NUM_PAIRS {
+        let idx = self.pair_vec.len();
+        if idx == MAX_NUM_PAIRS {
             return err(self.null(), "too many pairs");
         }
         self.pair_vec.push(IntPair { first, rest });
-        Ok(NodePtr(r))
+        Ok(NodePtr::new(ObjectType::Pair, idx))
     }
 
     pub fn new_substr(&mut self, node: NodePtr, start: u32, end: u32) -> Result<NodePtr, EvalErr> {
-        if node.0 >= 0 {
-            return err(node, "(internal error) substr expected atom, got pair");
-        }
         if self.atom_vec.len() == MAX_NUM_ATOMS {
             return err(self.null(), "too many atoms");
         }
-        let atom = self.atom_vec[(-node.0 - 1) as usize];
+        let (ObjectType::Bytes, idx) = node.node_type() else {
+            return err(node, "(internal error) substr expected atom, got pair");
+        };
+        let atom = self.atom_vec[idx];
         let atom_len = atom.end - atom.start;
         if start > atom_len {
             return err(node, "substr start out of bounds");
@@ -170,11 +216,12 @@ impl Allocator {
         if end < start {
             return err(node, "substr invalid bounds");
         }
+        let idx = self.atom_vec.len();
         self.atom_vec.push(AtomBuf {
             start: atom.start + start,
             end: atom.start + end,
         });
-        Ok(NodePtr(-(self.atom_vec.len() as i32)))
+        Ok(NodePtr::new(ObjectType::Bytes, idx))
     }
 
     pub fn new_concat(&mut self, new_size: usize, nodes: &[NodePtr]) -> Result<NodePtr, EvalErr> {
@@ -189,12 +236,12 @@ impl Allocator {
 
         let mut counter: usize = 0;
         for node in nodes {
-            if node.0 >= 0 {
+            let (ObjectType::Bytes, idx) = node.node_type() else {
                 self.u8_vec.truncate(start);
                 return err(*node, "(internal error) concat expected atom, got pair");
-            }
+            };
 
-            let term = self.atom_vec[(-node.0 - 1) as usize];
+            let term = self.atom_vec[idx];
             if counter + term.len() > new_size {
                 self.u8_vec.truncate(start);
                 return err(*node, "(internal error) concat passed invalid new_size");
@@ -211,11 +258,12 @@ impl Allocator {
             );
         }
         let end = self.u8_vec.len() as u32;
+        let idx = self.atom_vec.len();
         self.atom_vec.push(AtomBuf {
             start: (start as u32),
             end,
         });
-        Ok(NodePtr(-(self.atom_vec.len() as i32)))
+        Ok(NodePtr::new(ObjectType::Bytes, idx))
     }
 
     pub fn atom_eq(&self, lhs: NodePtr, rhs: NodePtr) -> bool {
@@ -223,13 +271,27 @@ impl Allocator {
     }
 
     pub fn atom(&self, node: NodePtr) -> &[u8] {
-        assert!(node.0 < 0, "expected atom, got pair");
-        let atom = self.atom_vec[(-node.0 - 1) as usize];
-        &self.u8_vec[atom.start as usize..atom.end as usize]
+        match node.node_type() {
+            (ObjectType::Bytes, idx) => {
+                let atom = self.atom_vec[idx];
+                &self.u8_vec[atom.start as usize..atom.end as usize]
+            }
+            _ => {
+                panic!("expected atom, got pair");
+            }
+        }
     }
 
     pub fn atom_len(&self, node: NodePtr) -> usize {
-        self.atom(node).len()
+        match node.node_type() {
+            (ObjectType::Bytes, idx) => {
+                let atom = self.atom_vec[idx];
+                (atom.end - atom.start) as usize
+            }
+            _ => {
+                panic!("expected atom, got pair");
+            }
+        }
     }
 
     pub fn number(&self, node: NodePtr) -> Number {
@@ -265,11 +327,12 @@ impl Allocator {
     }
 
     pub fn sexp(&self, node: NodePtr) -> SExp {
-        if node.0 >= 0 {
-            let pair = self.pair_vec[node.0 as usize];
-            SExp::Pair(pair.first, pair.rest)
-        } else {
-            SExp::Atom
+        match node.node_type() {
+            (ObjectType::Bytes, _) => SExp::Atom,
+            (ObjectType::Pair, idx) => {
+                let pair = self.pair_vec[idx];
+                SExp::Pair(pair.first, pair.rest)
+            }
         }
     }
 
@@ -286,11 +349,11 @@ impl Allocator {
     }
 
     pub fn null(&self) -> NodePtr {
-        NodePtr(-1)
+        NodePtr::new(ObjectType::Bytes, 0)
     }
 
     pub fn one(&self) -> NodePtr {
-        NodePtr(-2)
+        NodePtr::new(ObjectType::Bytes, 1)
     }
 
     #[cfg(feature = "counters")]
@@ -343,6 +406,19 @@ impl ClvmDecoder for Allocator {
             Err(FromClvmError::ExpectedPair)
         }
     }
+}
+
+#[test]
+fn test_node_as_index() {
+    assert_eq!(NodePtr::new(ObjectType::Pair, 0).as_index(), 0);
+    assert_eq!(NodePtr::new(ObjectType::Pair, 1).as_index(), 2);
+    assert_eq!(NodePtr::new(ObjectType::Pair, 2).as_index(), 4);
+    assert_eq!(NodePtr::new(ObjectType::Pair, 3).as_index(), 6);
+    assert_eq!(NodePtr::new(ObjectType::Bytes, 0).as_index(), 1);
+    assert_eq!(NodePtr::new(ObjectType::Bytes, 1).as_index(), 3);
+    assert_eq!(NodePtr::new(ObjectType::Bytes, 2).as_index(), 5);
+    assert_eq!(NodePtr::new(ObjectType::Bytes, 3).as_index(), 7);
+    assert_eq!(NodePtr::new(ObjectType::Bytes, 4).as_index(), 9);
 }
 
 #[test]
