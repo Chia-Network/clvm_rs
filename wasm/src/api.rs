@@ -72,7 +72,7 @@ pub fn run_chia_program(
     match r {
         Ok(reduction) => {
             let cost = JsValue::from(reduction.0);
-            let node = LazyNode::new(Rc::new(allocator), reduction.1);
+            let node = LazyNode::new(Rc::new(allocator.make_immutable()), reduction.1);
             let val = JsValue::from(node);
 
             let tuple = Array::new_with_length(2);

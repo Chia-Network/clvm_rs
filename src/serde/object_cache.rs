@@ -14,7 +14,7 @@ use super::bytes32::{hash_blobs, Bytes32};
 
 pub struct ObjectCache<'a, T> {
     cache: Vec<Option<T>>,
-    allocator: &'a Allocator,
+    allocator: &'a Allocator<'a>,
 
     /// The function `f` is expected to calculate its T value recursively based
     /// on the T values for the left and right child for a pair. For an atom, the

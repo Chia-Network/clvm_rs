@@ -1,4 +1,4 @@
-use clvmr::allocator::{Allocator, NodePtr, SExp};
+use clvmr::allocator::{ImmutableAllocator, NodePtr, SExp};
 use std::rc::Rc;
 
 use js_sys::Array;
@@ -7,7 +7,7 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 #[derive(Clone)]
 pub struct LazyNode {
-    allocator: Rc<Allocator>,
+    allocator: Rc<ImmutableAllocator>,
     node: NodePtr,
 }
 
@@ -38,7 +38,7 @@ impl LazyNode {
 }
 
 impl LazyNode {
-    pub const fn new(a: Rc<Allocator>, n: NodePtr) -> Self {
+    pub const fn new(a: Rc<ImmutableAllocator>, n: NodePtr) -> Self {
         Self {
             allocator: a,
             node: n,
