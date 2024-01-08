@@ -23,6 +23,11 @@ impl NodePtr {
         Self::new(ObjectType::Bytes, 0)
     }
 
+    // TODO: remove this
+    pub fn hack(val: usize) -> Self {
+        Self::new(ObjectType::Bytes, val)
+    }
+
     fn new(t: ObjectType, idx: usize) -> Self {
         assert!(idx <= NODE_PTR_IDX_MASK as usize);
         NodePtr(((t as u32) << NODE_PTR_IDX_BITS) | (idx as u32))
