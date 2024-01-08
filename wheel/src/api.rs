@@ -27,7 +27,7 @@ pub fn run_serialized_chia_program(
     flags: u32,
 ) -> PyResult<(u64, LazyNode)> {
     let mut allocator = if flags & LIMIT_HEAP != 0 {
-        Allocator::new_limited(500000000, 62500000, 62500000)
+        Allocator::new_limited(500000000)
     } else {
         Allocator::new()
     };
