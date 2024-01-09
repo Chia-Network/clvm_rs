@@ -231,16 +231,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "clvm-traits"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02b527f38a1a9ef23aafd982a89be3881fa5f0a0ba0a642fa94244c72a74b8c8"
-dependencies = [
- "num-bigint",
- "thiserror",
-]
-
-[[package]]
 name = "clvm_rs"
 version = "0.3.2"
 dependencies = [
@@ -272,7 +262,6 @@ name = "clvmr"
 version = "0.3.3"
 dependencies = [
  "chia-bls",
- "clvm-traits",
  "criterion",
  "hex",
  "k256",
