@@ -16,7 +16,7 @@ enum OpArgs {
 
 // special argument to indicate it should be substituted for varied in the FreeBytes test to
 // measure cost per byte
-const VARIABLE: NodePtr = NodePtr(999);
+const VARIABLE_VAL: usize = 999;
 
 // builds calls in the form:
 // (<op> arg arg ...)
@@ -99,9 +99,10 @@ fn quote(a: &mut Allocator, v: NodePtr) -> NodePtr {
 }
 
 fn subst_node(arg: NodePtr, substitution: NodePtr) -> NodePtr {
-    match arg {
-        VARIABLE => substitution,
-        _ => arg,
+    if arg == NodePtr::hack(VARIABLE_VAL) {
+        substitution
+    } else {
+        arg
     }
 }
 
@@ -337,6 +338,8 @@ pub fn main() {
 
     let mut a = Allocator::new();
 
+    let variable = NodePtr::hack(VARIABLE_VAL);
+
     let g1 = a.new_atom(&hex::decode("97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb").unwrap()).unwrap();
     let g2 = a.new_atom(&hex::decode("93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8").unwrap()).unwrap();
 
@@ -386,21 +389,21 @@ pub fn main() {
         Operator {
             opcode: 60,
             name: "modpow (modulus cost)",
-            arg: OpArgs::ThreeArgs(number, number, VARIABLE),
+            arg: OpArgs::ThreeArgs(number, number, variable),
             extra: None,
             flags: PER_BYTE_COST | EXPONENTIAL_COST,
         },
         Operator {
             opcode: 60,
             name: "modpow (exponent cost)",
-            arg: OpArgs::ThreeArgs(number, VARIABLE, number),
+            arg: OpArgs::ThreeArgs(number, variable, number),
             extra: None,
             flags: PER_BYTE_COST | EXPONENTIAL_COST,
         },
         Operator {
             opcode: 60,
             name: "modpow (value cost)",
-            arg: OpArgs::ThreeArgs(VARIABLE, number, number),
+            arg: OpArgs::ThreeArgs(variable, number, number),
             extra: None,
             flags: PER_BYTE_COST,
         },
@@ -421,7 +424,7 @@ pub fn main() {
         Operator {
             opcode: 50,
             name: "g1_multiply",
-            arg: OpArgs::TwoArgs(g1, VARIABLE),
+            arg: OpArgs::TwoArgs(g1, variable),
             extra: Some(g1),
             flags: PER_BYTE_COST,
         },
@@ -449,7 +452,7 @@ pub fn main() {
         Operator {
             opcode: 54,
             name: "g2_multiply",
-            arg: OpArgs::TwoArgs(g2, VARIABLE),
+            arg: OpArgs::TwoArgs(g2, variable),
             extra: Some(g2),
             flags: PER_BYTE_COST,
         },
@@ -463,14 +466,14 @@ pub fn main() {
         Operator {
             opcode: 56,
             name: "g1_map",
-            arg: OpArgs::SingleArg(VARIABLE),
+            arg: OpArgs::SingleArg(variable),
             extra: None,
             flags: PER_BYTE_COST | LARGE_BUFFERS,
         },
         Operator {
             opcode: 57,
             name: "g2_map",
-            arg: OpArgs::SingleArg(VARIABLE),
+            arg: OpArgs::SingleArg(variable),
             extra: None,
             flags: PER_BYTE_COST | LARGE_BUFFERS,
         },

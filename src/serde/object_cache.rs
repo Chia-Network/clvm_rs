@@ -26,18 +26,6 @@ pub struct ObjectCache<'a, T> {
     f: CachedFunction<T>,
 }
 
-/// turn a `NodePtr` into a `usize`. Positive values become even indices
-/// and negative values become odd indices.
-
-fn node_to_index(node: &NodePtr) -> usize {
-    let value = node.0;
-    if value < 0 {
-        (-value - value - 1) as usize
-    } else {
-        (value + value) as usize
-    }
-}
-
 impl<'a, T: Clone> ObjectCache<'a, T> {
     pub fn new(allocator: &'a Allocator, f: CachedFunction<T>) -> Self {
         let cache = vec![];
@@ -57,7 +45,7 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
 
     /// return the cached value for this node, or `None`
     fn get_from_cache(&self, node: &NodePtr) -> Option<&T> {
-        let index = node_to_index(node);
+        let index = node.as_index();
         if index < self.cache.len() {
             self.cache[index].as_ref()
         } else {
@@ -67,7 +55,7 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
 
     /// set the cached value for a node
     fn set(&mut self, node: &NodePtr, v: T) {
-        let index = node_to_index(node);
+        let index = node.as_index();
         if index >= self.cache.len() {
             self.cache.resize(index + 1, None);
         }
@@ -253,15 +241,6 @@ fn test_serialized_length() {
     check("ff83666f6fff8362617280", 11); // (foo bar)
     check("ffff0102ff0304", 7); // ((1 . 2) . (3 . 4))
     check("ff01ff02ff03ff04ff05ff0680", 13); // (1 2 3 4 5 6)
-}
-
-#[test]
-fn test_node_to_index() {
-    assert_eq!(node_to_index(&NodePtr(0)), 0);
-    assert_eq!(node_to_index(&NodePtr(1)), 2);
-    assert_eq!(node_to_index(&NodePtr(2)), 4);
-    assert_eq!(node_to_index(&NodePtr(-1)), 1);
-    assert_eq!(node_to_index(&NodePtr(-2)), 3);
 }
 
 // this test takes a very long time (>60s) in debug mode, so it only runs in release mode
