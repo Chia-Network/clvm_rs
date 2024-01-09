@@ -447,7 +447,7 @@ fn test_pre_eval_and_post_eval() {
         &mut allocator,
         &ChiaDialect::new(NO_UNKNOWN_OPS),
         program,
-        NodePtr::nil(),
+        NodePtr::NIL,
         COST_LIMIT,
         Some(pre_eval_f),
     )
@@ -468,13 +468,13 @@ fn test_pre_eval_and_post_eval() {
     let args_consed = allocator.new_pair(a99, a101).unwrap();
 
     let mut desired_outcomes = Vec::new(); // Not in order.
-    desired_outcomes.push((args, NodePtr::nil(), arg_mid));
-    desired_outcomes.push((f_quoted, NodePtr::nil(), f_expr));
+    desired_outcomes.push((args, NodePtr::NIL, arg_mid));
+    desired_outcomes.push((f_quoted, NodePtr::NIL, f_expr));
     desired_outcomes.push((a2, arg_mid, a99));
     desired_outcomes.push((a5, arg_mid, a101));
     desired_outcomes.push((cons_expr, arg_mid, args_consed));
     desired_outcomes.push((f_expr, arg_mid, a99));
-    desired_outcomes.push((program, NodePtr::nil(), a99));
+    desired_outcomes.push((program, NodePtr::NIL, a99));
 
     let mut found_outcomes = HashSet::new();
     let tracking_examine = tracking.borrow();
