@@ -19,18 +19,16 @@ enum ObjectType {
 
 // The top 6 bits of the NodePtr indicate what type of object it is
 impl NodePtr {
-    pub fn nil() -> Self {
-        Self::new(ObjectType::Bytes, 0)
+    pub const NIL: Self = Self::new(ObjectType::Bytes, 0);
+
+    const fn new(t: ObjectType, idx: usize) -> Self {
+        assert!(idx <= NODE_PTR_IDX_MASK as usize);
+        NodePtr(((t as u32) << NODE_PTR_IDX_BITS) | (idx as u32))
     }
 
     // TODO: remove this
     pub fn hack(val: usize) -> Self {
         Self::new(ObjectType::Bytes, val)
-    }
-
-    fn new(t: ObjectType, idx: usize) -> Self {
-        assert!(idx <= NODE_PTR_IDX_MASK as usize);
-        NodePtr(((t as u32) << NODE_PTR_IDX_BITS) | (idx as u32))
     }
 
     fn node_type(&self) -> (ObjectType, usize) {
@@ -56,7 +54,7 @@ impl NodePtr {
 
 impl Default for NodePtr {
     fn default() -> Self {
-        Self::nil()
+        Self::NIL
     }
 }
 
