@@ -121,8 +121,8 @@ pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
     // the allocator is just used to track the tree structure, in order to
     // validate back-references
     let mut allocator = Allocator::new();
-    let null = allocator.null();
-    let mut values = null;
+    let nil = allocator.nil();
+    let mut values = nil;
     let mut ops = vec![ParseOp::SExp];
 
     while let Some(op) = ops.pop() {
@@ -140,14 +140,14 @@ pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
                 } else if b[0] == 0x80 || b[0] <= MAX_SINGLE_BYTE {
                     // This one byte we just read was the whole atom.
                     // or the special case of NIL
-                    values = allocator.new_pair(null, values)?;
+                    values = allocator.new_pair(nil, values)?;
                 } else {
                     let blob_size = decode_size(&mut f, b[0])?;
                     f.seek(SeekFrom::Current(blob_size as i64))?;
                     if (f.get_ref().len() as u64) < f.position() {
                         return Err(bad_encoding());
                     }
-                    values = allocator.new_pair(null, values)?;
+                    values = allocator.new_pair(nil, values)?;
                 }
             }
             ParseOp::Cons => {

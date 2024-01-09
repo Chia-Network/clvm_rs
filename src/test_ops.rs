@@ -22,7 +22,7 @@ use std::collections::HashMap;
 
 fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
     if v == "0" {
-        return a.null();
+        return a.nil();
     }
 
     assert!(!v.is_empty());
@@ -143,10 +143,10 @@ pub fn parse_list<'a>(a: &mut Allocator, v: &'a str) -> (NodePtr, &'a str) {
     let v = v.trim();
     let (first, rest) = pop_token(v);
     if first.is_empty() {
-        return (a.null(), rest);
+        return (a.nil(), rest);
     }
     if first == ")" {
-        return (a.null(), rest);
+        return (a.nil(), rest);
     }
     if first == "(" {
         let (head, new_rest) = parse_list(a, rest);
@@ -317,7 +317,7 @@ fn test_ops(#[case] filename: &str) {
 fn test_single_argument_raise_atom() {
     let mut allocator = Allocator::new();
     let a1 = allocator.new_atom(&[65]).unwrap();
-    let args = allocator.new_pair(a1, allocator.null()).unwrap();
+    let args = allocator.new_pair(a1, allocator.nil()).unwrap();
     let result = op_raise(&mut allocator, args, 100000);
     assert_eq!(result, Err(EvalErr(a1, "clvm raise".to_string())));
 }
@@ -328,11 +328,11 @@ fn test_single_argument_raise_pair() {
     let a1 = allocator.new_atom(&[65]).unwrap();
     let a2 = allocator.new_atom(&[66]).unwrap();
     // (a2)
-    let mut args = allocator.new_pair(a2, allocator.null()).unwrap();
+    let mut args = allocator.new_pair(a2, allocator.nil()).unwrap();
     // (a1 a2)
     args = allocator.new_pair(a1, args).unwrap();
     // ((a1 a2))
-    args = allocator.new_pair(args, allocator.null()).unwrap();
+    args = allocator.new_pair(args, allocator.nil()).unwrap();
     let result = op_raise(&mut allocator, args, 100000);
     assert_eq!(result, Err(EvalErr(args, "clvm raise".to_string())));
 }
@@ -343,7 +343,7 @@ fn test_multi_argument_raise() {
     let a1 = allocator.new_atom(&[65]).unwrap();
     let a2 = allocator.new_atom(&[66]).unwrap();
     // (a1)
-    let mut args = allocator.new_pair(a2, allocator.null()).unwrap();
+    let mut args = allocator.new_pair(a2, allocator.nil()).unwrap();
     // (a1 a2)
     args = allocator.new_pair(a1, args).unwrap();
     let result = op_raise(&mut allocator, args, 100000);
@@ -389,19 +389,19 @@ fn test_pre_eval_and_post_eval() {
     let a101 = allocator.new_atom(&[101]).unwrap();
 
     // (a (q . (f (c 2 5))) (q 99 101))
-    let arg_tail = allocator.new_pair(a101, allocator.null()).unwrap();
+    let arg_tail = allocator.new_pair(a101, allocator.nil()).unwrap();
     let arg_mid = allocator.new_pair(a99, arg_tail).unwrap();
     let args = allocator.new_pair(a1, arg_mid).unwrap();
 
-    let cons_tail = allocator.new_pair(a5, allocator.null()).unwrap();
+    let cons_tail = allocator.new_pair(a5, allocator.nil()).unwrap();
     let cons_args = allocator.new_pair(a2, cons_tail).unwrap();
     let cons_expr = allocator.new_pair(a4, cons_args).unwrap();
 
-    let f_tail = allocator.new_pair(cons_expr, allocator.null()).unwrap();
+    let f_tail = allocator.new_pair(cons_expr, allocator.nil()).unwrap();
     let f_expr = allocator.new_pair(a5, f_tail).unwrap();
     let f_quoted = allocator.new_pair(a1, f_expr).unwrap();
 
-    let a_tail = allocator.new_pair(args, allocator.null()).unwrap();
+    let a_tail = allocator.new_pair(args, allocator.nil()).unwrap();
     let a_args = allocator.new_pair(f_quoted, a_tail).unwrap();
     let program = allocator.new_pair(a2, a_args).unwrap();
 
@@ -443,12 +443,11 @@ fn test_pre_eval_and_post_eval() {
         Ok(Some(post_eval_f))
     });
 
-    let allocator_null = allocator.null();
     let result = run_program_with_pre_eval(
         &mut allocator,
         &ChiaDialect::new(NO_UNKNOWN_OPS),
         program,
-        allocator_null,
+        NodePtr::nil(),
         COST_LIMIT,
         Some(pre_eval_f),
     )
@@ -469,13 +468,13 @@ fn test_pre_eval_and_post_eval() {
     let args_consed = allocator.new_pair(a99, a101).unwrap();
 
     let mut desired_outcomes = Vec::new(); // Not in order.
-    desired_outcomes.push((args, allocator_null, arg_mid));
-    desired_outcomes.push((f_quoted, allocator_null, f_expr));
+    desired_outcomes.push((args, NodePtr::nil(), arg_mid));
+    desired_outcomes.push((f_quoted, NodePtr::nil(), f_expr));
     desired_outcomes.push((a2, arg_mid, a99));
     desired_outcomes.push((a5, arg_mid, a101));
     desired_outcomes.push((cons_expr, arg_mid, args_consed));
     desired_outcomes.push((f_expr, arg_mid, a99));
-    desired_outcomes.push((program, allocator_null, a99));
+    desired_outcomes.push((program, NodePtr::nil(), a99));
 
     let mut found_outcomes = HashSet::new();
     let tracking_examine = tracking.borrow();

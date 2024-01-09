@@ -254,7 +254,7 @@ fn test_very_long_list() {
 
     const LIST_SIZE: u64 = 20_000_000;
     let mut allocator = Allocator::new();
-    let mut top = allocator.null();
+    let mut top = allocator.nil();
     for _ in 0..LIST_SIZE {
         let atom = allocator.one();
         top = allocator.new_pair(atom, top).unwrap();

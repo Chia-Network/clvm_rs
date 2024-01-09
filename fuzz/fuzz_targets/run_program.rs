@@ -18,7 +18,7 @@ fuzz_target!(|data: &[u8]| {
         }
         Ok(r) => r,
     };
-    let args = allocator.null();
+    let args = allocator.nil();
 
     let allocator_checkpoint = allocator.checkpoint();
 

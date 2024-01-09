@@ -14,7 +14,7 @@ fn test_serialize_roundtrip(a: &mut Allocator, n: NodePtr) {
 #[test]
 fn test_roundtrip() {
     let mut a = Allocator::new();
-    let n = a.null();
+    let n = a.nil();
     test_serialize_roundtrip(&mut a, n);
 
     let n = a.one();
@@ -39,14 +39,14 @@ fn test_roundtrip() {
     test_serialize_roundtrip(&mut a, n);
 
     // deep tree
-    let mut prev = a.null();
+    let mut prev = a.nil();
     for _ in 0..=4000 {
         prev = a.new_pair(a.one(), prev).unwrap();
     }
     test_serialize_roundtrip(&mut a, prev);
 
     // deep reverse tree
-    let mut prev = a.null();
+    let mut prev = a.nil();
     for _ in 0..=4000 {
         let n = a.one();
         prev = a.new_pair(prev, n).unwrap();
@@ -58,8 +58,8 @@ fn test_roundtrip() {
 fn test_serialize_blobs() {
     let mut a = Allocator::new();
 
-    // null
-    let n = a.null();
+    // nil
+    let n = a.nil();
     assert_eq!(node_to_bytes(&a, n).unwrap(), &[0x80]);
 
     // one
@@ -86,8 +86,8 @@ fn test_serialize_blobs() {
 fn test_serialize_lists() {
     let mut a = Allocator::new();
 
-    // null
-    let n = a.null();
+    // nil
+    let n = a.nil();
     assert_eq!(node_to_bytes(&a, n).unwrap(), &[0x80]);
 
     // one item

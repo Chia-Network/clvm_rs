@@ -10,7 +10,7 @@ use crate::err_utils::err;
 use crate::number::Number;
 use crate::op_utils::{
     atom, atom_len, get_args, get_varargs, i32_atom, int_atom, mod_group_order, new_atom_and_cost,
-    nullp, u32_from_u8, MALLOC_COST_PER_BYTE,
+    nilp, u32_from_u8, MALLOC_COST_PER_BYTE,
 };
 use crate::reduction::{Reduction, Response};
 use crate::sha2::{Digest, Sha256};
@@ -266,7 +266,7 @@ pub fn op_unknown(
     if cost > u32::MAX as u64 {
         err(o, "invalid operator")
     } else {
-        Ok(Reduction(cost as Cost, allocator.null()))
+        Ok(Reduction(cost as Cost, allocator.nil()))
     }
 }
 
@@ -282,38 +282,35 @@ fn test_unknown_op_reserved() {
 
     // any op starting with ffff is reserved and a hard failure
     let buf = vec![0xff, 0xff];
-    let null = a.null();
-    assert!(test_op_unknown(&buf, &mut a, null).is_err());
+    let nil = a.nil();
+    assert!(test_op_unknown(&buf, &mut a, nil).is_err());
 
     let buf = vec![0xff, 0xff, 0xff];
-    assert!(test_op_unknown(&buf, &mut a, null).is_err());
+    assert!(test_op_unknown(&buf, &mut a, nil).is_err());
 
     let buf = vec![0xff, 0xff, b'0'];
-    assert!(test_op_unknown(&buf, &mut a, null).is_err());
+    assert!(test_op_unknown(&buf, &mut a, nil).is_err());
 
     let buf = vec![0xff, 0xff, 0];
-    assert!(test_op_unknown(&buf, &mut a, null).is_err());
+    assert!(test_op_unknown(&buf, &mut a, nil).is_err());
 
     let buf = vec![0xff, 0xff, 0xcc, 0xcc, 0xfe, 0xed, 0xce];
-    assert!(test_op_unknown(&buf, &mut a, null).is_err());
+    assert!(test_op_unknown(&buf, &mut a, nil).is_err());
 
     // an empty atom is not a valid opcode
     let buf = Vec::<u8>::new();
-    assert!(test_op_unknown(&buf, &mut a, null).is_err());
+    assert!(test_op_unknown(&buf, &mut a, nil).is_err());
 
     // a single ff is not sufficient to be treated as a reserved opcode
     let buf = vec![0xff];
-    assert_eq!(
-        test_op_unknown(&buf, &mut a, null),
-        Ok(Reduction(142, null))
-    );
+    assert_eq!(test_op_unknown(&buf, &mut a, nil), Ok(Reduction(142, nil)));
 
     // leading zeros count, so this is not considered an ffff-prefix
     let buf = vec![0x00, 0xff, 0xff, 0x00, 0x00];
     // the cost is 0xffff00 = 16776960 plus the implied 1
     assert_eq!(
-        test_op_unknown(&buf, &mut a, null),
-        Ok(Reduction(16776961, null))
+        test_op_unknown(&buf, &mut a, nil),
+        Ok(Reduction(16776961, nil))
     );
 }
 
@@ -323,17 +320,17 @@ fn test_lenient_mode_last_bits() {
 
     // the last 6 bits are ignored for computing cost
     let buf = vec![0x3c, 0x3f];
-    let null = a.null();
-    assert_eq!(test_op_unknown(&buf, &mut a, null), Ok(Reduction(61, null)));
+    let nil = a.nil();
+    assert_eq!(test_op_unknown(&buf, &mut a, nil), Ok(Reduction(61, nil)));
 
     let buf = vec![0x3c, 0x0f];
-    assert_eq!(test_op_unknown(&buf, &mut a, null), Ok(Reduction(61, null)));
+    assert_eq!(test_op_unknown(&buf, &mut a, nil), Ok(Reduction(61, nil)));
 
     let buf = vec![0x3c, 0x00];
-    assert_eq!(test_op_unknown(&buf, &mut a, null), Ok(Reduction(61, null)));
+    assert_eq!(test_op_unknown(&buf, &mut a, nil), Ok(Reduction(61, nil)));
 
     let buf = vec![0x3c, 0x2c];
-    assert_eq!(test_op_unknown(&buf, &mut a, null), Ok(Reduction(61, null)));
+    assert_eq!(test_op_unknown(&buf, &mut a, nil), Ok(Reduction(61, nil)));
 }
 
 pub fn op_sha256(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response {
@@ -496,7 +493,7 @@ pub fn op_gr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let (v0, v0_len) = int_atom(a, v0, ">")?;
     let (v1, v1_len) = int_atom(a, v1, ">")?;
     let cost = GR_BASE_COST + (v0_len + v1_len) as Cost * GR_COST_PER_BYTE;
-    Ok(Reduction(cost, if v0 > v1 { a.one() } else { a.null() }))
+    Ok(Reduction(cost, if v0 > v1 { a.one() } else { a.nil() }))
 }
 
 pub fn op_gr_bytes(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
@@ -504,7 +501,7 @@ pub fn op_gr_bytes(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Respon
     let v0 = atom(a, n0, ">s")?;
     let v1 = atom(a, n1, ">s")?;
     let cost = GRS_BASE_COST + (v0.len() + v1.len()) as Cost * GRS_COST_PER_BYTE;
-    Ok(Reduction(cost, if v0 > v1 { a.one() } else { a.null() }))
+    Ok(Reduction(cost, if v0 > v1 { a.one() } else { a.nil() }))
 }
 
 pub fn op_strlen(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
@@ -585,7 +582,7 @@ fn test_shift(
     a1: &[u8],
     a2: &[u8],
 ) -> Response {
-    let args = a.null();
+    let args = a.nil();
     let a2 = a.new_atom(a2).unwrap();
     let args = a.new_pair(a2, args).unwrap();
     let a1 = a.new_atom(a1).unwrap();
@@ -758,7 +755,7 @@ pub fn op_lognot(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
 
 pub fn op_not(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let [n] = get_args::<1>(a, input, "not")?;
-    let r = if nullp(a, n) { a.one() } else { a.null() };
+    let r = if nilp(a, n) { a.one() } else { a.nil() };
     let cost = BOOL_BASE_COST;
     Ok(Reduction(cost, r))
 }
@@ -770,9 +767,9 @@ pub fn op_any(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
         input = rest;
         cost += BOOL_COST_PER_ARG;
         check_cost(a, cost, max_cost)?;
-        is_any = is_any || !nullp(a, arg);
+        is_any = is_any || !nilp(a, arg);
     }
-    Ok(Reduction(cost, if is_any { a.one() } else { a.null() }))
+    Ok(Reduction(cost, if is_any { a.one() } else { a.nil() }))
 }
 
 pub fn op_all(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response {
@@ -782,9 +779,9 @@ pub fn op_all(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
         input = rest;
         cost += BOOL_COST_PER_ARG;
         check_cost(a, cost, max_cost)?;
-        is_all = is_all && !nullp(a, arg);
+        is_all = is_all && !nilp(a, arg);
     }
-    Ok(Reduction(cost, if is_all { a.one() } else { a.null() }))
+    Ok(Reduction(cost, if is_all { a.one() } else { a.nil() }))
 }
 
 pub fn op_pubkey_for_exp(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {

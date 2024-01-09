@@ -42,7 +42,7 @@ pub fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) ->
         + TRAVERSE_COST_PER_BIT;
 
     if first_bit_byte_index >= node_index.len() {
-        return Ok(Reduction(cost, allocator.null()));
+        return Ok(Reduction(cost, allocator.nil()));
     }
 
     // find first non-zero bit (the most significant bit is a sentinel)
@@ -105,7 +105,7 @@ fn test_traverse_path() {
     use crate::allocator::Allocator;
 
     let mut a = Allocator::new();
-    let nul = a.null();
+    let nul = a.nil();
     let n1 = a.new_atom(&[0, 1, 2]).unwrap();
     let n2 = a.new_atom(&[4, 5, 6]).unwrap();
 
