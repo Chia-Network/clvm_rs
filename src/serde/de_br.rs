@@ -20,7 +20,7 @@ pub fn node_from_stream_backrefs(
     allocator: &mut Allocator,
     f: &mut Cursor<&[u8]>,
 ) -> io::Result<NodePtr> {
-    let mut values = allocator.null();
+    let mut values = allocator.nil();
     let mut ops = vec![ParseOp::SExp];
 
     let mut b = [0; 1];

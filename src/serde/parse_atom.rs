@@ -82,7 +82,7 @@ pub fn parse_atom(
     if first_byte == 0x01 {
         Ok(allocator.one())
     } else if first_byte == 0x80 {
-        Ok(allocator.null())
+        Ok(allocator.nil())
     } else {
         let blob = parse_atom_ptr(f, first_byte)?;
         Ok(allocator.new_atom(blob)?)

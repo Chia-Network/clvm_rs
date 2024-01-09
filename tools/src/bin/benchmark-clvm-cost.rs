@@ -29,7 +29,7 @@ fn build_call(
     num: i32,
     extra: Option<NodePtr>,
 ) -> NodePtr {
-    let mut args = a.null();
+    let mut args = a.nil();
     for _i in 0..num {
         match arg {
             OpArgs::SingleArg(a1) => {
@@ -65,7 +65,7 @@ fn build_nested_call(
 ) -> NodePtr {
     let op_code = a.new_number(op.into()).unwrap();
     for _i in 0..num {
-        let mut args = a.null();
+        let mut args = a.nil();
         match arg {
             OpArgs::SingleArg(a1) => {
                 args = a.new_pair(a1, args).unwrap();
@@ -123,7 +123,7 @@ fn time_invocation(a: &mut Allocator, op: u32, arg: OpArgs, flags: u32) -> f64 {
     //println!("{:x?}", &Node::new(a, call));
     let dialect = ChiaDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD);
     let start = Instant::now();
-    let r = run_program(a, &dialect, call, a.null(), 11000000000);
+    let r = run_program(a, &dialect, call, a.nil(), 11000000000);
     if (flags & ALLOW_FAILURE) == 0 {
         r.unwrap();
     }
@@ -188,7 +188,7 @@ fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64
         for i in 0..100 {
             let call = build_call(a, op.opcode, arg, i, op.extra);
             let start = Instant::now();
-            let r = run_program(a, &dialect, call, a.null(), 11000000000);
+            let r = run_program(a, &dialect, call, a.nil(), 11000000000);
             if (op.flags & ALLOW_FAILURE) == 0 {
                 r.unwrap();
             }
@@ -232,7 +232,7 @@ fn base_call_time(
             a.restore_checkpoint(&checkpoint);
             let call = build_nested_call(a, op.opcode, arg, i, op.extra);
             let start = Instant::now();
-            let r = run_program(a, &dialect, call, a.null(), 11000000000);
+            let r = run_program(a, &dialect, call, a.nil(), 11000000000);
             if (op.flags & ALLOW_FAILURE) == 0 {
                 r.unwrap();
             }

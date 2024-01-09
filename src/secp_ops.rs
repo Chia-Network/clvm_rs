@@ -39,7 +39,7 @@ pub fn op_secp256r1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) ->
     if result.is_err() {
         err(input, "secp256r1_verify failed")
     } else {
-        Ok(Reduction(cost, a.null()))
+        Ok(Reduction(cost, a.nil()))
     }
 }
 
@@ -72,6 +72,6 @@ pub fn op_secp256k1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) ->
     if result.is_err() {
         err(input, "secp256k1_verify failed")
     } else {
-        Ok(Reduction(cost, a.null()))
+        Ok(Reduction(cost, a.nil()))
     }
 }

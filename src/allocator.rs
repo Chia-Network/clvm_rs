@@ -19,7 +19,7 @@ enum ObjectType {
 
 // The top 6 bits of the NodePtr indicate what type of object it is
 impl NodePtr {
-    pub fn null() -> Self {
+    pub fn nil() -> Self {
         Self::new(ObjectType::Bytes, 0)
     }
 
@@ -56,7 +56,7 @@ impl NodePtr {
 
 impl Default for NodePtr {
     fn default() -> Self {
-        Self::null()
+        Self::nil()
     }
 }
 
@@ -170,11 +170,11 @@ impl Allocator {
     pub fn new_atom(&mut self, v: &[u8]) -> Result<NodePtr, EvalErr> {
         let start = self.u8_vec.len() as u32;
         if (self.heap_limit - start as usize) < v.len() {
-            return err(self.null(), "out of memory");
+            return err(self.nil(), "out of memory");
         }
         let idx = self.atom_vec.len();
         if idx == MAX_NUM_ATOMS {
-            return err(self.null(), "too many atoms");
+            return err(self.nil(), "too many atoms");
         }
         self.u8_vec.extend_from_slice(v);
         let end = self.u8_vec.len() as u32;
@@ -197,7 +197,7 @@ impl Allocator {
     pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr> {
         let idx = self.pair_vec.len();
         if idx == MAX_NUM_PAIRS {
-            return err(self.null(), "too many pairs");
+            return err(self.nil(), "too many pairs");
         }
         self.pair_vec.push(IntPair { first, rest });
         Ok(NodePtr::new(ObjectType::Pair, idx))
@@ -205,7 +205,7 @@ impl Allocator {
 
     pub fn new_substr(&mut self, node: NodePtr, start: u32, end: u32) -> Result<NodePtr, EvalErr> {
         if self.atom_vec.len() == MAX_NUM_ATOMS {
-            return err(self.null(), "too many atoms");
+            return err(self.nil(), "too many atoms");
         }
         let (ObjectType::Bytes, idx) = node.node_type() else {
             return err(node, "(internal error) substr expected atom, got pair");
@@ -231,11 +231,11 @@ impl Allocator {
 
     pub fn new_concat(&mut self, new_size: usize, nodes: &[NodePtr]) -> Result<NodePtr, EvalErr> {
         if self.atom_vec.len() == MAX_NUM_ATOMS {
-            return err(self.null(), "too many atoms");
+            return err(self.nil(), "too many atoms");
         }
         let start = self.u8_vec.len();
         if self.heap_limit - start < new_size {
-            return err(self.null(), "out of memory");
+            return err(self.nil(), "out of memory");
         }
         self.u8_vec.reserve(new_size);
 
@@ -258,7 +258,7 @@ impl Allocator {
         if counter != new_size {
             self.u8_vec.truncate(start);
             return err(
-                self.null(),
+                self.nil(),
                 "(internal error) concat passed invalid new_size",
             );
         }
@@ -353,7 +353,7 @@ impl Allocator {
         }
     }
 
-    pub fn null(&self) -> NodePtr {
+    pub fn nil(&self) -> NodePtr {
         NodePtr::new(ObjectType::Bytes, 0)
     }
 
@@ -429,7 +429,7 @@ fn test_node_as_index() {
 #[test]
 fn test_atom_eq() {
     let mut a = Allocator::new();
-    let a0 = a.null();
+    let a0 = a.nil();
     let a1 = a.one();
     let a2 = a.new_atom(&[1]).unwrap();
     let a3 = a.new_atom(&[0x5, 0x39]).unwrap();
@@ -473,12 +473,12 @@ fn test_atom_eq() {
 }
 
 #[test]
-fn test_null() {
+fn test_nil() {
     let a = Allocator::new();
-    assert_eq!(a.atom(a.null()), b"");
+    assert_eq!(a.atom(a.nil()), b"");
 
-    let buf = match a.sexp(a.null()) {
-        SExp::Atom => a.atom(a.null()),
+    let buf = match a.sexp(a.nil()) {
+        SExp::Atom => a.atom(a.nil()),
         SExp::Pair(_, _) => panic!("unexpected"),
     };
     assert_eq!(buf, b"");
@@ -549,7 +549,7 @@ fn test_allocate_heap_limit() {
 fn test_allocate_atom_limit() {
     let mut a = Allocator::new();
     // we can allocate 5 atoms total
-    // keep in mind that we always have 2 pre-allocated atoms for null and one,
+    // keep in mind that we always have 2 pre-allocated atoms for nil and one,
     // so with a limit of 5, we only have 3 slots left at this point.
     let _atom = a.new_atom(b"foo").unwrap();
     let _atom = a.new_atom(b"bar").unwrap();
@@ -563,7 +563,7 @@ fn test_allocate_atom_limit() {
     }
     assert_eq!(a.new_atom(b"foobar").unwrap_err().1, "too many atoms");
 
-    // the pre-allocated null() and one() also count against the limit, and they
+    // the pre-allocated nil() and one() also count against the limit, and they
     // use 0 and 1 bytes respectively
     assert_eq!(a.u8_vec.len(), MAX_NUM_ATOMS * 3 - 3 - 2);
 }
@@ -798,7 +798,7 @@ fn test_point_size_error(#[case] fun: TestFun, #[case] size: usize, #[case] expe
 #[case(test_g2, "pair found, expected G2 point")]
 fn test_point_atom_pair(#[case] fun: TestFun, #[case] expected: &str) {
     let mut a = Allocator::new();
-    let n = a.new_pair(a.null(), a.one()).unwrap();
+    let n = a.new_pair(a.nil(), a.one()).unwrap();
     let r = fun(&a, n);
     assert_eq!(r.0, n);
     assert_eq!(r.1, expected.to_string());

@@ -18,7 +18,7 @@ pub fn get_args<const N: usize>(
 ) -> Result<[NodePtr; N], EvalErr> {
     let mut next = args;
     let mut counter = 0;
-    let mut ret: [NodePtr; N] = [NodePtr::null(); N];
+    let mut ret: [NodePtr; N] = [NodePtr::nil(); N];
 
     while let Some((first, rest)) = a.next(next) {
         next = rest;
@@ -55,7 +55,7 @@ fn test_get_args() {
     let a1 = a.new_number(1337.into()).unwrap();
     let a2 = a.new_number(0.into()).unwrap();
     let a3 = a.new_atom(&[]).unwrap();
-    let args0 = a.null();
+    let args0 = a.nil();
     let args1 = a.new_pair(a3, args0).unwrap();
     let args2 = a.new_pair(a2, args1).unwrap();
     let args3 = a.new_pair(a1, args2).unwrap();
@@ -91,7 +91,7 @@ pub fn get_varargs<const N: usize>(
 ) -> Result<([NodePtr; N], usize), EvalErr> {
     let mut next = args;
     let mut counter = 0;
-    let mut ret: [NodePtr; N] = [NodePtr::null(); N];
+    let mut ret: [NodePtr; N] = [NodePtr::nil(); N];
 
     while let Some((first, rest)) = a.next(next) {
         next = rest;
@@ -118,7 +118,7 @@ fn test_get_varargs() {
     let a1 = a.new_number(1337.into()).unwrap();
     let a2 = a.new_number(0.into()).unwrap();
     let a3 = a.new_atom(&[]).unwrap();
-    let args0 = a.null();
+    let args0 = a.nil();
     let args1 = a.new_pair(a3, args0).unwrap();
     let args2 = a.new_pair(a2, args1).unwrap();
     let args3 = a.new_pair(a1, args2).unwrap();
@@ -131,24 +131,24 @@ fn test_get_varargs() {
     );
     assert_eq!(
         get_varargs::<4>(&a, args3, "test").unwrap(),
-        ([a1, a2, a3, NodePtr::null()], 3)
+        ([a1, a2, a3, NodePtr::nil()], 3)
     );
     assert_eq!(
         get_varargs::<4>(&a, args2, "test").unwrap(),
-        ([a2, a3, NodePtr::null(), NodePtr::null()], 2)
+        ([a2, a3, NodePtr::nil(), NodePtr::nil()], 2)
     );
     assert_eq!(
         get_varargs::<4>(&a, args1, "test").unwrap(),
-        ([a3, NodePtr::null(), NodePtr::null(), NodePtr::null()], 1)
+        ([a3, NodePtr::nil(), NodePtr::nil(), NodePtr::nil()], 1)
     );
     assert_eq!(
         get_varargs::<4>(&a, args0, "test").unwrap(),
         (
             [
-                NodePtr::null(),
-                NodePtr::null(),
-                NodePtr::null(),
-                NodePtr::null()
+                NodePtr::nil(),
+                NodePtr::nil(),
+                NodePtr::nil(),
+                NodePtr::nil()
             ],
             0
         )
@@ -163,7 +163,7 @@ fn test_get_varargs() {
     assert_eq!(r.1, "test takes no more than 1 argument");
 }
 
-pub fn nullp(a: &Allocator, n: NodePtr) -> bool {
+pub fn nilp(a: &Allocator, n: NodePtr) -> bool {
     match a.sexp(n) {
         SExp::Atom => a.atom_len(n) == 0,
         _ => false,
@@ -171,20 +171,20 @@ pub fn nullp(a: &Allocator, n: NodePtr) -> bool {
 }
 
 #[test]
-fn test_nullp() {
+fn test_nilp() {
     let mut a = Allocator::new();
     let a0 = a.new_number(42.into()).unwrap();
     let a1 = a.new_number(1337.into()).unwrap();
     let a3 = a.new_number(0.into()).unwrap();
     let a4 = a.new_atom(&[]).unwrap();
-    let a5 = a.null();
+    let a5 = a.nil();
     let pair = a.new_pair(a0, a1).unwrap();
-    assert!(!nullp(&a, pair));
-    assert!(!nullp(&a, a0));
-    assert!(!nullp(&a, a1));
-    assert!(nullp(&a, a3));
-    assert!(nullp(&a, a4));
-    assert!(nullp(&a, a5));
+    assert!(!nilp(&a, pair));
+    assert!(!nilp(&a, a0));
+    assert!(!nilp(&a, a1));
+    assert!(nilp(&a, a3));
+    assert!(nilp(&a, a4));
+    assert!(nilp(&a, a5));
 }
 
 pub fn first(a: &Allocator, n: NodePtr) -> Result<NodePtr, EvalErr> {

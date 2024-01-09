@@ -152,7 +152,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let v: Option<NodePtr> = self.val_stack.pop();
         match v {
             None => {
-                let node: NodePtr = self.allocator.null();
+                let node: NodePtr = self.allocator.nil();
                 err(node, "runtime error: value stack empty")
             }
             Some(k) => Ok(k),
@@ -256,11 +256,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 self.push(first)?;
                 operands = rest;
             }
-            // ensure a correct null terminator
+            // ensure a correct nil terminator
             if !self.allocator.atom(operands).is_empty() {
                 err(operand_list, "bad operand list")
             } else {
-                self.push(self.allocator.null())?;
+                self.push(self.allocator.nil())?;
                 Ok(OP_COST)
             }
         }
@@ -374,7 +374,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                         // that doesn't pass the correct arguments.
                         // if we're in consensus mode, we have to accept this as
                         // something we don't understand
-                        self.push(self.allocator.null())?;
+                        self.push(self.allocator.nil())?;
                         return Ok(expected_cost);
                     }
                     return Err(err);
@@ -428,22 +428,22 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 current_cost - guard.start_cost,
                 guard.expected_cost - guard.start_cost
             );
-            return err(self.allocator.null(), "softfork specified cost mismatch");
+            return err(self.allocator.nil(), "softfork specified cost mismatch");
         }
 
         // restore the allocator to the state when we entered the softfork guard
         // This is an optimization to reclaim all heap space allocated by the
-        // softfork program. Since the softfork always return null, no value can
+        // softfork program. Since the softfork always return nil, no value can
         // escape the softfork program, and it's therefore safe to restore the
         // heap
         self.allocator.restore_checkpoint(&guard.allocator_state);
 
-        // the softfork always returns null, pop the value pushed by the
-        // evaluation of the program and push null instead
+        // the softfork always returns nil, pop the value pushed by the
+        // evaluation of the program and push nil instead
         self.pop()
             .expect("internal error, softfork program did not push value onto stack");
 
-        self.push(self.allocator.null())?;
+        self.push(self.allocator.nil())?;
 
         Ok(0)
     }

@@ -2,7 +2,7 @@ use crate::allocator::{Allocator, NodePtr};
 use crate::cost::{check_cost, Cost};
 use crate::err_utils::err;
 use crate::op_utils::{
-    atom, first, get_args, get_varargs, int_atom, mod_group_order, new_atom_and_cost, nullp, rest,
+    atom, first, get_args, get_varargs, int_atom, mod_group_order, new_atom_and_cost, nilp, rest,
     MALLOC_COST_PER_BYTE,
 };
 use crate::reduction::{EvalErr, Reduction, Response};
@@ -272,7 +272,7 @@ pub fn op_bls_pairing_identity(a: &mut Allocator, input: NodePtr, max_cost: Cost
     let mut items = Vec::<(G1Element, G2Element)>::new();
 
     let mut args = input;
-    while !nullp(a, args) {
+    while !nilp(a, args) {
         cost += BLS_PAIRING_COST_PER_ARG;
         check_cost(a, cost, max_cost)?;
         let g1 = a.g1(first(a, args)?)?;
@@ -285,7 +285,7 @@ pub fn op_bls_pairing_identity(a: &mut Allocator, input: NodePtr, max_cost: Cost
     if !aggregate_pairing(items) {
         err(input, "bls_pairing_identity failed")
     } else {
-        Ok(Reduction(cost, a.null()))
+        Ok(Reduction(cost, a.nil()))
     }
 }
 
@@ -306,7 +306,7 @@ pub fn op_bls_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respo
     args = rest(a, args)?;
 
     let mut items = Vec::<(PublicKey, &[u8])>::new();
-    while !nullp(a, args) {
+    while !nilp(a, args) {
         let pk = a.g1(first(a, args)?)?;
         args = rest(a, args)?;
         let msg = atom(a, first(a, args)?, "bls_verify message")?;
@@ -323,6 +323,6 @@ pub fn op_bls_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respo
     if !aggregate_verify(&signature, items) {
         err(input, "bls_verify failed")
     } else {
-        Ok(Reduction(cost, a.null()))
+        Ok(Reduction(cost, a.nil()))
     }
 }
