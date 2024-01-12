@@ -110,9 +110,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chia-bls"
-version = "0.3.1"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a72987625a992469b793a7aba42b29be55f9b9b35f8d55bb5b87a314274733c0"
+checksum = "ba003303bda3019f2fe94e5478555a96addff1d6a1ea84bfe207b3f075cd8420"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -127,9 +127,9 @@ dependencies = [
 
 [[package]]
 name = "chia-traits"
-version = "0.3.0"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "636e832ece4dc14e2e866d1737fbfdc32d6dd616aa4fc3869cfb273881def303"
+checksum = "fe532ed59df94db00cc1fb85edc3c4dd7287d0590eefb356d960671b93081334"
 dependencies = [
  "chia_streamable_macro",
  "hex",
@@ -269,7 +269,7 @@ dependencies = [
 
 [[package]]
 name = "clvmr"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "chia-bls",
  "clvm-traits",
