@@ -22,7 +22,7 @@ impl NodePtr {
     pub const NIL: Self = Self::new(ObjectType::Bytes, 0);
 
     const fn new(t: ObjectType, idx: usize) -> Self {
-        assert!(idx <= NODE_PTR_IDX_MASK as usize);
+        debug_assert!(idx <= NODE_PTR_IDX_MASK as usize);
         NodePtr(((t as u32) << NODE_PTR_IDX_BITS) | (idx as u32))
     }
 
