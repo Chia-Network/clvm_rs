@@ -88,8 +88,8 @@ struct SoftforkGuard {
 // 3. the environment stack (points to the environment for the current
 //    operation). env_stack
 
-struct RunProgramContext<'a, D> {
-    allocator: &'a mut Allocator,
+struct RunProgramContext<'a, 'b, D> {
+    allocator: &'a mut Allocator<'b>,
     dialect: &'a D,
     val_stack: Vec<NodePtr>,
     env_stack: Vec<NodePtr>,
@@ -114,7 +114,7 @@ fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Co
     })
 }
 
-impl<'a, D: Dialect> RunProgramContext<'a, D> {
+impl<'a, 'b, D: Dialect> RunProgramContext<'a, 'b, D> {
     #[cfg(feature = "counters")]
     #[inline(always)]
     fn account_val_push(&mut self) {
@@ -178,7 +178,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
     #[cfg(feature = "pre-eval")]
     fn new_with_pre_eval(
-        allocator: &'a mut Allocator,
+        allocator: &'a mut Allocator<'b>,
         dialect: &'a D,
         pre_eval: Option<PreEval>,
     ) -> Self {
@@ -196,7 +196,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    fn new(allocator: &'a mut Allocator, dialect: &'a D) -> Self {
+    fn new(allocator: &'a mut Allocator<'b>, dialect: &'a D) -> Self {
         RunProgramContext {
             allocator,
             dialect,
@@ -502,7 +502,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 }
 
 pub fn run_program<'a, D: Dialect>(
-    allocator: &'a mut Allocator,
+    allocator: &'a mut Allocator<'_>,
     dialect: &'a D,
     program: NodePtr,
     env: NodePtr,
@@ -514,7 +514,7 @@ pub fn run_program<'a, D: Dialect>(
 
 #[cfg(feature = "pre-eval")]
 pub fn run_program_with_pre_eval<'a, D: Dialect>(
-    allocator: &'a mut Allocator,
+    allocator: &'a mut Allocator<'_>,
     dialect: &'a D,
     program: NodePtr,
     env: NodePtr,
@@ -527,7 +527,7 @@ pub fn run_program_with_pre_eval<'a, D: Dialect>(
 
 #[cfg(feature = "counters")]
 pub fn run_program_with_counters<'a, D: Dialect>(
-    allocator: &'a mut Allocator,
+    allocator: &'a mut Allocator<'_>,
     dialect: &'a D,
     program: NodePtr,
     env: NodePtr,
