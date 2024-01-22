@@ -25,7 +25,7 @@ impl NodePtr {
         NodePtr(((t as u32) << NODE_PTR_IDX_BITS) | (idx as u32))
     }
 
-    fn node_type(&self) -> (ObjectType, usize) {
+    fn node_type(&self) -> (ObjectType, u32) {
         (
             match self.0 >> NODE_PTR_IDX_BITS {
                 0 => ObjectType::Pair,
@@ -34,14 +34,14 @@ impl NodePtr {
                     panic!("unknown NodePtr type");
                 }
             },
-            (self.0 & NODE_PTR_IDX_MASK) as usize,
+            (self.0 & NODE_PTR_IDX_MASK),
         )
     }
 
     pub(crate) fn as_index(&self) -> usize {
         match self.node_type() {
-            (ObjectType::Pair, idx) => idx * 2,
-            (ObjectType::Bytes, idx) => idx * 2 + 1,
+            (ObjectType::Pair, idx) => (idx as usize) * 2,
+            (ObjectType::Bytes, idx) => (idx as usize) * 2 + 1,
         }
     }
 }
@@ -203,7 +203,7 @@ impl Allocator {
         let (ObjectType::Bytes, idx) = node.node_type() else {
             return err(node, "(internal error) substr expected atom, got pair");
         };
-        let atom = self.atom_vec[idx];
+        let atom = self.atom_vec[idx as usize];
         let atom_len = atom.end - atom.start;
         if start > atom_len {
             return err(node, "substr start out of bounds");
@@ -239,7 +239,7 @@ impl Allocator {
                 return err(*node, "(internal error) concat expected atom, got pair");
             };
 
-            let term = self.atom_vec[idx];
+            let term = self.atom_vec[idx as usize];
             if counter + term.len() > new_size {
                 self.u8_vec.truncate(start);
                 return err(*node, "(internal error) concat passed invalid new_size");
@@ -271,7 +271,7 @@ impl Allocator {
     pub fn atom(&self, node: NodePtr) -> &[u8] {
         match node.node_type() {
             (ObjectType::Bytes, idx) => {
-                let atom = self.atom_vec[idx];
+                let atom = self.atom_vec[idx as usize];
                 &self.u8_vec[atom.start as usize..atom.end as usize]
             }
             _ => {
@@ -283,7 +283,7 @@ impl Allocator {
     pub fn atom_len(&self, node: NodePtr) -> usize {
         match node.node_type() {
             (ObjectType::Bytes, idx) => {
-                let atom = self.atom_vec[idx];
+                let atom = self.atom_vec[idx as usize];
                 (atom.end - atom.start) as usize
             }
             _ => {
@@ -328,7 +328,7 @@ impl Allocator {
         match node.node_type() {
             (ObjectType::Bytes, _) => SExp::Atom,
             (ObjectType::Pair, idx) => {
-                let pair = self.pair_vec[idx];
+                let pair = self.pair_vec[idx as usize];
                 SExp::Pair(pair.first, pair.rest)
             }
         }
