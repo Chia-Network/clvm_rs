@@ -55,16 +55,14 @@ impl Dialect for RuntimeDialect {
         }
     }
 
-    fn quote_kw(&self) -> &[u8] {
-        &self.quote_kw
+    fn quote_kw(&self) -> u32 {
+        self.quote_kw[0] as u32
     }
-
-    fn apply_kw(&self) -> &[u8] {
-        &self.apply_kw
+    fn apply_kw(&self) -> u32 {
+        self.apply_kw[0] as u32
     }
-
-    fn softfork_kw(&self) -> &[u8] {
-        &self.softfork_kw
+    fn softfork_kw(&self) -> u32 {
+        self.softfork_kw[0] as u32
     }
 
     fn softfork_extension(&self, _ext: u32) -> OperatorSet {

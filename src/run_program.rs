@@ -3,7 +3,7 @@ use crate::allocator::{Allocator, Checkpoint, NodePtr, SExp};
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;
-use crate::op_utils::{atom, first, get_args, uint_atom};
+use crate::op_utils::{first, get_args, uint_atom};
 use crate::reduction::{EvalErr, Reduction, Response};
 
 // lowered from 46
@@ -230,9 +230,8 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         operand_list: NodePtr,
         env: NodePtr,
     ) -> Result<Cost, EvalErr> {
-        let op_atom = self.allocator.atom(operator_node);
         // special case check for quote
-        if op_atom == self.dialect.quote_kw() {
+        if self.allocator.small_number(operator_node) == Some(self.dialect.quote_kw()) {
             self.push(operand_list)?;
             Ok(QUOTE_COST)
         } else {
@@ -259,7 +258,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 operands = rest;
             }
             // ensure a correct nil terminator
-            if !self.allocator.atom(operands).is_empty() {
+            if self.allocator.atom_len(operands) != 0 {
                 err(operand_list, "bad operand list")
             } else {
                 self.push(self.allocator.nil())?;
@@ -341,14 +340,15 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     fn apply_op(&mut self, current_cost: Cost, max_cost: Cost) -> Result<Cost, EvalErr> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
-        let op_atom = atom(self.allocator, operator, "(internal error) apply")?;
         if self.env_stack.pop().is_none() {
             return err(operator, "runtime error: env stack empty");
         }
-        if op_atom == self.dialect.apply_kw() {
+        let op_atom = self.allocator.small_number(operator);
+
+        if op_atom == Some(self.dialect.apply_kw()) {
             let [new_operator, env] = get_args::<2>(self.allocator, operand_list, "apply")?;
             self.eval_pair(new_operator, env).map(|c| c + APPLY_COST)
-        } else if op_atom == self.dialect.softfork_kw() {
+        } else if op_atom == Some(self.dialect.softfork_kw()) {
             let expected_cost = uint_atom::<8>(
                 self.allocator,
                 first(self.allocator, operand_list)?,
