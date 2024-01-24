@@ -276,16 +276,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         };
 
         // put a bunch of ops on op_stack
-        let (op_node, op_list) = match self.allocator.sexp(program) {
+        let SExp::Pair(op_node, op_list) = self.allocator.sexp(program) else {
             // the program is just a bitfield path through the env tree
-            SExp::Atom => {
-                let r: Reduction =
-                    traverse_path(self.allocator, self.allocator.atom(program), env)?;
-                self.push(r.1)?;
-                return Ok(r.0);
-            }
-            // the program is an operator and a list of operands
-            SExp::Pair(operator_node, operand_list) => (operator_node, operand_list),
+            let r: Reduction = traverse_path(self.allocator, self.allocator.atom(program), env)?;
+            self.push(r.1)?;
+            return Ok(r.0);
         };
 
         match self.allocator.sexp(op_node) {
