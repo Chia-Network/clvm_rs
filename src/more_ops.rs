@@ -436,14 +436,24 @@ pub fn op_multiply(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
             continue;
         }
 
-        let (v0, l1) = int_atom(a, arg, "*")?;
+        let l1 = match a.node(arg) {
+            NodeVisitor::Buffer(buf) => {
+                use crate::number::number_from_u8;
+                total *= number_from_u8(buf);
+                buf.len()
+            }
+            NodeVisitor::U32(val) => {
+                total *= val;
+                len_for_value(val)
+            }
+            NodeVisitor::Pair(_, _) => {
+                return err(arg, "* requires int args");
+            }
+        };
 
-        total *= v0;
         cost += MUL_COST_PER_OP;
-
         cost += (l0 + l1) as Cost * MUL_LINEAR_COST_PER_BYTE;
         cost += (l0 * l1) as Cost / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
-
         l0 = limbs_for_int(&total);
     }
     let total = a.new_number(total)?;
