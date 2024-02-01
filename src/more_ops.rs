@@ -525,10 +525,20 @@ pub fn op_mod(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
 
 pub fn op_gr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let [v0, v1] = get_args::<2>(a, input, ">")?;
-    let (v0, v0_len) = int_atom(a, v0, ">")?;
-    let (v1, v1_len) = int_atom(a, v1, ">")?;
-    let cost = GR_BASE_COST + (v0_len + v1_len) as Cost * GR_COST_PER_BYTE;
-    Ok(Reduction(cost, if v0 > v1 { a.one() } else { a.nil() }))
+
+    match (a.small_number(v0), a.small_number(v1)) {
+        (Some(lhs), Some(rhs)) => {
+            let cost =
+                GR_BASE_COST + (len_for_value(lhs) + len_for_value(rhs)) as Cost * GR_COST_PER_BYTE;
+            Ok(Reduction(cost, if lhs > rhs { a.one() } else { a.nil() }))
+        }
+        _ => {
+            let (v0, v0_len) = int_atom(a, v0, ">")?;
+            let (v1, v1_len) = int_atom(a, v1, ">")?;
+            let cost = GR_BASE_COST + (v0_len + v1_len) as Cost * GR_COST_PER_BYTE;
+            Ok(Reduction(cost, if v0 > v1 { a.one() } else { a.nil() }))
+        }
+    }
 }
 
 pub fn op_gr_bytes(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
