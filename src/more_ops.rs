@@ -395,12 +395,25 @@ pub fn op_subtract(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
         input = rest;
         cost += ARITH_COST_PER_ARG;
         check_cost(a, cost + byte_count as Cost * ARITH_COST_PER_BYTE, max_cost)?;
-        let (v, len) = int_atom(a, arg, "-")?;
-        byte_count += len;
         if is_first {
-            total += v;
+            let (v, len) = int_atom(a, arg, "-")?;
+            byte_count = len;
+            total = v;
         } else {
-            total -= v;
+            match a.node(arg) {
+                NodeVisitor::Buffer(buf) => {
+                    use crate::number::number_from_u8;
+                    total -= number_from_u8(buf);
+                    byte_count += buf.len();
+                }
+                NodeVisitor::U32(val) => {
+                    total -= val;
+                    byte_count += len_for_value(val);
+                }
+                NodeVisitor::Pair(_, _) => {
+                    return err(arg, "- requires int args");
+                }
+            }
         };
         is_first = false;
     }
