@@ -4,7 +4,7 @@ use std::ops::BitAndAssign;
 use std::ops::BitOrAssign;
 use std::ops::BitXorAssign;
 
-use crate::allocator::{Allocator, NodePtr, SExp};
+use crate::allocator::{len_for_value, Allocator, NodePtr, NodeVisitor, SExp};
 use crate::cost::{check_cost, Cost};
 use crate::err_utils::err;
 use crate::number::Number;
@@ -365,9 +365,21 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
             cost + (byte_count as Cost * ARITH_COST_PER_BYTE),
             max_cost,
         )?;
-        let (v, len) = int_atom(a, arg, "+")?;
-        byte_count += len;
-        total += v;
+
+        match a.node(arg) {
+            NodeVisitor::Buffer(buf) => {
+                use crate::number::number_from_u8;
+                total += number_from_u8(buf);
+                byte_count += buf.len();
+            }
+            NodeVisitor::U32(val) => {
+                total += val;
+                byte_count += len_for_value(val);
+            }
+            NodeVisitor::Pair(_, _) => {
+                return err(arg, "+ requires int args");
+            }
+        }
     }
     let total = a.new_number(total)?;
     cost += byte_count as Cost * ARITH_COST_PER_BYTE;

@@ -93,6 +93,12 @@ pub struct Checkpoint {
     small_atoms: usize,
 }
 
+pub enum NodeVisitor<'a> {
+    Buffer(&'a [u8]),
+    U32(u32),
+    Pair(NodePtr, NodePtr),
+}
+
 #[derive(Debug)]
 pub struct Allocator {
     // this is effectively a grow-only stack where atoms are allocated. Atoms
@@ -146,7 +152,7 @@ pub fn canonical_positive_integer(v: &[u8]) -> bool {
     }
 }
 
-fn len_for_value(val: u32) -> usize {
+pub fn len_for_value(val: u32) -> usize {
     if val == 0 {
         0
     } else if val < 0x80 {
@@ -537,6 +543,21 @@ impl Allocator {
 
         G2Element::from_bytes(array)
             .map_err(|_| EvalErr(node, "atom is not a G2 point".to_string()))
+    }
+
+    pub fn node<'a>(&'a self, node: NodePtr) -> NodeVisitor<'a> {
+        match node.node_type() {
+            (ObjectType::Bytes, idx) => {
+                let atom = self.atom_vec[idx as usize];
+                let buf = &self.u8_vec[atom.start as usize..atom.end as usize];
+                NodeVisitor::<'a>::Buffer(buf)
+            }
+            (ObjectType::SmallAtom, val) => NodeVisitor::U32(val),
+            (ObjectType::Pair, idx) => {
+                let pair = self.pair_vec[idx as usize];
+                NodeVisitor::Pair(pair.first, pair.rest)
+            }
+        }
     }
 
     pub fn sexp(&self, node: NodePtr) -> SExp {
