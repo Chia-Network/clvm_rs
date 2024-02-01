@@ -1,5 +1,5 @@
-use super::traverse_path::traverse_path;
-use crate::allocator::{Allocator, Checkpoint, NodePtr, SExp};
+use super::traverse_path::{traverse_path, traverse_path_fast};
+use crate::allocator::{Allocator, Checkpoint, NodePtr, NodeVisitor, SExp};
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;
@@ -279,7 +279,13 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         // put a bunch of ops on op_stack
         let SExp::Pair(op_node, op_list) = self.allocator.sexp(program) else {
             // the program is just a bitfield path through the env tree
-            let r: Reduction = traverse_path(self.allocator, self.allocator.atom(program), env)?;
+            let r = match self.allocator.node(program) {
+                NodeVisitor::Buffer(buf) => traverse_path(self.allocator, buf, env)?,
+                NodeVisitor::U32(val) => traverse_path_fast(self.allocator, val, env)?,
+                NodeVisitor::Pair(_, _) => {
+                    panic!("expected atom, got pair");
+                }
+            };
             self.push(r.1)?;
             return Ok(r.0);
         };
