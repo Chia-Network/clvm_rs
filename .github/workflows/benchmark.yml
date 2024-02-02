@@ -36,9 +36,7 @@ jobs:
           python -m pip install --upgrade pip
 
     - name: Set up rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
+      uses: dtolnay/rust-toolchain@stable
 
     - name: Run benchmarks
       run: cargo bench
@@ -62,9 +60,7 @@ jobs:
           python -m pip install --upgrade pip
 
     - name: Set up rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
+      uses: dtolnay/rust-toolchain@stable
 
     - name: Install dependencies
       run: |
