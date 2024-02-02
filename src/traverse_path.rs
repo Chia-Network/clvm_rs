@@ -109,11 +109,17 @@ fn test_traverse_path() {
     let n1 = a.new_atom(&[0, 1, 2]).unwrap();
     let n2 = a.new_atom(&[4, 5, 6]).unwrap();
 
-    assert_eq!(traverse_path(&a, &[0], n1).unwrap(), Reduction(48, nul));
+    assert_eq!(traverse_path(&a, &[], n1).unwrap(), Reduction(44, nul));
     assert_eq!(traverse_path(&a, &[0b1], n1).unwrap(), Reduction(44, n1));
     assert_eq!(traverse_path(&a, &[0b1], n2).unwrap(), Reduction(44, n2));
 
     // cost for leading zeros
+    assert_eq!(traverse_path(&a, &[0], n1).unwrap(), Reduction(48, nul));
+    assert_eq!(traverse_path(&a, &[0, 0], n1).unwrap(), Reduction(52, nul));
+    assert_eq!(
+        traverse_path(&a, &[0, 0, 0], n1).unwrap(),
+        Reduction(56, nul)
+    );
     assert_eq!(
         traverse_path(&a, &[0, 0, 0, 0], n1).unwrap(),
         Reduction(60, nul)
