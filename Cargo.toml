@@ -33,8 +33,7 @@ lazy_static = "1.4.0"
 num-bigint = "0.4.3"
 num-traits = "0.2.15"
 num-integer = "0.1.45"
-clvm-traits = "0.3.2"
-chia-bls = "0.3.3"
+chia-bls = "0.4.0"
 sha2 = "0.10.8"
 openssl = { version = "=0.10.55", features = ["vendored"], optional = true }
 # for secp sigs
