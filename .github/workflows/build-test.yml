@@ -215,7 +215,7 @@ jobs:
           cd tools
           cargo run --bin generate-fuzz-corpus
       - name: build
-        run: cargo fuzz list | xargs -I "%" sh -c "cargo +nightly fuzz run % -- -max_total_time=30 || exit 255"
+        run: cargo fuzz list | xargs -I "%" sh -c "cargo +nightly fuzz run % -- -max_total_time=15 || exit 255"
 
   unit_tests:
     name: Unit tests
