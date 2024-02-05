@@ -279,37 +279,36 @@ pub fn uint_atom<const SIZE: usize>(
     args: NodePtr,
     op_name: &str,
 ) -> Result<u64, EvalErr> {
-    let bytes = match a.sexp(args) {
-        SExp::Atom => a.atom(args),
-        _ => {
-            return err(args, &format!("{op_name} requires int arg"));
+    match a.node(args) {
+        NodeVisitor::Buffer(bytes) => {
+            if bytes.is_empty() {
+                return Ok(0);
+            }
+
+            if (bytes[0] & 0x80) != 0 {
+                return err(args, &format!("{op_name} requires positive int arg"));
+            }
+
+            // strip leading zeros
+            let mut buf: &[u8] = bytes;
+            while !buf.is_empty() && buf[0] == 0 {
+                buf = &buf[1..];
+            }
+
+            if buf.len() > SIZE {
+                return err(args, &format!("{op_name} requires u{} arg", SIZE * 8));
+            }
+
+            let mut ret = 0;
+            for b in buf {
+                ret <<= 8;
+                ret |= *b as u64;
+            }
+            Ok(ret)
         }
-    };
-
-    if bytes.is_empty() {
-        return Ok(0);
+        NodeVisitor::U32(val) => Ok(val as u64),
+        NodeVisitor::Pair(_, _) => err(args, &format!("{op_name} requires int arg")),
     }
-
-    if (bytes[0] & 0x80) != 0 {
-        return err(args, &format!("{op_name} requires positive int arg"));
-    }
-
-    // strip leading zeros
-    let mut buf: &[u8] = bytes;
-    while !buf.is_empty() && buf[0] == 0 {
-        buf = &buf[1..];
-    }
-
-    if buf.len() > SIZE {
-        return err(args, &format!("{op_name} requires u{} arg", SIZE * 8));
-    }
-
-    let mut ret = 0;
-    for b in buf {
-        ret <<= 8;
-        ret |= *b as u64;
-    }
-    Ok(ret)
 }
 
 #[cfg(test)]
