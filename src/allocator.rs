@@ -57,6 +57,7 @@ impl Default for NodePtr {
     }
 }
 
+#[derive(PartialEq, Debug)]
 pub enum SExp {
     Atom,
     Pair(NodePtr, NodePtr),
@@ -388,6 +389,85 @@ fn test_node_as_index() {
 }
 
 #[test]
+fn test_atom_eq_1() {
+    // these are a bunch of different representations of 1
+    // make sure they all compare equal
+    let mut a = Allocator::new();
+    let a0 = a.one();
+    let a1 = a.new_atom(&[1]).unwrap();
+    let a2 = {
+        let tmp = a.new_atom(&[0x01, 0xff]).unwrap();
+        a.new_substr(tmp, 0, 1).unwrap()
+    };
+    let a3 = a.new_substr(a2, 0, 1).unwrap();
+    let a4 = a.new_number(1.into()).unwrap();
+
+    assert!(a.atom_eq(a0, a0));
+    assert!(a.atom_eq(a0, a1));
+    assert!(a.atom_eq(a0, a2));
+    assert!(a.atom_eq(a0, a3));
+    assert!(a.atom_eq(a0, a4));
+
+    assert!(a.atom_eq(a1, a0));
+    assert!(a.atom_eq(a1, a1));
+    assert!(a.atom_eq(a1, a2));
+    assert!(a.atom_eq(a1, a3));
+    assert!(a.atom_eq(a1, a4));
+
+    assert!(a.atom_eq(a2, a0));
+    assert!(a.atom_eq(a2, a1));
+    assert!(a.atom_eq(a2, a2));
+    assert!(a.atom_eq(a2, a3));
+    assert!(a.atom_eq(a2, a4));
+
+    assert!(a.atom_eq(a3, a0));
+    assert!(a.atom_eq(a3, a1));
+    assert!(a.atom_eq(a3, a2));
+    assert!(a.atom_eq(a3, a3));
+    assert!(a.atom_eq(a3, a4));
+
+    assert!(a.atom_eq(a4, a0));
+    assert!(a.atom_eq(a4, a1));
+    assert!(a.atom_eq(a4, a2));
+    assert!(a.atom_eq(a4, a3));
+    assert!(a.atom_eq(a4, a4));
+}
+
+#[test]
+fn test_atom_eq_minus_1() {
+    // these are a bunch of different representations of -1
+    // make sure they all compare equal
+    let mut a = Allocator::new();
+    let a0 = a.new_atom(&[0xff]).unwrap();
+    let a1 = a.new_number((-1).into()).unwrap();
+    let a2 = {
+        let tmp = a.new_atom(&[0x01, 0xff]).unwrap();
+        a.new_substr(tmp, 1, 2).unwrap()
+    };
+    let a3 = a.new_substr(a0, 0, 1).unwrap();
+
+    assert!(a.atom_eq(a0, a0));
+    assert!(a.atom_eq(a0, a1));
+    assert!(a.atom_eq(a0, a2));
+    assert!(a.atom_eq(a0, a3));
+
+    assert!(a.atom_eq(a1, a0));
+    assert!(a.atom_eq(a1, a1));
+    assert!(a.atom_eq(a1, a2));
+    assert!(a.atom_eq(a1, a3));
+
+    assert!(a.atom_eq(a2, a0));
+    assert!(a.atom_eq(a2, a1));
+    assert!(a.atom_eq(a2, a2));
+    assert!(a.atom_eq(a2, a3));
+
+    assert!(a.atom_eq(a3, a0));
+    assert!(a.atom_eq(a3, a1));
+    assert!(a.atom_eq(a3, a2));
+    assert!(a.atom_eq(a3, a3));
+}
+
+#[test]
 fn test_atom_eq() {
     let mut a = Allocator::new();
     let a0 = a.nil();
@@ -434,28 +514,70 @@ fn test_atom_eq() {
 }
 
 #[test]
+#[should_panic]
+fn test_atom_eq_pair1() {
+    let mut a = Allocator::new();
+    let a0 = a.nil();
+    let pair = a.new_pair(a0, a0).unwrap();
+    a.atom_eq(pair, a0);
+}
+
+#[test]
+#[should_panic]
+fn test_atom_eq_pair2() {
+    let mut a = Allocator::new();
+    let a0 = a.nil();
+    let pair = a.new_pair(a0, a0).unwrap();
+    a.atom_eq(a0, pair);
+}
+
+#[test]
+#[should_panic]
+fn test_atom_len_pair() {
+    let mut a = Allocator::new();
+    let a0 = a.nil();
+    let pair = a.new_pair(a0, a0).unwrap();
+    a.atom_len(pair);
+}
+
+#[test]
+#[should_panic]
+fn test_number_pair() {
+    let mut a = Allocator::new();
+    let a0 = a.nil();
+    let pair = a.new_pair(a0, a0).unwrap();
+    a.number(pair);
+}
+
+#[test]
+#[should_panic]
+fn test_invalid_node_ptr_type() {
+    let node = NodePtr(3 << NODE_PTR_IDX_BITS);
+    // unknown NodePtr type
+    let _ = node.node_type();
+}
+
+#[cfg(dbg)]
+#[test]
+#[should_panic]
+fn test_node_ptr_overflow() {
+    NodePtr::new(ObjectType::Bytes, NODE_PTR_IDX_MASK + 1);
+}
+
+#[test]
 fn test_nil() {
     let a = Allocator::new();
     assert_eq!(a.atom(a.nil()), b"");
-
-    let buf = match a.sexp(a.nil()) {
-        SExp::Atom => a.atom(a.nil()),
-        SExp::Pair(_, _) => panic!("unexpected"),
-    };
-    assert_eq!(buf, b"");
+    assert_eq!(a.sexp(a.nil()), SExp::Atom);
+    assert_eq!(a.nil(), NodePtr::default());
+    assert_eq!(a.nil(), NodePtr::NIL);
 }
 
 #[test]
 fn test_one() {
     let a = Allocator::new();
     assert_eq!(a.atom(a.one()), b"\x01");
-    assert_eq!(
-        match a.sexp(a.one()) {
-            SExp::Atom => a.atom(a.one()),
-            SExp::Pair(_, _) => panic!("unexpected"),
-        },
-        b"\x01"
-    );
+    assert_eq!(a.sexp(a.one()), SExp::Atom);
 }
 
 #[test]
@@ -463,13 +585,7 @@ fn test_allocate_atom() {
     let mut a = Allocator::new();
     let atom = a.new_atom(b"foobar").unwrap();
     assert_eq!(a.atom(atom), b"foobar");
-    assert_eq!(
-        match a.sexp(atom) {
-            SExp::Atom => a.atom(atom),
-            SExp::Pair(_, _) => panic!("unexpected"),
-        },
-        b"foobar"
-    );
+    assert_eq!(a.sexp(atom), SExp::Atom);
 }
 
 #[test]
@@ -479,22 +595,10 @@ fn test_allocate_pair() {
     let atom2 = a.new_atom(b"bar").unwrap();
     let pair = a.new_pair(atom1, atom2).unwrap();
 
-    assert_eq!(
-        match a.sexp(pair) {
-            SExp::Atom => panic!("unexpected"),
-            SExp::Pair(left, right) => (left, right),
-        },
-        (atom1, atom2)
-    );
+    assert_eq!(a.sexp(pair), SExp::Pair(atom1, atom2));
 
     let pair2 = a.new_pair(pair, pair).unwrap();
-    assert_eq!(
-        match a.sexp(pair2) {
-            SExp::Atom => panic!("unexpected"),
-            SExp::Pair(left, right) => (left, right),
-        },
-        (pair, pair)
-    );
+    assert_eq!(a.sexp(pair2), SExp::Pair(pair, pair));
 }
 
 #[test]
@@ -509,24 +613,39 @@ fn test_allocate_heap_limit() {
 #[test]
 fn test_allocate_atom_limit() {
     let mut a = Allocator::new();
-    // we can allocate 5 atoms total
-    // keep in mind that we always have 2 pre-allocated atoms for nil and one,
-    // so with a limit of 5, we only have 3 slots left at this point.
-    let _atom = a.new_atom(b"foo").unwrap();
-    let _atom = a.new_atom(b"bar").unwrap();
-    let _atom = a.new_atom(b"baz").unwrap();
 
-    // the 4th fails and ensure not to append atom to the stack
-    assert_eq!(a.u8_vec.len(), 10);
-    for _ in 3..MAX_NUM_ATOMS - 2 {
-        // exhaust the numebr of atoms allowed to be allocated
+    for _ in 0..MAX_NUM_ATOMS - 2 {
+        // exhaust the number of atoms allowed to be allocated
         let _ = a.new_atom(b"foo").unwrap();
     }
     assert_eq!(a.new_atom(b"foobar").unwrap_err().1, "too many atoms");
+    assert_eq!(a.u8_vec.len(), (MAX_NUM_ATOMS - 2) * 3 + 1);
+}
 
-    // the pre-allocated nil() and one() also count against the limit, and they
-    // use 0 and 1 bytes respectively
-    assert_eq!(a.u8_vec.len(), MAX_NUM_ATOMS * 3 - 3 - 2);
+#[test]
+fn test_allocate_substr_limit() {
+    let mut a = Allocator::new();
+
+    for _ in 0..MAX_NUM_ATOMS - 3 {
+        // exhaust the number of atoms allowed to be allocated
+        let _ = a.new_atom(b"foo").unwrap();
+    }
+    let atom = a.new_atom(b"foo").unwrap();
+    assert_eq!(a.new_substr(atom, 1, 2).unwrap_err().1, "too many atoms");
+    assert_eq!(a.u8_vec.len(), (MAX_NUM_ATOMS - 2) * 3 + 1);
+}
+
+#[test]
+fn test_allocate_concat_limit() {
+    let mut a = Allocator::new();
+
+    for _ in 0..MAX_NUM_ATOMS - 3 {
+        // exhaust the number of atoms allowed to be allocated
+        let _ = a.new_atom(b"foo").unwrap();
+    }
+    let atom = a.new_atom(b"foo").unwrap();
+    assert_eq!(a.new_concat(3, &[atom]).unwrap_err().1, "too many atoms");
+    assert_eq!(a.u8_vec.len(), (MAX_NUM_ATOMS - 2) * 3 + 1);
 }
 
 #[test]
@@ -536,7 +655,7 @@ fn test_allocate_pair_limit() {
     // one pair is OK
     let _pair1 = a.new_pair(atom, atom).unwrap();
     for _ in 1..MAX_NUM_PAIRS {
-        // exhaust the numebr of pairs allowed to be allocated
+        // exhaust the number of pairs allowed to be allocated
         let _ = a.new_pair(atom, atom).unwrap();
     }
 
@@ -547,6 +666,7 @@ fn test_allocate_pair_limit() {
 fn test_substr() {
     let mut a = Allocator::new();
     let atom = a.new_atom(b"foobar").unwrap();
+    let pair = a.new_pair(atom, atom).unwrap();
 
     let sub = a.new_substr(atom, 0, 1).unwrap();
     assert_eq!(a.atom(sub), b"f");
@@ -572,6 +692,10 @@ fn test_substr() {
     assert_eq!(
         a.new_substr(atom, u32::MAX, 4).unwrap_err().1,
         "substr start out of bounds"
+    );
+    assert_eq!(
+        a.new_substr(pair, 0, 0).unwrap_err().1,
+        "(internal error) substr expected atom, got pair"
     );
 }
 
@@ -606,6 +730,53 @@ fn test_concat() {
         a.new_concat(12, &[atom3, pair]).unwrap_err().1,
         "(internal error) concat expected atom, got pair"
     );
+
+    assert_eq!(
+        a.new_concat(4, &[atom1, atom2, atom3]).unwrap_err().1,
+        "(internal error) concat passed invalid new_size"
+    );
+
+    assert_eq!(
+        a.new_concat(2, &[atom1, atom2, atom3]).unwrap_err().1,
+        "(internal error) concat passed invalid new_size"
+    );
+}
+
+#[test]
+fn test_concat_large() {
+    let mut a = Allocator::new();
+    let atom1 = a.new_atom(b"foo").unwrap();
+    let atom2 = a.new_atom(b"bar").unwrap();
+    let pair = a.new_pair(atom1, atom2).unwrap();
+
+    let cat = a.new_concat(6, &[atom1, atom2]).unwrap();
+    assert_eq!(a.atom(cat), b"foobar");
+
+    let cat = a.new_concat(12, &[cat, cat]).unwrap();
+    assert_eq!(a.atom(cat), b"foobarfoobar");
+
+    assert_eq!(
+        a.new_concat(11, &[cat, cat]).unwrap_err().1,
+        "(internal error) concat passed invalid new_size"
+    );
+    assert_eq!(
+        a.new_concat(13, &[cat, cat]).unwrap_err().1,
+        "(internal error) concat passed invalid new_size"
+    );
+    assert_eq!(
+        a.new_concat(12, &[atom1, pair]).unwrap_err().1,
+        "(internal error) concat expected atom, got pair"
+    );
+
+    assert_eq!(
+        a.new_concat(4, &[atom1, atom2]).unwrap_err().1,
+        "(internal error) concat passed invalid new_size"
+    );
+
+    assert_eq!(
+        a.new_concat(2, &[atom1, atom2]).unwrap_err().1,
+        "(internal error) concat passed invalid new_size"
+    );
 }
 
 #[test]
@@ -615,32 +786,14 @@ fn test_sexp() {
     let atom2 = a.new_atom(b"o").unwrap();
     let pair = a.new_pair(atom1, atom2).unwrap();
 
-    assert_eq!(
-        match a.sexp(atom1) {
-            SExp::Atom => 0,
-            SExp::Pair(_, _) => 1,
-        },
-        0
-    );
-    assert_eq!(
-        match a.sexp(atom2) {
-            SExp::Atom => 0,
-            SExp::Pair(_, _) => 1,
-        },
-        0
-    );
-    assert_eq!(
-        match a.sexp(pair) {
-            SExp::Atom => 0,
-            SExp::Pair(_, _) => 1,
-        },
-        1
-    );
+    assert_eq!(a.sexp(atom1), SExp::Atom);
+    assert_eq!(a.sexp(atom2), SExp::Atom);
+    assert_eq!(a.sexp(pair), SExp::Pair(atom1, atom2));
 }
 
 #[test]
 fn test_concat_limit() {
-    let mut a = Allocator::new_limited(9);
+    let mut a = Allocator::new_limited(6 + 3);
     let atom1 = a.new_atom(b"f").unwrap();
     let atom2 = a.new_atom(b"o").unwrap();
     let atom3 = a.new_atom(b"o").unwrap();
@@ -694,14 +847,14 @@ fn test_new_number(#[case] num: Number, #[case] expected: &[u8]) {
 fn test_checkpoints() {
     let mut a = Allocator::new();
 
-    let atom1 = a.new_atom(&[1, 2, 3]).unwrap();
-    assert!(a.atom(atom1) == [1, 2, 3]);
+    let atom1 = a.new_atom(&[4, 3, 2, 1]).unwrap();
+    assert!(a.atom(atom1) == [4, 3, 2, 1]);
 
     let checkpoint = a.checkpoint();
 
-    let atom2 = a.new_atom(&[4, 5, 6]).unwrap();
-    assert!(a.atom(atom1) == [1, 2, 3]);
-    assert!(a.atom(atom2) == [4, 5, 6]);
+    let atom2 = a.new_atom(&[6, 5, 4, 3]).unwrap();
+    assert!(a.atom(atom1) == [4, 3, 2, 1]);
+    assert!(a.atom(atom2) == [6, 5, 4, 3]);
 
     // at this point we have two atoms and a checkpoint from before the second
     // atom was created
@@ -710,9 +863,9 @@ fn test_checkpoints() {
 
     a.restore_checkpoint(&checkpoint);
 
-    assert!(a.atom(atom1) == [1, 2, 3]);
-    let atom3 = a.new_atom(&[6, 7, 8]).unwrap();
-    assert!(a.atom(atom3) == [6, 7, 8]);
+    assert!(a.atom(atom1) == [4, 3, 2, 1]);
+    let atom3 = a.new_atom(&[6, 5, 4, 3]).unwrap();
+    assert!(a.atom(atom3) == [6, 5, 4, 3]);
 
     // since atom2 was removed, atom3 should actually be using that slot
     assert_eq!(atom2, atom3);
@@ -1128,4 +1281,55 @@ fn test_atom_len_g2(#[case] buffer_hex: &str, #[case] expected: usize) {
     let g2 = G2Element::from_bytes(&buffer[..].try_into().unwrap()).expect("invalid G2 point");
     let atom = a.new_g2(g2).unwrap();
     assert_eq!(a.atom_len(atom), expected);
+}
+
+#[cfg(test)]
+#[rstest]
+#[case(0.into())]
+#[case(1.into())]
+#[case(0x7f.into())]
+#[case(0x80.into())]
+#[case(0xff.into())]
+#[case(0x100.into())]
+#[case(0x7fff.into())]
+#[case(0x8000.into())]
+#[case(0xffff.into())]
+#[case(0x10000.into())]
+#[case(0x7ffff.into())]
+#[case(0x80000.into())]
+#[case(0xfffff.into())]
+#[case(0x100000.into())]
+#[case(0x7ffffff.into())]
+#[case(0x8000000.into())]
+#[case(0xfffffff.into())]
+#[case(0x10000000.into())]
+#[case(0x7ffffffff_u64.into())]
+#[case(0x8000000000_u64.into())]
+#[case(0xffffffffff_u64.into())]
+#[case(0x10000000000_u64.into())]
+#[case((-1).into())]
+#[case((-0x7f).into())]
+#[case((-0x80).into())]
+#[case((-0xff).into())]
+#[case((-0x100).into())]
+#[case((-0x7fff).into())]
+#[case((-0x8000).into())]
+#[case((-0xffff).into())]
+#[case((-0x10000).into())]
+#[case((-0x7ffff).into())]
+#[case((-0x80000).into())]
+#[case((-0xfffff).into())]
+#[case((-0x100000).into())]
+#[case((-0x7ffffff_i64).into())]
+#[case((-0x8000000_i64).into())]
+#[case((-0xfffffff_i64).into())]
+#[case((-0x10000000_i64).into())]
+#[case((-0x7ffffffff_i64).into())]
+#[case((-0x8000000000_i64).into())]
+#[case((-0xffffffffff_i64).into())]
+#[case((-0x10000000000_i64).into())]
+fn test_number_roundtrip(#[case] value: Number) {
+    let mut a = Allocator::new();
+    let atom = a.new_number(value.clone()).expect("new_number()");
+    assert_eq!(a.number(atom), value);
 }
