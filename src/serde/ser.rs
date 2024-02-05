@@ -4,7 +4,7 @@ use std::io::ErrorKind;
 use std::io::Write;
 
 use super::write_atom::write_atom;
-use crate::allocator::{Allocator, NodePtr, SExp};
+use crate::allocator::{len_for_value, Allocator, NodePtr, NodeVisitor};
 
 const CONS_BOX_MARKER: u8 = 0xff;
 
@@ -41,12 +41,14 @@ impl<W: io::Write> Write for LimitedWriter<W> {
 pub fn node_to_stream<W: io::Write>(a: &Allocator, node: NodePtr, f: &mut W) -> io::Result<()> {
     let mut values: Vec<NodePtr> = vec![node];
     while let Some(v) = values.pop() {
-        let n = a.sexp(v);
-        match n {
-            SExp::Atom => {
-                write_atom(f, a.atom(v))?;
+        match a.node(v) {
+            NodeVisitor::Buffer(buf) => write_atom(f, buf)?,
+            NodeVisitor::U32(val) => {
+                let buf = val.to_be_bytes();
+                let len = len_for_value(val);
+                write_atom(f, &buf[4 - len..])?
             }
-            SExp::Pair(left, right) => {
+            NodeVisitor::Pair(left, right) => {
                 f.write_all(&[CONS_BOX_MARKER])?;
                 values.push(right);
                 values.push(left);
