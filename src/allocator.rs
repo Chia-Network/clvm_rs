@@ -232,9 +232,7 @@ impl Allocator {
             return err(self.nil(), "out of memory");
         }
         let idx = self.atom_vec.len();
-        if idx + self.small_atoms == MAX_NUM_ATOMS {
-            return err(self.nil(), "too many atoms");
-        }
+        self.check_atom_limit()?;
         if v.len() <= 3 && canonical_positive_integer(v) {
             let mut ret: u32 = 0;
             for b in v {
@@ -253,9 +251,7 @@ impl Allocator {
 
     pub fn new_small_number(&mut self, v: u32) -> Result<NodePtr, EvalErr> {
         debug_assert!(v <= NODE_PTR_IDX_MASK);
-        if self.atom_vec.len() + self.small_atoms == MAX_NUM_ATOMS {
-            return err(self.nil(), "too many atoms");
-        }
+        self.check_atom_limit()?;
         self.small_atoms += 1;
         Ok(NodePtr::new(ObjectType::SmallAtom, v as usize))
     }
@@ -288,9 +284,7 @@ impl Allocator {
     }
 
     pub fn new_substr(&mut self, node: NodePtr, start: u32, end: u32) -> Result<NodePtr, EvalErr> {
-        if self.atom_vec.len() + self.small_atoms == MAX_NUM_ATOMS {
-            return err(self.nil(), "too many atoms");
-        }
+        self.check_atom_limit()?;
 
         fn bounds_check(node: NodePtr, start: u32, end: u32, len: u32) -> Result<(), EvalErr> {
             if start > len {
@@ -348,9 +342,7 @@ impl Allocator {
     }
 
     pub fn new_concat(&mut self, new_size: usize, nodes: &[NodePtr]) -> Result<NodePtr, EvalErr> {
-        if self.atom_vec.len() + self.small_atoms == MAX_NUM_ATOMS {
-            return err(self.nil(), "too many atoms");
-        }
+        self.check_atom_limit()?;
         let start = self.u8_vec.len();
         if self.heap_limit - start < new_size {
             return err(self.nil(), "out of memory");
@@ -588,6 +580,15 @@ impl Allocator {
 
     pub fn one(&self) -> NodePtr {
         NodePtr::new(ObjectType::SmallAtom, 1)
+    }
+
+    #[inline]
+    fn check_atom_limit(&self) -> Result<(), EvalErr> {
+        if self.atom_vec.len() + self.small_atoms == MAX_NUM_ATOMS {
+            err(self.nil(), "too many atoms")
+        } else {
+            Ok(())
+        }
     }
 
     #[cfg(feature = "counters")]
