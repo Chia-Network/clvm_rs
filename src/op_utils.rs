@@ -1,4 +1,4 @@
-use crate::allocator::{Allocator, NodePtr, SExp};
+use crate::allocator::{Allocator, NodePtr, NodeVisitor, SExp};
 use crate::cost::Cost;
 use crate::err_utils::err;
 use crate::number::Number;
@@ -532,18 +532,16 @@ fn test_u64_from_bytes() {
 }
 
 pub fn i32_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<i32, EvalErr> {
-    let buf = match a.sexp(args) {
-        SExp::Atom => a.atom(args),
-        _ => {
-            return err(args, &format!("{op_name} requires int32 args"));
-        }
-    };
-    match i32_from_u8(buf) {
-        Some(v) => Ok(v),
-        _ => err(
-            args,
-            &format!("{op_name} requires int32 args (with no leading zeros)"),
-        ),
+    match a.node(args) {
+        NodeVisitor::Buffer(buf) => match i32_from_u8(buf) {
+            Some(v) => Ok(v),
+            _ => err(
+                args,
+                &format!("{op_name} requires int32 args (with no leading zeros)"),
+            ),
+        },
+        NodeVisitor::U32(val) => Ok(val as i32),
+        NodeVisitor::Pair(_, _) => err(args, &format!("{op_name} requires int32 args")),
     }
 }
 
