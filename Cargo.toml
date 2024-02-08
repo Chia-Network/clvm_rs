@@ -15,6 +15,7 @@ readme = "README.md"
 [lib]
 name = "clvmr"
 crate-type = ["rlib"]
+bench = false
 
 [features]
 # when enabling the "counters" features, the CLVM interpreter is instrumented to
