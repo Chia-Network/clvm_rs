@@ -25,11 +25,6 @@ impl NodePtr {
         NodePtr(((t as u32) << NODE_PTR_IDX_BITS) | (idx as u32))
     }
 
-    // TODO: remove this
-    pub fn hack(val: usize) -> Self {
-        Self::new(ObjectType::Bytes, val)
-    }
-
     fn node_type(&self) -> (ObjectType, usize) {
         (
             match self.0 >> NODE_PTR_IDX_BITS {
