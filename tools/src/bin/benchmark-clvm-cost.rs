@@ -8,15 +8,18 @@ use std::io::{sink, Write};
 use std::time::Instant;
 
 #[derive(Clone, Copy)]
+enum Placeholder {
+    SingleArg(Option<NodePtr>),
+    TwoArgs(Option<NodePtr>, Option<NodePtr>),
+    ThreeArgs(Option<NodePtr>, Option<NodePtr>, Option<NodePtr>),
+}
+
+#[derive(Clone, Copy)]
 enum OpArgs {
     SingleArg(NodePtr),
     TwoArgs(NodePtr, NodePtr),
     ThreeArgs(NodePtr, NodePtr, NodePtr),
 }
-
-// special argument to indicate it should be substituted for varied in the FreeBytes test to
-// measure cost per byte
-const VARIABLE_VAL: usize = 999;
 
 // builds calls in the form:
 // (<op> arg arg ...)
@@ -98,23 +101,17 @@ fn quote(a: &mut Allocator, v: NodePtr) -> NodePtr {
     a.new_pair(a.one(), v).unwrap()
 }
 
-fn subst_node(arg: NodePtr, substitution: NodePtr) -> NodePtr {
-    if arg == NodePtr::hack(VARIABLE_VAL) {
-        substitution
-    } else {
-        arg
-    }
+fn subst(arg: Option<NodePtr>, substitution: NodePtr) -> NodePtr {
+    arg.unwrap_or(substitution)
 }
 
-fn substitute(args: OpArgs, subst: NodePtr) -> OpArgs {
+fn substitute(args: Placeholder, s: NodePtr) -> OpArgs {
     match args {
-        OpArgs::SingleArg(n) => OpArgs::SingleArg(subst_node(n, subst)),
-        OpArgs::TwoArgs(n0, n1) => OpArgs::TwoArgs(subst_node(n0, subst), subst_node(n1, subst)),
-        OpArgs::ThreeArgs(n0, n1, n2) => OpArgs::ThreeArgs(
-            subst_node(n0, subst),
-            subst_node(n1, subst),
-            subst_node(n2, subst),
-        ),
+        Placeholder::SingleArg(n) => OpArgs::SingleArg(subst(n, s)),
+        Placeholder::TwoArgs(n0, n1) => OpArgs::TwoArgs(subst(n0, s), subst(n1, s)),
+        Placeholder::ThreeArgs(n0, n1, n2) => {
+            OpArgs::ThreeArgs(subst(n0, s), subst(n1, s), subst(n2, s))
+        }
     }
 }
 
@@ -281,7 +278,7 @@ const ALLOW_FAILURE: u32 = 32;
 struct Operator {
     opcode: u32,
     name: &'static str,
-    arg: OpArgs,
+    arg: Placeholder,
     extra: Option<NodePtr>,
     flags: u32,
 }
@@ -338,8 +335,6 @@ pub fn main() {
 
     let mut a = Allocator::new();
 
-    let variable = NodePtr::hack(VARIABLE_VAL);
-
     let g1 = a.new_atom(&hex::decode("97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb").unwrap()).unwrap();
     let g2 = a.new_atom(&hex::decode("93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8").unwrap()).unwrap();
 
@@ -389,119 +384,119 @@ pub fn main() {
         Operator {
             opcode: 60,
             name: "modpow (modulus cost)",
-            arg: OpArgs::ThreeArgs(number, number, variable),
+            arg: Placeholder::ThreeArgs(Some(number), Some(number), None),
             extra: None,
             flags: PER_BYTE_COST | EXPONENTIAL_COST,
         },
         Operator {
             opcode: 60,
             name: "modpow (exponent cost)",
-            arg: OpArgs::ThreeArgs(number, variable, number),
+            arg: Placeholder::ThreeArgs(Some(number), None, Some(number)),
             extra: None,
             flags: PER_BYTE_COST | EXPONENTIAL_COST,
         },
         Operator {
             opcode: 60,
             name: "modpow (value cost)",
-            arg: OpArgs::ThreeArgs(variable, number, number),
+            arg: Placeholder::ThreeArgs(None, Some(number), Some(number)),
             extra: None,
             flags: PER_BYTE_COST,
         },
         Operator {
             opcode: 29,
             name: "point_add",
-            arg: OpArgs::SingleArg(g1),
+            arg: Placeholder::SingleArg(Some(g1)),
             extra: None,
             flags: PER_ARG_COST | NESTING_BASE_COST,
         },
         Operator {
             opcode: 49,
             name: "g1_subtract",
-            arg: OpArgs::SingleArg(g1),
+            arg: Placeholder::SingleArg(Some(g1)),
             extra: None,
             flags: PER_ARG_COST | NESTING_BASE_COST,
         },
         Operator {
             opcode: 50,
             name: "g1_multiply",
-            arg: OpArgs::TwoArgs(g1, variable),
+            arg: Placeholder::TwoArgs(Some(g1), None),
             extra: Some(g1),
             flags: PER_BYTE_COST,
         },
         Operator {
             opcode: 51,
             name: "g1_negate",
-            arg: OpArgs::SingleArg(g1),
+            arg: Placeholder::SingleArg(Some(g1)),
             extra: None,
             flags: 0,
         },
         Operator {
             opcode: 52,
             name: "g2_add",
-            arg: OpArgs::SingleArg(g2),
+            arg: Placeholder::SingleArg(Some(g2)),
             extra: None,
             flags: PER_ARG_COST | NESTING_BASE_COST,
         },
         Operator {
             opcode: 53,
             name: "g2_subtract",
-            arg: OpArgs::SingleArg(g2),
+            arg: Placeholder::SingleArg(Some(g2)),
             extra: None,
             flags: PER_ARG_COST | NESTING_BASE_COST,
         },
         Operator {
             opcode: 54,
             name: "g2_multiply",
-            arg: OpArgs::TwoArgs(g2, variable),
+            arg: Placeholder::TwoArgs(Some(g2), None),
             extra: Some(g2),
             flags: PER_BYTE_COST,
         },
         Operator {
             opcode: 55,
             name: "g2_negate",
-            arg: OpArgs::SingleArg(g2),
+            arg: Placeholder::SingleArg(Some(g2)),
             extra: None,
             flags: 0,
         },
         Operator {
             opcode: 56,
             name: "g1_map",
-            arg: OpArgs::SingleArg(variable),
+            arg: Placeholder::SingleArg(None),
             extra: None,
             flags: PER_BYTE_COST | LARGE_BUFFERS,
         },
         Operator {
             opcode: 57,
             name: "g2_map",
-            arg: OpArgs::SingleArg(variable),
+            arg: Placeholder::SingleArg(None),
             extra: None,
             flags: PER_BYTE_COST | LARGE_BUFFERS,
         },
         Operator {
             opcode: 58,
             name: "bls_pairing_identity",
-            arg: OpArgs::TwoArgs(g1, g2),
+            arg: Placeholder::TwoArgs(Some(g1), Some(g2)),
             extra: None,
             flags: PER_ARG_COST | ALLOW_FAILURE,
         },
         Operator {
             opcode: 59,
             name: "bls_verify",
-            arg: OpArgs::TwoArgs(g1, g2),
+            arg: Placeholder::TwoArgs(Some(g1), Some(g2)),
             extra: Some(g2),
             flags: PER_ARG_COST | ALLOW_FAILURE,
         },
         Operator {
             opcode: 0x13d61f00,
             name: "secp256k1_verify",
-            arg: OpArgs::ThreeArgs(k1_pk, k1_msg, k1_sig),
+            arg: Placeholder::ThreeArgs(Some(k1_pk), Some(k1_msg), Some(k1_sig)),
             extra: None,
             flags: ALLOW_FAILURE,
         },
         Operator {
             opcode: 0x1c3a8f00,
             name: "secp256r1_verify",
-            arg: OpArgs::ThreeArgs(r1_pk, r1_msg, r1_sig),
+            arg: Placeholder::ThreeArgs(Some(r1_pk), Some(r1_msg), Some(r1_sig)),
             extra: None,
             flags: ALLOW_FAILURE,
         },
