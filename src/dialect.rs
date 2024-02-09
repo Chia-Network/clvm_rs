@@ -10,9 +10,9 @@ pub enum OperatorSet {
 }
 
 pub trait Dialect {
-    fn quote_kw(&self) -> &[u8];
-    fn apply_kw(&self) -> &[u8];
-    fn softfork_kw(&self) -> &[u8];
+    fn quote_kw(&self) -> u32;
+    fn apply_kw(&self) -> u32;
+    fn softfork_kw(&self) -> u32;
     fn softfork_extension(&self, ext: u32) -> OperatorSet;
     fn op(
         &self,

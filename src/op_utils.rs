@@ -1,4 +1,4 @@
-use crate::allocator::{Allocator, NodePtr, SExp};
+use crate::allocator::{Allocator, NodePtr, NodeVisitor, SExp};
 use crate::cost::Cost;
 use crate::err_utils::err;
 use crate::number::Number;
@@ -279,37 +279,36 @@ pub fn uint_atom<const SIZE: usize>(
     args: NodePtr,
     op_name: &str,
 ) -> Result<u64, EvalErr> {
-    let bytes = match a.sexp(args) {
-        SExp::Atom => a.atom(args),
-        _ => {
-            return err(args, &format!("{op_name} requires int arg"));
+    match a.node(args) {
+        NodeVisitor::Buffer(bytes) => {
+            if bytes.is_empty() {
+                return Ok(0);
+            }
+
+            if (bytes[0] & 0x80) != 0 {
+                return err(args, &format!("{op_name} requires positive int arg"));
+            }
+
+            // strip leading zeros
+            let mut buf: &[u8] = bytes;
+            while !buf.is_empty() && buf[0] == 0 {
+                buf = &buf[1..];
+            }
+
+            if buf.len() > SIZE {
+                return err(args, &format!("{op_name} requires u{} arg", SIZE * 8));
+            }
+
+            let mut ret = 0;
+            for b in buf {
+                ret <<= 8;
+                ret |= *b as u64;
+            }
+            Ok(ret)
         }
-    };
-
-    if bytes.is_empty() {
-        return Ok(0);
+        NodeVisitor::U32(val) => Ok(val as u64),
+        NodeVisitor::Pair(_, _) => err(args, &format!("{op_name} requires int arg")),
     }
-
-    if (bytes[0] & 0x80) != 0 {
-        return err(args, &format!("{op_name} requires positive int arg"));
-    }
-
-    // strip leading zeros
-    let mut buf: &[u8] = bytes;
-    while !buf.is_empty() && buf[0] == 0 {
-        buf = &buf[1..];
-    }
-
-    if buf.len() > SIZE {
-        return err(args, &format!("{op_name} requires u{} arg", SIZE * 8));
-    }
-
-    let mut ret = 0;
-    for b in buf {
-        ret <<= 8;
-        ret |= *b as u64;
-    }
-    Ok(ret)
 }
 
 #[cfg(test)]
@@ -532,18 +531,16 @@ fn test_u64_from_bytes() {
 }
 
 pub fn i32_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<i32, EvalErr> {
-    let buf = match a.sexp(args) {
-        SExp::Atom => a.atom(args),
-        _ => {
-            return err(args, &format!("{op_name} requires int32 args"));
-        }
-    };
-    match i32_from_u8(buf) {
-        Some(v) => Ok(v),
-        _ => err(
-            args,
-            &format!("{op_name} requires int32 args (with no leading zeros)"),
-        ),
+    match a.node(args) {
+        NodeVisitor::Buffer(buf) => match i32_from_u8(buf) {
+            Some(v) => Ok(v),
+            _ => err(
+                args,
+                &format!("{op_name} requires int32 args (with no leading zeros)"),
+            ),
+        },
+        NodeVisitor::U32(val) => Ok(val as i32),
+        NodeVisitor::Pair(_, _) => err(args, &format!("{op_name} requires int32 args")),
     }
 }
 

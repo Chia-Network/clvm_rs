@@ -4,7 +4,7 @@ use std::ops::BitAndAssign;
 use std::ops::BitOrAssign;
 use std::ops::BitXorAssign;
 
-use crate::allocator::{Allocator, NodePtr, SExp};
+use crate::allocator::{len_for_value, Allocator, NodePtr, NodeVisitor, SExp};
 use crate::cost::{check_cost, Cost};
 use crate::err_utils::err;
 use crate::number::Number;
@@ -365,9 +365,21 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
             cost + (byte_count as Cost * ARITH_COST_PER_BYTE),
             max_cost,
         )?;
-        let (v, len) = int_atom(a, arg, "+")?;
-        byte_count += len;
-        total += v;
+
+        match a.node(arg) {
+            NodeVisitor::Buffer(buf) => {
+                use crate::number::number_from_u8;
+                total += number_from_u8(buf);
+                byte_count += buf.len();
+            }
+            NodeVisitor::U32(val) => {
+                total += val;
+                byte_count += len_for_value(val);
+            }
+            NodeVisitor::Pair(_, _) => {
+                return err(arg, "+ requires int args");
+            }
+        }
     }
     let total = a.new_number(total)?;
     cost += byte_count as Cost * ARITH_COST_PER_BYTE;
@@ -383,12 +395,25 @@ pub fn op_subtract(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
         input = rest;
         cost += ARITH_COST_PER_ARG;
         check_cost(a, cost + byte_count as Cost * ARITH_COST_PER_BYTE, max_cost)?;
-        let (v, len) = int_atom(a, arg, "-")?;
-        byte_count += len;
         if is_first {
-            total += v;
+            let (v, len) = int_atom(a, arg, "-")?;
+            byte_count = len;
+            total = v;
         } else {
-            total -= v;
+            match a.node(arg) {
+                NodeVisitor::Buffer(buf) => {
+                    use crate::number::number_from_u8;
+                    total -= number_from_u8(buf);
+                    byte_count += buf.len();
+                }
+                NodeVisitor::U32(val) => {
+                    total -= val;
+                    byte_count += len_for_value(val);
+                }
+                NodeVisitor::Pair(_, _) => {
+                    return err(arg, "- requires int args");
+                }
+            }
         };
         is_first = false;
     }
@@ -411,14 +436,24 @@ pub fn op_multiply(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
             continue;
         }
 
-        let (v0, l1) = int_atom(a, arg, "*")?;
+        let l1 = match a.node(arg) {
+            NodeVisitor::Buffer(buf) => {
+                use crate::number::number_from_u8;
+                total *= number_from_u8(buf);
+                buf.len()
+            }
+            NodeVisitor::U32(val) => {
+                total *= val;
+                len_for_value(val)
+            }
+            NodeVisitor::Pair(_, _) => {
+                return err(arg, "* requires int args");
+            }
+        };
 
-        total *= v0;
         cost += MUL_COST_PER_OP;
-
         cost += (l0 + l1) as Cost * MUL_LINEAR_COST_PER_BYTE;
         cost += (l0 * l1) as Cost / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
-
         l0 = limbs_for_int(&total);
     }
     let total = a.new_number(total)?;
@@ -490,10 +525,20 @@ pub fn op_mod(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
 
 pub fn op_gr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let [v0, v1] = get_args::<2>(a, input, ">")?;
-    let (v0, v0_len) = int_atom(a, v0, ">")?;
-    let (v1, v1_len) = int_atom(a, v1, ">")?;
-    let cost = GR_BASE_COST + (v0_len + v1_len) as Cost * GR_COST_PER_BYTE;
-    Ok(Reduction(cost, if v0 > v1 { a.one() } else { a.nil() }))
+
+    match (a.small_number(v0), a.small_number(v1)) {
+        (Some(lhs), Some(rhs)) => {
+            let cost =
+                GR_BASE_COST + (len_for_value(lhs) + len_for_value(rhs)) as Cost * GR_COST_PER_BYTE;
+            Ok(Reduction(cost, if lhs > rhs { a.one() } else { a.nil() }))
+        }
+        _ => {
+            let (v0, v0_len) = int_atom(a, v0, ">")?;
+            let (v1, v1_len) = int_atom(a, v1, ">")?;
+            let cost = GR_BASE_COST + (v0_len + v1_len) as Cost * GR_COST_PER_BYTE;
+            Ok(Reduction(cost, if v0 > v1 { a.one() } else { a.nil() }))
+        }
+    }
 }
 
 pub fn op_gr_bytes(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
