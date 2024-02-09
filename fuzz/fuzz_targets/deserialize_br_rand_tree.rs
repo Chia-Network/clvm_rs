@@ -6,7 +6,6 @@ use clvmr::allocator::Allocator;
 use clvmr::serde::node_from_bytes_backrefs;
 use clvmr::serde::node_to_bytes_backrefs;
 use libfuzzer_sys::fuzz_target;
-//use fuzzing_utils;
 
 fn do_fuzz(data: &[u8], short_atoms: bool) {
     let mut allocator = Allocator::new();
