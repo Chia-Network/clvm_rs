@@ -1,4 +1,4 @@
-use crate::allocator::{Allocator, NodePtr, NodeVisitor, SExp};
+use crate::allocator::{Allocator, Atom, NodePtr, NodeVisitor, SExp};
 use crate::cost::Cost;
 use crate::err_utils::err;
 use crate::number::Number;
@@ -405,11 +405,11 @@ fn test_uint_atom_8_pair() {
     assert!(uint_atom::<8>(&a, p, "test") == err(p, "test requires int arg"));
 }
 
-pub fn atom<'a>(a: &'a Allocator, n: NodePtr, op_name: &str) -> Result<&'a [u8], EvalErr> {
-    match a.sexp(n) {
-        SExp::Atom => Ok(a.atom(n)),
-        _ => err(n, &format!("{op_name} on list")),
+pub fn atom<'a>(a: &'a Allocator, n: NodePtr, op_name: &str) -> Result<Atom<'a>, EvalErr> {
+    if n.is_pair() {
+        return err(n, &format!("{op_name} on list"));
     }
+    Ok(a.atom(n))
 }
 
 fn u32_from_u8_impl(buf: &[u8], signed: bool) -> Option<u32> {

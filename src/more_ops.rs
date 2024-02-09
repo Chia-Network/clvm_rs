@@ -187,7 +187,8 @@ pub fn op_unknown(
     // this means that unknown ops where cost_function is 1, 2, or 3, may still be
     // fatal errors if the arguments passed are not atoms.
 
-    let op = allocator.atom(o);
+    let op_atom = allocator.atom(o);
+    let op = op_atom.as_ref();
 
     if op.is_empty() || (op.len() >= 2 && op[0] == 0xff && op[1] == 0xff) {
         return err(o, "reserved operator");
@@ -346,7 +347,7 @@ pub fn op_sha256(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
             max_cost,
         )?;
         let blob = atom(a, arg, "sha256")?;
-        byte_count += blob.len();
+        byte_count += blob.as_ref().len();
         hasher.update(blob);
     }
     cost += byte_count as Cost * SHA256_COST_PER_BYTE;
@@ -543,8 +544,10 @@ pub fn op_gr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
 
 pub fn op_gr_bytes(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let [n0, n1] = get_args::<2>(a, input, ">s")?;
-    let v0 = atom(a, n0, ">s")?;
-    let v1 = atom(a, n1, ">s")?;
+    let v0_atom = atom(a, n0, ">s")?;
+    let v1_atom = atom(a, n1, ">s")?;
+    let v0 = v0_atom.as_ref();
+    let v1 = v1_atom.as_ref();
     let cost = GRS_BASE_COST + (v0.len() + v1.len()) as Cost * GRS_COST_PER_BYTE;
     Ok(Reduction(cost, if v0 > v1 { a.one() } else { a.nil() }))
 }
@@ -654,7 +657,7 @@ fn test_op_ash() {
     );
 
     let node = test_shift(op_ash, &mut a, &[1], &[0x80, 0]).unwrap().1;
-    assert_eq!(a.atom(node), &[]);
+    assert_eq!(a.atom(node).as_ref(), &[]);
 
     assert_eq!(
         test_shift(op_ash, &mut a, &[1], &[0x7f, 0, 0, 0])
@@ -672,14 +675,16 @@ fn test_op_ash() {
 
     let node = test_shift(op_ash, &mut a, &[1], &[0x7f, 0]).unwrap().1;
     // the result is 1 followed by 4064 zeroes
-    let node = a.atom(node);
-    assert_eq!(node[0], 1);
-    assert_eq!(node.len(), 4065);
+    let node_atom = a.atom(node);
+    let node_bytes = node_atom.as_ref();
+    assert_eq!(node_bytes[0], 1);
+    assert_eq!(node_bytes.len(), 4065);
 }
 
 pub fn op_lsh(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let [n0, n1] = get_args::<2>(a, input, "lsh")?;
-    let b0 = atom(a, n0, "lsh")?;
+    let b0_atom = atom(a, n0, "lsh")?;
+    let b0 = b0_atom.as_ref();
     let a1 = i32_atom(a, n1, "lsh")?;
     if !(-65535..=65535).contains(&a1) {
         return err(n1, "shift too large");
@@ -715,7 +720,7 @@ fn test_op_lsh() {
     );
 
     let node = test_shift(op_lsh, &mut a, &[1], &[0x80, 0]).unwrap().1;
-    assert_eq!(a.atom(node), &[]);
+    assert_eq!(a.atom(node).as_ref(), &[]);
 
     assert_eq!(
         test_shift(op_lsh, &mut a, &[1], &[0x7f, 0, 0, 0])
@@ -733,9 +738,10 @@ fn test_op_lsh() {
 
     let node = test_shift(op_lsh, &mut a, &[1], &[0x7f, 0]).unwrap().1;
     // the result is 1 followed by 4064 zeroes
-    let node = a.atom(node);
-    assert_eq!(node[0], 1);
-    assert_eq!(node.len(), 4065);
+    let node_atom = a.atom(node);
+    let node_bytes = node_atom.as_ref();
+    assert_eq!(node_bytes[0], 1);
+    assert_eq!(node_bytes.len(), 4065);
 }
 
 fn binop_reduction(
@@ -863,14 +869,15 @@ pub fn op_coinid(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
     let [parent_coin, puzzle_hash, amount] = get_args::<3>(a, input, "coinid")?;
 
     let parent_coin = atom(a, parent_coin, "coinid")?;
-    if parent_coin.len() != 32 {
+    if parent_coin.as_ref().len() != 32 {
         return err(input, "coinid: invalid parent coin id (must be 32 bytes)");
     }
     let puzzle_hash = atom(a, puzzle_hash, "coinid")?;
-    if puzzle_hash.len() != 32 {
+    if puzzle_hash.as_ref().len() != 32 {
         return err(input, "coinid: invalid puzzle hash (must be 32 bytes)");
     }
-    let amount = atom(a, amount, "coinid")?;
+    let amount_atom = atom(a, amount, "coinid")?;
+    let amount = amount_atom.as_ref();
     if !amount.is_empty() {
         if (amount[0] & 0x80) != 0 {
             return err(input, "coinid: invalid amount (may not be negative");

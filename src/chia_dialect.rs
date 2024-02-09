@@ -84,7 +84,7 @@ impl Dialect for ChiaDialect {
             //                cost_function
 
             let b = allocator.atom(o);
-            let opcode = u32::from_be_bytes(b.try_into().unwrap());
+            let opcode = u32::from_be_bytes(b.as_ref().try_into().unwrap());
 
             // the secp operators have a fixed cost of 1850000 and 1300000,
             // which makes the multiplier 0x1c3a8f and 0x0cf84f (there is an

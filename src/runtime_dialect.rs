@@ -42,7 +42,9 @@ impl Dialect for RuntimeDialect {
         max_cost: Cost,
         _extensions: OperatorSet,
     ) -> Response {
-        let b = &allocator.atom(o);
+        let atom = allocator.atom(o);
+        let b = atom.as_ref();
+
         if b.len() == 1 {
             if let Some(f) = self.f_lookup[b[0] as usize] {
                 return f(allocator, argument_list, max_cost);

@@ -12,6 +12,7 @@ const NODE_PTR_IDX_MASK: u32 = (1 << NODE_PTR_IDX_BITS) - 1;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NodePtr(u32);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum ObjectType {
     // The low bits form an index into the pair_vec
     Pair,
@@ -25,30 +26,42 @@ enum ObjectType {
 impl NodePtr {
     pub const NIL: Self = Self::new(ObjectType::SmallAtom, 0);
 
-    const fn new(t: ObjectType, idx: usize) -> Self {
-        debug_assert!(idx <= NODE_PTR_IDX_MASK as usize);
-        NodePtr(((t as u32) << NODE_PTR_IDX_BITS) | (idx as u32))
+    const fn new(object_type: ObjectType, index: usize) -> Self {
+        debug_assert!(index <= NODE_PTR_IDX_MASK as usize);
+        NodePtr(((object_type as u32) << NODE_PTR_IDX_BITS) | (index as u32))
     }
 
-    fn node_type(&self) -> (ObjectType, u32) {
-        (
-            match self.0 >> NODE_PTR_IDX_BITS {
-                0 => ObjectType::Pair,
-                1 => ObjectType::Bytes,
-                2 => ObjectType::SmallAtom,
-                _ => {
-                    panic!("unknown NodePtr type");
-                }
-            },
-            (self.0 & NODE_PTR_IDX_MASK),
+    pub fn is_atom(self) -> bool {
+        matches!(
+            self.object_type(),
+            ObjectType::Bytes | ObjectType::SmallAtom
         )
     }
 
-    pub(crate) fn as_index(&self) -> usize {
-        match self.node_type() {
-            (ObjectType::Pair, idx) => (idx as usize) * 3,
-            (ObjectType::Bytes, idx) => (idx as usize) * 3 + 1,
-            (ObjectType::SmallAtom, idx) => (idx as usize) * 3 + 2,
+    pub fn is_pair(self) -> bool {
+        self.object_type() == ObjectType::Pair
+    }
+
+    fn object_type(self) -> ObjectType {
+        match self.0 >> NODE_PTR_IDX_BITS {
+            0 => ObjectType::Pair,
+            1 => ObjectType::Bytes,
+            2 => ObjectType::SmallAtom,
+            _ => unreachable!(),
+        }
+    }
+
+    fn index(self) -> u32 {
+        self.0 & NODE_PTR_IDX_MASK
+    }
+
+    pub(crate) fn as_unique_index(self) -> usize {
+        let value = self.index();
+
+        match self.object_type() {
+            ObjectType::Pair => (value as usize) * 3,
+            ObjectType::Bytes => (value as usize) * 3 + 1,
+            ObjectType::SmallAtom => (value as usize) * 3 + 2,
         }
     }
 }
@@ -99,6 +112,21 @@ pub enum NodeVisitor<'a> {
     Pair(NodePtr, NodePtr),
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum Atom<'a> {
+    Borrowed(&'a [u8]),
+    U32([u8; 4], usize),
+}
+
+impl<'a> AsRef<[u8]> for Atom<'a> {
+    fn as_ref(&self) -> &[u8] {
+        match self {
+            Self::Borrowed(bytes) => bytes,
+            Self::U32(bytes, len) => &bytes[4 - len..],
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Allocator {
     // this is effectively a grow-only stack where atoms are allocated. Atoms
@@ -113,12 +141,6 @@ pub struct Allocator {
     // node index -1 refers to index 0 in this vector, -2 refers to 1 and so
     // on.
     atom_vec: Vec<AtomBuf>,
-
-    // index into temp_buf array
-    temp_idx: RefCell<usize>,
-
-    // temporary buffers for storing SmallAtoms in to return from atom()
-    temp_vec: Vec<RefCell<[u8; 4]>>,
 
     // the atom_vec may not grow past this
     heap_limit: usize,
@@ -186,8 +208,6 @@ impl Allocator {
             u8_vec: Vec::new(),
             pair_vec: Vec::new(),
             atom_vec: Vec::new(),
-            temp_idx: RefCell::new(0),
-            temp_vec,
             // subtract 1 to compensate for the one() we used to allocate unconfitionally
             heap_limit: heap_limit - 1,
             // initialize this to 2 to behave as if we had allocated atoms for
@@ -299,10 +319,10 @@ impl Allocator {
             Ok(())
         }
 
-        match node.node_type() {
-            (ObjectType::Pair, _) => err(node, "(internal error) substr expected atom, got pair"),
-            (ObjectType::Bytes, idx) => {
-                let atom = self.atom_vec[idx as usize];
+        match node.object_type() {
+            ObjectType::Pair => err(node, "(internal error) substr expected atom, got pair"),
+            ObjectType::Bytes => {
+                let atom = self.atom_vec[node.index() as usize];
                 let atom_len = atom.end - atom.start;
                 bounds_check(node, start, end, atom_len)?;
                 let idx = self.atom_vec.len();
@@ -312,7 +332,8 @@ impl Allocator {
                 });
                 Ok(NodePtr::new(ObjectType::Bytes, idx))
             }
-            (ObjectType::SmallAtom, val) => {
+            ObjectType::SmallAtom => {
+                let val = node.index();
                 let len = len_for_value(val) as u32;
                 bounds_check(node, start, end, len)?;
                 let buf: [u8; 4] = val.to_be_bytes();
@@ -351,13 +372,13 @@ impl Allocator {
 
         let mut counter: usize = 0;
         for node in nodes {
-            match node.node_type() {
-                (ObjectType::Pair, _) => {
+            match node.object_type() {
+                ObjectType::Pair => {
                     self.u8_vec.truncate(start);
                     return err(*node, "(internal error) concat expected atom, got pair");
                 }
-                (ObjectType::Bytes, idx) => {
-                    let term = self.atom_vec[idx as usize];
+                ObjectType::Bytes => {
+                    let term = self.atom_vec[node.index() as usize];
                     if counter + term.len() > new_size {
                         self.u8_vec.truncate(start);
                         return err(*node, "(internal error) concat passed invalid new_size");
@@ -366,7 +387,8 @@ impl Allocator {
                         .extend_from_within(term.start as usize..term.end as usize);
                     counter += term.len();
                 }
-                (ObjectType::SmallAtom, val) => {
+                ObjectType::SmallAtom => {
+                    let val = node.index();
                     let len = len_for_value(val) as u32;
                     let buf: [u8; 4] = val.to_be_bytes();
                     let buf = &buf[4 - len as usize..];
@@ -392,80 +414,80 @@ impl Allocator {
     }
 
     pub fn atom_eq(&self, lhs: NodePtr, rhs: NodePtr) -> bool {
-        match (lhs.node_type(), rhs.node_type()) {
-            ((ObjectType::Pair, _), _) | (_, (ObjectType::Pair, _)) => {
+        let lhs_type = lhs.object_type();
+        let rhs_type = rhs.object_type();
+
+        match (lhs_type, rhs_type) {
+            (ObjectType::Pair, _) | (_, ObjectType::Pair) => {
                 panic!("atom_eq() called on pair");
             }
-            ((ObjectType::Bytes, lhs), (ObjectType::Bytes, rhs)) => {
-                let lhs = self.atom_vec[lhs as usize];
-                let rhs = self.atom_vec[rhs as usize];
+            (ObjectType::Bytes, ObjectType::Bytes) => {
+                let lhs = self.atom_vec[lhs.index() as usize];
+                let rhs = self.atom_vec[rhs.index() as usize];
                 self.u8_vec[lhs.start as usize..lhs.end as usize]
                     == self.u8_vec[rhs.start as usize..rhs.end as usize]
             }
-            ((ObjectType::SmallAtom, lhs), (ObjectType::SmallAtom, rhs)) => lhs == rhs,
-            ((ObjectType::SmallAtom, val), (ObjectType::Bytes, idx))
-            | ((ObjectType::Bytes, idx), (ObjectType::SmallAtom, val)) => {
-                let atom = self.atom_vec[idx as usize];
-                let len = len_for_value(val) as u32;
-                if (atom.end - atom.start) != len {
-                    return false;
-                }
-                if val == 0 {
-                    return true;
-                }
-
-                if self.u8_vec[atom.start as usize] & 0x80 != 0 {
-                    // SmallAtom only represents positive values
-                    // if the byte buffer is negative, they can't match
-                    return false;
-                }
-
-                // since we know the value of atom is small, we can turn it into a u32 and compare
-                // against val
-                let mut atom_val: u32 = 0;
-                for i in atom.start..atom.end {
-                    atom_val <<= 8;
-                    atom_val |= self.u8_vec[i as usize] as u32;
-                }
-                val == atom_val
+            (ObjectType::SmallAtom, ObjectType::SmallAtom) => lhs.index() == rhs.index(),
+            (ObjectType::SmallAtom, ObjectType::Bytes) => {
+                self.bytes_eq_int(self.atom_vec[rhs.index() as usize], lhs.index())
+            }
+            (ObjectType::Bytes, ObjectType::SmallAtom) => {
+                self.bytes_eq_int(self.atom_vec[lhs.index() as usize], rhs.index())
             }
         }
     }
 
-    pub fn atom(&self, node: NodePtr) -> &[u8] {
-        match node.node_type() {
-            (ObjectType::Bytes, idx) => {
-                let atom = self.atom_vec[idx as usize];
-                &self.u8_vec[atom.start as usize..atom.end as usize]
+    fn bytes_eq_int(&self, atom: AtomBuf, val: u32) -> bool {
+        let len = len_for_value(val) as u32;
+        if (atom.end - atom.start) != len {
+            return false;
+        }
+        if val == 0 {
+            return true;
+        }
+
+        if self.u8_vec[atom.start as usize] & 0x80 != 0 {
+            // SmallAtom only represents positive values
+            // if the byte buffer is negative, they can't match
+            return false;
+        }
+
+        // since we know the value of atom is small, we can turn it into a u32 and compare
+        // against val
+        let mut atom_val: u32 = 0;
+        for i in atom.start..atom.end {
+            atom_val <<= 8;
+            atom_val |= self.u8_vec[i as usize] as u32;
+        }
+        val == atom_val
+    }
+
+    pub fn atom(&self, node: NodePtr) -> Atom {
+        let index = node.index();
+
+        match node.object_type() {
+            ObjectType::Bytes => {
+                let atom = self.atom_vec[index as usize];
+                Atom::Borrowed(&self.u8_vec[atom.start as usize..atom.end as usize])
             }
-            (ObjectType::SmallAtom, val) => {
-                let len = len_for_value(val);
-                let mut idx = self.temp_idx.borrow_mut();
-                *self.temp_vec[*idx].borrow_mut() = val.to_be_bytes();
-                let ret = unsafe {
-                    self.temp_vec[*idx]
-                        .try_borrow_unguarded()
-                        .expect("(internal error) temporary buffer problem in Allocator::atom()")
-                };
-                *idx += 1;
-                if *idx == self.temp_vec.len() {
-                    *idx = 0;
-                }
-                &ret[4 - len..]
+            ObjectType::SmallAtom => {
+                let len = len_for_value(index);
+                let bytes = index.to_be_bytes();
+                Atom::U32(bytes, len)
             }
-            _ => {
-                panic!("expected atom, got pair");
-            }
+            _ => panic!("expected atom, got pair"),
         }
     }
 
     pub fn atom_len(&self, node: NodePtr) -> usize {
-        match node.node_type() {
-            (ObjectType::Bytes, idx) => {
-                let atom = self.atom_vec[idx as usize];
+        let index = node.index();
+
+        match node.object_type() {
+            ObjectType::Bytes => {
+                let atom = self.atom_vec[index as usize];
                 (atom.end - atom.start) as usize
             }
-            (ObjectType::SmallAtom, val) => len_for_value(val),
+            ObjectType::SmallAtom => len_for_value(index),
             _ => {
                 panic!("expected atom, got pair");
             }
@@ -473,19 +495,21 @@ impl Allocator {
     }
 
     pub fn small_number(&self, node: NodePtr) -> Option<u32> {
-        match node.node_type() {
-            (ObjectType::SmallAtom, val) => Some(val),
+        match node.object_type() {
+            ObjectType::SmallAtom => Some(node.index()),
             _ => None,
         }
     }
 
     pub fn number(&self, node: NodePtr) -> Number {
-        match node.node_type() {
-            (ObjectType::Bytes, idx) => {
-                let atom = self.atom_vec[idx as usize];
+        let index = node.index();
+
+        match node.object_type() {
+            ObjectType::Bytes => {
+                let atom = self.atom_vec[index as usize];
                 number_from_u8(&self.u8_vec[atom.start as usize..atom.end as usize])
             }
-            (ObjectType::SmallAtom, val) => Number::from(val),
+            ObjectType::SmallAtom => Number::from(index),
             _ => {
                 panic!("number() calld on pair");
             }
@@ -493,12 +517,12 @@ impl Allocator {
     }
 
     pub fn g1(&self, node: NodePtr) -> Result<G1Element, EvalErr> {
-        let idx = match node.node_type() {
-            (ObjectType::Bytes, idx) => idx,
-            (ObjectType::SmallAtom, _) => {
+        let idx = match node.object_type() {
+            ObjectType::Bytes => node.index(),
+            ObjectType::SmallAtom => {
                 return err(node, "atom is not G1 size, 48 bytes");
             }
-            (ObjectType::Pair, _) => {
+            ObjectType::Pair => {
                 return err(node, "pair found, expected G1 point");
             }
         };
@@ -515,15 +539,16 @@ impl Allocator {
     }
 
     pub fn g2(&self, node: NodePtr) -> Result<G2Element, EvalErr> {
-        let idx = match node.node_type() {
-            (ObjectType::Bytes, idx) => idx,
-            (ObjectType::SmallAtom, _) => {
+        let idx = match node.object_type() {
+            ObjectType::Bytes => node.index(),
+            ObjectType::SmallAtom => {
                 return err(node, "atom is not G2 size, 96 bytes");
             }
-            (ObjectType::Pair, _) => {
+            ObjectType::Pair => {
                 return err(node, "pair found, expected G2 point");
             }
         };
+
         let atom = self.atom_vec[idx as usize];
         if atom.end - atom.start != 96 {
             return err(node, "atom is not G2 size, 96 bytes");
@@ -537,26 +562,28 @@ impl Allocator {
             .map_err(|_| EvalErr(node, "atom is not a G2 point".to_string()))
     }
 
-    pub fn node<'a>(&'a self, node: NodePtr) -> NodeVisitor<'a> {
-        match node.node_type() {
-            (ObjectType::Bytes, idx) => {
-                let atom = self.atom_vec[idx as usize];
+    pub fn node(&self, node: NodePtr) -> NodeVisitor {
+        let index = node.index();
+
+        match node.object_type() {
+            ObjectType::Bytes => {
+                let atom = self.atom_vec[index as usize];
                 let buf = &self.u8_vec[atom.start as usize..atom.end as usize];
-                NodeVisitor::<'a>::Buffer(buf)
+                NodeVisitor::Buffer(buf)
             }
-            (ObjectType::SmallAtom, val) => NodeVisitor::U32(val),
-            (ObjectType::Pair, idx) => {
-                let pair = self.pair_vec[idx as usize];
+            ObjectType::SmallAtom => NodeVisitor::U32(index),
+            ObjectType::Pair => {
+                let pair = self.pair_vec[index as usize];
                 NodeVisitor::Pair(pair.first, pair.rest)
             }
         }
     }
 
     pub fn sexp(&self, node: NodePtr) -> SExp {
-        match node.node_type() {
-            (ObjectType::Bytes, _) | (ObjectType::SmallAtom, _) => SExp::Atom,
-            (ObjectType::Pair, idx) => {
-                let pair = self.pair_vec[idx as usize];
+        match node.object_type() {
+            ObjectType::Bytes | ObjectType::SmallAtom => SExp::Atom,
+            ObjectType::Pair => {
+                let pair = self.pair_vec[node.index() as usize];
                 SExp::Pair(pair.first, pair.rest)
             }
         }
@@ -614,15 +641,15 @@ impl Allocator {
 
 #[test]
 fn test_node_as_index() {
-    assert_eq!(NodePtr::new(ObjectType::Pair, 0).as_index(), 0);
-    assert_eq!(NodePtr::new(ObjectType::Pair, 1).as_index(), 3);
-    assert_eq!(NodePtr::new(ObjectType::Pair, 2).as_index(), 6);
-    assert_eq!(NodePtr::new(ObjectType::Pair, 3).as_index(), 9);
-    assert_eq!(NodePtr::new(ObjectType::Bytes, 0).as_index(), 1);
-    assert_eq!(NodePtr::new(ObjectType::Bytes, 1).as_index(), 4);
-    assert_eq!(NodePtr::new(ObjectType::Bytes, 2).as_index(), 7);
-    assert_eq!(NodePtr::new(ObjectType::Bytes, 3).as_index(), 10);
-    assert_eq!(NodePtr::new(ObjectType::Bytes, 4).as_index(), 13);
+    assert_eq!(NodePtr::new(ObjectType::Pair, 0).as_unique_index(), 0);
+    assert_eq!(NodePtr::new(ObjectType::Pair, 1).as_unique_index(), 3);
+    assert_eq!(NodePtr::new(ObjectType::Pair, 2).as_unique_index(), 6);
+    assert_eq!(NodePtr::new(ObjectType::Pair, 3).as_unique_index(), 9);
+    assert_eq!(NodePtr::new(ObjectType::Bytes, 0).as_unique_index(), 1);
+    assert_eq!(NodePtr::new(ObjectType::Bytes, 1).as_unique_index(), 4);
+    assert_eq!(NodePtr::new(ObjectType::Bytes, 2).as_unique_index(), 7);
+    assert_eq!(NodePtr::new(ObjectType::Bytes, 3).as_unique_index(), 10);
+    assert_eq!(NodePtr::new(ObjectType::Bytes, 4).as_unique_index(), 13);
 }
 
 #[test]
@@ -804,7 +831,7 @@ fn test_number_pair() {
 fn test_invalid_node_ptr_type() {
     let node = NodePtr(3 << NODE_PTR_IDX_BITS);
     // unknown NodePtr type
-    let _ = node.node_type();
+    let _ = node.object_type();
 }
 
 #[cfg(dbg)]
@@ -841,7 +868,7 @@ fn test_len_for_value(#[case] val: u32, #[case] len: usize) {
 #[test]
 fn test_nil() {
     let a = Allocator::new();
-    assert_eq!(a.atom(a.nil()), b"");
+    assert_eq!(a.atom(a.nil()).as_ref(), b"");
     assert_eq!(a.sexp(a.nil()), SExp::Atom);
     assert_eq!(a.nil(), NodePtr::default());
     assert_eq!(a.nil(), NodePtr::NIL);
@@ -850,7 +877,7 @@ fn test_nil() {
 #[test]
 fn test_one() {
     let a = Allocator::new();
-    assert_eq!(a.atom(a.one()), b"\x01");
+    assert_eq!(a.atom(a.one()).as_ref(), b"\x01");
     assert_eq!(a.sexp(a.one()), SExp::Atom);
 }
 
@@ -858,7 +885,7 @@ fn test_one() {
 fn test_allocate_atom() {
     let mut a = Allocator::new();
     let atom = a.new_atom(b"foobar").unwrap();
-    assert_eq!(a.atom(atom), b"foobar");
+    assert_eq!(a.atom(atom).as_ref(), b"foobar");
     assert_eq!(a.sexp(atom), SExp::Atom);
 }
 
@@ -959,13 +986,13 @@ fn test_substr() {
     let pair = a.new_pair(atom, atom).unwrap();
 
     let sub = a.new_substr(atom, 0, 1).unwrap();
-    assert_eq!(a.atom(sub), b"f");
+    assert_eq!(a.atom(sub).as_ref(), b"f");
     let sub = a.new_substr(atom, 1, 6).unwrap();
-    assert_eq!(a.atom(sub), b"oobar");
+    assert_eq!(a.atom(sub).as_ref(), b"oobar");
     let sub = a.new_substr(atom, 1, 1).unwrap();
-    assert_eq!(a.atom(sub), b"");
+    assert_eq!(a.atom(sub).as_ref(), b"");
     let sub = a.new_substr(atom, 0, 0).unwrap();
-    assert_eq!(a.atom(sub), b"");
+    assert_eq!(a.atom(sub).as_ref(), b"");
 
     assert_eq!(
         a.new_substr(atom, 1, 0).unwrap_err().1,
@@ -996,15 +1023,15 @@ fn test_substr_small_number() {
     assert!(a.small_number(atom).is_some());
 
     let sub = a.new_substr(atom, 0, 1).unwrap();
-    assert_eq!(a.atom(sub), b"a");
+    assert_eq!(a.atom(sub).as_ref(), b"a");
     assert!(a.small_number(sub).is_some());
     let sub = a.new_substr(atom, 1, 2).unwrap();
-    assert_eq!(a.atom(sub), b"\x80");
+    assert_eq!(a.atom(sub).as_ref(), b"\x80");
     assert!(a.small_number(sub).is_none());
     let sub = a.new_substr(atom, 1, 1).unwrap();
-    assert_eq!(a.atom(sub), b"");
+    assert_eq!(a.atom(sub).as_ref(), b"");
     let sub = a.new_substr(atom, 0, 0).unwrap();
-    assert_eq!(a.atom(sub), b"");
+    assert_eq!(a.atom(sub).as_ref(), b"");
 
     assert_eq!(
         a.new_substr(atom, 1, 0).unwrap_err().1,
@@ -1038,10 +1065,10 @@ fn test_concat() {
     let cat = a
         .new_concat(6, &[atom1, atom2, atom3, atom4, atom5, atom6])
         .unwrap();
-    assert_eq!(a.atom(cat), b"foobar");
+    assert_eq!(a.atom(cat).as_ref(), b"foobar");
 
     let cat = a.new_concat(12, &[cat, cat]).unwrap();
-    assert_eq!(a.atom(cat), b"foobarfoobar");
+    assert_eq!(a.atom(cat).as_ref(), b"foobarfoobar");
 
     assert_eq!(
         a.new_concat(11, &[cat, cat]).unwrap_err().1,
@@ -1075,10 +1102,10 @@ fn test_concat_large() {
     let pair = a.new_pair(atom1, atom2).unwrap();
 
     let cat = a.new_concat(6, &[atom1, atom2]).unwrap();
-    assert_eq!(a.atom(cat), b"foobar");
+    assert_eq!(a.atom(cat).as_ref(), b"foobar");
 
     let cat = a.new_concat(12, &[cat, cat]).unwrap();
-    assert_eq!(a.atom(cat), b"foobarfoobar");
+    assert_eq!(a.atom(cat).as_ref(), b"foobarfoobar");
 
     assert_eq!(
         a.new_concat(11, &[cat, cat]).unwrap_err().1,
@@ -1134,7 +1161,7 @@ fn test_concat_limit() {
         "out of memory"
     );
     let cat = a.new_concat(2, &[atom1, atom2]).unwrap();
-    assert_eq!(a.atom(cat), b"fo");
+    assert_eq!(a.atom(cat).as_ref(), b"fo");
 }
 
 #[cfg(test)]
@@ -1156,7 +1183,7 @@ fn test_new_number(#[case] num: Number, #[case] expected: &[u8]) {
 
     // make sure we get back the same number
     assert_eq!(a.number(atom), num);
-    assert_eq!(a.atom(atom), expected);
+    assert_eq!(a.atom(atom).as_ref(), expected);
     assert_eq!(number_from_u8(expected), num);
 
     // TEST creating the atom from a buffer
@@ -1164,7 +1191,7 @@ fn test_new_number(#[case] num: Number, #[case] expected: &[u8]) {
 
     // make sure we get back the same number
     assert_eq!(a.number(atom), num);
-    assert_eq!(a.atom(atom), expected);
+    assert_eq!(a.atom(atom).as_ref(), expected);
     assert_eq!(number_from_u8(expected), num);
 }
 
@@ -1173,13 +1200,13 @@ fn test_checkpoints() {
     let mut a = Allocator::new();
 
     let atom1 = a.new_atom(&[4, 3, 2, 1]).unwrap();
-    assert!(a.atom(atom1) == [4, 3, 2, 1]);
+    assert!(a.atom(atom1).as_ref() == [4, 3, 2, 1]);
 
     let checkpoint = a.checkpoint();
 
     let atom2 = a.new_atom(&[6, 5, 4, 3]).unwrap();
-    assert!(a.atom(atom1) == [4, 3, 2, 1]);
-    assert!(a.atom(atom2) == [6, 5, 4, 3]);
+    assert!(a.atom(atom1).as_ref() == [4, 3, 2, 1]);
+    assert!(a.atom(atom2).as_ref() == [6, 5, 4, 3]);
 
     // at this point we have two atoms and a checkpoint from before the second
     // atom was created
@@ -1188,9 +1215,9 @@ fn test_checkpoints() {
 
     a.restore_checkpoint(&checkpoint);
 
-    assert!(a.atom(atom1) == [4, 3, 2, 1]);
+    assert!(a.atom(atom1).as_ref() == [4, 3, 2, 1]);
     let atom3 = a.new_atom(&[6, 5, 4, 3]).unwrap();
-    assert!(a.atom(atom3) == [6, 5, 4, 3]);
+    assert!(a.atom(atom3).as_ref() == [6, 5, 4, 3]);
 
     // since atom2 was removed, atom3 should actually be using that slot
     assert_eq!(atom2, atom3);
@@ -1374,7 +1401,7 @@ type CheckFun = fn(&Allocator, NodePtr, &[u8]);
 #[cfg(test)]
 fn check_buf(a: &Allocator, n: NodePtr, bytes: &[u8]) {
     let buf = a.atom(n);
-    assert_eq!(buf, bytes);
+    assert_eq!(buf.as_ref(), bytes);
 }
 
 #[cfg(test)]
@@ -1753,5 +1780,5 @@ fn test_auto_small_number_from_buf(#[case] buf: &[u8], #[case] expect_small: boo
         use num_traits::ToPrimitive;
         assert_eq!(v, a.number(atom).to_u32().expect("to_u32()"));
     }
-    assert_eq!(buf, a.atom(atom));
+    assert_eq!(buf, a.atom(atom).as_ref());
 }
