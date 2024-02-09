@@ -45,7 +45,7 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
 
     /// return the cached value for this node, or `None`
     fn get_from_cache(&self, node: &NodePtr) -> Option<&T> {
-        let index = node.as_index();
+        let index = node.as_unique_index();
         if index < self.cache.len() {
             self.cache[index].as_ref()
         } else {
@@ -55,7 +55,7 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
 
     /// set the cached value for a node
     fn set(&mut self, node: &NodePtr, v: T) {
-        let index = node.as_index();
+        let index = node.as_unique_index();
         if index >= self.cache.len() {
             self.cache.resize(index + 1, None);
         }
@@ -102,7 +102,7 @@ pub fn treehash(
                 .get_from_cache(&right)
                 .map(|right_value| hash_blobs(&[&[2], left_value, right_value])),
         },
-        SExp::Atom => Some(hash_blobs(&[&[1], allocator.atom(node)])),
+        SExp::Atom => Some(hash_blobs(&[&[1], allocator.atom(node).as_ref()])),
     }
 }
 
@@ -125,8 +125,8 @@ pub fn serialized_length(
         },
         SExp::Atom => {
             let buf = allocator.atom(node);
-            let lb: u64 = buf.len().try_into().unwrap_or(u64::MAX);
-            Some(if lb == 0 || (lb == 1 && buf[0] < 128) {
+            let lb: u64 = buf.as_ref().len().try_into().unwrap_or(u64::MAX);
+            Some(if lb == 0 || (lb == 1 && buf.as_ref()[0] < 128) {
                 1
             } else if lb < 0x40 {
                 1 + lb
