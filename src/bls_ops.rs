@@ -308,7 +308,7 @@ pub fn op_bls_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respo
     // followed by a variable number of (G1, msg)-pairs (as a flat list)
     args = rest(a, args)?;
 
-    let mut items = Vec::<(PublicKey, Vec<u8>)>::new();
+    let mut items = Vec::<(PublicKey, Atom)>::new();
     while !nilp(a, args) {
         let pk = a.g1(first(a, args)?)?;
         args = rest(a, args)?;
@@ -320,7 +320,7 @@ pub fn op_bls_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respo
         cost += DST_G2.len() as Cost * BLS_MAP_TO_G2_COST_PER_DST_BYTE;
         check_cost(a, cost, max_cost)?;
 
-        items.push((pk, msg.as_ref().to_vec()));
+        items.push((pk, msg));
     }
 
     if !aggregate_verify(&signature, items) {

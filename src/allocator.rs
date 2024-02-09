@@ -126,6 +126,12 @@ impl<'a> AsRef<[u8]> for Atom<'a> {
     }
 }
 
+impl<'a> Borrow<[u8]> for Atom<'a> {
+    fn borrow(&self) -> &[u8] {
+        self.as_ref()
+    }
+}
+
 #[derive(Debug)]
 pub struct Allocator {
     // this is effectively a grow-only stack where atoms are allocated. Atoms
@@ -1350,6 +1356,7 @@ fn test_g2_roundtrip(#[case] atom: &str) {
 
 #[cfg(test)]
 use core::convert::TryFrom;
+use std::borrow::Borrow;
 
 #[cfg(test)]
 type MakeFun = fn(&mut Allocator, &[u8]) -> NodePtr;
