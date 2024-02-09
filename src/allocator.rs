@@ -2,7 +2,6 @@ use crate::err_utils::err;
 use crate::number::{node_from_number, number_from_u8, Number};
 use crate::reduction::EvalErr;
 use chia_bls::{G1Element, G2Element};
-use std::cell::RefCell;
 
 const MAX_NUM_ATOMS: usize = 62500000;
 const MAX_NUM_PAIRS: usize = 62500000;
@@ -198,11 +197,6 @@ impl Allocator {
     pub fn new_limited(heap_limit: usize) -> Self {
         // we have a maximum of 4 GiB heap, because pointers are 32 bit unsigned
         assert!(heap_limit <= u32::MAX as usize);
-
-        let mut temp_vec = Vec::<RefCell<[u8; 4]>>::with_capacity(64);
-        for _ in 0..16 {
-            temp_vec.push(RefCell::default());
-        }
 
         let mut r = Self {
             u8_vec: Vec::new(),
