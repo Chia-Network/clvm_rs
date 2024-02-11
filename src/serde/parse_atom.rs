@@ -1,6 +1,6 @@
 use std::io::{Cursor, Read, Result, Seek, SeekFrom};
 
-use crate::allocator::{canonical_positive_integer, Allocator, NodePtr};
+use crate::allocator::{Allocator, NodePtr};
 
 use super::errors::{bad_encoding, internal_error};
 
@@ -85,16 +85,7 @@ pub fn parse_atom(
         Ok(allocator.nil())
     } else {
         let blob = parse_atom_ptr(f, first_byte)?;
-        if blob.len() <= 3 && canonical_positive_integer(blob) {
-            let mut val: u32 = 0;
-            for i in blob {
-                val <<= 8;
-                val |= *i as u32;
-            }
-            Ok(allocator.new_small_number(val)?)
-        } else {
-            Ok(allocator.new_atom(blob)?)
-        }
+        Ok(allocator.new_atom(blob)?)
     }
 }
 
