@@ -117,6 +117,12 @@ pub enum Atom<'a> {
     U32([u8; 4], usize),
 }
 
+impl PartialEq for Atom<'_> {
+    fn eq(&self, other: &Atom) -> bool {
+        self.as_ref().eq(other.as_ref())
+    }
+}
+
 impl<'a> AsRef<[u8]> for Atom<'a> {
     fn as_ref(&self) -> &[u8] {
         match self {
@@ -368,6 +374,9 @@ impl Allocator {
         if self.heap_limit - start < new_size {
             return err(self.nil(), "out of memory");
         }
+        // TODO: maybe it would make sense to have a special case where
+        // nodes.len() == 1. We can just return the same node
+
         self.u8_vec.reserve(new_size);
 
         let mut counter: usize = 0;
@@ -497,6 +506,20 @@ impl Allocator {
     pub fn small_number(&self, node: NodePtr) -> Option<u32> {
         match node.object_type() {
             ObjectType::SmallAtom => Some(node.index()),
+            ObjectType::Bytes => {
+                let atom = self.atom_vec[node.index() as usize];
+                let buf = &self.u8_vec[atom.start as usize..atom.end as usize];
+                if buf.len() > 3 || !canonical_positive_integer(buf) {
+                    None
+                } else {
+                    let mut ret: u32 = 0;
+                    for v in buf {
+                        ret <<= 8;
+                        ret |= *v as u32;
+                    }
+                    Some(ret)
+                }
+            }
             _ => None,
         }
     }
@@ -1049,6 +1072,24 @@ fn test_substr_small_number() {
         a.new_substr(atom, u32::MAX, 2).unwrap_err().1,
         "substr start out of bounds"
     );
+}
+
+#[test]
+fn test_concat_launder_small_number() {
+    let mut a = Allocator::new();
+    let atom1 = a.new_small_number(42).expect("new_small_number");
+    assert_eq!(a.small_number(atom1), Some(42));
+
+    // this "launders" the small number into actually being allocated on the
+    // heap
+    let atom2 = a.new_concat(1, &[atom1]).expect("new_substr");
+
+    // even though this atom is allocated on the heap (and not stored as a small
+    // int), we can still retrieve it as one. The CLVM interpreter depends on
+    // this when matching operators against quote, apply and softfork.
+    assert_eq!(a.small_number(atom2), Some(42));
+    assert_eq!(a.atom_len(atom2), 1);
+    assert_eq!(a.atom(atom2).as_ref(), &[42]);
 }
 
 #[test]
