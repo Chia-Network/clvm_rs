@@ -1082,7 +1082,9 @@ fn test_concat_launder_small_number() {
 
     // this "launders" the small number into actually being allocated on the
     // heap
-    let atom2 = a.new_concat(1, &[atom1]).expect("new_substr");
+    let atom2 = a
+        .new_concat(1, &[a.nil(), atom1, a.nil()])
+        .expect("new_substr");
 
     // even though this atom is allocated on the heap (and not stored as a small
     // int), we can still retrieve it as one. The CLVM interpreter depends on
