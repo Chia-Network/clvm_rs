@@ -68,3 +68,9 @@ name = "operators"
 path = "fuzz_targets/operators.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "allocator"
+path = "fuzz_targets/allocator.rs"
+test = false
+doc = false
