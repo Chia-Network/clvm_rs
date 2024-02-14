@@ -1,6 +1,7 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 
+use clvmr::allocator::fits_in_small_atom;
 use clvmr::{Allocator, NodePtr};
 
 fn run_tests(a: &mut Allocator, atom1: NodePtr, data: &[u8]) {
@@ -21,6 +22,11 @@ fn run_tests(a: &mut Allocator, atom1: NodePtr, data: &[u8]) {
         assert_eq!(a.number(atom2), val.into());
         assert_eq!(a.atom_len(atom2), data.len());
         assert!(canonical);
+        assert_eq!(fits_in_small_atom(data), Some(val));
+    } else {
+        assert_eq!(fits_in_small_atom(data), None);
+        let val = a.number(atom1);
+        assert!(!canonical || val < 0.into() || val > ((1 << 26) - 1).into());
     }
 
     // number

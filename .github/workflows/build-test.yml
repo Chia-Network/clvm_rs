@@ -190,8 +190,9 @@ jobs:
         with:
           fetch-depth: 1
       - name: Install rust
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@master
         with:
+            toolchain: nightly-2024-02-11
             components: rustfmt, clippy
       - name: fmt
         run: |
@@ -202,14 +203,14 @@ jobs:
           cd fuzz
           cargo clippy
       - name: cargo-fuzz
-        run: cargo +nightly install cargo-fuzz
+        run: cargo install cargo-fuzz
       # TODO: it would be nice to save and restore the corpus between runs
       - name: build corpus
         run: |
           cd tools
           cargo run --bin generate-fuzz-corpus
       - name: build
-        run: cargo fuzz list | xargs -I "%" sh -c "cargo +nightly fuzz run % -- -max_total_time=30 || exit 255"
+        run: cargo fuzz list | xargs -I "%" sh -c "cargo fuzz run % -- -max_total_time=30 || exit 255"
 
   unit_tests:
     name: Unit tests

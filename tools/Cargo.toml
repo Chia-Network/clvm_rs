@@ -9,9 +9,6 @@ homepage = "https://github.com/Chia-Network/clvm_rs/tools/"
 repository = "https://github.com/Chia-Network/clvm_rs/tools/"
 readme = "README.md"
 
-[profile.release]
-lto = true
-
 [dependencies]
 hex-literal = "=0.4.1"
 hex = "=0.4.3"

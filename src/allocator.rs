@@ -53,16 +53,6 @@ impl NodePtr {
     fn index(self) -> u32 {
         self.0 & NODE_PTR_IDX_MASK
     }
-
-    pub(crate) fn as_unique_index(self) -> usize {
-        let value = self.index();
-
-        match self.object_type() {
-            ObjectType::Pair => (value as usize) * 3,
-            ObjectType::Bytes => (value as usize) * 3 + 1,
-            ObjectType::SmallAtom => (value as usize) * 3 + 2,
-        }
-    }
 }
 
 impl Default for NodePtr {
@@ -167,21 +157,28 @@ impl Default for Allocator {
     }
 }
 
-pub fn canonical_positive_integer(v: &[u8]) -> bool {
-    if v.is_empty() {
-        // empty buffer is 0/nil
-        true
-    } else if (v.len() == 1 && v[0] == 0)
+pub fn fits_in_small_atom(v: &[u8]) -> Option<u32> {
+    if !v.is_empty()
+        && (v.len() > 4
+        || (v.len() == 1 && v[0] == 0)
         // a 1-byte buffer of 0 is not the canonical representation of 0
         || (v[0] & 0x80) != 0
         // if the top bit is set, it's a negative number (i.e. not positive)
         || (v[0] == 0 && (v[1] & 0x80) == 0)
+        // if the buffer is 4 bytes, the top byte can't use more than 2 bits.
+        // otherwise the integer won't fit in 26 bits
+        || (v.len() == 4 && v[0] > 0x03))
     {
-        // if the top byte is a 0 but the top bit of the next byte is not set, that's a redundant
-        // leading zero. i.e. not canonical representation
-        false
+        // if the top byte is a 0 but the top bit of the next byte is not set,
+        // that's a redundant leading zero. i.e. not canonical representation
+        None
     } else {
-        true
+        let mut ret: u32 = 0;
+        for b in v {
+            ret <<= 8;
+            ret |= *b as u32;
+        }
+        Some(ret)
     }
 }
 
@@ -259,12 +256,7 @@ impl Allocator {
         }
         let idx = self.atom_vec.len();
         self.check_atom_limit()?;
-        if v.len() <= 3 && canonical_positive_integer(v) {
-            let mut ret: u32 = 0;
-            for b in v {
-                ret <<= 8;
-                ret |= *b as u32;
-            }
+        if let Some(ret) = fits_in_small_atom(v) {
             self.small_atoms += 1;
             Ok(NodePtr::new(ObjectType::SmallAtom, ret as usize))
         } else {
@@ -345,7 +337,10 @@ impl Allocator {
                 let buf: [u8; 4] = val.to_be_bytes();
                 let buf = &buf[4 - len as usize..];
                 let substr = &buf[start as usize..end as usize];
-                if !canonical_positive_integer(substr) {
+                if let Some(new_val) = fits_in_small_atom(substr) {
+                    self.small_atoms += 1;
+                    Ok(NodePtr::new(ObjectType::SmallAtom, new_val as usize))
+                } else {
                     let start = self.u8_vec.len();
                     let end = start + substr.len();
                     self.u8_vec.extend_from_slice(substr);
@@ -355,14 +350,6 @@ impl Allocator {
                         end: end as u32,
                     });
                     Ok(NodePtr::new(ObjectType::Bytes, idx))
-                } else {
-                    let mut new_val: u32 = 0;
-                    for i in substr {
-                        new_val <<= 8;
-                        new_val |= *i as u32;
-                    }
-                    self.small_atoms += 1;
-                    Ok(NodePtr::new(ObjectType::SmallAtom, new_val as usize))
                 }
             }
         }
@@ -509,16 +496,7 @@ impl Allocator {
             ObjectType::Bytes => {
                 let atom = self.atom_vec[node.index() as usize];
                 let buf = &self.u8_vec[atom.start as usize..atom.end as usize];
-                if buf.len() > 3 || !canonical_positive_integer(buf) {
-                    None
-                } else {
-                    let mut ret: u32 = 0;
-                    for v in buf {
-                        ret <<= 8;
-                        ret |= *v as u32;
-                    }
-                    Some(ret)
-                }
+                fits_in_small_atom(buf)
             }
             _ => None,
         }
@@ -660,19 +638,6 @@ impl Allocator {
     pub fn heap_size(&self) -> usize {
         self.u8_vec.len()
     }
-}
-
-#[test]
-fn test_node_as_index() {
-    assert_eq!(NodePtr::new(ObjectType::Pair, 0).as_unique_index(), 0);
-    assert_eq!(NodePtr::new(ObjectType::Pair, 1).as_unique_index(), 3);
-    assert_eq!(NodePtr::new(ObjectType::Pair, 2).as_unique_index(), 6);
-    assert_eq!(NodePtr::new(ObjectType::Pair, 3).as_unique_index(), 9);
-    assert_eq!(NodePtr::new(ObjectType::Bytes, 0).as_unique_index(), 1);
-    assert_eq!(NodePtr::new(ObjectType::Bytes, 1).as_unique_index(), 4);
-    assert_eq!(NodePtr::new(ObjectType::Bytes, 2).as_unique_index(), 7);
-    assert_eq!(NodePtr::new(ObjectType::Bytes, 3).as_unique_index(), 10);
-    assert_eq!(NodePtr::new(ObjectType::Bytes, 4).as_unique_index(), 13);
 }
 
 #[test]
@@ -1808,14 +1773,16 @@ fn test_auto_small_number(#[case] value: Number, #[case] expect_small: bool) {
 #[case(&[0xff], false)]
 #[case(&[0xff, 0xff], false)]
 #[case(&[0x80, 0xff, 0xff], false)]
-// we use a simple heuristic, for atoms. if we have more than 3 bytes, we assume
-// it's not small. Even though it would have fit in 26 bits
-#[case(&[0x1, 0xff, 0xff, 0xff], false)]
 // small positive intergers can be small
 #[case(&[0x01], true)]
 #[case(&[0x00, 0xff], true)]
 #[case(&[0x7f, 0xff], true)]
 #[case(&[0x7f, 0xff, 0xff], true)]
+#[case(&[0x00, 0xff, 0xff, 0xff], true)]
+#[case(&[0x02, 0x00, 0x00, 0x00], true)]
+#[case(&[0x03, 0xff, 0xff, 0xff], true)]
+// too big
+#[case(&[0x04, 0x00, 0x00, 0x00], false)]
 fn test_auto_small_number_from_buf(#[case] buf: &[u8], #[case] expect_small: bool) {
     let mut a = Allocator::new();
     let atom = a.new_atom(buf).expect("new_atom()");
@@ -1825,4 +1792,36 @@ fn test_auto_small_number_from_buf(#[case] buf: &[u8], #[case] expect_small: boo
         assert_eq!(v, a.number(atom).to_u32().expect("to_u32()"));
     }
     assert_eq!(buf, a.atom(atom).as_ref());
+}
+
+#[cfg(test)]
+#[rstest]
+// redundant leading zeros are not canoncial
+#[case(&[0x00], None)]
+#[case(&[0x00, 0x7f], None)]
+// negative numbers cannot be small ints
+#[case(&[0x80], None)]
+#[case(&[0xff], None)]
+// redundant leading 0xff are still negative
+#[case(&[0xff, 0xff], None)]
+#[case(&[0x80, 0xff, 0xff], None)]
+// to big
+#[case(&[0x04, 0x00, 0x00, 0x00], None)]
+#[case(&[0x05, 0x00, 0x00, 0x00], None)]
+#[case(&[0x04, 0x00, 0x00, 0x00, 0x00], None)]
+// small positive intergers can be small
+#[case(&[0x01], Some(0x01))]
+#[case(&[0x00, 0x80], Some(0x80))]
+#[case(&[0x00, 0xff], Some(0xff))]
+#[case(&[0x7f, 0xff], Some(0x7fff))]
+#[case(&[0x00, 0x80, 0x00], Some(0x8000))]
+#[case(&[0x00, 0xff, 0xff], Some(0xffff))]
+#[case(&[0x7f, 0xff, 0xff], Some(0x7fffff))]
+#[case(&[0x00, 0x80, 0x00, 0x00], Some(0x800000))]
+#[case(&[0x00, 0xff, 0xff, 0xff], Some(0xffffff))]
+#[case(&[0x02, 0x00, 0x00, 0x00], Some(0x2000000))]
+#[case(&[0x03, 0x00, 0x00, 0x00], Some(0x3000000))]
+#[case(&[0x03, 0xff, 0xff, 0xff], Some(0x3ffffff))]
+fn test_fits_in_small_atom(#[case] buf: &[u8], #[case] expected: Option<u32>) {
+    assert_eq!(fits_in_small_atom(buf), expected);
 }
