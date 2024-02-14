@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 /// `ObjectCache` provides a way to calculate and cache values for each node
 /// in a clvm object tree. It can be used to calculate the sha256 tree hash
 /// for an object and save the hash for all the child objects for building
@@ -13,7 +14,7 @@ type CachedFunction<T> = fn(&mut ObjectCache<T>, &Allocator, NodePtr) -> Option<
 use super::bytes32::{hash_blobs, Bytes32};
 
 pub struct ObjectCache<'a, T> {
-    cache: Vec<Option<T>>,
+    cache: HashMap<NodePtr, T>,
     allocator: &'a Allocator,
 
     /// The function `f` is expected to calculate its T value recursively based
@@ -28,9 +29,8 @@ pub struct ObjectCache<'a, T> {
 
 impl<'a, T: Clone> ObjectCache<'a, T> {
     pub fn new(allocator: &'a Allocator, f: CachedFunction<T>) -> Self {
-        let cache = vec![];
         Self {
-            cache,
+            cache: HashMap::new(),
             allocator,
             f,
         }
@@ -45,21 +45,12 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
 
     /// return the cached value for this node, or `None`
     fn get_from_cache(&self, node: &NodePtr) -> Option<&T> {
-        let index = node.as_unique_index();
-        if index < self.cache.len() {
-            self.cache[index].as_ref()
-        } else {
-            None
-        }
+        self.cache.get(node)
     }
 
     /// set the cached value for a node
     fn set(&mut self, node: &NodePtr, v: T) {
-        let index = node.as_unique_index();
-        if index >= self.cache.len() {
-            self.cache.resize(index + 1, None);
-        }
-        self.cache[index] = Some(v)
+        self.cache.insert(*node, v);
     }
 
     /// calculate the function's value for the given node, traversing uncached children

@@ -53,16 +53,6 @@ impl NodePtr {
     fn index(self) -> u32 {
         self.0 & NODE_PTR_IDX_MASK
     }
-
-    pub(crate) fn as_unique_index(self) -> usize {
-        let value = self.index();
-
-        match self.object_type() {
-            ObjectType::Pair => (value as usize) * 3,
-            ObjectType::Bytes => (value as usize) * 3 + 1,
-            ObjectType::SmallAtom => (value as usize) * 3 + 2,
-        }
-    }
 }
 
 impl Default for NodePtr {
@@ -648,19 +638,6 @@ impl Allocator {
     pub fn heap_size(&self) -> usize {
         self.u8_vec.len()
     }
-}
-
-#[test]
-fn test_node_as_index() {
-    assert_eq!(NodePtr::new(ObjectType::Pair, 0).as_unique_index(), 0);
-    assert_eq!(NodePtr::new(ObjectType::Pair, 1).as_unique_index(), 3);
-    assert_eq!(NodePtr::new(ObjectType::Pair, 2).as_unique_index(), 6);
-    assert_eq!(NodePtr::new(ObjectType::Pair, 3).as_unique_index(), 9);
-    assert_eq!(NodePtr::new(ObjectType::Bytes, 0).as_unique_index(), 1);
-    assert_eq!(NodePtr::new(ObjectType::Bytes, 1).as_unique_index(), 4);
-    assert_eq!(NodePtr::new(ObjectType::Bytes, 2).as_unique_index(), 7);
-    assert_eq!(NodePtr::new(ObjectType::Bytes, 3).as_unique_index(), 10);
-    assert_eq!(NodePtr::new(ObjectType::Bytes, 4).as_unique_index(), 13);
 }
 
 #[test]
