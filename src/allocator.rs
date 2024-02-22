@@ -2,6 +2,8 @@ use crate::err_utils::err;
 use crate::number::{node_from_number, number_from_u8, Number};
 use crate::reduction::EvalErr;
 use chia_bls::{G1Element, G2Element};
+use std::hash::Hash;
+use std::hash::Hasher;
 
 const MAX_NUM_ATOMS: usize = 62500000;
 const MAX_NUM_PAIRS: usize = 62500000;
@@ -101,10 +103,16 @@ pub enum NodeVisitor<'a> {
     Pair(NodePtr, NodePtr),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq)]
 pub enum Atom<'a> {
     Borrowed(&'a [u8]),
     U32([u8; 4], usize),
+}
+
+impl Hash for Atom<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_ref().hash(state)
+    }
 }
 
 impl PartialEq for Atom<'_> {
