@@ -1,3 +1,4 @@
+use hex_literal::hex;
 use num_bigint::{BigUint, Sign};
 use num_integer::Integer;
 use std::ops::BitAndAssign;
@@ -9,8 +10,8 @@ use crate::cost::{check_cost, Cost};
 use crate::err_utils::err;
 use crate::number::Number;
 use crate::op_utils::{
-    atom, atom_len, get_args, get_varargs, i32_atom, int_atom, mod_group_order, new_atom_and_cost,
-    nilp, u32_from_u8, MALLOC_COST_PER_BYTE,
+    atom, atom_len, get_args, get_varargs, i32_atom, int_atom, match_args, mod_group_order,
+    new_atom_and_cost, nilp, u32_from_u8, MALLOC_COST_PER_BYTE,
 };
 use crate::reduction::{Reduction, Response};
 use crate::sha2::{Digest, Sha256};
@@ -334,8 +335,68 @@ fn test_lenient_mode_last_bits() {
     assert_eq!(test_op_unknown(&buf, &mut a, nil), Ok(Reduction(61, nil)));
 }
 
+// contains SHA256(1 .. x), where x is the index into the array and .. is
+// concatenation. This was computed by:
+// print(f"    hex!(\"{sha256(bytes([1])).hexdigest()}\"),")
+// for i in range(1, 37):
+//     print(f"    hex!(\"{sha256(bytes([1, i])).hexdigest()}\"),")
+pub const PRECOMPUTED_HASHES: [[u8; 32]; 37] = [
+    hex!("4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a"),
+    hex!("9dcf97a184f32623d11a73124ceb99a5709b083721e878a16d78f596718ba7b2"),
+    hex!("a12871fee210fb8619291eaea194581cbd2531e4b23759d225f6806923f63222"),
+    hex!("c79b932e1e1da3c0e098e5ad2c422937eb904a76cf61d83975a74a68fbb04b99"),
+    hex!("a8d5dd63fba471ebcb1f3e8f7c1e1879b7152a6e7298a91ce119a63400ade7c5"),
+    hex!("bc5959f43bc6e47175374b6716e53c9a7d72c59424c821336995bad760d9aeb3"),
+    hex!("44602a999abbebedf7de0ae1318e4f57e3cb1d67e482a65f9657f7541f3fe4bb"),
+    hex!("ca6c6588fa01171b200740344d354e8548b7470061fb32a34f4feee470ec281f"),
+    hex!("9e6282e4f25e370ce617e21d6fe265e88b9e7b8682cf00059b9d128d9381f09d"),
+    hex!("ac9e61d54eb6967e212c06aab15408292f8558c48f06f9d705150063c68753b0"),
+    hex!("c04b5bb1a5b2eb3e9cd4805420dba5a9d133da5b7adeeafb5474c4adae9faa80"),
+    hex!("57bfd1cb0adda3d94315053fda723f2028320faa8338225d99f629e3d46d43a9"),
+    hex!("6b6daa8334bbcc8f6b5906b6c04be041d92700b74024f73f50e0a9f0dae5f06f"),
+    hex!("c7b89cfb9abf2c4cb212a4840b37d762f4c880b8517b0dadb0c310ded24dd86d"),
+    hex!("653b3bb3e18ef84d5b1e8ff9884aecf1950c7a1c98715411c22b987663b86dda"),
+    hex!("24255ef5d941493b9978f3aabb0ed07d084ade196d23f463ff058954cbf6e9b6"),
+    hex!("af340aa58ea7d72c2f9a7405f3734167bb27dd2a520d216addef65f8362102b6"),
+    hex!("26e7f98cfafee5b213726e22632923bf31bf3e988233235f8f5ca5466b3ac0ed"),
+    hex!("115b498ce94335826baa16386cd1e2fde8ca408f6f50f3785964f263cdf37ebe"),
+    hex!("d8c50d6282a1ba47f0a23430d177bbfbb72e2b84713745e894f575570f1f3d6e"),
+    hex!("dbe726e81a7221a385e007ef9e834a975a4b528c6f55a5d2ece288bee831a3d1"),
+    hex!("764c8a3561c7cf261771b4e1969b84c210836f3c034baebac5e49a394a6ee0a9"),
+    hex!("dce37f3512b6337d27290436ba9289e2fd6c775494c33668dd177cf811fbd47a"),
+    hex!("5809addc9f6926fc5c4e20cf87958858c4454c21cdfc6b02f377f12c06b35cca"),
+    hex!("b519be874447e0f0a38ee8ec84ecd2198a9fac778fccce19cc8d87be5d8ed6b1"),
+    hex!("ae58b7e08e266680e93e46639a2a7e89fde78a6f3c8e4219d1087c406c25c24c"),
+    hex!("2986113d3bc27183978188edd7e72c3352c5cd6c8f2de6b65a466fc15bc2b49e"),
+    hex!("145bfb83f7b3ef33ac1eada788c187e4d1feb7326bcf340bb060a62e75434854"),
+    hex!("387da93c57e24aca43495b2e241399d532048e038ee0ed9ca740c22a06cbce91"),
+    hex!("af2c6f1512d1cabedeaf129e0643863c5741973283e065564f2c00bde7c92fe1"),
+    hex!("5df7504bc193ee4c3deadede1459eccca172e87cca35e81f11ce14be5e94acaf"),
+    hex!("5d9ae980408df9325fbc46da2612c599ef76949450516ae38bf3b4c64721613d"),
+    hex!("3145e7a95720a1db303f2198e796ea848f52b6079b5bf4f47d32fad69c2bce77"),
+    hex!("c846f87c9d6bdfaa33038ac78269cfd5a08aa89a0918e99c4c4ae2e804a4f9a3"),
+    hex!("b70654fead634e1ede4518ef34872c9d4f083a53773bdbfb75ae926bd3a4ce47"),
+    hex!("b71de80778f2783383f5d5a3028af84eab2f18a4eb38968172ca41724dd4b3f4"),
+    hex!("3f2d2a889d22530bd1abdc40ff1cbb23ca53ae3f1983e58c70d46a15c120e780"),
+];
+
 pub fn op_sha256(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response {
     let mut cost = SHA256_BASE_COST;
+
+    if let Some([v0, v1]) = match_args::<2>(a, input) {
+        if a.small_number(v0) == Some(1) {
+            if let Some(val) = a.small_number(v1) {
+                // in this case, we're hashing 1 concatenated with a small
+                // integer, we may have a pre-computed hash for this
+                if (val as usize) < PRECOMPUTED_HASHES.len() {
+                    let num_bytes = if val > 0 { 2 } else { 1 };
+                    cost += num_bytes * SHA256_COST_PER_BYTE + 2 as Cost * SHA256_COST_PER_ARG;
+                    return new_atom_and_cost(a, cost, &PRECOMPUTED_HASHES[val as usize]);
+                }
+            }
+        }
+    }
+
     let mut byte_count: usize = 0;
     let mut hasher = Sha256::new();
     while let Some((arg, rest)) = a.next(input) {
@@ -935,4 +996,46 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
     let ret = base.modpow(&exponent, &modulus);
     let ret = a.new_number(ret)?;
     Ok(malloc_cost(a, cost, ret))
+}
+
+#[cfg(test)]
+fn test_sha256_atom(buf: &[u8]) {
+    let mut a = Allocator::new();
+    let mut args = a.nil();
+    let v = a.new_atom(buf).unwrap();
+    args = a.new_pair(v, args).unwrap();
+    let v = a.new_small_number(1).unwrap();
+    args = a.new_pair(v, args).unwrap();
+
+    let cost = SHA256_BASE_COST
+        + (2 * SHA256_COST_PER_ARG)
+        + ((1 + buf.len()) as Cost * SHA256_COST_PER_BYTE)
+        + 32 * MALLOC_COST_PER_BYTE;
+    let Reduction(actual_cost, result) = op_sha256(&mut a, args, cost).unwrap();
+
+    let mut hasher = Sha256::new();
+    hasher.update([1_u8]);
+    if !buf.is_empty() {
+        hasher.update(buf);
+    }
+
+    println!("buf: {buf:?}");
+    assert_eq!(a.atom(result).as_ref(), hasher.finalize().as_slice());
+    assert_eq!(actual_cost, cost);
+}
+
+#[test]
+fn sha256_small_values() {
+    test_sha256_atom(&[]);
+    for val in 0..255 {
+        test_sha256_atom(&[val]);
+    }
+
+    for val in 0..255 {
+        test_sha256_atom(&[0, val]);
+    }
+
+    for val in 0..255 {
+        test_sha256_atom(&[0xff, val]);
+    }
 }
