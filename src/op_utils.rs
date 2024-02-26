@@ -16,6 +16,18 @@ pub fn get_args<const N: usize>(
     args: NodePtr,
     name: &str,
 ) -> Result<[NodePtr; N], EvalErr> {
+    match_args::<N>(a, args).ok_or_else(|| {
+        EvalErr(
+            args,
+            format!(
+                "{name} takes exactly {N} argument{}",
+                if N == 1 { "" } else { "s" }
+            ),
+        )
+    })
+}
+
+pub fn match_args<const N: usize>(a: &Allocator, args: NodePtr) -> Option<[NodePtr; N]> {
     let mut next = args;
     let mut counter = 0;
     let mut ret = [NodePtr::NIL; N];
@@ -23,28 +35,16 @@ pub fn get_args<const N: usize>(
     while let Some((first, rest)) = a.next(next) {
         next = rest;
         if counter == N {
-            return err(
-                args,
-                &format!(
-                    "{name} takes exactly {N} argument{}",
-                    if N == 1 { "" } else { "s" }
-                ),
-            );
+            return None;
         }
         ret[counter] = first;
         counter += 1;
     }
 
     if counter != N {
-        err(
-            args,
-            &format!(
-                "{name} takes exactly {N} argument{}",
-                if N == 1 { "" } else { "s" }
-            ),
-        )
+        None
     } else {
-        Ok(ret)
+        Some(ret)
     }
 }
 
