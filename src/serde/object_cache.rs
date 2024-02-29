@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 /// `ObjectCache` provides a way to calculate and cache values for each node
 /// in a clvm object tree. It can be used to calculate the sha256 tree hash
 /// for an object and save the hash for all the child objects for building
@@ -7,9 +6,8 @@ use std::collections::HashMap;
 /// It also allows a function that's defined recursively on a clvm tree to
 /// have a non-recursive implementation (as it keeps a stack of uncached
 /// objects locally).
-use std::convert::TryInto;
-
 use crate::allocator::{Allocator, NodePtr, SExp};
+use std::collections::HashMap;
 type CachedFunction<T> = fn(&mut ObjectCache<T>, &Allocator, NodePtr) -> Option<T>;
 use super::bytes32::{hash_blobs, Bytes32};
 

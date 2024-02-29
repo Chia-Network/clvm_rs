@@ -16,7 +16,6 @@
 ///
 /// All hashes correspond to sha256 tree hashes.
 use std::collections::{HashMap, HashSet};
-use std::convert::TryInto;
 
 use super::bytes32::{hash_blob, hash_blobs, Bytes32};
 

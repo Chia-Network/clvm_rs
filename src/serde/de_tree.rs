@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::io::{Error, Read, Result, Write};
 
 use sha2::Digest;
