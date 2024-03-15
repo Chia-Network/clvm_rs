@@ -166,7 +166,7 @@ impl ReadCacheLookup {
         possible_responses
     }
 
-    /// If multiple paths exist, the lexigraphically smallest one will be returned.
+    /// If multiple paths exist, the lexicographically smallest one will be returned.
     pub fn find_path(&self, id: &Bytes32, serialized_length: u64) -> Option<Vec<u8>> {
         let mut paths = self.find_paths(id, serialized_length);
         if !paths.is_empty() {

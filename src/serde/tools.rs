@@ -16,7 +16,7 @@ pub fn serialized_length_from_bytes_trusted(b: &[u8]) -> io::Result<u64> {
         ops_counter -= 1;
         f.read_exact(&mut b)?;
         if b[0] == CONS_BOX_MARKER {
-            // we expect to parse two more items from the strem
+            // we expect to parse two more items from the stream
             // the left and right sub tree
             ops_counter += 2;
         } else if b[0] == BACK_REFERENCE {
