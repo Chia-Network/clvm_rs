@@ -72,7 +72,7 @@ impl Dialect for ChiaDialect {
     ) -> Response {
         let op_len = allocator.atom_len(o);
         if op_len == 4 {
-            // these are unkown operators with assigned cost
+            // these are unknown operators with assigned cost
             // the formula is:
             // +---+---+---+------------+
             // | multiplier|XX | XXXXXX |

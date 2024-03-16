@@ -82,7 +82,7 @@ const PUBKEY_BASE_COST: Cost = 1325730;
 const PUBKEY_COST_PER_BYTE: Cost = 38;
 
 // the new coinid operator
-// we subtract 153 cost as a discount, to incentivice using this operator rather
+// we subtract 153 cost as a discount, to incentivize using this operator rather
 // than "naked" sha256
 const COINID_COST: Cost =
     SHA256_BASE_COST + SHA256_COST_PER_ARG * 3 + SHA256_COST_PER_BYTE * (32 + 32 + 8) - 153;

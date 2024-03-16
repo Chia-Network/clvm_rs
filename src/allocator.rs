@@ -246,7 +246,7 @@ impl Allocator {
     pub fn restore_checkpoint(&mut self, cp: &Checkpoint) {
         // if any of these asserts fire, it means we're trying to restore to
         // a state that has already been "long-jumped" passed (via another
-        // restore to an earler state). You can only restore backwards in time,
+        // restore to an earlier state). You can only restore backwards in time,
         // not forwards.
         assert!(self.u8_vec.len() >= cp.u8s);
         assert!(self.pair_vec.len() >= cp.pairs);
