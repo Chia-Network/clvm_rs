@@ -4,12 +4,12 @@ use wasm_bindgen::prelude::*;
 
 use crate::lazy_node::LazyNode;
 use clvmr::allocator::Allocator;
-use clvmr::ALLOW_BACKREFS;
 use clvmr::chia_dialect::ChiaDialect;
 use clvmr::chia_dialect::NO_UNKNOWN_OPS as _no_unknown_ops;
 use clvmr::cost::Cost;
 use clvmr::run_program::run_program;
 use clvmr::serde::{node_from_bytes, node_from_bytes_backrefs, node_to_bytes};
+use clvmr::ALLOW_BACKREFS;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -47,13 +47,7 @@ pub fn run_clvm(program: &[u8], args: &[u8], flag: u32) -> Vec<u8> {
     let args = deserializer(&mut allocator, args).unwrap();
     let dialect = ChiaDialect::new(flag);
 
-    let r = run_program(
-        &mut allocator,
-        &dialect,
-        program,
-        args,
-        max_cost,
-    );
+    let r = run_program(&mut allocator, &dialect, program, args, max_cost);
     match r {
         Ok(reduction) => node_to_bytes(&allocator, reduction.1).unwrap(),
         Err(_eval_err) => format!("{:?}", _eval_err).into(),
