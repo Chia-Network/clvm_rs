@@ -6,6 +6,7 @@ pub mod cost;
 pub mod dialect;
 pub mod err_utils;
 pub mod f_table;
+pub mod flags;
 pub mod more_ops;
 pub mod number;
 pub mod op_utils;
@@ -24,6 +25,8 @@ pub use run_program::run_program;
 pub use chia_dialect::{
     ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_FIXED_DIV, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS,
 };
+
+pub use flags::ALLOW_BACKREFS;
 
 #[cfg(feature = "counters")]
 pub use run_program::run_program_with_counters;
