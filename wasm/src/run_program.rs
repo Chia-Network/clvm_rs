@@ -34,16 +34,22 @@ impl Flag {
 }
 
 #[wasm_bindgen]
-pub fn run_clvm(program: &[u8], args: &[u8]) -> Vec<u8> {
+pub fn run_clvm(program: &[u8], args: &[u8], flag: u32) -> Vec<u8> {
     let max_cost: Cost = 1_000_000_000_000_000;
 
     let mut allocator = Allocator::new();
-    let program = node_from_bytes(&mut allocator, program).unwrap();
-    let args = node_from_bytes(&mut allocator, args).unwrap();
+    let deserializer = if (flag & ALLOW_BACKREFS) != 0 {
+        node_from_bytes_backrefs
+    } else {
+        node_from_bytes
+    };
+    let program = deserializer(&mut allocator, program).unwrap();
+    let args = deserializer(&mut allocator, args).unwrap();
+    let dialect = ChiaDialect::new(flag);
 
     let r = run_program(
         &mut allocator,
-        &ChiaDialect::new(0),
+        &dialect,
         program,
         args,
         max_cost,
