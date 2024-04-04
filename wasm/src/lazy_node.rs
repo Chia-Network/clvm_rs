@@ -45,10 +45,7 @@ impl LazyNode {
         } else {
             node_to_bytes
         };
-        match serializer(&self.allocator, self.node) {
-            Ok(b) => Some(b),
-            Err(_) => None,
-        }
+serializer(&self.allocator, self.node).ok()
     }
 }
 
