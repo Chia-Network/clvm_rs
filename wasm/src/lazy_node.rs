@@ -1,10 +1,10 @@
-use clvmr::allocator::{Allocator, NodePtr, SExp};
-use std::rc::Rc;
-
-use clvmr::serde::{node_to_bytes, node_to_bytes_backrefs};
-use clvmr::ALLOW_BACKREFS;
 use js_sys::Array;
+use std::rc::Rc;
 use wasm_bindgen::prelude::*;
+
+use crate::flags::ALLOW_BACKREFS;
+use clvmr::allocator::{Allocator, NodePtr, SExp};
+use clvmr::serde::{node_to_bytes, node_to_bytes_backrefs};
 
 #[wasm_bindgen]
 #[derive(Clone)]
@@ -45,7 +45,7 @@ impl LazyNode {
         } else {
             node_to_bytes
         };
-serializer(&self.allocator, self.node).ok()
+        serializer(&self.allocator, self.node).ok()
     }
 }
 
