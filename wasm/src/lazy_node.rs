@@ -2,9 +2,8 @@ use js_sys::Array;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 
-use crate::flags::ALLOW_BACKREFS;
 use clvmr::allocator::{Allocator, NodePtr, SExp};
-use clvmr::serde::{node_to_bytes, node_to_bytes_backrefs};
+use clvmr::serde::{node_to_bytes_limit, node_to_bytes_backrefs_limit};
 
 #[wasm_bindgen]
 #[derive(Clone)]
@@ -39,13 +38,13 @@ impl LazyNode {
     }
 
     #[wasm_bindgen]
-    pub fn to_bytes(&self, flag: u32) -> Option<Vec<u8>> {
-        let serializer = if (flag & ALLOW_BACKREFS) != 0 {
-            node_to_bytes_backrefs
-        } else {
-            node_to_bytes
-        };
-        serializer(&self.allocator, self.node).ok()
+    pub fn to_bytes_with_backref(&self, limit: usize) -> Result<Vec<u8>, String> {
+        node_to_bytes_backrefs_limit(&self.allocator, self.node, limit).map_err(|e| e.to_string())
+    }
+
+    #[wasm_bindgen]
+    pub fn to_bytes(&self, limit: usize) -> Result<Vec<u8>, String> {
+        node_to_bytes_limit(&self.allocator, self.node, limit).map_err(|e| e.to_string())
     }
 }
 
