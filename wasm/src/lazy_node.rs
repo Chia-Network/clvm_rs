@@ -3,7 +3,7 @@ use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 
 use clvmr::allocator::{Allocator, NodePtr, SExp};
-use clvmr::serde::{node_to_bytes_limit, node_to_bytes_backrefs_limit};
+use clvmr::serde::{node_to_bytes_backrefs_limit, node_to_bytes_limit};
 
 #[wasm_bindgen]
 #[derive(Clone)]
