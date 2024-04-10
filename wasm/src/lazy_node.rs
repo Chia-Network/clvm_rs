@@ -3,7 +3,7 @@ use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 
 use clvmr::allocator::{Allocator, NodePtr, SExp};
-use clvmr::serde::{node_to_bytes_backrefs_limit, node_to_bytes_limit};
+use clvmr::serde::{node_to_bytes_backrefs, node_to_bytes_limit};
 
 #[wasm_bindgen]
 #[derive(Clone)]
@@ -38,8 +38,8 @@ impl LazyNode {
     }
 
     #[wasm_bindgen]
-    pub fn to_bytes_with_backref(&self, limit: usize) -> Result<Vec<u8>, String> {
-        node_to_bytes_backrefs_limit(&self.allocator, self.node, limit).map_err(|e| e.to_string())
+    pub fn to_bytes_with_backref(&self) -> Result<Vec<u8>, String> {
+        node_to_bytes_backrefs(&self.allocator, self.node).map_err(|e| e.to_string())
     }
 
     #[wasm_bindgen]
