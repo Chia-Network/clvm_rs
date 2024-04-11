@@ -91,7 +91,10 @@ pub fn node_to_bytes_backrefs_limit(
 }
 
 pub fn node_to_bytes_backrefs(a: &Allocator, node: NodePtr) -> io::Result<Vec<u8>> {
-    node_to_bytes_backrefs_limit(a, node, 2000000)
+    let mut buffer = Cursor::new(Vec::new());
+    node_to_stream_backrefs(a, node, &mut buffer)?;
+    let vec = buffer.into_inner();
+    Ok(vec)
 }
 
 #[test]
