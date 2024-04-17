@@ -36,3 +36,4 @@ cargo fuzz run fuzz_run_program --jobs=32 -- -rss_limit_mb=4096
 But with whatever number of jobs works best for you.
 
 If you find issues in `clvm_rs` please see the [Bug Bounty program](https://www.chia.net/2021/10/21/bugcrowd-bounty-launch.en.html).
+
