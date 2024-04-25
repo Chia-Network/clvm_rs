@@ -364,16 +364,47 @@ struct EvalFTracker {
 #[cfg(feature = "pre-eval")]
 use crate::chia_dialect::{ChiaDialect, NO_UNKNOWN_OPS};
 #[cfg(feature = "pre-eval")]
-use crate::run_program::run_program_with_pre_eval;
-#[cfg(feature = "pre-eval")]
-use std::cell::RefCell;
+use crate::run_program::{run_program_with_pre_eval, PreEval, PreEvalResult};
 #[cfg(feature = "pre-eval")]
 use std::collections::HashSet;
 
-// Allows move closures to tear off a reference and move it. // Allows interior
-// mutability inside Fn traits.
 #[cfg(feature = "pre-eval")]
-use std::rc::Rc;
+#[derive(Default)]
+struct PreEvalTracking {
+    table: HashMap<usize, EvalFTracker>,
+}
+
+#[cfg(feature = "pre-eval")]
+impl PreEval for PreEvalTracking {
+    fn pre_eval(
+        &mut self,
+        _allocator: &mut Allocator,
+        prog: NodePtr,
+        args: NodePtr,
+    ) -> Result<PreEvalResult, EvalErr> {
+        let tracking_key = self.table.len();
+        self.table.insert(
+            tracking_key,
+            EvalFTracker {
+                prog,
+                args,
+                outcome: None,
+            },
+        );
+        Ok(PreEvalResult::CallPostEval(tracking_key))
+    }
+    fn post_eval(
+        &mut self,
+        _allocator: &mut Allocator,
+        pass: usize,
+        outcome: Option<NodePtr>,
+    ) -> Result<(), EvalErr> {
+        if let Some(entry) = self.table.get_mut(&pass) {
+            entry.outcome = outcome;
+        }
+        Ok(())
+    }
+}
 
 // Ensure pre_eval_f and post_eval_f are working as expected.
 #[cfg(feature = "pre-eval")]
@@ -406,43 +437,7 @@ fn test_pre_eval_and_post_eval() {
     let a_args = allocator.new_pair(f_quoted, a_tail).unwrap();
     let program = allocator.new_pair(a2, a_args).unwrap();
 
-    let tracking = Rc::new(RefCell::new(HashMap::new()));
-    let pre_eval_tracking = tracking.clone();
-    let pre_eval_f: Box<
-        dyn Fn(
-            &mut Allocator,
-            NodePtr,
-            NodePtr,
-        ) -> Result<Option<Box<(dyn Fn(Option<NodePtr>))>>, EvalErr>,
-    > = Box::new(move |_allocator, prog, args| {
-        let tracking_key = pre_eval_tracking.borrow().len();
-        // Ensure lifetime of mutable borrow is contained.
-        // It must end before the lifetime of the following closure.
-        {
-            let mut tracking_mutable = pre_eval_tracking.borrow_mut();
-            tracking_mutable.insert(
-                tracking_key,
-                EvalFTracker {
-                    prog,
-                    args,
-                    outcome: None,
-                },
-            );
-        }
-        let post_eval_tracking = pre_eval_tracking.clone();
-        let post_eval_f: Box<dyn Fn(Option<NodePtr>)> = Box::new(move |outcome| {
-            let mut tracking_mutable = post_eval_tracking.borrow_mut();
-            tracking_mutable.insert(
-                tracking_key,
-                EvalFTracker {
-                    prog,
-                    args,
-                    outcome,
-                },
-            );
-        });
-        Ok(Some(post_eval_f))
-    });
+    let mut tracking = PreEvalTracking::default();
 
     let result = run_program_with_pre_eval(
         &mut allocator,
@@ -450,7 +445,7 @@ fn test_pre_eval_and_post_eval() {
         program,
         NodePtr::NIL,
         COST_LIMIT,
-        Some(pre_eval_f),
+        Some(&mut tracking),
     )
     .unwrap();
 
@@ -478,8 +473,7 @@ fn test_pre_eval_and_post_eval() {
     desired_outcomes.push((program, NodePtr::NIL, a99));
 
     let mut found_outcomes = HashSet::new();
-    let tracking_examine = tracking.borrow();
-    for (_, v) in tracking_examine.iter() {
+    for (_, v) in tracking.table.iter() {
         let found = desired_outcomes.iter().position(|(p, a, o)| {
             node_eq(&allocator, *p, v.prog)
                 && node_eq(&allocator, *a, v.args)
@@ -489,6 +483,6 @@ fn test_pre_eval_and_post_eval() {
         assert!(found.is_some());
     }
 
-    assert_eq!(tracking_examine.len(), desired_outcomes.len());
-    assert_eq!(tracking_examine.len(), found_outcomes.len());
+    assert_eq!(tracking.table.len(), desired_outcomes.len());
+    assert_eq!(tracking.table.len(), found_outcomes.len());
 }

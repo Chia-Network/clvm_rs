@@ -19,15 +19,33 @@ const OP_COST: Cost = 1;
 // exceeded
 const STACK_SIZE_LIMIT: usize = 20000000;
 
+/// Tell whether to call the post eval function or not, giving a reference id
+/// for the computation to pick up.
 pub enum PreEvalResult {
     CallPostEval(usize),
-    Done
+    Done,
 }
 
 #[cfg(feature = "pre-eval")]
+/// Implementing this trait allows an object to be notified of clvm operations
+/// being performed as they happen.
 pub trait PreEval {
-    fn pre_eval(&mut self, allocator: &mut Allocator, sexp: NodePtr, args: NodePtr) -> Result<PreEvalResult, EvalErr>;
-    fn post_eval(&mut self, _allocator: &mut Allocator, _pass: usize, _result: Option<NodePtr>) -> Result<(), EvalErr> {
+    /// pre_eval is called before the operator is run, giving sexp (the operation
+    /// to run) and args (the environment).
+    fn pre_eval(
+        &mut self,
+        allocator: &mut Allocator,
+        sexp: NodePtr,
+        args: NodePtr,
+    ) -> Result<PreEvalResult, EvalErr>;
+    /// post_eval is called after the operation was performed.  When the clvm
+    /// operation resulted in an error, result is None.
+    fn post_eval(
+        &mut self,
+        _allocator: &mut Allocator,
+        _pass: usize,
+        _result: Option<NodePtr>,
+    ) -> Result<(), EvalErr> {
         Ok(())
     }
 }
@@ -122,7 +140,7 @@ fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Co
     })
 }
 
-impl<'a, 'inner, D: Dialect> RunProgramContext<'a, D> {
+impl<'a, D: Dialect> RunProgramContext<'a, D> {
     #[cfg(feature = "counters")]
     #[inline(always)]
     fn account_val_push(&mut self) {
@@ -276,7 +294,9 @@ impl<'a, 'inner, D: Dialect> RunProgramContext<'a, D> {
     fn eval_pair(&mut self, program: NodePtr, env: NodePtr) -> Result<Cost, EvalErr> {
         #[cfg(feature = "pre-eval")]
         if let Some(pre_eval) = &mut self.pre_eval {
-            if let PreEvalResult::CallPostEval(pass) = pre_eval.pre_eval(&mut self.allocator, program, env)? {
+            if let PreEvalResult::CallPostEval(pass) =
+                pre_eval.pre_eval(self.allocator, program, env)?
+            {
                 self.posteval_stack.push(pass);
                 self.op_stack.push(Operation::PostEval);
             }
@@ -492,10 +512,7 @@ impl<'a, 'inner, D: Dialect> RunProgramContext<'a, D> {
             cost += match op {
                 Operation::Apply => {
                     let apply_op_res = self.apply_op(cost, effective_max_cost - cost);
-                    augment_cost_errors(
-                        apply_op_res,
-                        max_cost_ptr,
-                    )?
+                    augment_cost_errors(apply_op_res, max_cost_ptr)?
                 }
                 Operation::ExitGuard => self.exit_guard(cost)?,
                 Operation::Cons => self.cons_op()?,
@@ -505,7 +522,7 @@ impl<'a, 'inner, D: Dialect> RunProgramContext<'a, D> {
                     if let Some(pre_eval) = &mut self.pre_eval {
                         let f = self.posteval_stack.pop().unwrap();
                         let peek: Option<NodePtr> = self.val_stack.last().copied();
-                        pre_eval.post_eval(&mut self.allocator, f, peek)?;
+                        pre_eval.post_eval(self.allocator, f, peek)?;
                     }
                     0
                 }
