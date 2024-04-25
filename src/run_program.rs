@@ -19,10 +19,14 @@ const OP_COST: Cost = 1;
 // exceeded
 const STACK_SIZE_LIMIT: usize = 20000000;
 
+#[cfg(feature = "pre-eval")]
+type PreEvalIndex = usize;
+
+#[cfg(feature = "pre-eval")]
 /// Tell whether to call the post eval function or not, giving a reference id
 /// for the computation to pick up.
 pub enum PreEvalResult {
-    CallPostEval(usize),
+    CallPostEval(PreEvalIndex),
     Done,
 }
 
@@ -43,7 +47,7 @@ pub trait PreEval {
     fn post_eval(
         &mut self,
         _allocator: &mut Allocator,
-        _pass: usize,
+        _pass: PreEvalIndex,
         _result: Option<NodePtr>,
     ) -> Result<(), EvalErr> {
         Ok(())
@@ -127,7 +131,7 @@ struct RunProgramContext<'a, D> {
     #[cfg(feature = "pre-eval")]
     pre_eval: Option<&'a mut dyn PreEval>,
     #[cfg(feature = "pre-eval")]
-    posteval_stack: Vec<usize>,
+    posteval_stack: Vec<PreEvalIndex>,
 }
 
 fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Cost, EvalErr> {
