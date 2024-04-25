@@ -47,7 +47,7 @@ pub trait PreEval {
     fn post_eval(
         &mut self,
         _allocator: &mut Allocator,
-        _pass: PreEvalIndex,
+        _row_index: PreEvalIndex,
         _result: Option<NodePtr>,
     ) -> Result<(), EvalErr> {
         Ok(())
