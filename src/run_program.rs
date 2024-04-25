@@ -514,10 +514,10 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 None => break,
             };
             cost += match op {
-                Operation::Apply => {
-                    let apply_op_res = self.apply_op(cost, effective_max_cost - cost);
-                    augment_cost_errors(apply_op_res, max_cost_ptr)?
-                }
+                Operation::Apply => augment_cost_errors(
+                    self.apply_op(cost, effective_max_cost - cost),
+                    max_cost_ptr,
+                )?,
                 Operation::ExitGuard => self.exit_guard(cost)?,
                 Operation::Cons => self.cons_op()?,
                 Operation::SwapEval => augment_cost_errors(self.swap_eval_op(), max_cost_ptr)?,
