@@ -19,12 +19,18 @@ const OP_COST: Cost = 1;
 // exceeded
 const STACK_SIZE_LIMIT: usize = 20000000;
 
-#[cfg(feature = "pre-eval")]
-pub type PreEval =
-    Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<PostEval>>, EvalErr>>;
+pub enum PreEvalResult {
+    CallPostEval(usize),
+    Done
+}
 
 #[cfg(feature = "pre-eval")]
-pub type PostEval = dyn Fn(Option<NodePtr>);
+pub trait PreEval {
+    fn pre_eval(&mut self, allocator: &mut Allocator, sexp: NodePtr, args: NodePtr) -> Result<PreEvalResult, EvalErr>;
+    fn post_eval(&mut self, _allocator: &mut Allocator, _pass: usize, _result: Option<NodePtr>) -> Result<(), EvalErr> {
+        Ok(())
+    }
+}
 
 #[repr(u8)]
 enum Operation {
@@ -101,9 +107,9 @@ struct RunProgramContext<'a, D> {
     pub counters: Counters,
 
     #[cfg(feature = "pre-eval")]
-    pre_eval: Option<PreEval>,
+    pre_eval: Option<&'a mut dyn PreEval>,
     #[cfg(feature = "pre-eval")]
-    posteval_stack: Vec<Box<PostEval>>,
+    posteval_stack: Vec<usize>,
 }
 
 fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Cost, EvalErr> {
@@ -116,7 +122,7 @@ fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Co
     })
 }
 
-impl<'a, D: Dialect> RunProgramContext<'a, D> {
+impl<'a, 'inner, D: Dialect> RunProgramContext<'a, D> {
     #[cfg(feature = "counters")]
     #[inline(always)]
     fn account_val_push(&mut self) {
@@ -182,7 +188,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     fn new_with_pre_eval(
         allocator: &'a mut Allocator,
         dialect: &'a D,
-        pre_eval: Option<PreEval>,
+        pre_eval: Option<&'a mut dyn PreEval>,
     ) -> Self {
         RunProgramContext {
             allocator,
@@ -269,9 +275,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
     fn eval_pair(&mut self, program: NodePtr, env: NodePtr) -> Result<Cost, EvalErr> {
         #[cfg(feature = "pre-eval")]
-        if let Some(pre_eval) = &self.pre_eval {
-            if let Some(post_eval) = pre_eval(self.allocator, program, env)? {
-                self.posteval_stack.push(post_eval);
+        if let Some(pre_eval) = &mut self.pre_eval {
+            if let PreEvalResult::CallPostEval(pass) = pre_eval.pre_eval(&mut self.allocator, program, env)? {
+                self.posteval_stack.push(pass);
                 self.op_stack.push(Operation::PostEval);
             }
         };
@@ -484,18 +490,23 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 None => break,
             };
             cost += match op {
-                Operation::Apply => augment_cost_errors(
-                    self.apply_op(cost, effective_max_cost - cost),
-                    max_cost_ptr,
-                )?,
+                Operation::Apply => {
+                    let apply_op_res = self.apply_op(cost, effective_max_cost - cost);
+                    augment_cost_errors(
+                        apply_op_res,
+                        max_cost_ptr,
+                    )?
+                }
                 Operation::ExitGuard => self.exit_guard(cost)?,
                 Operation::Cons => self.cons_op()?,
                 Operation::SwapEval => augment_cost_errors(self.swap_eval_op(), max_cost_ptr)?,
                 #[cfg(feature = "pre-eval")]
                 Operation::PostEval => {
-                    let f = self.posteval_stack.pop().unwrap();
-                    let peek: Option<NodePtr> = self.val_stack.last().copied();
-                    f(peek);
+                    if let Some(pre_eval) = &mut self.pre_eval {
+                        let f = self.posteval_stack.pop().unwrap();
+                        let peek: Option<NodePtr> = self.val_stack.last().copied();
+                        pre_eval.post_eval(&mut self.allocator, f, peek)?;
+                    }
                     0
                 }
             };
@@ -522,7 +533,7 @@ pub fn run_program_with_pre_eval<'a, D: Dialect>(
     program: NodePtr,
     env: NodePtr,
     max_cost: Cost,
-    pre_eval: Option<PreEval>,
+    pre_eval: Option<&'a mut dyn PreEval>,
 ) -> Response {
     let mut rpc = RunProgramContext::new_with_pre_eval(allocator, dialect, pre_eval);
     rpc.run_program(program, env, max_cost)
