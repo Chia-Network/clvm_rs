@@ -20,11 +20,39 @@ const OP_COST: Cost = 1;
 const STACK_SIZE_LIMIT: usize = 20000000;
 
 #[cfg(feature = "pre-eval")]
-pub type PreEval =
-    Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<PostEval>>, EvalErr>>;
+type PreEvalIndex = usize;
 
 #[cfg(feature = "pre-eval")]
-pub type PostEval = dyn Fn(Option<NodePtr>);
+/// Tell whether to call the post eval function or not, giving a reference id
+/// for the computation to pick up.
+pub enum PreEvalResult {
+    CallPostEval(PreEvalIndex),
+    Done,
+}
+
+#[cfg(feature = "pre-eval")]
+/// Implementing this trait allows an object to be notified of clvm operations
+/// being performed as they happen.
+pub trait PreEval {
+    /// pre_eval is called before the operator is run, giving sexp (the operation
+    /// to run) and args (the environment).
+    fn pre_eval(
+        &mut self,
+        allocator: &mut Allocator,
+        sexp: NodePtr,
+        args: NodePtr,
+    ) -> Result<PreEvalResult, EvalErr>;
+    /// post_eval is called after the operation was performed.  When the clvm
+    /// operation resulted in an error, result is None.
+    fn post_eval(
+        &mut self,
+        _allocator: &mut Allocator,
+        _row_index: PreEvalIndex,
+        _result: Option<NodePtr>,
+    ) -> Result<(), EvalErr> {
+        Ok(())
+    }
+}
 
 #[repr(u8)]
 enum Operation {
@@ -101,9 +129,9 @@ struct RunProgramContext<'a, D> {
     pub counters: Counters,
 
     #[cfg(feature = "pre-eval")]
-    pre_eval: Option<PreEval>,
+    pre_eval: Option<&'a mut dyn PreEval>,
     #[cfg(feature = "pre-eval")]
-    posteval_stack: Vec<Box<PostEval>>,
+    posteval_stack: Vec<PreEvalIndex>,
 }
 
 fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Cost, EvalErr> {
@@ -182,7 +210,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     fn new_with_pre_eval(
         allocator: &'a mut Allocator,
         dialect: &'a D,
-        pre_eval: Option<PreEval>,
+        pre_eval: Option<&'a mut dyn PreEval>,
     ) -> Self {
         RunProgramContext {
             allocator,
@@ -269,9 +297,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
     fn eval_pair(&mut self, program: NodePtr, env: NodePtr) -> Result<Cost, EvalErr> {
         #[cfg(feature = "pre-eval")]
-        if let Some(pre_eval) = &self.pre_eval {
-            if let Some(post_eval) = pre_eval(self.allocator, program, env)? {
-                self.posteval_stack.push(post_eval);
+        if let Some(pre_eval) = &mut self.pre_eval {
+            if let PreEvalResult::CallPostEval(pass) =
+                pre_eval.pre_eval(self.allocator, program, env)?
+            {
+                self.posteval_stack.push(pass);
                 self.op_stack.push(Operation::PostEval);
             }
         };
@@ -493,9 +523,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 Operation::SwapEval => augment_cost_errors(self.swap_eval_op(), max_cost_ptr)?,
                 #[cfg(feature = "pre-eval")]
                 Operation::PostEval => {
-                    let f = self.posteval_stack.pop().unwrap();
-                    let peek: Option<NodePtr> = self.val_stack.last().copied();
-                    f(peek);
+                    if let Some(pre_eval) = &mut self.pre_eval {
+                        let f = self.posteval_stack.pop().unwrap();
+                        let peek: Option<NodePtr> = self.val_stack.last().copied();
+                        pre_eval.post_eval(self.allocator, f, peek)?;
+                    }
                     0
                 }
             };
@@ -522,7 +554,7 @@ pub fn run_program_with_pre_eval<'a, D: Dialect>(
     program: NodePtr,
     env: NodePtr,
     max_cost: Cost,
-    pre_eval: Option<PreEval>,
+    pre_eval: Option<&'a mut dyn PreEval>,
 ) -> Response {
     let mut rpc = RunProgramContext::new_with_pre_eval(allocator, dialect, pre_eval);
     rpc.run_program(program, env, max_cost)
