@@ -24,7 +24,7 @@ pub type PreEval =
     Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<PostEval>>, EvalErr>>;
 
 #[cfg(feature = "pre-eval")]
-pub type PostEval = dyn Fn(Option<NodePtr>);
+pub type PostEval = dyn Fn(&mut Allocator, Option<NodePtr>);
 
 #[repr(u8)]
 enum Operation {
@@ -495,7 +495,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 Operation::PostEval => {
                     let f = self.posteval_stack.pop().unwrap();
                     let peek: Option<NodePtr> = self.val_stack.last().copied();
-                    f(peek);
+                    f(&mut self.allocator, peek);
                     0
                 }
             };

@@ -413,7 +413,7 @@ fn test_pre_eval_and_post_eval() {
             &mut Allocator,
             NodePtr,
             NodePtr,
-        ) -> Result<Option<Box<(dyn Fn(Option<NodePtr>))>>, EvalErr>,
+        ) -> Result<Option<Box<(dyn Fn(&mut Allocator, Option<NodePtr>))>>, EvalErr>,
     > = Box::new(move |_allocator, prog, args| {
         let tracking_key = pre_eval_tracking.borrow().len();
         // Ensure lifetime of mutable borrow is contained.
@@ -430,17 +430,18 @@ fn test_pre_eval_and_post_eval() {
             );
         }
         let post_eval_tracking = pre_eval_tracking.clone();
-        let post_eval_f: Box<dyn Fn(Option<NodePtr>)> = Box::new(move |outcome| {
-            let mut tracking_mutable = post_eval_tracking.borrow_mut();
-            tracking_mutable.insert(
-                tracking_key,
-                EvalFTracker {
-                    prog,
-                    args,
-                    outcome,
-                },
-            );
-        });
+        let post_eval_f: Box<dyn Fn(&mut Allocator, Option<NodePtr>)> =
+            Box::new(move |_a, outcome| {
+                let mut tracking_mutable = post_eval_tracking.borrow_mut();
+                tracking_mutable.insert(
+                    tracking_key,
+                    EvalFTracker {
+                        prog,
+                        args,
+                        outcome,
+                    },
+                );
+            });
         Ok(Some(post_eval_f))
     });
 
