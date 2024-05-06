@@ -57,7 +57,7 @@ const fn op(opcode: u32, operands: &'static [Type], result: Type) -> OperatorInf
     }
 }
 
-const OPERATORS: [OperatorInfo; 83] = [
+const OPERATORS: [OperatorInfo; 90] = [
     // apply
     op(2, &[Type::Program, Type::Tree], Type::AnyAtom),
     // if
@@ -291,6 +291,24 @@ const OPERATORS: [OperatorInfo; 83] = [
     // mod
     op(61, &[Type::Int64, Type::Int64], Type::Int64),
     op(61, &[Type::Bytes32, Type::Bytes32], Type::Bytes32),
+    // base64url_encode
+    op(62, &[Type::AnyAtom], Type::AnyAtom),
+    op(62, &[Type::AnyAtom, Type::AnyAtom], Type::AnyAtom),
+    op(
+        62,
+        &[Type::AnyAtom, Type::AnyAtom, Type::AnyAtom],
+        Type::AnyAtom,
+    ),
+    // base64url_decode
+    op(63, &[Type::AnyAtom], Type::AnyAtom),
+    // keccak256
+    op(64, &[Type::AnyAtom], Type::Bytes32),
+    op(64, &[Type::AnyAtom, Type::AnyAtom], Type::Bytes32),
+    op(
+        64,
+        &[Type::AnyAtom, Type::AnyAtom, Type::AnyAtom],
+        Type::Bytes32,
+    ),
 ];
 
 const ZEROS: [u8; 96] = [0; 96];

@@ -2,6 +2,7 @@
 use libfuzzer_sys::fuzz_target;
 
 use clvmr::allocator::{Allocator, NodePtr};
+use clvmr::base64_ops::{op_base64url_decode, op_base64url_encode};
 use clvmr::bls_ops::{
     op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
     op_bls_g2_negate, op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
@@ -20,7 +21,7 @@ use clvmr::serde::node_from_bytes;
 
 type Opf = fn(&mut Allocator, NodePtr, Cost) -> Response;
 
-const FUNS: [Opf; 45] = [
+const FUNS: [Opf; 47] = [
     op_if as Opf,
     op_cons as Opf,
     op_first as Opf,
@@ -68,6 +69,9 @@ const FUNS: [Opf; 45] = [
     // Secp operators
     op_secp256k1_verify as Opf,
     op_secp256r1_verify as Opf,
+    // base64 operators
+    op_base64url_encode as Opf,
+    op_base64url_decode as Opf,
 ];
 
 fuzz_target!(|data: &[u8]| {

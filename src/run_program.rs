@@ -559,7 +559,10 @@ struct RunProgramTest<'a> {
 use crate::test_ops::parse_exp;
 
 #[cfg(test)]
-use crate::chia_dialect::{ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_FIXED_DIV, NO_UNKNOWN_OPS};
+use crate::chia_dialect::{
+    ENABLE_BASE64, ENABLE_BASE64_OPS_OUTSIDE_GUARD, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_FIXED_DIV,
+    NO_UNKNOWN_OPS,
+};
 
 #[cfg(test)]
 const TEST_CASES: &[RunProgramTest] = &[
@@ -1182,7 +1185,7 @@ const TEST_CASES: &[RunProgramTest] = &[
 
     // without the flag to enable the BLS extensions, it's an unknown extension
     RunProgramTest {
-        prg: "(softfork (q . 161) (q . 1) (q . (q . 42)) (q . ()))",
+        prg: "(softfork (q . 161) (q . 2) (q . (q . 42)) (q . ()))",
         args: "()",
         flags: NO_UNKNOWN_OPS,
         result: None,
@@ -1210,6 +1213,147 @@ const TEST_CASES: &[RunProgramTest] = &[
         flags: 0,
         result: Some("()"),
         cost: 1513,
+        err: "",
+    },
+
+    // coinid is also available under softfork extension 1
+    RunProgramTest {
+        prg: "(softfork (q . 1432) (q . 1) (q a (i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x)) (q . ())) (q . ()))",
+        args: "()",
+        flags: ENABLE_BASE64,
+        result: Some("()"),
+        cost: 1513,
+        err: "",
+    },
+
+    // without the flag to enable the Base64 extensions, it's an unknown extension
+    RunProgramTest {
+        prg: "(softfork (q . 160) (q . 1) (q . (q . 42)) (q . ()))",
+        args: "()",
+        flags: NO_UNKNOWN_OPS,
+        result: None,
+        cost: 241,
+        err: "unknown softfork extension",
+    },
+
+    // with the flag to enable the Base64 extensions
+    RunProgramTest {
+        prg: "(softfork (q . 160) (q . 1) (q . (q . 42)) (q . ()))",
+        args: "()",
+        flags: ENABLE_BASE64 | NO_UNKNOWN_OPS,
+        result: Some("()"),
+        cost: 241,
+        err: "",
+    },
+    // base64url_encode is available under softfork extension 1
+    RunProgramTest {
+        prg: "(softfork (q . 812) (q . 1) (q a (i (= (base64url_encode (q . \"foobar\")) (q . \"Zm9vYmFy\")) (q . 0) (q x)) (q . ())) (q . ()))",
+        args: "()",
+        flags: ENABLE_BASE64,
+        result: Some("()"),
+        cost: 893,
+        err: "",
+    },
+    // make sure base64url_encode is excuted by making the check fail
+    RunProgramTest {
+        prg: "(softfork (q . 812) (q . 1) (q a (i (= (base64url_encode (q . \"foobar\")) (q . \"Zm9vYmFy=\")) (q . 0) (q x)) (q . ())) (q . ()))",
+        args: "()",
+        flags: ENABLE_BASE64,
+        result: None,
+        cost: 893,
+        err: "clvm raise",
+    },
+    // make sure base64url_encode is NOT excuted by not setting the
+    // ENABLE_BASE64 flag
+    RunProgramTest {
+        prg: "(softfork (q . 812) (q . 1) (q a (i (= (base64url_encode (q . \"foobar\")) (q . \"Zm9vYmFy=\")) (q . 0) (q x)) (q . ())) (q . ()))",
+        args: "()",
+        flags: 0,
+        result: Some("()"),
+        cost: 893,
+        err: "",
+    },
+    // base64url_decode is available under softfork extension 1
+    RunProgramTest {
+        prg: "(softfork (q . 1024) (q . 1) (q a (i (= (base64url_decode (q . \"Zm9vYmFy\")) (q . \"foobar\")) (q . 0) (q x)) (q . ())) (q . ()))",
+        args: "()",
+        flags: ENABLE_BASE64,
+        result: Some("()"),
+        cost: 1105,
+        err: "",
+    },
+    // base64url_decode fails when passed invalid encodings
+    RunProgramTest {
+        prg: "(softfork (q . 1024) (q . 1) (q a (i (= (base64url_decode (q . \"Zm9vYmFy=\")) (q . \"foobar\")) (q . 0) (q x)) (q . ())) (q . ()))",
+        args: "()",
+        flags: ENABLE_BASE64,
+        result: None,
+        cost: 1105,
+        err: "base64url_decode (invalid input)",
+    },
+    // base64url_decode is not run when the soft fork is not activated
+    RunProgramTest {
+        prg: "(softfork (q . 1024) (q . 1) (q a (i (= (base64url_decode (q . \"Zm9vYmFy=\")) (q . \"foobar\")) (q . 0) (q x)) (q . ())) (q . ()))",
+        args: "()",
+        flags: 0,
+        result: Some("()"),
+        cost: 1105,
+        err: "",
+    },
+    // keccak256 is available when the softfork has activated
+    RunProgramTest {
+        prg: "(softfork (q . 1134) (q . 1) (q a (i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ())) (q . ()))",
+        args: "()",
+        flags: ENABLE_BASE64,
+        result: Some("()"),
+        cost: 1215,
+        err: "",
+    },
+    // make sure keccak is actually executed, by comparing with the wrong output
+    RunProgramTest {
+        prg: "(softfork (q . 1134) (q . 1) (q a (i (= (keccak256 (q . \"foobar\")) (q . 0x58d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ())) (q . ()))",
+        args: "()",
+        flags: ENABLE_BASE64,
+        result: None,
+        cost: 1215,
+        err: "clvm raise",
+    },
+    // keccak is ignored when the softfork has not activated
+    RunProgramTest {
+        prg: "(softfork (q . 1134) (q . 1) (q a (i (= (keccak256 (q . \"foobar\")) (q . 0x58d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ())) (q . ()))",
+        args: "()",
+        flags: 0,
+        result: Some("()"),
+        cost: 1215,
+        err: "",
+    },
+
+    // === HARD FORK ===
+    // new operators *outside* the softfork guard
+
+    // keccak256 is available outside the guard with the appropriate flag
+    RunProgramTest {
+        prg: "(a (i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ()))",
+        args: "()",
+        flags: ENABLE_BASE64 | ENABLE_BASE64_OPS_OUTSIDE_GUARD,
+        result: Some("()"),
+        cost: 994,
+        err: "",
+    },
+    RunProgramTest {
+        prg: "(a (i (= (base64url_encode (q . \"foobar\")) (q . \"Zm9vYmFy\")) (q . 0) (q x)) (q . ()))",
+        args: "()",
+        flags: ENABLE_BASE64 | ENABLE_BASE64_OPS_OUTSIDE_GUARD,
+        result: Some("()"),
+        cost: 672,
+        err: "",
+    },
+    RunProgramTest {
+        prg: "(a (i (= (base64url_decode (q . \"Zm9vYmFy\")) (q . \"foobar\")) (q . 0) (q x)) (q . ()))",
+        args: "()",
+        flags: ENABLE_BASE64 | ENABLE_BASE64_OPS_OUTSIDE_GUARD,
+        result: Some("()"),
+        cost: 884,
         err: "",
     },
 

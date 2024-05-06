@@ -1,4 +1,5 @@
 use crate::allocator::{Allocator, NodePtr};
+use crate::base64_ops::{op_base64url_decode, op_base64url_encode};
 use crate::bls_ops::{
     op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
     op_bls_g2_negate, op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
@@ -32,6 +33,14 @@ pub const ENABLE_BLS_OPS_OUTSIDE_GUARD: u32 = 0x0020;
 // enabling this is a hard fork. This will allow negative numbers in the
 // division operator
 pub const ENABLE_FIXED_DIV: u32 = 0x0080;
+
+// enables the Base64 and keccak256 ops extensions *outside* the softfork guard.
+// This is a hard-fork and should only be enabled when it activates
+pub const ENABLE_BASE64_OPS_OUTSIDE_GUARD: u32 = 0x0100;
+
+// enables the base64 (et.al.) softfork extension. This is a soft-fork and
+// should be set for blocks past the activation height.
+pub const ENABLE_BASE64: u32 = 0x0200;
 
 // The default mode when running grnerators in mempool-mode (i.e. the stricter
 // mode)
@@ -72,8 +81,11 @@ impl Dialect for ChiaDialect {
     ) -> Response {
         let flags = self.flags
             | match extension {
+                OperatorSet::Default => 0,
                 OperatorSet::BLS => ENABLE_BLS_OPS_OUTSIDE_GUARD,
-                _ => 0,
+                OperatorSet::Base64 => {
+                    ENABLE_BASE64_OPS_OUTSIDE_GUARD | ENABLE_BLS_OPS_OUTSIDE_GUARD
+                }
             };
         let op_len = allocator.atom_len(o);
         if op_len == 4 {
@@ -171,6 +183,14 @@ impl Dialect for ChiaDialect {
                     unreachable!();
                 }
             },
+            62..=64 if (flags & ENABLE_BASE64_OPS_OUTSIDE_GUARD) != 0 => match op {
+                62 => op_base64url_encode,
+                63 => op_base64url_decode,
+                // 64 => op_keccak256,
+                _ => {
+                    unreachable!();
+                }
+            },
             _ => {
                 return unknown_operator(allocator, o, argument_list, flags, max_cost);
             }
@@ -193,6 +213,7 @@ impl Dialect for ChiaDialect {
     fn softfork_extension(&self, ext: u32) -> OperatorSet {
         match ext {
             0 => OperatorSet::BLS,
+            1 if (self.flags & ENABLE_BASE64) != 0 => OperatorSet::Base64,
             // new extensions go here
             _ => OperatorSet::Default,
         }

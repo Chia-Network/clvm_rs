@@ -1,4 +1,5 @@
 pub mod allocator;
+pub mod base64_ops;
 pub mod bls_ops;
 pub mod chia_dialect;
 pub mod core_ops;

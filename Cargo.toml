@@ -38,6 +38,7 @@ chia-bls = "0.4.0"
 sha2 = "0.10.8"
 openssl = { version = "=0.10.55", features = ["vendored"], optional = true }
 hex-literal = "=0.4.1"
+base64ct = "1.6.0"
 # for secp sigs
 k256 = { version = "0.13.1", features = ["ecdsa"] }
 p256 = { version = "0.13.2", features = ["ecdsa"] }

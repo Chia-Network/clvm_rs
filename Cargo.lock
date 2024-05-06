@@ -278,6 +278,7 @@ dependencies = [
 name = "clvmr"
 version = "0.7.0"
 dependencies = [
+ "base64ct",
  "chia-bls 0.4.0",
  "criterion",
  "hex",
