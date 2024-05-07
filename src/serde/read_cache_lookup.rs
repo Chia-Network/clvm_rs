@@ -367,5 +367,5 @@ fn test_read_cache_lookup() {
     // the atom `1` is still not in the tree anywhere
     assert!(rcl.find_paths(&hash_of_1_atom, large_max).is_empty());
 
-    assert!(rcl.count.get(&hash_of_1_atom).is_none());
+    assert!(!rcl.count.contains_key(&hash_of_1_atom));
 }
