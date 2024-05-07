@@ -101,9 +101,6 @@ pub fn parse_path<'a>(f: &'a mut Cursor<&[u8]>) -> Result<&'a [u8]> {
 use std::io::ErrorKind;
 
 #[cfg(test)]
-use hex;
-
-#[cfg(test)]
 use super::write_atom::write_atom;
 
 #[test]

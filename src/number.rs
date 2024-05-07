@@ -97,9 +97,6 @@ fn test_node_from_number() {
 use num_bigint::{BigUint, Sign};
 
 #[cfg(test)]
-use std::convert::TryFrom;
-
-#[cfg(test)]
 fn roundtrip_bytes(b: &[u8]) {
     let negative = !b.is_empty() && (b[0] & 0x80) != 0;
     let zero = b.is_empty() || (b.len() == 1 && b[0] == 0);

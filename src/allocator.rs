@@ -1370,8 +1370,6 @@ fn test_g2_roundtrip(#[case] atom: &str) {
     );
 }
 
-#[cfg(test)]
-use core::convert::TryFrom;
 use std::borrow::Borrow;
 
 #[cfg(test)]
