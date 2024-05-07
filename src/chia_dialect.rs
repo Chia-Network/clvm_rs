@@ -70,6 +70,11 @@ impl Dialect for ChiaDialect {
         max_cost: Cost,
         extension: OperatorSet,
     ) -> Response {
+        let flags = self.flags
+            | match extension {
+                OperatorSet::BLS => ENABLE_BLS_OPS_OUTSIDE_GUARD,
+                _ => 0,
+            };
         let op_len = allocator.atom_len(o);
         if op_len == 4 {
             // these are unknown operators with assigned cost
@@ -93,16 +98,16 @@ impl Dialect for ChiaDialect {
                 0x13d61f00 => op_secp256k1_verify,
                 0x1c3a8f00 => op_secp256r1_verify,
                 _ => {
-                    return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
+                    return unknown_operator(allocator, o, argument_list, flags, max_cost);
                 }
             };
             return f(allocator, argument_list, max_cost);
         }
         if op_len != 1 {
-            return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
+            return unknown_operator(allocator, o, argument_list, flags, max_cost);
         }
         let Some(op) = allocator.small_number(o) else {
-            return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
+            return unknown_operator(allocator, o, argument_list, flags, max_cost);
         };
         let f = match op {
             // 1 = quote
@@ -124,7 +129,7 @@ impl Dialect for ChiaDialect {
             17 => op_subtract,
             18 => op_multiply,
             19 => {
-                if (self.flags & ENABLE_FIXED_DIV) != 0 {
+                if (flags & ENABLE_FIXED_DIV) != 0 {
                     op_div_fixed
                 } else {
                     op_div
@@ -147,37 +152,27 @@ impl Dialect for ChiaDialect {
             34 => op_all,
             // 35 ---
             // 36 = softfork
-            _ => {
-                if extension == OperatorSet::BLS || (self.flags & ENABLE_BLS_OPS_OUTSIDE_GUARD) != 0
-                {
-                    match op {
-                        48 => op_coinid,
-                        49 => op_bls_g1_subtract,
-                        50 => op_bls_g1_multiply,
-                        51 => op_bls_g1_negate,
-                        52 => op_bls_g2_add,
-                        53 => op_bls_g2_subtract,
-                        54 => op_bls_g2_multiply,
-                        55 => op_bls_g2_negate,
-                        56 => op_bls_map_to_g1,
-                        57 => op_bls_map_to_g2,
-                        58 => op_bls_pairing_identity,
-                        59 => op_bls_verify,
-                        60 => op_modpow,
-                        61 => op_mod,
-                        _ => {
-                            return unknown_operator(
-                                allocator,
-                                o,
-                                argument_list,
-                                self.flags,
-                                max_cost,
-                            );
-                        }
-                    }
-                } else {
-                    return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
+            48..=61 if (flags & ENABLE_BLS_OPS_OUTSIDE_GUARD) != 0 => match op {
+                48 => op_coinid,
+                49 => op_bls_g1_subtract,
+                50 => op_bls_g1_multiply,
+                51 => op_bls_g1_negate,
+                52 => op_bls_g2_add,
+                53 => op_bls_g2_subtract,
+                54 => op_bls_g2_multiply,
+                55 => op_bls_g2_negate,
+                56 => op_bls_map_to_g1,
+                57 => op_bls_map_to_g2,
+                58 => op_bls_pairing_identity,
+                59 => op_bls_verify,
+                60 => op_modpow,
+                61 => op_mod,
+                _ => {
+                    unreachable!();
                 }
+            },
+            _ => {
+                return unknown_operator(allocator, o, argument_list, flags, max_cost);
             }
         };
         f(allocator, argument_list, max_cost)
