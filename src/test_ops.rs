@@ -7,6 +7,7 @@ use crate::bls_ops::{
 };
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
+use crate::keccak256_ops::op_keccak256;
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
     op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not,
@@ -236,6 +237,8 @@ use rstest::rstest;
 #[case("test-secp256r1")]
 #[case("test-modpow")]
 #[case("test-sha256")]
+#[case("test-keccak256")]
+#[case("test-keccak256-generated")]
 fn test_ops(#[case] filename: &str) {
     use std::fs::read_to_string;
 
@@ -291,6 +294,7 @@ fn test_ops(#[case] filename: &str) {
         ("modpow", op_modpow as Opf),
         ("base64url_encode", op_base64url_encode as Opf),
         ("base64url_decode", op_base64url_decode as Opf),
+        ("keccak256", op_keccak256 as Opf),
     ]);
 
     println!("Test cases from: {filename}");

@@ -383,7 +383,7 @@ pub fn main() {
         .unwrap();
     let number = quote(&mut a, number);
 
-    let ops: [Operator; 19] = [
+    let ops: [Operator; 21] = [
         Operator {
             opcode: 60,
             name: "modpow (modulus cost)",
@@ -516,6 +516,20 @@ pub fn main() {
             arg: Placeholder::SingleArg(Some(base64)),
             extra: None,
             flags: PER_BYTE_COST | LARGE_BUFFERS,
+        },
+        Operator {
+            opcode: 11,
+            name: "sha256",
+            arg: Placeholder::SingleArg(Some(g1)),
+            extra: None,
+            flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | LARGE_BUFFERS,
+        },
+        Operator {
+            opcode: 64,
+            name: "keccak256",
+            arg: Placeholder::SingleArg(Some(g1)),
+            extra: None,
+            flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | LARGE_BUFFERS,
         },
     ];
 

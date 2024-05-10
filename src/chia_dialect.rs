@@ -9,6 +9,7 @@ use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_re
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;
+use crate::keccak256_ops::op_keccak256;
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_div_fixed, op_divmod, op_gr,
     op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow,
@@ -186,7 +187,7 @@ impl Dialect for ChiaDialect {
             62..=64 if (flags & ENABLE_BASE64_OPS_OUTSIDE_GUARD) != 0 => match op {
                 62 => op_base64url_encode,
                 63 => op_base64url_decode,
-                // 64 => op_keccak256,
+                64 => op_keccak256,
                 _ => {
                     unreachable!();
                 }
