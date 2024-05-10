@@ -25,14 +25,19 @@ Follow this checklist when adding operators:
   Make sure to run this and fuzz for some time before landing the PR.
 * extend the benchmark-clvm-cost.rs to include benchmarks for the new operator,
   to establish its cost.
-* The opcode decoding and dispatching happens in `src/ChiaDialect.rs`
+* The opcode decoding and dispatching happens in `src/chia_dialect.rs`
+* Add support for the new operators in `src/test_ops.rs` `parse_atom()`, to
+  compile the name of the operator to its corresponding opcode.
+* if the operator(s) are part of an extension to `softfork`, add another value
+  to the `OperatorSet` enum.
 * Add a new flag (in `src/chia_dialect.rs`) that controls whether the
   operators are activated or not. This is required in order for the chain to exist
   in a state *before* your soft-fork has activated, and behave consistently with
   versions of the node that doesn't know about your new operators.
   Make sure the value of the flag does not collide with any of the flags in
-  [chia_rs](https://github.com/Chia-Network/chia_rs/blob/main/src/gen/flags.rs).
+  [chia_rs](https://github.com/Chia-Network/chia_rs/blob/main/crates/chia-consensus/src/gen/flags.rs).
   This is a quirk where both of these repos share the same flags space.
+* expose the new flag(s) to python in chia_rs
 * Once a soft-fork has activated, if everything on chain before the softfork is
   compatible with the new rules (which is likely and ought to be the ambition
   with all soft-forks), all logic surrounding activating or deactivating the
