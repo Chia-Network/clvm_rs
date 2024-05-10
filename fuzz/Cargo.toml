@@ -74,3 +74,9 @@ name = "allocator"
 path = "fuzz_targets/allocator.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "base64"
+path = "fuzz_targets/base64.rs"
+test = false
+doc = false
