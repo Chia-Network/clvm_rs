@@ -80,3 +80,9 @@ name = "base64"
 path = "fuzz_targets/base64.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "keccak"
+path = "fuzz_targets/keccak.rs"
+test = false
+doc = false
