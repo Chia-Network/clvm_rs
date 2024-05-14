@@ -1538,11 +1538,47 @@ use rstest::rstest;
 #[case::g2_add("(i (= (g2_add (q . 0x93e12b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))",
     (3981700, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
     "atom is not a G2 point")]
+// base64url_encode
+#[case::base64url_encode(
+    "(i (= (base64url_encode (q . \"foobar\")) (q . \"Zm9vYmFy\")) (q . 0) (q x))",
+    (812, 1, ENABLE_BASE64_OPS_OUTSIDE_GUARD),
+    ""
+)]
+#[case::base64url_encode(
+    "(i (= (base64url_encode (q . \"foobar\")) (q . \"Zm9vYmFy=\")) (q . 0) (q x))",
+    (812, 1, ENABLE_BASE64_OPS_OUTSIDE_GUARD),
+    "clvm raise"
+)]
+#[case::base64url_decode(
+    "(i (= (base64url_decode (q . \"Zm9vYmFy\")) (q . \"foobar\")) (q . 0) (q x))",
+    (1024, 1, ENABLE_BASE64_OPS_OUTSIDE_GUARD),
+    ""
+)]
+#[case::base64url_decode(
+    "(i (= (base64url_decode (q . \"Zm9vYmFy\")) (q . \"barfoo\")) (q . 0) (q x))",
+    (1024, 1, ENABLE_BASE64_OPS_OUTSIDE_GUARD),
+    "clvm raise"
+)]
+#[case::base64url_decode(
+    "(i (= (base64url_decode (q . \"Zm9vYmFy=\")) (q . \"foobar\")) (q . 0) (q x))",
+    (1024, 1, ENABLE_BASE64_OPS_OUTSIDE_GUARD),
+    "base64url_decode (invalid input)"
+)]
+#[case::keccak(
+    "(i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x))",
+    (1134, 1, ENABLE_BASE64_OPS_OUTSIDE_GUARD),
+    ""
+)]
+#[case::keccak(
+    "(i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873f)) (q . 0) (q x))",
+    (1134, 1, ENABLE_BASE64_OPS_OUTSIDE_GUARD),
+    "clvm raise"
+)]
 fn test_softfork(
     #[case] prg: &'static str,
     #[case] fields: (u64, u8, u32), // cost, enabled, hard_fork_flag
     #[case] err: &'static str,
-    #[values(0)] flags: u32,
+    #[values(0, ENABLE_BASE64)] flags: u32,
     #[values(false, true)] mempool: bool,
     #[values(0, 1, 2)] test_ext: u8,
 ) {
@@ -1553,9 +1589,9 @@ fn test_softfork(
     let flags = flags | if mempool { NO_UNKNOWN_OPS } else { 0 };
 
     // softfork extensions that are enabled
-    #[allow(clippy::match_like_matches_macro)]
     let ext_enabled = match test_ext {
         0 => true,
+        1 => (flags & ENABLE_BASE64) != 0,
         _ => false,
     };
 
