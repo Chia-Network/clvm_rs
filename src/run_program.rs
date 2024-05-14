@@ -546,13 +546,13 @@ pub fn run_program_with_counters<'a, D: Dialect>(
 }
 
 #[cfg(test)]
-struct RunProgramTest {
-    prg: &'static str,
-    args: &'static str,
+struct RunProgramTest<'a> {
+    prg: &'a str,
+    args: &'a str,
     flags: u32,
-    result: Option<&'static str>,
+    result: Option<&'a str>,
     cost: Cost,
-    err: &'static str,
+    err: &'a str,
 }
 
 #[cfg(test)]
@@ -1289,38 +1289,153 @@ fn check(res: (NodePtr, &str)) -> NodePtr {
     res.0
 }
 
-#[test]
-fn test_run_program() {
+#[cfg(test)]
+fn run_test_case(t: &RunProgramTest) {
     use crate::chia_dialect::ChiaDialect;
     use crate::test_ops::node_eq;
+    let mut allocator = Allocator::new();
 
-    for t in TEST_CASES {
-        let mut allocator = Allocator::new();
+    let program = check(parse_exp(&mut allocator, t.prg));
+    let args = check(parse_exp(&mut allocator, t.args));
+    let expected_result = &t.result.map(|v| check(parse_exp(&mut allocator, v)));
 
-        let program = check(parse_exp(&mut allocator, t.prg));
-        let args = check(parse_exp(&mut allocator, t.args));
-        let expected_result = &t.result.map(|v| check(parse_exp(&mut allocator, v)));
+    let dialect = ChiaDialect::new(t.flags);
+    println!("prg: {}", t.prg);
+    match run_program(&mut allocator, &dialect, program, args, t.cost) {
+        Ok(Reduction(cost, prg_result)) => {
+            assert!(node_eq(&allocator, prg_result, expected_result.unwrap()));
+            assert_eq!(cost, t.cost);
 
-        let dialect = ChiaDialect::new(t.flags);
-        println!("prg: {}", t.prg);
-        match run_program(&mut allocator, &dialect, program, args, t.cost) {
-            Ok(Reduction(cost, prg_result)) => {
-                assert!(node_eq(&allocator, prg_result, expected_result.unwrap()));
-                assert_eq!(cost, t.cost);
-
-                // now, run the same program again but with the cost limit 1 too low, to
-                // ensure it fails with the correct error
-                let expected_cost_exceeded =
-                    run_program(&mut allocator, &dialect, program, args, t.cost - 1).unwrap_err();
-                assert_eq!(expected_cost_exceeded.1, "cost exceeded");
-            }
-            Err(err) => {
-                println!("FAILED: {}", err.1);
-                assert_eq!(err.1, t.err);
-                assert!(expected_result.is_none());
-            }
+            // now, run the same program again but with the cost limit 1 too low, to
+            // ensure it fails with the correct error
+            let expected_cost_exceeded =
+                run_program(&mut allocator, &dialect, program, args, t.cost - 1).unwrap_err();
+            assert_eq!(expected_cost_exceeded.1, "cost exceeded");
+        }
+        Err(err) => {
+            println!("FAILED: {}", err.1);
+            assert_eq!(err.1, t.err);
+            assert!(expected_result.is_none());
         }
     }
+}
+
+#[test]
+fn test_run_program() {
+    for t in TEST_CASES {
+        run_test_case(t);
+    }
+}
+
+#[cfg(test)]
+use rstest::rstest;
+
+#[cfg(test)]
+#[rstest]
+// make sure we can execute the coinid operator under softfork 0
+// this program raises an exception if the computed coin ID matches the
+// expected
+#[case::coinid("(i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q x) (q . 0))", 1432, 0, "clvm raise")]
+// also test the opposite. This program is the same as above but it raises
+// if the coin ID is a mismatch
+#[case::coinid("(i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x))", 1432, 0, "")]
+// modpow
+#[case::modpow(
+    "(i (= (modpow (q . 12345) (q . 6789) (q . 44444444444)) (q . 13456191581)) (q . 0) (q x))",
+    18241,
+    0,
+    ""
+)]
+#[case::modpow(
+    "(i (= (modpow (q . 12345) (q . 6789) (q . 44444444444)) (q . 13456191581)) (q x) (q . 0))",
+    18241,
+    0,
+    "clvm raise"
+)]
+// mod
+#[case::modulus("(i (= (% (q . 80001) (q . 73)) (q . 66)) (q . 0) (q x))", 1564, 0, "")]
+#[case::modulus(
+    "(i (= (% (q . 80001) (q . 73)) (q . 67)) (q . 0) (q x))",
+    1564,
+    0,
+    "clvm raise"
+)]
+// g1_multiply
+#[case::g1_mul("(i (= (g1_multiply  (q . 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb) (q . 2)) (q . 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e)) (q . 0) (q x))", 706634, 0, "")]
+#[case::g1_mul("(i (= (g1_multiply  (q . 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb) (q . 2)) (q . 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4f)) (q . 0) (q x))", 706634, 0, "clvm raise")]
+#[case::g1_neg("(i (= (g1_negate (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))", 706634, 0, "clvm raise")]
+#[case::g1_neg("(i (= (g1_negate (q . 0xb2f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))", 706634, 0, "atom is not a valid G1 point")]
+#[case::g2_add("(i (= (g2_add (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))", 3981700, 0, "")]
+#[case::g2_add("(i (= (g2_add (q . 0x93e12b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))", 3981700, 0, "atom is not a G2 point")]
+fn test_softfork(
+    #[case] prg: &'static str,
+    #[case] cost: u64,
+    #[case] enabled: u8,
+    #[case] err: &'static str,
+    #[values(0)] flags: u32,
+    #[values(false, true)] mempool: bool,
+    #[values(0, 1, 2)] test_ext: u8,
+) {
+    let prg = format!("(softfork (q . {cost}) (q . {test_ext}) (q . (a {prg} (q . 0))) (q . 0))");
+
+    // softfork extensions that are enabled
+    #[allow(clippy::match_like_matches_macro)]
+    let ext_enabled = match test_ext {
+        0 => true,
+        _ => false,
+    };
+
+    println!("mempool: {mempool} ext: {test_ext} flags: {flags}");
+    let err = match (ext_enabled as u8, (test_ext >= enabled) as u8) {
+        // the extension we're running has not been activated, and we're not
+        // running an extension that supports the operator
+        (0, 0) => {
+            if mempool {
+                "unimplemented operator"
+            } else {
+                ""
+            }
+        }
+        // the softfork extension hasn't been activated yet. It's a failure in
+        // mempool mode but ignored in consensus mode
+        (0, 1) => {
+            if mempool {
+                "unknown softfork extension"
+            } else {
+                ""
+            }
+        }
+        // the extension we're invoking has been enabled, but the operator is
+        // not part of this extension. In mempool mode it's an error, in
+        // consensus mode the operator is considered unknown, returning
+        // NIL/false. This in turn will make the return value test fail, and
+        // raise an exception.
+        (1, 0) => {
+            if mempool {
+                "unimplemented operator"
+            } else {
+                "clvm raise"
+            }
+        }
+        // the extension we're running has been activated, and we're running an
+        // extension the operator is available in. The program is executed and
+        // we get the expected result.
+        (1, 1) => err,
+        _ => unreachable!(),
+    };
+
+    println!("expect: {err} cost: {cost}");
+    // without the flag to enable the BLS extensions, it's an unknown extension
+    let t = RunProgramTest {
+        prg: prg.as_str(),
+        args: "()",
+        flags: flags | if mempool { NO_UNKNOWN_OPS } else { 0 },
+        result: if err.is_empty() { Some("()") } else { None },
+        cost: cost + 81,
+        err,
+    };
+
+    run_test_case(&t);
 }
 
 #[cfg(feature = "counters")]
