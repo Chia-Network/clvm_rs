@@ -1406,6 +1406,8 @@ fn test_softfork(
     let softfork_prg =
         format!("(softfork (q . {cost}) (q . {test_ext}) (q . (a {prg} (q . 0))) (q . 0))");
 
+    let flags = flags | if mempool { NO_UNKNOWN_OPS } else { 0 };
+
     // softfork extensions that are enabled
     #[allow(clippy::match_like_matches_macro)]
     let ext_enabled = match test_ext {
@@ -1456,7 +1458,7 @@ fn test_softfork(
     let t = RunProgramTest {
         prg: softfork_prg.as_str(),
         args: "()",
-        flags: flags | if mempool { NO_UNKNOWN_OPS } else { 0 },
+        flags,
         result: if expect_err.is_empty() {
             Some("()")
         } else {
@@ -1477,7 +1479,7 @@ fn test_softfork(
     let t = RunProgramTest {
         prg: outside_guard_prg.as_str(),
         args: "()",
-        flags: flags | if mempool { NO_UNKNOWN_OPS } else { 0 },
+        flags,
         result: None,
         cost: cost - 140,
         err: if mempool {
@@ -1493,7 +1495,7 @@ fn test_softfork(
     let t = RunProgramTest {
         prg: outside_guard_prg.as_str(),
         args: "()",
-        flags: flags | hard_fork_flag | if mempool { NO_UNKNOWN_OPS } else { 0 },
+        flags: flags | hard_fork_flag,
         result: if err.is_empty() { Some("()") } else { None },
         cost: cost - 140,
         err,
