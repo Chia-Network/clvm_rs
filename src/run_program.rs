@@ -1330,53 +1330,83 @@ fn test_run_program() {
 #[cfg(test)]
 use rstest::rstest;
 
+// the test cases for this test consists of:
+// prg: the program to run inside the softfork guard
+// cost: the expected cost of the program (the test adds the apply-operator)
+// enabled: the softfork extension number that enables operator in prg
+// hard_fork_flag: the flag that enables the program to be run outside the guard
+// err: the expected error message, empty string means OK
+// The test programs are carefully crafted such that they fail with "clvm raise"
+// when run in consensus mode and the operators are unknown. e.g. (coinid ...)
+// returns NIL in that case, which compares not equal to the coin ID, which
+// raises the exception.
+// This property is relied on for the non-mempool and fork-not-activated cases.
 #[cfg(test)]
 #[rstest]
 // make sure we can execute the coinid operator under softfork 0
 // this program raises an exception if the computed coin ID matches the
 // expected
-#[case::coinid("(i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q x) (q . 0))", 1432, 0, "clvm raise")]
+#[case::coinid("(i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bd)) (q . 0) (q x))",
+    (1432, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
+    "clvm raise")]
 // also test the opposite. This program is the same as above but it raises
 // if the coin ID is a mismatch
-#[case::coinid("(i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x))", 1432, 0, "")]
+#[case::coinid("(i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x))",
+    (1432, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
+    "")]
 // modpow
 #[case::modpow(
     "(i (= (modpow (q . 12345) (q . 6789) (q . 44444444444)) (q . 13456191581)) (q . 0) (q x))",
-    18241,
-    0,
+    (18241, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
     ""
 )]
 #[case::modpow(
-    "(i (= (modpow (q . 12345) (q . 6789) (q . 44444444444)) (q . 13456191581)) (q x) (q . 0))",
-    18241,
-    0,
+    "(i (= (modpow (q . 12345) (q . 6789) (q . 44444444444)) (q . 13456191582)) (q . 0) (q x))",
+    (18241, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
     "clvm raise"
 )]
 // mod
-#[case::modulus("(i (= (% (q . 80001) (q . 73)) (q . 66)) (q . 0) (q x))", 1564, 0, "")]
+#[case::modulus(
+    "(i (= (% (q . 80001) (q . 73)) (q . 66)) (q . 0) (q x))",
+    (1564, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
+    ""
+)]
 #[case::modulus(
     "(i (= (% (q . 80001) (q . 73)) (q . 67)) (q . 0) (q x))",
-    1564,
-    0,
+    (1564, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
     "clvm raise"
 )]
 // g1_multiply
-#[case::g1_mul("(i (= (g1_multiply  (q . 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb) (q . 2)) (q . 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e)) (q . 0) (q x))", 706634, 0, "")]
-#[case::g1_mul("(i (= (g1_multiply  (q . 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb) (q . 2)) (q . 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4f)) (q . 0) (q x))", 706634, 0, "clvm raise")]
-#[case::g1_neg("(i (= (g1_negate (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))", 706634, 0, "clvm raise")]
-#[case::g1_neg("(i (= (g1_negate (q . 0xb2f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))", 706634, 0, "atom is not a valid G1 point")]
-#[case::g2_add("(i (= (g2_add (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))", 3981700, 0, "")]
-#[case::g2_add("(i (= (g2_add (q . 0x93e12b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))", 3981700, 0, "atom is not a G2 point")]
+#[case::g1_mul("(i (= (g1_multiply  (q . 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb) (q . 2)) (q . 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e)) (q . 0) (q x))",
+    (706634, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
+    "")]
+#[case::g1_mul(
+    "(i (= (g1_multiply  (q . 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb) (q . 2)) (q . 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4f)) (q . 0) (q x))",
+    (706634, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
+    "clvm raise")]
+#[case::g1_neg("(i (= (g1_negate (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))", (706634, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD), "clvm raise")]
+#[case::g1_neg("(i (= (g1_negate (q . 0xb2f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))",
+    (706634, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
+    "atom is not a valid G1 point")]
+#[case::g2_add("(i (= (g2_add (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))",
+    (3981700, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
+    "")]
+#[case::g2_add("(i (= (g2_add (q . 0x93e12b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))",
+    (3981700, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
+    "atom is not a G2 point")]
 fn test_softfork(
     #[case] prg: &'static str,
-    #[case] cost: u64,
-    #[case] enabled: u8,
+    #[case] fields: (u64, u8, u32), // cost, enabled, hard_fork_flag
     #[case] err: &'static str,
     #[values(0)] flags: u32,
     #[values(false, true)] mempool: bool,
     #[values(0, 1, 2)] test_ext: u8,
 ) {
-    let prg = format!("(softfork (q . {cost}) (q . {test_ext}) (q . (a {prg} (q . 0))) (q . 0))");
+    let (cost, enabled, hard_fork_flag) = fields;
+    let softfork_prg =
+        format!("(softfork (q . {cost}) (q . {test_ext}) (q . (a {prg} (q . 0))) (q . 0))");
+
+    let flags = flags | if mempool { NO_UNKNOWN_OPS } else { 0 };
 
     // softfork extensions that are enabled
     #[allow(clippy::match_like_matches_macro)]
@@ -1386,7 +1416,7 @@ fn test_softfork(
     };
 
     println!("mempool: {mempool} ext: {test_ext} flags: {flags}");
-    let err = match (ext_enabled as u8, (test_ext >= enabled) as u8) {
+    let expect_err = match (ext_enabled as u8, (test_ext >= enabled) as u8) {
         // the extension we're running has not been activated, and we're not
         // running an extension that supports the operator
         (0, 0) => {
@@ -1424,17 +1454,52 @@ fn test_softfork(
         _ => unreachable!(),
     };
 
-    println!("expect: {err} cost: {cost}");
-    // without the flag to enable the BLS extensions, it's an unknown extension
+    println!("expect: {expect_err} cost: {cost}");
     let t = RunProgramTest {
-        prg: prg.as_str(),
+        prg: softfork_prg.as_str(),
         args: "()",
-        flags: flags | if mempool { NO_UNKNOWN_OPS } else { 0 },
-        result: if err.is_empty() { Some("()") } else { None },
+        flags,
+        result: if expect_err.is_empty() {
+            Some("()")
+        } else {
+            None
+        },
         cost: cost + 81,
-        err,
+        err: expect_err,
     };
 
+    run_test_case(&t);
+
+    // now test outside the guard (should fail unless hard_fork_flag is set).
+
+    let outside_guard_prg = format!("(a {prg} (q . 0))");
+
+    // without the hard fork flag
+    println!("outside guard, no hard fork");
+    let t = RunProgramTest {
+        prg: outside_guard_prg.as_str(),
+        args: "()",
+        flags,
+        result: None,
+        cost: cost - 140,
+        err: if mempool {
+            "unimplemented operator"
+        } else {
+            "clvm raise"
+        },
+    };
+    run_test_case(&t);
+
+    // with the hard fork flag
+    println!("outside guard, hard fork activated");
+    let t = RunProgramTest {
+        prg: outside_guard_prg.as_str(),
+        args: "()",
+        flags: flags | hard_fork_flag,
+        result: if err.is_empty() { Some("()") } else { None },
+        cost: cost - 140,
+        err,
+    };
     run_test_case(&t);
 }
 
