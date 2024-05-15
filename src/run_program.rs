@@ -1346,57 +1346,63 @@ use rstest::rstest;
 // make sure we can execute the coinid operator under softfork 0
 // this program raises an exception if the computed coin ID matches the
 // expected
-#[case::coinid("(i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bd)) (q . 0) (q x))", 1432, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD, "clvm raise")]
+#[case::coinid("(i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bd)) (q . 0) (q x))",
+    (1432, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
+    "clvm raise")]
 // also test the opposite. This program is the same as above but it raises
 // if the coin ID is a mismatch
-#[case::coinid("(i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x))", 1432, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD, "")]
+#[case::coinid("(i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x))",
+    (1432, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
+    "")]
 // modpow
 #[case::modpow(
     "(i (= (modpow (q . 12345) (q . 6789) (q . 44444444444)) (q . 13456191581)) (q . 0) (q x))",
-    18241,
-    0,
-    ENABLE_BLS_OPS_OUTSIDE_GUARD,
+    (18241, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
     ""
 )]
 #[case::modpow(
     "(i (= (modpow (q . 12345) (q . 6789) (q . 44444444444)) (q . 13456191582)) (q . 0) (q x))",
-    18241,
-    0,
-    ENABLE_BLS_OPS_OUTSIDE_GUARD,
+    (18241, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
     "clvm raise"
 )]
 // mod
 #[case::modulus(
     "(i (= (% (q . 80001) (q . 73)) (q . 66)) (q . 0) (q x))",
-    1564,
-    0,
-    ENABLE_BLS_OPS_OUTSIDE_GUARD,
+    (1564, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
     ""
 )]
 #[case::modulus(
     "(i (= (% (q . 80001) (q . 73)) (q . 67)) (q . 0) (q x))",
-    1564,
-    0,
-    ENABLE_BLS_OPS_OUTSIDE_GUARD,
+    (1564, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
     "clvm raise"
 )]
 // g1_multiply
-#[case::g1_mul("(i (= (g1_multiply  (q . 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb) (q . 2)) (q . 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e)) (q . 0) (q x))", 706634, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD, "")]
-#[case::g1_mul("(i (= (g1_multiply  (q . 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb) (q . 2)) (q . 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4f)) (q . 0) (q x))", 706634, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD, "clvm raise")]
-#[case::g1_neg("(i (= (g1_negate (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))", 706634, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD, "clvm raise")]
-#[case::g1_neg("(i (= (g1_negate (q . 0xb2f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))", 706634, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD, "atom is not a valid G1 point")]
-#[case::g2_add("(i (= (g2_add (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))", 3981700, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD, "")]
-#[case::g2_add("(i (= (g2_add (q . 0x93e12b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))", 3981700, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD, "atom is not a G2 point")]
+#[case::g1_mul("(i (= (g1_multiply  (q . 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb) (q . 2)) (q . 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e)) (q . 0) (q x))",
+    (706634, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
+    "")]
+#[case::g1_mul(
+    "(i (= (g1_multiply  (q . 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb) (q . 2)) (q . 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4f)) (q . 0) (q x))",
+    (706634, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
+    "clvm raise")]
+#[case::g1_neg("(i (= (g1_negate (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))", (706634, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD), "clvm raise")]
+#[case::g1_neg("(i (= (g1_negate (q . 0xb2f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))",
+    (706634, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
+    "atom is not a valid G1 point")]
+#[case::g2_add("(i (= (g2_add (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))",
+    (3981700, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
+    "")]
+#[case::g2_add("(i (= (g2_add (q . 0x93e12b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))",
+    (3981700, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
+    "atom is not a G2 point")]
 fn test_softfork(
     #[case] prg: &'static str,
-    #[case] cost: u64,
-    #[case] enabled: u8,
-    #[case] hard_fork_flag: u32,
+    #[case] fields: (u64, u8, u32), // cost, enabled, hard_fork_flag
     #[case] err: &'static str,
     #[values(0)] flags: u32,
     #[values(false, true)] mempool: bool,
     #[values(0, 1, 2)] test_ext: u8,
 ) {
+    let (cost, enabled, hard_fork_flag) = fields;
     let softfork_prg =
         format!("(softfork (q . {cost}) (q . {test_ext}) (q . (a {prg} (q . 0))) (q . 0))");
 
