@@ -69,7 +69,7 @@ jobs:
         # ignoring `clvm_rs.so`, which is pretty important)
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: wheels
         path: ./target/wheels/
@@ -90,7 +90,7 @@ jobs:
         python-version: "3.10"
 
     - name: Download artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: wheels
         path: ./target/wheels/
