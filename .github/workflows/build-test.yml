@@ -128,7 +128,7 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: wheels
+        name: wheels-${{ matrix.os }}-py-${{ matrix.python }}
         path: ./target/wheels/
 
   upload:
@@ -147,9 +147,10 @@ jobs:
         python-version: "3.10"
 
     - name: Download artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
-        name: wheels
+        merge-multiple: true
+        pattern: wheels-*
         path: ./target/wheels/
 
     - name: publish (PyPi)
