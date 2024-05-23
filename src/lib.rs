@@ -6,6 +6,7 @@ pub mod cost;
 pub mod dialect;
 pub mod err_utils;
 pub mod f_table;
+pub mod keccak256_ops;
 pub mod more_ops;
 pub mod number;
 pub mod op_utils;
