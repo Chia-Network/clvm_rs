@@ -8,6 +8,7 @@ use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_re
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;
+use crate::keccak256_ops::op_keccak256;
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
     op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not,
@@ -23,6 +24,14 @@ pub const NO_UNKNOWN_OPS: u32 = 0x0002;
 // When set, limits the number of atom-bytes allowed to be allocated, as well as
 // the number of pairs
 pub const LIMIT_HEAP: u32 = 0x0004;
+
+// enables the keccak256 op *outside* the softfork guard.
+// This is a hard-fork and should only be enabled when it activates
+pub const ENABLE_KECCAK_OPS_OUTSIDE_GUARD: u32 = 0x0100;
+
+// enables the keccak softfork extension. This is a soft-fork and
+// should be set for blocks past the activation height.
+pub const ENABLE_KECCAK: u32 = 0x0200;
 
 // The default mode when running grnerators in mempool-mode (i.e. the stricter
 // mode)
@@ -61,8 +70,15 @@ impl Dialect for ChiaDialect {
         max_cost: Cost,
         _extension: OperatorSet,
     ) -> Response {
-        // new softfork extensions go here, to enable new feature flags
-        let flags = self.flags;
+        let flags = self.flags
+            | match extension {
+                OperatorSet::Default => 0,
+                OperatorSet::BLS => ENABLE_BLS_OPS_OUTSIDE_GUARD,
+                OperatorSet::Keccak => {
+                    ENABLE_KECCAK_OPS_OUTSIDE_GUARD | ENABLE_BLS_OPS_OUTSIDE_GUARD
+                }
+            };
+
         let op_len = allocator.atom_len(o);
         if op_len == 4 {
             // these are unknown operators with assigned cost
@@ -148,6 +164,7 @@ impl Dialect for ChiaDialect {
             59 => op_bls_verify,
             60 => op_modpow,
             61 => op_mod,
+            62 if (flags & ENABLE_KECCAK_OPS_OUTSIDE_GUARD) != 0 => op_keccak256,
             _ => {
                 return unknown_operator(allocator, o, argument_list, flags, max_cost);
             }
@@ -172,6 +189,7 @@ impl Dialect for ChiaDialect {
             // The BLS extensions (and coinid) operators were brought into the
             // main operator set as part of the hard fork
             0 => OperatorSet::BLS,
+            1 if (self.flags & ENABLE_KECCAK) != 0 => OperatorSet::Keccak,
             // new extensions go here
             _ => OperatorSet::Default,
         }

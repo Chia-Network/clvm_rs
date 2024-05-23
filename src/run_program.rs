@@ -554,6 +554,9 @@ mod tests {
 
     use rstest::rstest;
 
+    #[cfg(test)]
+    use crate::chia_dialect::{ENABLE_KECCAK, ENABLE_KECCAK_OPS_OUTSIDE_GUARD, NO_UNKNOWN_OPS};
+
     struct RunProgramTest<'a> {
         prg: &'a str,
         args: &'a str,
@@ -1299,77 +1302,147 @@ mod tests {
             run_test_case(t);
         }
     }
+}
 
-    // the test cases for this test consists of:
-    // prg: the program to run inside the softfork guard
-    // cost: the expected cost of the program (the test adds the apply-operator)
-    // enabled: the softfork extension number that enables operator in prg
-    // hard_fork_flag: the flag that enables the program to be run outside the guard
-    // err: the expected error message, empty string means OK
-    // The test programs are carefully crafted such that they fail with "clvm raise"
-    // when run in consensus mode and the operators are unknown. e.g. (coinid ...)
-    // returns NIL in that case, which compares not equal to the coin ID, which
-    // raises the exception.
-    // This property is relied on for the non-mempool and fork-not-activated cases.
-    #[rstest]
-    // make sure we can execute the coinid operator under softfork 0
-    // this program raises an exception if the computed coin ID matches the
-    // expected
-    #[case::coinid("(i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bd)) (q . 0) (q x))",
-    (1432, 0, 0),
+#[cfg(test)]
+fn check(res: (NodePtr, &str)) -> NodePtr {
+    assert_eq!(res.1, "");
+    res.0
+}
+
+#[cfg(test)]
+fn run_test_case(t: &RunProgramTest) {
+    use crate::chia_dialect::ChiaDialect;
+    use crate::test_ops::node_eq;
+    let mut allocator = Allocator::new();
+
+    let program = check(parse_exp(&mut allocator, t.prg));
+    let args = check(parse_exp(&mut allocator, t.args));
+    let expected_result = &t.result.map(|v| check(parse_exp(&mut allocator, v)));
+
+    let dialect = ChiaDialect::new(t.flags);
+    println!("prg: {}", t.prg);
+    match run_program(&mut allocator, &dialect, program, args, t.cost) {
+        Ok(Reduction(cost, prg_result)) => {
+            assert!(node_eq(&allocator, prg_result, expected_result.unwrap()));
+            assert_eq!(cost, t.cost);
+
+            // now, run the same program again but with the cost limit 1 too low, to
+            // ensure it fails with the correct error
+            let expected_cost_exceeded =
+                run_program(&mut allocator, &dialect, program, args, t.cost - 1).unwrap_err();
+            assert_eq!(expected_cost_exceeded.1, "cost exceeded");
+        }
+        Err(err) => {
+            println!("FAILED: {}", err.1);
+            assert_eq!(err.1, t.err);
+            assert!(expected_result.is_none());
+        }
+    }
+}
+
+#[test]
+fn test_run_program() {
+    for t in TEST_CASES {
+        run_test_case(t);
+    }
+}
+
+#[cfg(test)]
+use rstest::rstest;
+
+// the test cases for this test consists of:
+// prg: the program to run inside the softfork guard
+// cost: the expected cost of the program (the test adds the apply-operator)
+// enabled: the softfork extension number that enables operator in prg
+// hard_fork_flag: the flag that enables the program to be run outside the guard
+// err: the expected error message, empty string means OK
+// The test programs are carefully crafted such that they fail with "clvm raise"
+// when run in consensus mode and the operators are unknown. e.g. (coinid ...)
+// returns NIL in that case, which compares not equal to the coin ID, which
+// raises the exception.
+// This property is relied on for the non-mempool and fork-not-activated cases.
+#[cfg(test)]
+#[rstest]
+// make sure we can execute the coinid operator under softfork 0
+// this program raises an exception if the computed coin ID matches the
+// expected
+#[case::coinid("(i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bd)) (q . 0) (q x))",
+    (1432, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
     "clvm raise")]
-    // also test the opposite. This program is the same as above but it raises
-    // if the coin ID is a mismatch
-    #[case::coinid("(i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x))",
-    (1432, 0, 0),
+// also test the opposite. This program is the same as above but it raises
+// if the coin ID is a mismatch
+#[case::coinid("(i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x))",
+    (1432, 0, ENABLE_BLS_OPS_OUTSIDE_GUARD),
     "")]
-    // modpow
-    #[case::modpow(
+// modpow
+#[case::modpow(
     "(i (= (modpow (q . 12345) (q . 6789) (q . 44444444444)) (q . 13456191581)) (q . 0) (q x))",
     (18241, 0, 0),
     ""
 )]
-    #[case::modpow(
+#[case::modpow(
     "(i (= (modpow (q . 12345) (q . 6789) (q . 44444444444)) (q . 13456191582)) (q . 0) (q x))",
     (18241, 0, 0),
     "clvm raise"
 )]
-    // mod
-    #[case::modulus(
+// mod
+#[case::modulus(
     "(i (= (% (q . 80001) (q . 73)) (q . 66)) (q . 0) (q x))",
     (1564, 0, 0),
     ""
 )]
-    #[case::modulus(
+#[case::modulus(
     "(i (= (% (q . 80001) (q . 73)) (q . 67)) (q . 0) (q x))",
     (1564, 0, 0),
     "clvm raise"
 )]
-    // g1_multiply
-    #[case::g1_mul("(i (= (g1_multiply  (q . 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb) (q . 2)) (q . 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e)) (q . 0) (q x))",
+// g1_multiply
+#[case::g1_mul("(i (= (g1_multiply  (q . 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb) (q . 2)) (q . 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e)) (q . 0) (q x))",
     (706634, 0, 0),
     "")]
-    #[case::g1_mul(
+#[case::g1_mul(
     "(i (= (g1_multiply  (q . 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb) (q . 2)) (q . 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4f)) (q . 0) (q x))",
     (706634, 0, 0),
     "clvm raise")]
-    #[case::g1_neg("(i (= (g1_negate (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))", (706634, 0, 0), "clvm raise")]
-    #[case::g1_neg("(i (= (g1_negate (q . 0xb2f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))",
+#[case::g1_neg("(i (= (g1_negate (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))", (706634, 0, 0), "clvm raise")]
+#[case::g1_neg("(i (= (g1_negate (q . 0xb2f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))",
     (706634, 0, 0),
     "atom is not a valid G1 point")]
-    #[case::g2_add("(i (= (g2_add (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))",
+#[case::g2_add("(i (= (g2_add (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))",
     (3981700, 0, 0),
     "")]
-    #[case::g2_add("(i (= (g2_add (q . 0x93e12b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))",
+#[case::g2_add("(i (= (g2_add (q . 0x93e12b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))",
     (3981700, 0, 0),
     "atom is not a G2 point")]
+fn test_softfork(
+    #[case] prg: &'static str,
+    #[case] fields: (u64, u8, u32), // cost, enabled, hard_fork_flag
+    #[case] err: &'static str,
+    #[values(0)] flags: u32,
+    #[values(false, true)] mempool: bool,
+    #[values(0, 1)] test_ext: u8,
+) {
+    let (cost, enabled, hard_fork_flag) = fields;
+    let softfork_prg =
+        format!("(softfork (q . {cost}) (q . {test_ext}) (q . (a {prg} (q . 0))) (q . 0))");
+    #[case::keccak(
+    "(i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x))",
+    (1134, 1, ENABLE_KECCAK_OPS_OUTSIDE_GUARD),
+    ""
+)]
+    #[case::keccak(
+    "(i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873f)) (q . 0) (q x))",
+    (1134, 1, ENABLE_KECCAK_OPS_OUTSIDE_GUARD),
+    "clvm raise"
+)]
     fn test_softfork(
         #[case] prg: &'static str,
         #[case] fields: (u64, u8, u32), // cost, enabled, hard_fork_flag
         #[case] err: &'static str,
-        #[values(0)] flags: u32,
+        #[values(0, ENABLE_KECCAK)] flags: u32,
         #[values(false, true)] mempool: bool,
-        #[values(0, 1)] test_ext: u8,
+        #[values(0, 1, 2)] test_ext: u8,
     ) {
         let (cost, enabled, hard_fork_flag) = fields;
         let softfork_prg =
@@ -1378,9 +1451,9 @@ mod tests {
         let flags = flags | if mempool { NO_UNKNOWN_OPS } else { 0 };
 
         // softfork extensions that are enabled
-        #[allow(clippy::match_like_matches_macro)]
         let ext_enabled = match test_ext {
             0 => true,
+            1 => (flags & ENABLE_KECCAK) != 0,
             _ => false,
         };
 
