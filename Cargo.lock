@@ -110,23 +110,6 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chia-bls"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba003303bda3019f2fe94e5478555a96addff1d6a1ea84bfe207b3f075cd8420"
-dependencies = [
- "anyhow",
- "arbitrary",
- "blst",
- "chia-traits",
- "hex",
- "hkdf",
- "sha2",
- "thiserror",
- "tiny-bip39",
-]
-
-[[package]]
-name = "chia-bls"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1cbbce0107fa3911890f1a204a147c6d07116687658a6af95690e64fc21ff782"
@@ -234,7 +217,7 @@ dependencies = [
 name = "clvm-rs-test-tools"
 version = "0.1.0"
 dependencies = [
- "chia-bls 0.3.3",
+ "chia-bls",
  "clap",
  "clvmr",
  "hex",
@@ -278,7 +261,7 @@ dependencies = [
 name = "clvmr"
 version = "0.7.0"
 dependencies = [
- "chia-bls 0.4.0",
+ "chia-bls",
  "criterion",
  "hex",
  "hex-literal",
@@ -1464,9 +1447,9 @@ dependencies = [
 
 [[package]]
 name = "sha1"
-version = "0.10.5"
+version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f04293dc80c3993519f2d7f6f511707ee7094fe0c6d3406feb330cdb3540eba3"
+checksum = "e3bf829a2d51ab4a5ddf1352d8470c140cadc8301b2ae1789db023f01cedd6ba"
 dependencies = [
  "cfg-if",
  "cpufeatures",
