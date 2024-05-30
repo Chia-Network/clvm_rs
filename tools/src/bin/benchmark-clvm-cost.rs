@@ -182,7 +182,7 @@ fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64
     let checkpoint = a.checkpoint();
 
     for _k in 0..3 {
-        for i in 0..100 {
+        for i in (0..1000).step_by(5) {
             let call = build_call(a, op.opcode, arg, i, op.extra);
             let start = Instant::now();
             let r = run_program(a, &dialect, call, a.nil(), 11000000000);
@@ -380,7 +380,7 @@ pub fn main() {
         .unwrap();
     let number = quote(&mut a, number);
 
-    let ops: [Operator; 17] = [
+    let ops: [Operator; 19] = [
         Operator {
             opcode: 60,
             name: "modpow (modulus cost)",
@@ -499,6 +499,20 @@ pub fn main() {
             arg: Placeholder::ThreeArgs(Some(r1_pk), Some(r1_msg), Some(r1_sig)),
             extra: None,
             flags: ALLOW_FAILURE,
+        },
+        Operator {
+            opcode: 11,
+            name: "sha256",
+            arg: Placeholder::SingleArg(Some(g1)),
+            extra: None,
+            flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | LARGE_BUFFERS,
+        },
+        Operator {
+            opcode: 62,
+            name: "keccak256",
+            arg: Placeholder::SingleArg(Some(g1)),
+            extra: None,
+            flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | LARGE_BUFFERS,
         },
     ];
 

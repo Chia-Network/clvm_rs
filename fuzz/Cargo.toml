@@ -74,3 +74,9 @@ name = "allocator"
 path = "fuzz_targets/allocator.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "keccak"
+path = "fuzz_targets/keccak.rs"
+test = false
+doc = false
