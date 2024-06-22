@@ -1,0 +1,12 @@
+; the format for these test cases are:
+; expression => expected result | expected-cost
+
+keccak256 "foobar" => 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e | 542
+keccak256 "f" "oobar" => 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e | 702
+keccak256 "f" "o" "obar" => 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e | 862
+keccak256 "f" "o" "o" "bar" => 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e | 1022
+keccak256 "f" "o" "o" "b" "a" "r" => 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e | 1342
+
+keccak256 "foo" => 0x41b1a0649752af1b28b3dc29a1556eee781e4a4c3a1f7f53f90fa834de098c4d | 536
+keccak256 "fo" "o" => 0x41b1a0649752af1b28b3dc29a1556eee781e4a4c3a1f7f53f90fa834de098c4d | 696
+keccak256 "f" "o" "o" => 0x41b1a0649752af1b28b3dc29a1556eee781e4a4c3a1f7f53f90fa834de098c4d | 856

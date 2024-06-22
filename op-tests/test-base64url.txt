@@ -1,0 +1,58 @@
+; the format for these test cases are:
+; expression => expected result | expected-cost
+
+base64url_encode => 0 | 40
+base64url_encode 0 => 0 | 170
+base64url_encode 0 0 => 0 | 300
+base64url_encode 0 0 0 => 0 | 430
+
+; inputs are concatenated
+base64url_encode "foobar" => "Zm9vYmFy" | 268
+base64url_encode "foo" "bar" => "Zm9vYmFy" | 398
+base64url_encode "foo" 0 "bar" => "Zm9vYmFy" | 528
+base64url_encode "f" "o" "o" "b" "a" "r" => "Zm9vYmFy" | 918
+
+; no padding
+base64url_encode "abc0" => "YWJjMA" | 242
+base64url_encode "ab" "c0" => "YWJjMA" | 372
+base64url_encode "a" "b" "c" "0" => "YWJjMA" | 632
+
+base64url_encode 0x00 => "AA" | 193
+base64url_encode 0xff => "_w" | 193
+
+base64url_encode 0x0102030405060708090a0b0c0d0e0ff1f2f3f4f5f6f7f8f9fafbfcfdfeff => "AQIDBAUGBwgJCgsMDQ4P8fLz9PX29_j5-vv8_f7_" | 660
+
+base64url_encode ( 1 2 )  => FAIL
+base64url_encode "foo" "bar" ( 0 ) => FAIL
+
+base64url_encode "" => "" | 170
+base64url_encode "f" => "Zg" | 193
+base64url_encode "fo" => "Zm8" | 206
+base64url_encode "foo" => "Zm9v" | 219
+base64url_encode "foob" => "Zm9vYg" | 242
+base64url_encode "fooba" => "Zm9vYmE" | 255
+base64url_encode "foobar" => "Zm9vYmFy" | 268
+
+
+; decoding
+base64url_decode => FAIL
+base64url_decode ( 1 2 ) => FAIL
+base64url_decode "foo" "bar" => FAIL
+
+base64url_decode "" => "" | 400
+base64url_decode "Zm9vYmFy" => "foobar" | 484
+base64url_decode "Zm9vYmFy=" => FAIL
+base64url_decode "Zm9vYmFy==" => FAIL
+base64url_decode "Zm9vYmFy===" => FAIL
+base64url_decode "Zm9vYmFy====" => FAIL
+
+base64url_decode "SGVsbG8" => "Hello" | 471
+base64url_decode "SGVsbG8=" => FAIL
+base64url_decode "SGVsbG9=" => FAIL
+base64url_decode "SGVsbG9" => FAIL
+base64url_decode "SGVsbA====" => FAIL
+base64url_decode "SGVsbA===" => FAIL
+base64url_decode "SGVsbA==" => FAIL
+base64url_decode "SGVsbA=" => FAIL
+base64url_decode "SGVsbA" => "Hell" | 458
+

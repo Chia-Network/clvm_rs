@@ -1,4 +1,5 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
+use crate::base64_ops::{op_base64url_decode, op_base64url_encode};
 use crate::bls_ops::{
     op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
     op_bls_g2_negate, op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
@@ -6,6 +7,7 @@ use crate::bls_ops::{
 };
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
+use crate::keccak256_ops::op_keccak256;
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
     op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not,
@@ -103,6 +105,10 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
             "%" => a.new_atom(&[61]).unwrap(),
             "secp256k1_verify" => a.new_atom(&[0x13, 0xd6, 0x1f, 0x00]).unwrap(),
             "secp256r1_verify" => a.new_atom(&[0x1c, 0x3a, 0x8f, 0x00]).unwrap(),
+
+            "base64url_encode" => a.new_atom(&[62]).unwrap(),
+            "base64url_decode" => a.new_atom(&[63]).unwrap(),
+            "keccak256" => a.new_atom(&[64]).unwrap(),
             _ => {
                 panic!("atom not supported \"{}\"", v);
             }
@@ -217,6 +223,8 @@ use rstest::rstest;
 #[rstest]
 #[case("test-core-ops")]
 #[case("test-more-ops")]
+#[case("test-base64url")]
+#[case("test-base64url-generated")]
 #[case("test-bls-ops")]
 #[case("test-blspy-g1")]
 #[case("test-blspy-g2")]
@@ -229,6 +237,8 @@ use rstest::rstest;
 #[case("test-secp256r1")]
 #[case("test-modpow")]
 #[case("test-sha256")]
+#[case("test-keccak256")]
+#[case("test-keccak256-generated")]
 fn test_ops(#[case] filename: &str) {
     use std::fs::read_to_string;
 
@@ -282,6 +292,9 @@ fn test_ops(#[case] filename: &str) {
         ("secp256k1_verify", op_secp256k1_verify as Opf),
         ("secp256r1_verify", op_secp256r1_verify as Opf),
         ("modpow", op_modpow as Opf),
+        ("base64url_encode", op_base64url_encode as Opf),
+        ("base64url_decode", op_base64url_decode as Opf),
+        ("keccak256", op_keccak256 as Opf),
     ]);
 
     println!("Test cases from: {filename}");

@@ -1,4 +1,5 @@
 pub mod allocator;
+pub mod base64_ops;
 pub mod bls_ops;
 pub mod chia_dialect;
 pub mod core_ops;
@@ -6,6 +7,7 @@ pub mod cost;
 pub mod dialect;
 pub mod err_utils;
 pub mod f_table;
+pub mod keccak256_ops;
 pub mod more_ops;
 pub mod number;
 pub mod op_utils;

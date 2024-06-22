@@ -2,6 +2,7 @@
 use libfuzzer_sys::fuzz_target;
 
 use clvmr::allocator::{Allocator, NodePtr};
+use clvmr::base64_ops::{op_base64url_decode, op_base64url_encode};
 use clvmr::bls_ops::{
     op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
     op_bls_g2_negate, op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
@@ -9,6 +10,7 @@ use clvmr::bls_ops::{
 };
 use clvmr::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use clvmr::cost::Cost;
+use clvmr::keccak256_ops::op_keccak256;
 use clvmr::more_ops::{
     op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
     op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not,
@@ -20,7 +22,7 @@ use clvmr::serde::node_from_bytes;
 
 type Opf = fn(&mut Allocator, NodePtr, Cost) -> Response;
 
-const FUNS: [Opf; 45] = [
+const FUNS: [Opf; 48] = [
     op_if as Opf,
     op_cons as Opf,
     op_first as Opf,
@@ -68,6 +70,10 @@ const FUNS: [Opf; 45] = [
     // Secp operators
     op_secp256k1_verify as Opf,
     op_secp256r1_verify as Opf,
+    // base64 operators
+    op_base64url_encode as Opf,
+    op_base64url_decode as Opf,
+    op_keccak256 as Opf,
 ];
 
 fuzz_target!(|data: &[u8]| {
