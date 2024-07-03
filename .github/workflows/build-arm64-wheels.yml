@@ -35,7 +35,7 @@ jobs:
       run: |
         docker run --rm \
           -v ${{ github.workspace }}:/ws --workdir=/ws \
-          quay.io/pypa/manylinux2014_aarch64 \
+          quay.io/pypa/manylinux_2_28_aarch64 \
           bash -exc '\
             echo $PATH && \
             curl -L https://sh.rustup.rs > rustup-init.sh && \
@@ -51,7 +51,7 @@ jobs:
             if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
             . ./activate && \
             pip install maturin && \
-            CC=gcc maturin build -m wheel/Cargo.toml --release --strip --manylinux 2014 --features=openssl \
+            CC=gcc maturin build -m wheel/Cargo.toml --release --strip --manylinux 2_28 --features=openssl \
           '
 
     - name: Upload artifacts
