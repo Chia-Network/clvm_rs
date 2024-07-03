@@ -56,12 +56,12 @@ jobs:
         . ./activate
         maturin build -m wheel/Cargo.toml --sdist -i python --release --strip --features=openssl
 
-    - name: Build Linux in manylinux2014 with maturin on Python ${{ matrix.python }}
+    - name: Build Linux in manylinux_2_28 with maturin on Python ${{ matrix.python }}
       if: startsWith(matrix.os, 'ubuntu')
       run: |
         docker run --rm \
           -v ${{ github.workspace }}:/ws --workdir=/ws \
-          quay.io/pypa/manylinux2014_x86_64 \
+          quay.io/pypa/manylinux_2_28_x86_64 \
           bash -exc '\
             curl -L https://sh.rustup.rs > rustup-init.sh && \
             sh rustup-init.sh -y && \
@@ -80,7 +80,7 @@ jobs:
             . /venv/bin/activate && \
             pip install --upgrade pip && \
             pip install maturin && \
-            CC=gcc maturin build -m wheel/Cargo.toml --release --strip --manylinux 2014 --features=openssl \
+            CC=gcc maturin build -m wheel/Cargo.toml --release --strip --manylinux 2_28 --features=openssl \
           '
         python -m venv venv
         ln -s venv/bin/activate
