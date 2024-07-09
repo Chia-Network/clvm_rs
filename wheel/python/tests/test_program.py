@@ -493,3 +493,15 @@ class ProgramTest(TestCase):
         self.assertEqual(p3p._cached_sha256_treehash.hex(), eh3)
         self.assertEqual(p._cached_sha256_treehash.hex(), eh)
         self.assertEqual(p2._cached_sha256_treehash.hex(), eh2)
+
+def test_repr() -> None:
+    temp = Program.to([8, (1, "foo")])
+    assert f"{temp}" == "ff08ffff0183666f6f80"
+
+    Program.set_run_unsafe_max_cost(11000000000)
+
+    try:
+        temp.run([])
+        assert False
+    except EvalError as e:
+        assert f"{e}" == "(clvm raise, 83666f6f)"
