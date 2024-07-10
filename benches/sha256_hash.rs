@@ -1,4 +1,4 @@
-use criterion::{Criterion, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main, Criterion};
 
 use clvmr::sha2::Sha256;
 
@@ -23,7 +23,8 @@ fn sha256_hash_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("sha256_hash");
 
     group.bench_function("hash_benchmark", |b| {
-        b.iter(|| { // this figures out how many iterations to run.
+        b.iter(|| {
+            // this figures out how many iterations to run.
             for val in 0..MAX_VAL {
                 for len in BYTE_LENGTHS {
                     let bytes = gen_bytes(&val, &len);
