@@ -830,19 +830,19 @@ fn test_invalid_node_ptr_type() {
     let _ = node.object_type();
 }
 
-#[cfg(dbg)]
+#[cfg(debug_assertions)]
 #[test]
 #[should_panic]
 fn test_node_ptr_overflow() {
-    NodePtr::new(ObjectType::Bytes, NODE_PTR_IDX_MASK + 1);
+    NodePtr::new(ObjectType::Bytes, NODE_PTR_IDX_MASK as usize + 1);
 }
 
-#[cfg(dbg)]
+#[cfg(debug_assertions)]
 #[test]
 #[should_panic]
 fn test_invalid_small_number() {
     let mut a = Allocator::new();
-    a.new_small_number(NODE_PTR_IDX_MASK + 1);
+    a.new_small_number(NODE_PTR_IDX_MASK + 1).unwrap();
 }
 
 #[cfg(test)]

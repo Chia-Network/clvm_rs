@@ -45,13 +45,13 @@ pub fn serialized_length_from_bytes_trusted(b: &[u8]) -> io::Result<u64> {
     Ok(f.position())
 }
 
-use crate::sha2::{Digest, Sha256};
+use crate::sha2::Sha256;
 
 fn hash_atom(buf: &[u8]) -> [u8; 32] {
     let mut ctx = Sha256::new();
     ctx.update([1_u8]);
     ctx.update(buf);
-    ctx.finalize().into()
+    ctx.finalize()
 }
 
 fn hash_pair(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
@@ -59,7 +59,7 @@ fn hash_pair(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
     ctx.update([2_u8]);
     ctx.update(left);
     ctx.update(right);
-    ctx.finalize().into()
+    ctx.finalize()
 }
 
 #[repr(u8)]

@@ -1,26 +1,34 @@
 #[cfg(feature = "openssl")]
 use openssl;
-#[cfg(not(feature = "openssl"))]
-pub use sha2::{Digest, Sha256};
 
-#[cfg(feature = "openssl")]
-#[derive(Clone)]
+#[cfg(not(feature = "openssl"))]
+use sha2::Digest;
+
+#[derive(Default, Clone)]
 pub struct Sha256 {
-    ctx: sha::Sha256,
+    #[cfg(feature = "openssl")]
+    ctx: openssl::sha::Sha256,
+
+    #[cfg(not(feature = "openssl"))]
+    ctx: sha2::Sha256,
 }
 
-#[cfg(feature = "openssl")]
 impl Sha256 {
-    pub fn new() -> Sha256 {
-        Sha256 {
-            ctx: openssl::sha::Sha256::new(),
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
-    pub fn update(&mut self, buf: &[u8]) {
-        self.ctx.update(buf);
+    pub fn update(&mut self, buf: impl AsRef<[u8]>) {
+        self.ctx.update(buf.as_ref());
     }
     pub fn finalize(self) -> [u8; 32] {
-        self.ctx.finish()
+        #[cfg(feature = "openssl")]
+        {
+            self.ctx.finish()
+        }
+        #[cfg(not(feature = "openssl"))]
+        {
+            self.ctx.finalize().into()
+        }
     }
 }
 

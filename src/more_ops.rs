@@ -14,7 +14,7 @@ use crate::op_utils::{
     new_atom_and_cost, nilp, u32_from_u8, MALLOC_COST_PER_BYTE,
 };
 use crate::reduction::{Reduction, Response};
-use crate::sha2::{Digest, Sha256};
+use crate::sha2::Sha256;
 use chia_bls::G1Element;
 
 const ARITH_BASE_COST: Cost = 99;
