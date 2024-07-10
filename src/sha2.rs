@@ -1,16 +1,15 @@
-#[cfg(not(openssl))]
+#[cfg(feature = "openssl")]
+use openssl;
+#[cfg(not(feature = "openssl"))]
 pub use sha2::{Digest, Sha256};
 
-#[cfg(openssl)]
-use openssl;
-
-#[cfg(openssl)]
+#[cfg(feature = "openssl")]
 #[derive(Clone)]
 pub struct Sha256 {
     ctx: sha::Sha256,
 }
 
-#[cfg(openssl)]
+#[cfg(feature = "openssl")]
 impl Sha256 {
     pub fn new() -> Sha256 {
         Sha256 {
