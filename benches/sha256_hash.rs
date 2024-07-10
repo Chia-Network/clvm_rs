@@ -15,7 +15,7 @@ fn gen_bytes(value: u8, amount: u8) -> Vec<u8> {
 
 fn hash_bytes(bytes: &[u8]) -> [u8; 32] {
     let mut sha256 = Sha256::new();
-    sha256.update(&bytes);
+    sha256.update(bytes);
     sha256.finalize()
 }
 
