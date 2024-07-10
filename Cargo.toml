@@ -26,6 +26,10 @@ counters = []
 # debugging and tracing of programs.
 pre-eval = []
 
+# On UNIX-based platforms, you may get a speed boost on `sha256` operations by building
+# with OpenSSL.when enabled
+openssl = ["dep:openssl"]
+
 [profile.release]
 lto = "thin"
 

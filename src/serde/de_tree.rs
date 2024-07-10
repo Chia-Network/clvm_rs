@@ -1,7 +1,5 @@
 use std::io::{Error, Read, Result, Write};
 
-use sha2::Digest;
-
 use crate::sha2::Sha256;
 
 use super::parse_atom::decode_size_with_offset;
