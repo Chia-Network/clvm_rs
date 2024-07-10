@@ -58,3 +58,7 @@ harness = false
 [[bench]]
 name = "deserialize"
 harness = false
+
+[[bench]]
+name = "sha256_hash"
+harness = false
