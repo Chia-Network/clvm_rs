@@ -1,15 +1,15 @@
-#[cfg(feature = "openssl")]
-use openssl;
-
-#[cfg(not(feature = "openssl"))]
+#[cfg(target_family = "windows")]
 use sha2::Digest;
+
+#[cfg(target_family = "unix")]
+use openssl;
 
 #[derive(Default, Clone)]
 pub struct Sha256 {
-    #[cfg(feature = "openssl")]
+    #[cfg(target_family = "unix")]
     ctx: openssl::sha::Sha256,
 
-    #[cfg(not(feature = "openssl"))]
+    #[cfg(target_family = "windows")]
     ctx: sha2::Sha256,
 }
 
@@ -21,11 +21,11 @@ impl Sha256 {
         self.ctx.update(buf.as_ref());
     }
     pub fn finalize(self) -> [u8; 32] {
-        #[cfg(feature = "openssl")]
+        #[cfg(target_family = "unix")]
         {
             self.ctx.finish()
         }
-        #[cfg(not(feature = "openssl"))]
+        #[cfg(target_family = "windows")]
         {
             self.ctx.finalize().into()
         }
