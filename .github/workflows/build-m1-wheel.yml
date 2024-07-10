@@ -6,7 +6,7 @@ on:
       - main
       - dev
     tags:
-        - '**'
+      - '**'
   pull_request:
     branches:
       - '**'
@@ -22,82 +22,82 @@ permissions:
 jobs:
   build_wheels:
     name: Build wheel on Mac M1
-    runs-on: [MacOS, ARM64]
+    runs-on: [ MacOS, ARM64 ]
     strategy:
       fail-fast: false
 
     steps:
-    - uses: Chia-Network/actions/clean-workspace@main
+      - uses: Chia-Network/actions/clean-workspace@main
 
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Set up rust
-      run: |
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rust.sh
-        sh rust.sh -y
+      - name: Set up rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rust.sh
+          sh rust.sh -y
 
-    - name: Build m1 wheels
-      run: |
-        python3 -m venv venv
-        . ./venv/bin/activate
-        export PATH=~/.cargo/bin:$PATH
-        pip install maturin
-        maturin build -m wheel/Cargo.toml -i python --release --strip --features=openssl
+      - name: Build m1 wheels
+        run: |
+          python3 -m venv venv
+          . ./venv/bin/activate
+          export PATH=~/.cargo/bin:$PATH
+          pip install maturin
+          maturin build -m wheel/Cargo.toml -i python --release --strip 
 
-    - name: Install clvm_rs wheel
-      run: |
-        . ./venv/bin/activate
-        ls ./target/wheels/
-        pip install ./target/wheels/clvm_rs*.whl
+      - name: Install clvm_rs wheel
+        run: |
+          . ./venv/bin/activate
+          ls ./target/wheels/
+          pip install ./target/wheels/clvm_rs*.whl
 
-    - name: Install other wheels
-      run: |
-        . ./venv/bin/activate
-        python -m pip install pytest
-        python -m pip install blspy
+      - name: Install other wheels
+        run: |
+          . ./venv/bin/activate
+          python -m pip install pytest
+          python -m pip install blspy
 
-    - name: Run tests from wheel
-      run: |
-        . ./venv/bin/activate
-        cd wheel/python
-        pytest --import-mode append tests
-        # we use `append` because otherwise the `clvm_rs` source is added
-        # to `sys.path` and it uses that instead of the wheel (and so
-        # ignoring `clvm_rs.so`, which is pretty important)
+      - name: Run tests from wheel
+        run: |
+          . ./venv/bin/activate
+          cd wheel/python
+          pytest --import-mode append tests
+          # we use `append` because otherwise the `clvm_rs` source is added
+          # to `sys.path` and it uses that instead of the wheel (and so
+          # ignoring `clvm_rs.so`, which is pretty important)
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: wheels
-        path: ./target/wheels/
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels
+          path: ./target/wheels/
 
   upload:
     name: Upload to PyPI
     runs-on: ubuntu-latest
     needs: build_wheels
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Install python
-      uses: Chia-Network/actions/setup-python@main
-      with:
-        python-version: "3.10"
+      - name: Install python
+        uses: Chia-Network/actions/setup-python@main
+        with:
+          python-version: "3.10"
 
-    - name: Download artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: wheels
-        path: ./target/wheels/
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: wheels
+          path: ./target/wheels/
 
-    - name: publish (PyPi)
-      if: startsWith(github.event.ref, 'refs/tags')
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        packages-dir: target/wheels/
-        skip-existing: true
+      - name: publish (PyPi)
+        if: startsWith(github.event.ref, 'refs/tags')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: target/wheels/
+          skip-existing: true
