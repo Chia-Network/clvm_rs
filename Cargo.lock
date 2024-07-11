@@ -249,7 +249,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_rs"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "clvmr",
  "pyo3",
@@ -265,7 +265,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_wasm"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "clvmr",
  "getrandom",
@@ -276,7 +276,7 @@ dependencies = [
 
 [[package]]
 name = "clvmr"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "chia-bls 0.4.0",
  "criterion",
