@@ -1,6 +1,6 @@
 [package]
 name = "clvm-rs-test-tools"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Arvid Norberg <arvid@chia.net>", "Cameron Cooper <cameron@chia.net>"]
 edition = "2021"
 license = "Apache-2.0"
@@ -10,17 +10,17 @@ repository = "https://github.com/Chia-Network/clvm_rs/tools/"
 readme = "README.md"
 
 [dependencies]
-hex-literal = "=0.4.1"
-hex = "=0.4.3"
-rand = "0.8.4"
-sha1 = "=0.10.5"
-linreg = "=0.2.0"
+hex-literal = "0.4.1"
+hex = "0.4.3"
+rand = "0.8.5"
+sha1 = "0.10.6"
+linreg = "0.2.0"
 clvmr = { path = ".." }
-chia-bls = ">=0.2.13"
-num-bigint = "0.4.3"
-serde = { version ="1.0.163", features = ["derive"] }
-serde_json = "1.0.96"
-clap = { version = "=4.0.29", features = ["derive"] }
+chia-bls = "0.10.0"
+num-bigint = "0.4.6"
+serde = { version = "1.0.204", features = ["derive"] }
+serde_json = "1.0.120"
+clap = { version = "4.5.9", features = ["derive"] }
 
 [[bin]]
 name = "generate-fuzz-corpus"

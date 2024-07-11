@@ -48,12 +48,12 @@ fn tuple_for_parsed_triple(py: Python<'_>, p: &ParsedTriple) -> PyObject {
             start,
             end,
             atom_offset,
-        } => PyTuple::new(py, [*start, *end, *atom_offset as u64]),
+        } => PyTuple::new_bound(py, [*start, *end, *atom_offset as u64]),
         ParsedTriple::Pair {
             start,
             end,
             right_index,
-        } => PyTuple::new(py, [*start, *end, *right_index as u64]),
+        } => PyTuple::new_bound(py, [*start, *end, *right_index as u64]),
     };
     tuple.into_py(py)
 }
@@ -67,12 +67,16 @@ fn deserialize_as_tree(
     let mut cursor = io::Cursor::new(blob);
     let (r, tree_hashes) = parse_triples(&mut cursor, calculate_tree_hashes)?;
     let r = r.iter().map(|pt| tuple_for_parsed_triple(py, pt)).collect();
-    let s = tree_hashes.map(|ths| ths.iter().map(|b| PyBytes::new(py, b).into()).collect());
+    let s = tree_hashes.map(|ths| {
+        ths.iter()
+            .map(|b| PyBytes::new_bound(py, b).into())
+            .collect()
+    });
     Ok((r, s))
 }
 
 #[pymodule]
-fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
+fn clvm_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run_serialized_chia_program, m)?)?;
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
     m.add_function(wrap_pyfunction!(deserialize_as_tree, m)?)?;

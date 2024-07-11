@@ -21,7 +21,7 @@ pub fn adapt_response(
         Err(eval_err) => {
             let sexp = LazyNode::new(Rc::new(allocator), eval_err.0).to_object(py);
             let msg = eval_err.1.to_object(py);
-            let tuple = PyTuple::new(py, [msg, sexp]);
+            let tuple = PyTuple::new_bound(py, [msg, sexp]);
             let value_error: PyErr = PyValueError::new_err(tuple.to_object(py));
             Err(value_error)
         }
