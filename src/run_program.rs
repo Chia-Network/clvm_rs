@@ -495,7 +495,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 Operation::PostEval => {
                     let f = self.posteval_stack.pop().unwrap();
                     let peek: Option<NodePtr> = self.val_stack.last().copied();
-                    f(&mut self.allocator, peek);
+                    f(self.allocator, peek);
                     0
                 }
             };
