@@ -4,17 +4,15 @@ The cargo workspace includes an rlib crate, for use with rust or other applicati
 
 The python wheel is in `wheel`. The npm package is in `wasm`.
 
+## TESTS
 
-TESTS
------
 In order to run the unit tests, run:
 
 ```
 cargo test
 ```
 
-Fuzzing
--------
+## Fuzzing
 
 The fuzzing infrastructure for `clvm_rs` uses [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz).
 

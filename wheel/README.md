@@ -1,7 +1,6 @@
 The `clvm_rs` wheel has python bindings for the rust implementation of clvm.
 
-Build
------
+## Build
 
 Use `maturin` to build the python interface. First, install into current virtualenv with
 
@@ -22,12 +21,11 @@ with OpenSSL.
 $ maturin develop --release --features=openssl
 ```
 
-
 To build the wheel, do
 
 ```
 $ maturin build --release
-````
+```
 
 or
 

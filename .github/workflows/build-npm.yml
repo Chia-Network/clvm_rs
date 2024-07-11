@@ -6,10 +6,10 @@ on:
       - main
       - dev
     tags:
-        - '**'
+      - "**"
   pull_request:
     branches:
-      - '**'
+      - "**"
 
 jobs:
   build_crate:
@@ -19,33 +19,33 @@ jobs:
       fail-fast: false
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: install wasm-pack
-      run: cargo install wasm-pack
+      - name: install wasm-pack
+        run: cargo install wasm-pack
 
-    - name: wasm-pack build and pack
-      run: wasm-pack build --release --target=nodejs wasm && wasm-pack pack wasm
+      - name: wasm-pack build and pack
+        run: wasm-pack build --release --target=nodejs wasm && wasm-pack pack wasm
 
-    - name: Setup Node 16.x
-      uses: actions/setup-node@v4
-      with:
-        node-version: '16.x'
+      - name: Setup Node 16.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: "16.x"
 
-    - name: Test wasm
-      run: node wasm/tests/index.js
+      - name: Test wasm
+        run: node wasm/tests/index.js
 
-    - name: Upload npm pkg artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: npm-pkg
-        path: ./wasm/pkg/clvm_wasm-*.tgz
+      - name: Upload npm pkg artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-pkg
+          path: ./wasm/pkg/clvm_wasm-*.tgz
 
-    - name: publish to npmjs.com if tagged
-      if: startsWith(github.event.ref, 'refs/tags')
-      uses: JS-DevTools/npm-publish@v3
-      with:
-        token: ${{ secrets.node_auth_token }}
-        package: wasm/pkg/package.json
+      - name: publish to npmjs.com if tagged
+        if: startsWith(github.event.ref, 'refs/tags')
+        uses: JS-DevTools/npm-publish@v3
+        with:
+          token: ${{ secrets.node_auth_token }}
+          package: wasm/pkg/package.json
