@@ -377,6 +377,12 @@ use std::collections::HashSet;
 #[cfg(feature = "pre-eval")]
 use std::rc::Rc;
 
+#[cfg(feature = "pre-eval")]
+type Callback = Box<dyn Fn(&mut Allocator, Option<NodePtr>)>;
+
+#[cfg(feature = "pre-eval")]
+type PreEvalF = Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Callback>, EvalErr>>;
+
 // Ensure pre_eval_f and post_eval_f are working as expected.
 #[cfg(feature = "pre-eval")]
 #[test]
@@ -410,13 +416,7 @@ fn test_pre_eval_and_post_eval() {
 
     let tracking = Rc::new(RefCell::new(HashMap::new()));
     let pre_eval_tracking = tracking.clone();
-    let pre_eval_f: Box<
-        dyn Fn(
-            &mut Allocator,
-            NodePtr,
-            NodePtr,
-        ) -> Result<Option<Box<(dyn Fn(&mut Allocator, Option<NodePtr>))>>, EvalErr>,
-    > = Box::new(move |_allocator, prog, args| {
+    let pre_eval_f: PreEvalF = Box::new(move |_allocator, prog, args| {
         let tracking_key = pre_eval_tracking.borrow().len();
         // Ensure lifetime of mutable borrow is contained.
         // It must end before the lifetime of the following closure.
@@ -432,18 +432,17 @@ fn test_pre_eval_and_post_eval() {
             );
         }
         let post_eval_tracking = pre_eval_tracking.clone();
-        let post_eval_f: Box<dyn Fn(&mut Allocator, Option<NodePtr>)> =
-            Box::new(move |_a, outcome| {
-                let mut tracking_mutable = post_eval_tracking.borrow_mut();
-                tracking_mutable.insert(
-                    tracking_key,
-                    EvalFTracker {
-                        prog,
-                        args,
-                        outcome,
-                    },
-                );
-            });
+        let post_eval_f: Callback = Box::new(move |_a, outcome| {
+            let mut tracking_mutable = post_eval_tracking.borrow_mut();
+            tracking_mutable.insert(
+                tracking_key,
+                EvalFTracker {
+                    prog,
+                    args,
+                    outcome,
+                },
+            );
+        });
         Ok(Some(post_eval_f))
     });
 
@@ -471,14 +470,15 @@ fn test_pre_eval_and_post_eval() {
     // args consed
     let args_consed = allocator.new_pair(a99, a101).unwrap();
 
-    let mut desired_outcomes = Vec::new(); // Not in order.
-    desired_outcomes.push((args, NodePtr::NIL, arg_mid));
-    desired_outcomes.push((f_quoted, NodePtr::NIL, f_expr));
-    desired_outcomes.push((a2, arg_mid, a99));
-    desired_outcomes.push((a5, arg_mid, a101));
-    desired_outcomes.push((cons_expr, arg_mid, args_consed));
-    desired_outcomes.push((f_expr, arg_mid, a99));
-    desired_outcomes.push((program, NodePtr::NIL, a99));
+    let desired_outcomes = [
+        (args, NodePtr::NIL, arg_mid),
+        (f_quoted, NodePtr::NIL, f_expr),
+        (a2, arg_mid, a99),
+        (a5, arg_mid, a101),
+        (cons_expr, arg_mid, args_consed),
+        (f_expr, arg_mid, a99),
+        (program, NodePtr::NIL, a99),
+    ];
 
     let mut found_outcomes = HashSet::new();
     let tracking_examine = tracking.borrow();
