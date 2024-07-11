@@ -6,10 +6,10 @@ on:
       - main
       - dev
     tags:
-        - '**'
+      - "**"
   pull_request:
     branches:
-      - '**'
+      - "**"
 
 permissions:
   contents: read
@@ -24,60 +24,60 @@ jobs:
         os: [[ARM64, Linux]]
 
     steps:
-    - uses: Chia-Network/actions/clean-workspace@main
+      - uses: Chia-Network/actions/clean-workspace@main
 
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
-    - name: Build Python wheels
-      run: |
-        docker run --rm \
-          -v ${{ github.workspace }}:/ws --workdir=/ws \
-          quay.io/pypa/manylinux_2_28_aarch64 \
-          bash -exc '\
-            echo $PATH && \
-            curl -L https://sh.rustup.rs > rustup-init.sh && \
-            sh rustup-init.sh -y && \
-            yum -y install openssl-devel && \
-            source $HOME/.cargo/env && \
-            rustup target add aarch64-unknown-linux-musl && \
-            rm -rf venv && \
-            export PATH=/opt/python/cp310-cp310/bin/:$PATH && \
-            export PATH=/opt/python/cp39-cp39/bin/:$PATH && \
-            export PATH=/opt/python/cp38-cp38/bin/:$PATH && \
-            /opt/python/cp38-cp38/bin/python -m venv venv && \
-            if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
-            . ./activate && \
-            pip install maturin && \
-            CC=gcc maturin build -m wheel/Cargo.toml --release --strip --manylinux 2_28 --features=openssl \
-          '
+      - name: Build Python wheels
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/ws --workdir=/ws \
+            quay.io/pypa/manylinux_2_28_aarch64 \
+            bash -exc '\
+              echo $PATH && \
+              curl -L https://sh.rustup.rs > rustup-init.sh && \
+              sh rustup-init.sh -y && \
+              yum -y install openssl-devel && \
+              source $HOME/.cargo/env && \
+              rustup target add aarch64-unknown-linux-musl && \
+              rm -rf venv && \
+              export PATH=/opt/python/cp310-cp310/bin/:$PATH && \
+              export PATH=/opt/python/cp39-cp39/bin/:$PATH && \
+              export PATH=/opt/python/cp38-cp38/bin/:$PATH && \
+              /opt/python/cp38-cp38/bin/python -m venv venv && \
+              if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
+              . ./activate && \
+              pip install maturin && \
+              CC=gcc maturin build -m wheel/Cargo.toml --release --strip --manylinux 2_28 --features=openssl \
+            '
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: wheels
-        path: target/wheels/
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels
+          path: target/wheels/
 
-    - name: Install Twine
-      run: |
-        if [ ! -f "venv" ]; then sudo rm -rf venv; fi
-        sudo apt-get install python3-venv python3-pip -y
-        python3 -m venv venv
-        if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi
-        . ./activate
-        pip install setuptools_rust
+      - name: Install Twine
+        run: |
+          if [ ! -f "venv" ]; then sudo rm -rf venv; fi
+          sudo apt-get install python3-venv python3-pip -y
+          python3 -m venv venv
+          if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi
+          . ./activate
+          pip install setuptools_rust
 
-    - name: publish (PyPi)
-      if: startsWith(github.event.ref, 'refs/tags')
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        packages-dir: target/wheels/
-        skip-existing: true
+      - name: publish (PyPi)
+        if: startsWith(github.event.ref, 'refs/tags')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: target/wheels/
+          skip-existing: true
 
-    - name: Clean up AMR64
-      if: startsWith(matrix.os, 'ARM64')
-      run: |
-        rm -rf venv
-        rm -rf dist
+      - name: Clean up AMR64
+        if: startsWith(matrix.os, 'ARM64')
+        run: |
+          rm -rf venv
+          rm -rf dist

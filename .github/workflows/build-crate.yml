@@ -6,10 +6,10 @@ on:
       - main
       - dev
     tags:
-        - '**'
+      - "**"
   pull_request:
     branches:
-      - '**'
+      - "**"
 
 jobs:
   build_crate:
@@ -19,26 +19,26 @@ jobs:
       fail-fast: false
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Set up rusts
-      uses: dtolnay/rust-toolchain@stable
+      - name: Set up rusts
+        uses: dtolnay/rust-toolchain@stable
 
-    - name: fmt (stable)
-      run: cargo +stable fmt -- --files-with-diff --check
-    - name: clippy (stable)
-      run: cargo +stable clippy
-    - name: tests
-      run: cargo test && cargo test --release
-    - name: build
-      run: cargo build --release
-    - name: dry-run of `cargo publish`
-      run: cargo publish --dry-run
+      - name: fmt (stable)
+        run: cargo +stable fmt -- --files-with-diff --check
+      - name: clippy (stable)
+        run: cargo +stable clippy
+      - name: tests
+        run: cargo test && cargo test --release
+      - name: build
+        run: cargo build --release
+      - name: dry-run of `cargo publish`
+        run: cargo publish --dry-run
 
-    - name: publish to crates.io if tagged
-      if: startsWith(github.event.ref, 'refs/tags')
-      env:
-        CARGO_REGISTRY_TOKEN: ${{ secrets.cargo_registry_token }}
-      run: cargo publish
+      - name: publish to crates.io if tagged
+        if: startsWith(github.event.ref, 'refs/tags')
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.cargo_registry_token }}
+        run: cargo publish

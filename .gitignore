@@ -19,3 +19,7 @@ target/
 # python ignore
 /venv
 /.venv
+
+# Node.js
+/target
+/node_modules

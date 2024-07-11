@@ -1,8 +1,7 @@
 The `clvm_rs` package has JavaScript bindings for the rust implementation of clvm in wasm.  
-This project is very immature, and only some test API is available for the moment. Pull requests are welcome.  
+This project is very immature, and only some test API is available for the moment. Pull requests are welcome.
 
-Build
------
+## Build
 
 Use `wasm-pack` to build the wasm `pkg` file used with npm. Install it with:
 
@@ -17,9 +16,10 @@ Then build with
 wasm-pack build --release --target=nodejs
 ```
 
-Test
------
+## Test
+
 Prerequisite:
+
 - NodeJS >= 16
 - Wasm files built by `wasm-pack` command exist at `<clvm_rs root>/wasm/pkg/`
 
