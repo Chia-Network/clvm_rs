@@ -65,7 +65,7 @@ fn main() {
         let base_len = to_atom(base.clone()).len();
         let modulus_len = to_atom(modulus.clone()).len();
 
-        // CLVM uses neither `%` and `mod_euclid`, but rather `mod_floor`.
+        // CLVM uses neither `%` nor `mod_euclid`, but rather `mod_floor`.
         let result = base.mod_floor(&modulus);
         let result_len = to_atom(result.clone()).len();
         let cost = 988 + base_len * 4 + modulus_len * 4 + result_len * 10;
