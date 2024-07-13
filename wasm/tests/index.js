@@ -114,9 +114,9 @@ test_case("Test negative div", function () {
   const arg = bytesFromHex("80");
   // 100,000,000,000
   const max_cost = BigInt("100000000000");
-  expect_throw(function () {
-    wasm.run_chia_program(prog, arg, max_cost, 0);
-  });
+  const [cost, sexp] = wasm.run_chia_program(prog, arg, max_cost, 0);
+  // div rounds towards negative infinity, so this is -2
+  expect_equal(sexp.atom.toString(), "254");
 });
 
 test_case("Test serialized_length", function () {

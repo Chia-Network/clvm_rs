@@ -559,7 +559,7 @@ struct RunProgramTest<'a> {
 use crate::test_ops::parse_exp;
 
 #[cfg(test)]
-use crate::chia_dialect::{ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_FIXED_DIV, NO_UNKNOWN_OPS};
+use crate::chia_dialect::{ENABLE_BLS_OPS_OUTSIDE_GUARD, NO_UNKNOWN_OPS};
 
 #[cfg(test)]
 const TEST_CASES: &[RunProgramTest] = &[
@@ -567,22 +567,6 @@ const TEST_CASES: &[RunProgramTest] = &[
         prg: "(/ (q . 10) (q . -3))",
         args: "()",
         flags: 0,
-        result: None,
-        cost: 0,
-        err: "div operator with negative operands is deprecated",
-    },
-    RunProgramTest {
-        prg: "(/ (q . -10) (q . 3))",
-        args: "()",
-        flags: 0,
-        result: None,
-        cost: 0,
-        err: "div operator with negative operands is deprecated",
-    },
-    RunProgramTest {
-        prg: "(/ (q . 10) (q . -3))",
-        args: "()",
-        flags: ENABLE_FIXED_DIV,
         result: Some("-4"),
         cost: 1047,
         err: "",
@@ -590,7 +574,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(/ (q . -10) (q . 3))",
         args: "()",
-        flags: ENABLE_FIXED_DIV,
+        flags: 0,
         result: Some("-4"),
         cost: 1047,
         err: "",
@@ -598,7 +582,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(/ (q . -1) (q . 2))",
         args: "()",
-        flags: ENABLE_FIXED_DIV,
+        flags: 0,
         result: Some("-1"),
         cost: 1047,
         err: "",

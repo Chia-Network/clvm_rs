@@ -530,23 +530,6 @@ pub fn op_div(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     if a1.sign() == Sign::NoSign {
         err(input, "div with 0")
     } else {
-        if a0.sign() == Sign::Minus || a1.sign() == Sign::Minus {
-            return err(input, "div operator with negative operands is deprecated");
-        }
-        let q = a0.div_floor(&a1);
-        let q = a.new_number(q)?;
-        Ok(malloc_cost(a, cost, q))
-    }
-}
-
-pub fn op_div_fixed(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
-    let [v0, v1] = get_args::<2>(a, input, "/")?;
-    let (a0, a0_len) = int_atom(a, v0, "/")?;
-    let (a1, a1_len) = int_atom(a, v1, "/")?;
-    let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
-    if a1.sign() == Sign::NoSign {
-        err(input, "div with 0")
-    } else {
         let q = a0.div_floor(&a1);
         let q = a.new_number(q)?;
         Ok(malloc_cost(a, cost, q))

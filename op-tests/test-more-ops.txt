@@ -512,27 +512,27 @@ all ( 1 ) 2 ( ) => 0 | 1100
 
 ; division round towards negative infinity
 / 10 3 => 3 | 1006
-/ -10 3 => FAIL
-/ -10 -3 => FAIL
-/ 10 -3 => FAIL
+/ -10 3 => -4 | 1006
+/ -10 -3 => 3 | 1006
+/ 10 -3 => -4 | 1006
 
 / 80001 73 => 1095 | 1024
-/ -80001 73 => FAIL
+/ -80001 73 => -1096 | 1024
 / 0x00000000000000000a 0x000000000000000005 => 2 | 1070
 
 / 1 10 => 0 | 996
-/ -1 -10 => FAIL
+/ -1 -10 => 0 | 996
 
 / 1 1 => 1 | 1006
-/ 1 -1 =>  FAIL
-/ -1 -1 => FAIL
-/ -1 1 => FAIL
-/ 0 -1 => FAIL
+/ 1 -1 => -1 | 1006
+/ -1 -1 => 1 | 1006
+/ -1 1 => -1 | 1006
+/ 0 -1 => 0 | 992
 / 0 1 => 0 | 992
 
-; division with negative numbers are not allowed
-/ -1 10 => FAIL
-/ 1 -10 => FAIL
+; division with negative numbers are allowed now
+/ -1 10 => -1 | 1006
+/ 1 -10 => -1 | 1006
 
 ; wrong number of arguments
 divmod => FAIL
