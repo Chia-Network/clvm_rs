@@ -1,5 +1,5 @@
 use crate::err_utils::err;
-use crate::number::{node_from_number, number_from_u8, Number};
+use crate::number::{number_from_u8, Number};
 use crate::reduction::EvalErr;
 use chia_bls::{G1Element, G2Element};
 use std::hash::Hash;
@@ -289,7 +289,17 @@ impl Allocator {
                 return self.new_small_number(val);
             }
         }
-        node_from_number(self, &v)
+        let bytes: Vec<u8> = v.to_signed_bytes_be();
+        let mut slice = bytes.as_slice();
+
+        // make number minimal by removing leading zeros
+        while (!slice.is_empty()) && (slice[0] == 0) {
+            if slice.len() > 1 && (slice[1] & 0x80 == 0x80) {
+                break;
+            }
+            slice = &slice[1..];
+        }
+        self.new_atom(slice)
     }
 
     pub fn new_g1(&mut self, g1: G1Element) -> Result<NodePtr, EvalErr> {
@@ -1830,4 +1840,31 @@ fn test_auto_small_number_from_buf(#[case] buf: &[u8], #[case] expect_small: boo
 #[case(&[0x03, 0xff, 0xff, 0xff], Some(0x3ffffff))]
 fn test_fits_in_small_atom(#[case] buf: &[u8], #[case] expected: Option<u32>) {
     assert_eq!(fits_in_small_atom(buf), expected);
+}
+
+#[cfg(test)]
+#[rstest]
+// 0 is encoded as an empty string
+#[case(&[0], "0", &[])]
+#[case(&[1], "1", &[1])]
+// leading zeroes are redundant
+#[case(&[0,0,0,1], "1", &[1])]
+#[case(&[0,0,0x80], "128", &[0, 0x80])]
+// A leading zero is necessary to encode a positive number with the
+// penultimate byte's most significant bit set
+#[case(&[0,0xff], "255", &[0, 0xff])]
+#[case(&[0x7f,0xff], "32767", &[0x7f, 0xff])]
+// the first byte is redundant, it's still -1
+#[case(&[0xff,0xff], "-1", &[0xff])]
+#[case(&[0xff], "-1", &[0xff])]
+#[case(&[0,0,0x80,0], "32768", &[0,0x80,0])]
+#[case(&[0,0,0x40,0], "16384", &[0x40,0])]
+fn test_number_to_atom(#[case] bytes: &[u8], #[case] text: &str, #[case] buf: &[u8]) {
+    let mut a = Allocator::new();
+
+    // 0 is encoded as an empty string
+    let num = number_from_u8(bytes);
+    assert_eq!(format!("{}", num), text);
+    let ptr = a.new_number(num).unwrap();
+    assert_eq!(a.atom(ptr).as_ref(), buf);
 }
