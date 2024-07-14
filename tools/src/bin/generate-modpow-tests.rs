@@ -1,7 +1,7 @@
 use std::fs;
 
 use clvmr::Allocator;
-use num_bigint::BigInt;
+use num_bigint::{BigInt, Sign};
 use num_integer::Integer;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -25,10 +25,7 @@ fn main() {
         let base = BigInt::from_signed_bytes_be(&bytes(0, 32));
 
         // Generate a random exponent, but ensure it's positive.
-        let mut exponent = BigInt::from_signed_bytes_be(&bytes(0, 32));
-        if exponent < BigInt::ZERO {
-            exponent = -exponent;
-        }
+        let exponent = BigInt::from_bytes_be(Sign::Plus, &bytes(0, 32));
 
         // Generate a random modulus, but ensure it's non-zero.
         let mut modulus = BigInt::from_signed_bytes_be(&bytes(0, 32));
@@ -36,12 +33,12 @@ fn main() {
             modulus += 1;
         }
 
-        let base_len = to_atom(base.clone()).len();
-        let exponent_len = to_atom(exponent.clone()).len();
-        let modulus_len = to_atom(modulus.clone()).len();
+        let base_len = atom_len(base.clone());
+        let exponent_len = atom_len(exponent.clone());
+        let modulus_len = atom_len(modulus.clone());
 
         let result = base.modpow(&exponent, &modulus);
-        let result_len = to_atom(result.clone()).len();
+        let result_len = atom_len(result.clone());
         let cost = 17000
             + base_len * 38
             + exponent_len * exponent_len * 3
@@ -62,12 +59,12 @@ fn main() {
             modulus += 1;
         }
 
-        let base_len = to_atom(base.clone()).len();
-        let modulus_len = to_atom(modulus.clone()).len();
+        let base_len = atom_len(base.clone());
+        let modulus_len = atom_len(modulus.clone());
 
         // CLVM uses neither `%` nor `mod_euclid`, but rather `mod_floor`.
         let result = base.mod_floor(&modulus);
-        let result_len = to_atom(result.clone()).len();
+        let result_len = atom_len(result.clone());
         let cost = 988 + base_len * 4 + modulus_len * 4 + result_len * 10;
 
         tests.push_str(&format!("% {base} {modulus} => {result} | {cost}\n"));
@@ -77,9 +74,8 @@ fn main() {
 }
 
 // Convert a `BigInt` to a CLVM atom.
-fn to_atom(num: BigInt) -> Vec<u8> {
+fn atom_len(num: BigInt) -> usize {
     let mut allocator = Allocator::new();
     let ptr = allocator.new_number(num).unwrap();
-    let atom = allocator.atom(ptr);
-    atom.as_ref().to_vec()
+    allocator.atom_len(ptr)
 }
