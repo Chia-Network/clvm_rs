@@ -18,9 +18,11 @@ linreg = "0.2.0"
 clvmr = { path = ".." }
 chia-bls = "0.10.0"
 num-bigint = "0.4.6"
+num-integer = "0.1.46"
 serde = { version = "1.0.204", features = ["derive"] }
 serde_json = "1.0.120"
 clap = { version = "4.5.9", features = ["derive"] }
+rand_chacha = "0.3.1"
 
 [[bin]]
 name = "generate-fuzz-corpus"
@@ -34,5 +36,10 @@ bench = false
 
 [[bin]]
 name = "verify-zksnark"
+test = false
+bench = false
+
+[[bin]]
+name = "generate-modpow-tests"
 test = false
 bench = false
