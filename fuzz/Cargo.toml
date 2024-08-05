@@ -9,11 +9,8 @@ edition = "2021"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4.6"
-
-[dependencies.clvmr]
-path = ".."
-default-features = false
+libfuzzer-sys = { workspace = true }
+clvmr = { workspace = true, default-features = false }
 
 [[bin]]
 name = "fuzz_run_program"
