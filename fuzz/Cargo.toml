@@ -10,7 +10,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = { workspace = true }
-clvmr = { workspace = true, default-features = false }
+clvmr = { workspace = true }
 
 [[bin]]
 name = "fuzz_run_program"
