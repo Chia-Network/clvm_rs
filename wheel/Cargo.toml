@@ -7,7 +7,7 @@ license = "Apache-2.0"
 description = "Implementation of `clvm` for Chia Network's cryptocurrency"
 homepage = "https://github.com/Chia-Network/clvm_rs/"
 repository = "https://github.com/Chia-Network/clvm_rs/"
-readme = "README.md"
+readme = "../README.md"
 
 [lib]
 name = "clvm_rs"
