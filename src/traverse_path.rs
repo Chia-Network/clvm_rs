@@ -108,155 +108,160 @@ pub fn traverse_path_fast(allocator: &Allocator, mut node_index: u32, args: Node
     Ok(Reduction(cost, arg_list))
 }
 
-#[test]
-fn test_msb_mask() {
-    assert_eq!(msb_mask(0x0), 0x0);
-    assert_eq!(msb_mask(0x01), 0x01);
-    assert_eq!(msb_mask(0x02), 0x02);
-    assert_eq!(msb_mask(0x04), 0x04);
-    assert_eq!(msb_mask(0x08), 0x08);
-    assert_eq!(msb_mask(0x10), 0x10);
-    assert_eq!(msb_mask(0x20), 0x20);
-    assert_eq!(msb_mask(0x40), 0x40);
-    assert_eq!(msb_mask(0x80), 0x80);
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    assert_eq!(msb_mask(0x44), 0x40);
-    assert_eq!(msb_mask(0x2a), 0x20);
-    assert_eq!(msb_mask(0xff), 0x80);
-    assert_eq!(msb_mask(0x0f), 0x08);
-}
+    #[test]
+    fn test_msb_mask() {
+        assert_eq!(msb_mask(0x0), 0x0);
+        assert_eq!(msb_mask(0x01), 0x01);
+        assert_eq!(msb_mask(0x02), 0x02);
+        assert_eq!(msb_mask(0x04), 0x04);
+        assert_eq!(msb_mask(0x08), 0x08);
+        assert_eq!(msb_mask(0x10), 0x10);
+        assert_eq!(msb_mask(0x20), 0x20);
+        assert_eq!(msb_mask(0x40), 0x40);
+        assert_eq!(msb_mask(0x80), 0x80);
 
-#[test]
-fn test_first_non_zero() {
-    assert_eq!(first_non_zero(&[]), 0);
-    assert_eq!(first_non_zero(&[1]), 0);
-    assert_eq!(first_non_zero(&[0]), 1);
-    assert_eq!(first_non_zero(&[0, 0, 0, 1, 1, 1]), 3);
-    assert_eq!(first_non_zero(&[0, 0, 0, 0, 0, 0]), 6);
-    assert_eq!(first_non_zero(&[1, 0, 0, 0, 0, 0]), 0);
-}
+        assert_eq!(msb_mask(0x44), 0x40);
+        assert_eq!(msb_mask(0x2a), 0x20);
+        assert_eq!(msb_mask(0xff), 0x80);
+        assert_eq!(msb_mask(0x0f), 0x08);
+    }
 
-#[test]
-fn test_traverse_path() {
-    use crate::allocator::Allocator;
+    #[test]
+    fn test_first_non_zero() {
+        assert_eq!(first_non_zero(&[]), 0);
+        assert_eq!(first_non_zero(&[1]), 0);
+        assert_eq!(first_non_zero(&[0]), 1);
+        assert_eq!(first_non_zero(&[0, 0, 0, 1, 1, 1]), 3);
+        assert_eq!(first_non_zero(&[0, 0, 0, 0, 0, 0]), 6);
+        assert_eq!(first_non_zero(&[1, 0, 0, 0, 0, 0]), 0);
+    }
 
-    let mut a = Allocator::new();
-    let nul = a.nil();
-    let n1 = a.new_atom(&[0, 1, 2]).unwrap();
-    let n2 = a.new_atom(&[4, 5, 6]).unwrap();
+    #[test]
+    fn test_traverse_path() {
+        use crate::allocator::Allocator;
 
-    assert_eq!(traverse_path(&a, &[], n1).unwrap(), Reduction(44, nul));
-    assert_eq!(traverse_path(&a, &[0b1], n1).unwrap(), Reduction(44, n1));
-    assert_eq!(traverse_path(&a, &[0b1], n2).unwrap(), Reduction(44, n2));
+        let mut a = Allocator::new();
+        let nul = a.nil();
+        let n1 = a.new_atom(&[0, 1, 2]).unwrap();
+        let n2 = a.new_atom(&[4, 5, 6]).unwrap();
 
-    // cost for leading zeros
-    assert_eq!(traverse_path(&a, &[0], n1).unwrap(), Reduction(48, nul));
-    assert_eq!(traverse_path(&a, &[0, 0], n1).unwrap(), Reduction(52, nul));
-    assert_eq!(
-        traverse_path(&a, &[0, 0, 0], n1).unwrap(),
-        Reduction(56, nul)
-    );
-    assert_eq!(
-        traverse_path(&a, &[0, 0, 0, 0], n1).unwrap(),
-        Reduction(60, nul)
-    );
+        assert_eq!(traverse_path(&a, &[], n1).unwrap(), Reduction(44, nul));
+        assert_eq!(traverse_path(&a, &[0b1], n1).unwrap(), Reduction(44, n1));
+        assert_eq!(traverse_path(&a, &[0b1], n2).unwrap(), Reduction(44, n2));
 
-    let n3 = a.new_pair(n1, n2).unwrap();
-    assert_eq!(traverse_path(&a, &[0b1], n3).unwrap(), Reduction(44, n3));
-    assert_eq!(traverse_path(&a, &[0b10], n3).unwrap(), Reduction(48, n1));
-    assert_eq!(traverse_path(&a, &[0b11], n3).unwrap(), Reduction(48, n2));
-    assert_eq!(traverse_path(&a, &[0b11], n3).unwrap(), Reduction(48, n2));
+        // cost for leading zeros
+        assert_eq!(traverse_path(&a, &[0], n1).unwrap(), Reduction(48, nul));
+        assert_eq!(traverse_path(&a, &[0, 0], n1).unwrap(), Reduction(52, nul));
+        assert_eq!(
+            traverse_path(&a, &[0, 0, 0], n1).unwrap(),
+            Reduction(56, nul)
+        );
+        assert_eq!(
+            traverse_path(&a, &[0, 0, 0, 0], n1).unwrap(),
+            Reduction(60, nul)
+        );
 
-    let list = a.new_pair(n1, nul).unwrap();
-    let list = a.new_pair(n2, list).unwrap();
+        let n3 = a.new_pair(n1, n2).unwrap();
+        assert_eq!(traverse_path(&a, &[0b1], n3).unwrap(), Reduction(44, n3));
+        assert_eq!(traverse_path(&a, &[0b10], n3).unwrap(), Reduction(48, n1));
+        assert_eq!(traverse_path(&a, &[0b11], n3).unwrap(), Reduction(48, n2));
+        assert_eq!(traverse_path(&a, &[0b11], n3).unwrap(), Reduction(48, n2));
 
-    assert_eq!(traverse_path(&a, &[0b10], list).unwrap(), Reduction(48, n2));
-    assert_eq!(
-        traverse_path(&a, &[0b101], list).unwrap(),
-        Reduction(52, n1)
-    );
-    assert_eq!(
-        traverse_path(&a, &[0b111], list).unwrap(),
-        Reduction(52, nul)
-    );
+        let list = a.new_pair(n1, nul).unwrap();
+        let list = a.new_pair(n2, list).unwrap();
 
-    // errors
-    assert_eq!(
-        traverse_path(&a, &[0b1011], list).unwrap_err(),
-        EvalErr(nul, "path into atom".to_string())
-    );
-    assert_eq!(
-        traverse_path(&a, &[0b1101], list).unwrap_err(),
-        EvalErr(n1, "path into atom".to_string())
-    );
-    assert_eq!(
-        traverse_path(&a, &[0b1001], list).unwrap_err(),
-        EvalErr(n1, "path into atom".to_string())
-    );
-    assert_eq!(
-        traverse_path(&a, &[0b1010], list).unwrap_err(),
-        EvalErr(n2, "path into atom".to_string())
-    );
-    assert_eq!(
-        traverse_path(&a, &[0b1110], list).unwrap_err(),
-        EvalErr(n2, "path into atom".to_string())
-    );
-}
+        assert_eq!(traverse_path(&a, &[0b10], list).unwrap(), Reduction(48, n2));
+        assert_eq!(
+            traverse_path(&a, &[0b101], list).unwrap(),
+            Reduction(52, n1)
+        );
+        assert_eq!(
+            traverse_path(&a, &[0b111], list).unwrap(),
+            Reduction(52, nul)
+        );
 
-#[test]
-fn test_traverse_path_fast_fast() {
-    use crate::allocator::Allocator;
+        // errors
+        assert_eq!(
+            traverse_path(&a, &[0b1011], list).unwrap_err(),
+            EvalErr(nul, "path into atom".to_string())
+        );
+        assert_eq!(
+            traverse_path(&a, &[0b1101], list).unwrap_err(),
+            EvalErr(n1, "path into atom".to_string())
+        );
+        assert_eq!(
+            traverse_path(&a, &[0b1001], list).unwrap_err(),
+            EvalErr(n1, "path into atom".to_string())
+        );
+        assert_eq!(
+            traverse_path(&a, &[0b1010], list).unwrap_err(),
+            EvalErr(n2, "path into atom".to_string())
+        );
+        assert_eq!(
+            traverse_path(&a, &[0b1110], list).unwrap_err(),
+            EvalErr(n2, "path into atom".to_string())
+        );
+    }
 
-    let mut a = Allocator::new();
-    let nul = a.nil();
-    let n1 = a.new_atom(&[0, 1, 2]).unwrap();
-    let n2 = a.new_atom(&[4, 5, 6]).unwrap();
+    #[test]
+    fn test_traverse_path_fast_fast() {
+        use crate::allocator::Allocator;
 
-    assert_eq!(traverse_path_fast(&a, 0, n1).unwrap(), Reduction(44, nul));
-    assert_eq!(traverse_path_fast(&a, 0b1, n1).unwrap(), Reduction(44, n1));
-    assert_eq!(traverse_path_fast(&a, 0b1, n2).unwrap(), Reduction(44, n2));
+        let mut a = Allocator::new();
+        let nul = a.nil();
+        let n1 = a.new_atom(&[0, 1, 2]).unwrap();
+        let n2 = a.new_atom(&[4, 5, 6]).unwrap();
 
-    let n3 = a.new_pair(n1, n2).unwrap();
-    assert_eq!(traverse_path_fast(&a, 0b1, n3).unwrap(), Reduction(44, n3));
-    assert_eq!(traverse_path_fast(&a, 0b10, n3).unwrap(), Reduction(48, n1));
-    assert_eq!(traverse_path_fast(&a, 0b11, n3).unwrap(), Reduction(48, n2));
-    assert_eq!(traverse_path_fast(&a, 0b11, n3).unwrap(), Reduction(48, n2));
+        assert_eq!(traverse_path_fast(&a, 0, n1).unwrap(), Reduction(44, nul));
+        assert_eq!(traverse_path_fast(&a, 0b1, n1).unwrap(), Reduction(44, n1));
+        assert_eq!(traverse_path_fast(&a, 0b1, n2).unwrap(), Reduction(44, n2));
 
-    let list = a.new_pair(n1, nul).unwrap();
-    let list = a.new_pair(n2, list).unwrap();
+        let n3 = a.new_pair(n1, n2).unwrap();
+        assert_eq!(traverse_path_fast(&a, 0b1, n3).unwrap(), Reduction(44, n3));
+        assert_eq!(traverse_path_fast(&a, 0b10, n3).unwrap(), Reduction(48, n1));
+        assert_eq!(traverse_path_fast(&a, 0b11, n3).unwrap(), Reduction(48, n2));
+        assert_eq!(traverse_path_fast(&a, 0b11, n3).unwrap(), Reduction(48, n2));
 
-    assert_eq!(
-        traverse_path_fast(&a, 0b10, list).unwrap(),
-        Reduction(48, n2)
-    );
-    assert_eq!(
-        traverse_path_fast(&a, 0b101, list).unwrap(),
-        Reduction(52, n1)
-    );
-    assert_eq!(
-        traverse_path_fast(&a, 0b111, list).unwrap(),
-        Reduction(52, nul)
-    );
+        let list = a.new_pair(n1, nul).unwrap();
+        let list = a.new_pair(n2, list).unwrap();
 
-    // errors
-    assert_eq!(
-        traverse_path_fast(&a, 0b1011, list).unwrap_err(),
-        EvalErr(nul, "path into atom".to_string())
-    );
-    assert_eq!(
-        traverse_path_fast(&a, 0b1101, list).unwrap_err(),
-        EvalErr(n1, "path into atom".to_string())
-    );
-    assert_eq!(
-        traverse_path_fast(&a, 0b1001, list).unwrap_err(),
-        EvalErr(n1, "path into atom".to_string())
-    );
-    assert_eq!(
-        traverse_path_fast(&a, 0b1010, list).unwrap_err(),
-        EvalErr(n2, "path into atom".to_string())
-    );
-    assert_eq!(
-        traverse_path_fast(&a, 0b1110, list).unwrap_err(),
-        EvalErr(n2, "path into atom".to_string())
-    );
+        assert_eq!(
+            traverse_path_fast(&a, 0b10, list).unwrap(),
+            Reduction(48, n2)
+        );
+        assert_eq!(
+            traverse_path_fast(&a, 0b101, list).unwrap(),
+            Reduction(52, n1)
+        );
+        assert_eq!(
+            traverse_path_fast(&a, 0b111, list).unwrap(),
+            Reduction(52, nul)
+        );
+
+        // errors
+        assert_eq!(
+            traverse_path_fast(&a, 0b1011, list).unwrap_err(),
+            EvalErr(nul, "path into atom".to_string())
+        );
+        assert_eq!(
+            traverse_path_fast(&a, 0b1101, list).unwrap_err(),
+            EvalErr(n1, "path into atom".to_string())
+        );
+        assert_eq!(
+            traverse_path_fast(&a, 0b1001, list).unwrap_err(),
+            EvalErr(n1, "path into atom".to_string())
+        );
+        assert_eq!(
+            traverse_path_fast(&a, 0b1010, list).unwrap_err(),
+            EvalErr(n2, "path into atom".to_string())
+        );
+        assert_eq!(
+            traverse_path_fast(&a, 0b1110, list).unwrap_err(),
+            EvalErr(n2, "path into atom".to_string())
+        );
+    }
 }

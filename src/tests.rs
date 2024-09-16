@@ -1,8 +1,6 @@
 use super::allocator::{Allocator, NodePtr};
 use super::serde::node_from_bytes;
 use super::serde::node_to_bytes;
-
-#[cfg(test)]
 use super::test_ops::node_eq;
 
 fn test_serialize_roundtrip(a: &mut Allocator, n: NodePtr) {
