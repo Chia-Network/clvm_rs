@@ -1223,6 +1223,7 @@ mod tests {
         assert_eq!(number_from_u8(expected), num);
     }
 
+    #[test]
     fn test_checkpoints() {
         let mut a = Allocator::new();
 
