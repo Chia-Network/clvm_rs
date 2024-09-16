@@ -179,42 +179,6 @@ lazy_static! {
     };
 }
 
-#[test]
-fn test_get_args() {
-    let mut a = Allocator::new();
-    let a0 = a.new_number(42.into()).unwrap();
-    let a1 = a.new_number(1337.into()).unwrap();
-    let a2 = a.new_number(0.into()).unwrap();
-    let a3 = a.new_atom(&[]).unwrap();
-    let args0 = a.nil();
-    let args1 = a.new_pair(a3, args0).unwrap();
-    let args2 = a.new_pair(a2, args1).unwrap();
-    let args3 = a.new_pair(a1, args2).unwrap();
-    let args4 = a.new_pair(a0, args3).unwrap();
-
-    assert_eq!(get_args::<4>(&a, args4, "test").unwrap(), [a0, a1, a2, a3]);
-
-    let r = get_args::<3>(&a, args4, "test").unwrap_err();
-    assert_eq!(r.0, args4);
-    assert_eq!(r.1, "test takes exactly 3 arguments");
-
-    let r = get_args::<5>(&a, args4, "test").unwrap_err();
-    assert_eq!(r.0, args4);
-    assert_eq!(r.1, "test takes exactly 5 arguments");
-
-    let r = get_args::<4>(&a, args3, "test").unwrap_err();
-    assert_eq!(r.0, args3);
-    assert_eq!(r.1, "test takes exactly 4 arguments");
-
-    let r = get_args::<4>(&a, args2, "test").unwrap_err();
-    assert_eq!(r.0, args2);
-    assert_eq!(r.1, "test takes exactly 4 arguments");
-
-    let r = get_args::<1>(&a, args2, "test").unwrap_err();
-    assert_eq!(r.0, args2);
-    assert_eq!(r.1, "test takes exactly 1 argument");
-}
-
 pub fn get_varargs<const N: usize>(
     a: &Allocator,
     args: NodePtr,
@@ -240,50 +204,6 @@ pub fn get_varargs<const N: usize>(
     }
 
     Ok((ret, counter))
-}
-
-#[test]
-fn test_get_varargs() {
-    let mut a = Allocator::new();
-    let a0 = a.new_number(42.into()).unwrap();
-    let a1 = a.new_number(1337.into()).unwrap();
-    let a2 = a.new_number(0.into()).unwrap();
-    let a3 = a.new_atom(&[]).unwrap();
-    let args0 = a.nil();
-    let args1 = a.new_pair(a3, args0).unwrap();
-    let args2 = a.new_pair(a2, args1).unwrap();
-    let args3 = a.new_pair(a1, args2).unwrap();
-    let args4 = a.new_pair(a0, args3).unwrap();
-
-    // happy path
-    assert_eq!(
-        get_varargs::<4>(&a, args4, "test").unwrap(),
-        ([a0, a1, a2, a3], 4)
-    );
-    assert_eq!(
-        get_varargs::<4>(&a, args3, "test").unwrap(),
-        ([a1, a2, a3, NodePtr::NIL], 3)
-    );
-    assert_eq!(
-        get_varargs::<4>(&a, args2, "test").unwrap(),
-        ([a2, a3, NodePtr::NIL, NodePtr::NIL], 2)
-    );
-    assert_eq!(
-        get_varargs::<4>(&a, args1, "test").unwrap(),
-        ([a3, NodePtr::NIL, NodePtr::NIL, NodePtr::NIL], 1)
-    );
-    assert_eq!(
-        get_varargs::<4>(&a, args0, "test").unwrap(),
-        ([NodePtr::NIL; 4], 0)
-    );
-
-    let r = get_varargs::<3>(&a, args4, "test").unwrap_err();
-    assert_eq!(r.0, args4);
-    assert_eq!(r.1, "test takes no more than 3 arguments");
-
-    let r = get_varargs::<1>(&a, args4, "test").unwrap_err();
-    assert_eq!(r.0, args4);
-    assert_eq!(r.1, "test takes no more than 1 argument");
 }
 
 pub fn nilp(a: &Allocator, n: NodePtr) -> bool {
@@ -319,6 +239,86 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
+
+    #[test]
+    fn test_get_args() {
+        let mut a = Allocator::new();
+        let a0 = a.new_number(42.into()).unwrap();
+        let a1 = a.new_number(1337.into()).unwrap();
+        let a2 = a.new_number(0.into()).unwrap();
+        let a3 = a.new_atom(&[]).unwrap();
+        let args0 = a.nil();
+        let args1 = a.new_pair(a3, args0).unwrap();
+        let args2 = a.new_pair(a2, args1).unwrap();
+        let args3 = a.new_pair(a1, args2).unwrap();
+        let args4 = a.new_pair(a0, args3).unwrap();
+
+        assert_eq!(get_args::<4>(&a, args4, "test").unwrap(), [a0, a1, a2, a3]);
+
+        let r = get_args::<3>(&a, args4, "test").unwrap_err();
+        assert_eq!(r.0, args4);
+        assert_eq!(r.1, "test takes exactly 3 arguments");
+
+        let r = get_args::<5>(&a, args4, "test").unwrap_err();
+        assert_eq!(r.0, args4);
+        assert_eq!(r.1, "test takes exactly 5 arguments");
+
+        let r = get_args::<4>(&a, args3, "test").unwrap_err();
+        assert_eq!(r.0, args3);
+        assert_eq!(r.1, "test takes exactly 4 arguments");
+
+        let r = get_args::<4>(&a, args2, "test").unwrap_err();
+        assert_eq!(r.0, args2);
+        assert_eq!(r.1, "test takes exactly 4 arguments");
+
+        let r = get_args::<1>(&a, args2, "test").unwrap_err();
+        assert_eq!(r.0, args2);
+        assert_eq!(r.1, "test takes exactly 1 argument");
+    }
+
+    #[test]
+    fn test_get_varargs() {
+        let mut a = Allocator::new();
+        let a0 = a.new_number(42.into()).unwrap();
+        let a1 = a.new_number(1337.into()).unwrap();
+        let a2 = a.new_number(0.into()).unwrap();
+        let a3 = a.new_atom(&[]).unwrap();
+        let args0 = a.nil();
+        let args1 = a.new_pair(a3, args0).unwrap();
+        let args2 = a.new_pair(a2, args1).unwrap();
+        let args3 = a.new_pair(a1, args2).unwrap();
+        let args4 = a.new_pair(a0, args3).unwrap();
+
+        // happy path
+        assert_eq!(
+            get_varargs::<4>(&a, args4, "test").unwrap(),
+            ([a0, a1, a2, a3], 4)
+        );
+        assert_eq!(
+            get_varargs::<4>(&a, args3, "test").unwrap(),
+            ([a1, a2, a3, NodePtr::NIL], 3)
+        );
+        assert_eq!(
+            get_varargs::<4>(&a, args2, "test").unwrap(),
+            ([a2, a3, NodePtr::NIL, NodePtr::NIL], 2)
+        );
+        assert_eq!(
+            get_varargs::<4>(&a, args1, "test").unwrap(),
+            ([a3, NodePtr::NIL, NodePtr::NIL, NodePtr::NIL], 1)
+        );
+        assert_eq!(
+            get_varargs::<4>(&a, args0, "test").unwrap(),
+            ([NodePtr::NIL; 4], 0)
+        );
+
+        let r = get_varargs::<3>(&a, args4, "test").unwrap_err();
+        assert_eq!(r.0, args4);
+        assert_eq!(r.1, "test takes no more than 3 arguments");
+
+        let r = get_varargs::<1>(&a, args4, "test").unwrap_err();
+        assert_eq!(r.0, args4);
+        assert_eq!(r.1, "test takes no more than 1 argument");
+    }
 
     #[test]
     fn test_nilp() {
