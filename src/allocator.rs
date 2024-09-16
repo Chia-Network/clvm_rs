@@ -4,6 +4,7 @@ use crate::reduction::EvalErr;
 use chia_bls::{G1Element, G2Element};
 use std::hash::Hash;
 use std::hash::Hasher;
+use std::ops::Deref;
 
 const MAX_NUM_ATOMS: usize = 62500000;
 const MAX_NUM_PAIRS: usize = 62500000;
@@ -127,6 +128,14 @@ impl<'a> AsRef<[u8]> for Atom<'a> {
             Self::Borrowed(bytes) => bytes,
             Self::U32(bytes, len) => &bytes[4 - len..],
         }
+    }
+}
+
+impl<'a> Deref for Atom<'a> {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
     }
 }
 
