@@ -24,10 +24,6 @@ pub const NO_UNKNOWN_OPS: u32 = 0x0002;
 // the number of pairs
 pub const LIMIT_HEAP: u32 = 0x0004;
 
-// enables the BLS ops extensions *outside* the softfork guard. This is a
-// hard-fork and should only be enabled when it activates
-pub const ENABLE_BLS_OPS_OUTSIDE_GUARD: u32 = 0x0020;
-
 // The default mode when running grnerators in mempool-mode (i.e. the stricter
 // mode)
 pub const MEMPOOL_MODE: u32 = NO_UNKNOWN_OPS | LIMIT_HEAP;
@@ -63,13 +59,10 @@ impl Dialect for ChiaDialect {
         o: NodePtr,
         argument_list: NodePtr,
         max_cost: Cost,
-        extension: OperatorSet,
+        _extension: OperatorSet,
     ) -> Response {
-        let flags = self.flags
-            | match extension {
-                OperatorSet::BLS => ENABLE_BLS_OPS_OUTSIDE_GUARD,
-                _ => 0,
-            };
+        // new softfork extensions go here, to enable new feature flags
+        let flags = self.flags;
         let op_len = allocator.atom_len(o);
         if op_len == 4 {
             // these are unknown operators with assigned cost
@@ -141,25 +134,20 @@ impl Dialect for ChiaDialect {
             34 => op_all,
             // 35 ---
             // 36 = softfork
-            48..=61 if (flags & ENABLE_BLS_OPS_OUTSIDE_GUARD) != 0 => match op {
-                48 => op_coinid,
-                49 => op_bls_g1_subtract,
-                50 => op_bls_g1_multiply,
-                51 => op_bls_g1_negate,
-                52 => op_bls_g2_add,
-                53 => op_bls_g2_subtract,
-                54 => op_bls_g2_multiply,
-                55 => op_bls_g2_negate,
-                56 => op_bls_map_to_g1,
-                57 => op_bls_map_to_g2,
-                58 => op_bls_pairing_identity,
-                59 => op_bls_verify,
-                60 => op_modpow,
-                61 => op_mod,
-                _ => {
-                    unreachable!();
-                }
-            },
+            48 => op_coinid,
+            49 => op_bls_g1_subtract,
+            50 => op_bls_g1_multiply,
+            51 => op_bls_g1_negate,
+            52 => op_bls_g2_add,
+            53 => op_bls_g2_subtract,
+            54 => op_bls_g2_multiply,
+            55 => op_bls_g2_negate,
+            56 => op_bls_map_to_g1,
+            57 => op_bls_map_to_g2,
+            58 => op_bls_pairing_identity,
+            59 => op_bls_verify,
+            60 => op_modpow,
+            61 => op_mod,
             _ => {
                 return unknown_operator(allocator, o, argument_list, flags, max_cost);
             }
@@ -181,6 +169,8 @@ impl Dialect for ChiaDialect {
     // return the Operators it enables (or None) if we don't know what it means
     fn softfork_extension(&self, ext: u32) -> OperatorSet {
         match ext {
+            // The BLS extensions (and coinid) operators were brought into the
+            // main operator set as part of the hard fork
             0 => OperatorSet::BLS,
             // new extensions go here
             _ => OperatorSet::Default,
