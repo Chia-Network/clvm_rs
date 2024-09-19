@@ -18,13 +18,6 @@ enum ReadOp {
     Cons,
 }
 
-// these test cases were produced by:
-
-// from chia.types.blockchain_format.program import Program
-// a = Program.to(...)
-// print(bytes(a).hex())
-// print(a.get_tree_hash().hex())
-
 pub fn node_to_stream_backrefs<W: io::Write>(
     allocator: &Allocator,
     node: NodePtr,
@@ -97,26 +90,22 @@ pub fn node_to_bytes_backrefs(a: &Allocator, node: NodePtr) -> io::Result<Vec<u8
     Ok(vec)
 }
 
-#[test]
-fn test_serialize_limit() {
-    let mut a = Allocator::new();
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_serialize_limit() {
+        let mut a = Allocator::new();
 
-    let leaf = a.new_atom(&[1, 2, 3, 4, 5]).unwrap();
-    let l1 = a.new_pair(leaf, leaf).unwrap();
-    let l2 = a.new_pair(l1, l1).unwrap();
-    let l3 = a.new_pair(l2, l2).unwrap();
+        let leaf = a.new_atom(&[1, 2, 3, 4, 5]).unwrap();
+        let l1 = a.new_pair(leaf, leaf).unwrap();
+        let l2 = a.new_pair(l1, l1).unwrap();
+        let l3 = a.new_pair(l2, l2).unwrap();
 
-    let expected = &[255, 255, 255, 133, 1, 2, 3, 4, 5, 254, 2, 254, 2, 254, 2];
+        let expected = &[255, 255, 255, 133, 1, 2, 3, 4, 5, 254, 2, 254, 2, 254, 2];
 
-    {
         assert_eq!(node_to_bytes_backrefs(&a, l3).unwrap(), expected);
-    }
-
-    {
         assert_eq!(node_to_bytes_backrefs_limit(&a, l3, 15).unwrap(), expected);
-    }
-
-    {
         assert_eq!(
             node_to_bytes_backrefs_limit(&a, l3, 14).unwrap_err().kind(),
             io::ErrorKind::OutOfMemory

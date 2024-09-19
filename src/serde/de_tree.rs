@@ -221,136 +221,136 @@ pub fn parse_triples<R: Read>(
 }
 
 #[cfg(test)]
-use std::io::Cursor;
+mod tests {
+    use super::*;
 
-#[cfg(test)]
-use hex::FromHex;
+    use hex::FromHex;
+    use std::io::Cursor;
 
-#[cfg(test)]
-fn check_parse_tree(h: &str, expected: Vec<ParsedTriple>, expected_sha_tree_hex: &str) {
-    let b = Vec::from_hex(h).unwrap();
-    println!("{:?}", b);
-    let mut f = Cursor::new(b);
-    let (p, tree_hash) = parse_triples(&mut f, false).unwrap();
-    assert_eq!(p, expected);
-    assert_eq!(tree_hash, None);
+    fn check_parse_tree(h: &str, expected: Vec<ParsedTriple>, expected_sha_tree_hex: &str) {
+        let b = Vec::from_hex(h).unwrap();
+        println!("{:?}", b);
+        let mut f = Cursor::new(b);
+        let (p, tree_hash) = parse_triples(&mut f, false).unwrap();
+        assert_eq!(p, expected);
+        assert_eq!(tree_hash, None);
 
-    let b = Vec::from_hex(h).unwrap();
-    let mut f = Cursor::new(b);
-    let (p, tree_hash) = parse_triples(&mut f, true).unwrap();
-    assert_eq!(p, expected);
+        let b = Vec::from_hex(h).unwrap();
+        let mut f = Cursor::new(b);
+        let (p, tree_hash) = parse_triples(&mut f, true).unwrap();
+        assert_eq!(p, expected);
 
-    let est = Vec::from_hex(expected_sha_tree_hex).unwrap();
-    assert_eq!(tree_hash.unwrap()[0].to_vec(), est);
-}
+        let est = Vec::from_hex(expected_sha_tree_hex).unwrap();
+        assert_eq!(tree_hash.unwrap()[0].to_vec(), est);
+    }
 
-#[cfg(test)]
-fn check_sha_blobs(h: &str, blobs: &[&[u8]]) {
-    let exp_sha = Vec::from_hex(h).unwrap();
-    let actual_sha = sha_blobs(blobs);
-    assert_eq!(exp_sha, actual_sha);
-}
+    fn check_sha_blobs(h: &str, blobs: &[&[u8]]) {
+        let exp_sha = Vec::from_hex(h).unwrap();
+        let actual_sha = sha_blobs(blobs);
+        assert_eq!(exp_sha, actual_sha);
+    }
 
-#[test]
-fn test_sha_blobs() {
-    check_sha_blobs(
-        "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
-        &[&[1_u8]],
-    );
-    check_sha_blobs(
-        "9dcf97a184f32623d11a73124ceb99a5709b083721e878a16d78f596718ba7b2",
-        &[&[1], &[1]],
-    );
-    check_sha_blobs(
-        "812195e02ed84360ceafab26f9fa6072f8aa76ba34a735894c3f3c2e4fe6911d",
-        &[&[1, 250, 17], &[28]],
-    );
-}
+    #[test]
+    fn test_sha_blobs() {
+        check_sha_blobs(
+            "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+            &[&[1_u8]],
+        );
+        check_sha_blobs(
+            "9dcf97a184f32623d11a73124ceb99a5709b083721e878a16d78f596718ba7b2",
+            &[&[1], &[1]],
+        );
+        check_sha_blobs(
+            "812195e02ed84360ceafab26f9fa6072f8aa76ba34a735894c3f3c2e4fe6911d",
+            &[&[1, 250, 17], &[28]],
+        );
+    }
 
-#[test]
-fn test_parse_tree() {
-    check_parse_tree(
-        "80",
-        vec![ParsedTriple::Atom {
-            start: 0,
-            end: 1,
-            atom_offset: 1,
-        }],
-        "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
-    );
-
-    check_parse_tree(
-        "ff648200c8",
-        vec![
-            ParsedTriple::Pair {
+    #[test]
+    fn test_parse_tree() {
+        check_parse_tree(
+            "80",
+            vec![ParsedTriple::Atom {
                 start: 0,
-                end: 5,
-                right_index: 2,
-            },
-            ParsedTriple::Atom {
-                start: 1,
-                end: 2,
-                atom_offset: 0,
-            },
-            ParsedTriple::Atom {
-                start: 2,
-                end: 5,
+                end: 1,
                 atom_offset: 1,
-            },
-        ],
-        "247f7d3f63b346ea93ca47f571cd0f4455392348b888a4286072bef0ac6069b5",
-    );
+            }],
+            "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+        );
 
-    check_parse_tree(
-        "ff83666f6fff83626172ff8362617a80", // `(foo bar baz)`
-        vec![
-            ParsedTriple::Pair {
+        check_parse_tree(
+            "ff648200c8",
+            vec![
+                ParsedTriple::Pair {
+                    start: 0,
+                    end: 5,
+                    right_index: 2,
+                },
+                ParsedTriple::Atom {
+                    start: 1,
+                    end: 2,
+                    atom_offset: 0,
+                },
+                ParsedTriple::Atom {
+                    start: 2,
+                    end: 5,
+                    atom_offset: 1,
+                },
+            ],
+            "247f7d3f63b346ea93ca47f571cd0f4455392348b888a4286072bef0ac6069b5",
+        );
+
+        check_parse_tree(
+            "ff83666f6fff83626172ff8362617a80", // `(foo bar baz)`
+            vec![
+                ParsedTriple::Pair {
+                    start: 0,
+                    end: 16,
+                    right_index: 2,
+                },
+                ParsedTriple::Atom {
+                    start: 1,
+                    end: 5,
+                    atom_offset: 1,
+                },
+                ParsedTriple::Pair {
+                    start: 5,
+                    end: 16,
+                    right_index: 4,
+                },
+                ParsedTriple::Atom {
+                    start: 6,
+                    end: 10,
+                    atom_offset: 1,
+                },
+                ParsedTriple::Pair {
+                    start: 10,
+                    end: 16,
+                    right_index: 6,
+                },
+                ParsedTriple::Atom {
+                    start: 11,
+                    end: 15,
+                    atom_offset: 1,
+                },
+                ParsedTriple::Atom {
+                    start: 15,
+                    end: 16,
+                    atom_offset: 1,
+                },
+            ],
+            "47f30bf9935e25e4262023124fb5e986d755b9ed65a28ac78925c933bfd57dbd",
+        );
+
+        let s = "c0a0".to_owned() + &hex::encode([0x31u8; 160]);
+        check_parse_tree(
+            &s,
+            vec![ParsedTriple::Atom {
                 start: 0,
-                end: 16,
-                right_index: 2,
-            },
-            ParsedTriple::Atom {
-                start: 1,
-                end: 5,
-                atom_offset: 1,
-            },
-            ParsedTriple::Pair {
-                start: 5,
-                end: 16,
-                right_index: 4,
-            },
-            ParsedTriple::Atom {
-                start: 6,
-                end: 10,
-                atom_offset: 1,
-            },
-            ParsedTriple::Pair {
-                start: 10,
-                end: 16,
-                right_index: 6,
-            },
-            ParsedTriple::Atom {
-                start: 11,
-                end: 15,
-                atom_offset: 1,
-            },
-            ParsedTriple::Atom {
-                start: 15,
-                end: 16,
-                atom_offset: 1,
-            },
-        ],
-        "47f30bf9935e25e4262023124fb5e986d755b9ed65a28ac78925c933bfd57dbd",
-    );
-
-    let s = "c0a0".to_owned() + &hex::encode([0x31u8; 160]);
-    check_parse_tree(
-        &s,
-        vec![ParsedTriple::Atom {
-            start: 0,
-            end: 162,
-            atom_offset: 2,
-        }],
-        "d1c109981a9c5a3bbe2d98795a186a0f057dc9a3a7f5e1eb4dfb63a1636efa2d",
-    );
+                end: 162,
+                atom_offset: 2,
+            }],
+            "d1c109981a9c5a3bbe2d98795a186a0f057dc9a3a7f5e1eb4dfb63a1636efa2d",
+        );
+    }
 }

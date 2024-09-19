@@ -171,228 +171,235 @@ pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
     }
 }
 
-#[test]
-fn test_tree_hash_max_single_byte() {
-    let mut ctx = Sha256::new();
-    ctx.update([1_u8]);
-    ctx.update([0x7f_u8]);
-    let mut cursor = Cursor::<&[u8]>::new(&[0x7f_u8]);
-    assert_eq!(
-        tree_hash_from_stream(&mut cursor).unwrap(),
-        ctx.finalize().as_slice()
-    );
-}
-
-#[test]
-fn test_tree_hash_one() {
-    let mut ctx = Sha256::new();
-    ctx.update([1_u8]);
-    ctx.update([1_u8]);
-    let mut cursor = Cursor::<&[u8]>::new(&[1_u8]);
-    assert_eq!(
-        tree_hash_from_stream(&mut cursor).unwrap(),
-        ctx.finalize().as_slice()
-    );
-}
-
-#[test]
-fn test_tree_hash_zero() {
-    let mut ctx = Sha256::new();
-    ctx.update([1_u8]);
-    ctx.update([0_u8]);
-    let mut cursor = Cursor::<&[u8]>::new(&[0_u8]);
-    assert_eq!(
-        tree_hash_from_stream(&mut cursor).unwrap(),
-        ctx.finalize().as_slice()
-    );
-}
-
-#[test]
-fn test_tree_hash_nil() {
-    let mut ctx = Sha256::new();
-    ctx.update([1_u8]);
-    let mut cursor = Cursor::<&[u8]>::new(&[0x80_u8]);
-    assert_eq!(
-        tree_hash_from_stream(&mut cursor).unwrap(),
-        ctx.finalize().as_slice()
-    );
-}
-
-#[test]
-fn test_tree_hash_overlong() {
-    let mut cursor = Cursor::<&[u8]>::new(&[0x8f, 0xff]);
-    let e = tree_hash_from_stream(&mut cursor).unwrap_err();
-    assert_eq!(e.kind(), bad_encoding().kind());
-
-    let mut cursor = Cursor::<&[u8]>::new(&[0b11001111, 0xff]);
-    let e = tree_hash_from_stream(&mut cursor).unwrap_err();
-    assert_eq!(e.kind(), bad_encoding().kind());
-
-    let mut cursor = Cursor::<&[u8]>::new(&[0b11001111, 0xff, 0, 0]);
-    let e = tree_hash_from_stream(&mut cursor).unwrap_err();
-    assert_eq!(e.kind(), bad_encoding().kind());
-}
-
 #[cfg(test)]
-use hex::FromHex;
-
-// these test cases were produced by:
-
-// from chia.types.blockchain_format.program import Program
-// a = Program.to(...)
-// print(bytes(a).hex())
-// print(a.get_tree_hash().hex())
-
-#[test]
-fn test_tree_hash_list() {
-    // this is the list (1 (2 (3 (4 (5 ())))))
-    let buf = Vec::from_hex("ff01ff02ff03ff04ff0580").unwrap();
-    let mut cursor = Cursor::<&[u8]>::new(&buf);
-    assert_eq!(
-        tree_hash_from_stream(&mut cursor).unwrap().to_vec(),
-        Vec::from_hex("123190dddde51acfc61f48429a879a7b905d1726a52991f7d63349863d06b1b6").unwrap()
-    );
-}
-
-#[test]
-fn test_tree_hash_tree() {
-    // this is the tree ((1, 2), (3, 4))
-    let buf = Vec::from_hex("ffff0102ff0304").unwrap();
-    let mut cursor = Cursor::<&[u8]>::new(&buf);
-    assert_eq!(
-        tree_hash_from_stream(&mut cursor).unwrap().to_vec(),
-        Vec::from_hex("2824018d148bc6aed0847e2c86aaa8a5407b916169f15b12cea31fa932fc4c8d").unwrap()
-    );
-}
-
-#[test]
-fn test_tree_hash_tree_large_atom() {
-    // this is the tree ((1, 2), (3, b"foobar"))
-    let buf = Vec::from_hex("ffff0102ff0386666f6f626172").unwrap();
-    let mut cursor = Cursor::<&[u8]>::new(&buf);
-    assert_eq!(
-        tree_hash_from_stream(&mut cursor).unwrap().to_vec(),
-        Vec::from_hex("b28d5b401bd02b65b7ed93de8e916cfc488738323e568bcca7e032c3a97a12e4").unwrap()
-    );
-}
-
-#[cfg(test)]
-mod test {
+mod tests {
     use super::*;
-    use crate::serde::node_from_bytes_backrefs;
-    use crate::Allocator;
-    use rstest::rstest;
+
+    use hex::FromHex;
 
     #[test]
-    fn test_serialized_length_from_bytes_trusted() {
+    fn test_tree_hash_max_single_byte() {
+        let mut ctx = Sha256::new();
+        ctx.update([1_u8]);
+        ctx.update([0x7f_u8]);
+        let mut cursor = Cursor::<&[u8]>::new(&[0x7f_u8]);
         assert_eq!(
-            serialized_length_from_bytes_trusted(&[0x7f, 0x00, 0x00, 0x00]).unwrap(),
-            1
-        );
-        assert_eq!(
-            serialized_length_from_bytes_trusted(&[0x80, 0x00, 0x00, 0x00]).unwrap(),
-            1
-        );
-        assert_eq!(
-            serialized_length_from_bytes_trusted(&[0xff, 0x00, 0x00, 0x00]).unwrap(),
-            3
-        );
-        assert_eq!(
-            serialized_length_from_bytes_trusted(&[0xff, 0x01, 0xff, 0x80, 0x80, 0x00]).unwrap(),
-            5
-        );
-
-        // this is an invalid back-ref
-        // but it's not validated
-        assert_eq!(
-            serialized_length_from_bytes_trusted(&[0xff, 0x01, 0xff, 0xfe, 0x10, 0x80, 0x00])
-                .unwrap(),
-            6
-        );
-
-        let e = serialized_length_from_bytes_trusted(&[0x8f, 0xff]).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
-
-        let e = serialized_length_from_bytes_trusted(&[0b11001111, 0xff]).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
-
-        let e = serialized_length_from_bytes_trusted(&[0b11001111, 0xff, 0, 0]).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
-
-        assert_eq!(
-            serialized_length_from_bytes_trusted(&[
-                0x8f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-            ])
-            .unwrap(),
-            16
+            tree_hash_from_stream(&mut cursor).unwrap(),
+            ctx.finalize().as_slice()
         );
     }
 
     #[test]
-    fn test_serialized_length_from_bytes() {
-        use std::io::ErrorKind;
+    fn test_tree_hash_one() {
+        let mut ctx = Sha256::new();
+        ctx.update([1_u8]);
+        ctx.update([1_u8]);
+        let mut cursor = Cursor::<&[u8]>::new(&[1_u8]);
         assert_eq!(
-            serialized_length_from_bytes(&[0x7f, 0x00, 0x00, 0x00]).unwrap(),
-            1
-        );
-        assert_eq!(
-            serialized_length_from_bytes(&[0x80, 0x00, 0x00, 0x00]).unwrap(),
-            1
-        );
-        assert_eq!(
-            serialized_length_from_bytes(&[0xff, 0x00, 0x00, 0x00]).unwrap(),
-            3
-        );
-        assert_eq!(
-            serialized_length_from_bytes(&[0xff, 0x01, 0xff, 0x80, 0x80, 0x00]).unwrap(),
-            5
-        );
-
-        // this is an invalid back-ref
-        let e =
-            serialized_length_from_bytes(&[0xff, 0x01, 0xff, 0xfe, 0x10, 0x80, 0x00]).unwrap_err();
-        assert_eq!(e.kind(), ErrorKind::Other);
-        assert_eq!(e.to_string(), "path into atom");
-
-        let e = serialized_length_from_bytes(&[0x8f, 0xff]).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
-
-        let e = serialized_length_from_bytes(&[0b11001111, 0xff]).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
-
-        let e = serialized_length_from_bytes(&[0b11001111, 0xff, 0, 0]).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
-
-        assert_eq!(
-            serialized_length_from_bytes(&[0x8f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-                .unwrap(),
-            16
+            tree_hash_from_stream(&mut cursor).unwrap(),
+            ctx.finalize().as_slice()
         );
     }
 
-    #[rstest]
-    // ("foobar" "foobar")
-    #[case("ff86666f6f626172ff86666f6f62617280")]
-    // ("foobar" "foobar")
-    #[case("ff86666f6f626172fe01")]
-    // ((1 2 3 4) 1 2 3 4)
-    #[case("ffff01ff02ff03ff0480ff01ff02ff03ff0480")]
-    // ((1 2 3 4) 1 2 3 4)
-    #[case("ffff01ff02ff03ff0480fe02")]
-    // `(((((a_very_long_repeated_string . 1) .  (2 . 3)) . ((4 . 5) .  (6 . 7))) . (8 . 9)) 10 a_very_long_repeated_string)`
-    #[case(
-        "ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff04\
+    #[test]
+    fn test_tree_hash_zero() {
+        let mut ctx = Sha256::new();
+        ctx.update([1_u8]);
+        ctx.update([0_u8]);
+        let mut cursor = Cursor::<&[u8]>::new(&[0_u8]);
+        assert_eq!(
+            tree_hash_from_stream(&mut cursor).unwrap(),
+            ctx.finalize().as_slice()
+        );
+    }
+
+    #[test]
+    fn test_tree_hash_nil() {
+        let mut ctx = Sha256::new();
+        ctx.update([1_u8]);
+        let mut cursor = Cursor::<&[u8]>::new(&[0x80_u8]);
+        assert_eq!(
+            tree_hash_from_stream(&mut cursor).unwrap(),
+            ctx.finalize().as_slice()
+        );
+    }
+
+    #[test]
+    fn test_tree_hash_overlong() {
+        let mut cursor = Cursor::<&[u8]>::new(&[0x8f, 0xff]);
+        let e = tree_hash_from_stream(&mut cursor).unwrap_err();
+        assert_eq!(e.kind(), bad_encoding().kind());
+
+        let mut cursor = Cursor::<&[u8]>::new(&[0b11001111, 0xff]);
+        let e = tree_hash_from_stream(&mut cursor).unwrap_err();
+        assert_eq!(e.kind(), bad_encoding().kind());
+
+        let mut cursor = Cursor::<&[u8]>::new(&[0b11001111, 0xff, 0, 0]);
+        let e = tree_hash_from_stream(&mut cursor).unwrap_err();
+        assert_eq!(e.kind(), bad_encoding().kind());
+    }
+
+    // these test cases were produced by:
+
+    // from chia.types.blockchain_format.program import Program
+    // a = Program.to(...)
+    // print(bytes(a).hex())
+    // print(a.get_tree_hash().hex())
+
+    #[test]
+    fn test_tree_hash_list() {
+        // this is the list (1 (2 (3 (4 (5 ())))))
+        let buf = Vec::from_hex("ff01ff02ff03ff04ff0580").unwrap();
+        let mut cursor = Cursor::<&[u8]>::new(&buf);
+        assert_eq!(
+            tree_hash_from_stream(&mut cursor).unwrap().to_vec(),
+            Vec::from_hex("123190dddde51acfc61f48429a879a7b905d1726a52991f7d63349863d06b1b6")
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_tree_hash_tree() {
+        // this is the tree ((1, 2), (3, 4))
+        let buf = Vec::from_hex("ffff0102ff0304").unwrap();
+        let mut cursor = Cursor::<&[u8]>::new(&buf);
+        assert_eq!(
+            tree_hash_from_stream(&mut cursor).unwrap().to_vec(),
+            Vec::from_hex("2824018d148bc6aed0847e2c86aaa8a5407b916169f15b12cea31fa932fc4c8d")
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_tree_hash_tree_large_atom() {
+        // this is the tree ((1, 2), (3, b"foobar"))
+        let buf = Vec::from_hex("ffff0102ff0386666f6f626172").unwrap();
+        let mut cursor = Cursor::<&[u8]>::new(&buf);
+        assert_eq!(
+            tree_hash_from_stream(&mut cursor).unwrap().to_vec(),
+            Vec::from_hex("b28d5b401bd02b65b7ed93de8e916cfc488738323e568bcca7e032c3a97a12e4")
+                .unwrap()
+        );
+    }
+
+    #[cfg(test)]
+    mod test {
+        use super::*;
+        use crate::serde::node_from_bytes_backrefs;
+        use crate::Allocator;
+        use rstest::rstest;
+
+        #[test]
+        fn test_serialized_length_from_bytes_trusted() {
+            assert_eq!(
+                serialized_length_from_bytes_trusted(&[0x7f, 0x00, 0x00, 0x00]).unwrap(),
+                1
+            );
+            assert_eq!(
+                serialized_length_from_bytes_trusted(&[0x80, 0x00, 0x00, 0x00]).unwrap(),
+                1
+            );
+            assert_eq!(
+                serialized_length_from_bytes_trusted(&[0xff, 0x00, 0x00, 0x00]).unwrap(),
+                3
+            );
+            assert_eq!(
+                serialized_length_from_bytes_trusted(&[0xff, 0x01, 0xff, 0x80, 0x80, 0x00])
+                    .unwrap(),
+                5
+            );
+
+            // this is an invalid back-ref
+            // but it's not validated
+            assert_eq!(
+                serialized_length_from_bytes_trusted(&[0xff, 0x01, 0xff, 0xfe, 0x10, 0x80, 0x00])
+                    .unwrap(),
+                6
+            );
+
+            let e = serialized_length_from_bytes_trusted(&[0x8f, 0xff]).unwrap_err();
+            assert_eq!(e.kind(), bad_encoding().kind());
+            assert_eq!(e.to_string(), "bad encoding");
+
+            let e = serialized_length_from_bytes_trusted(&[0b11001111, 0xff]).unwrap_err();
+            assert_eq!(e.kind(), bad_encoding().kind());
+            assert_eq!(e.to_string(), "bad encoding");
+
+            let e = serialized_length_from_bytes_trusted(&[0b11001111, 0xff, 0, 0]).unwrap_err();
+            assert_eq!(e.kind(), bad_encoding().kind());
+            assert_eq!(e.to_string(), "bad encoding");
+
+            assert_eq!(
+                serialized_length_from_bytes_trusted(&[
+                    0x8f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                ])
+                .unwrap(),
+                16
+            );
+        }
+
+        #[test]
+        fn test_serialized_length_from_bytes() {
+            use std::io::ErrorKind;
+            assert_eq!(
+                serialized_length_from_bytes(&[0x7f, 0x00, 0x00, 0x00]).unwrap(),
+                1
+            );
+            assert_eq!(
+                serialized_length_from_bytes(&[0x80, 0x00, 0x00, 0x00]).unwrap(),
+                1
+            );
+            assert_eq!(
+                serialized_length_from_bytes(&[0xff, 0x00, 0x00, 0x00]).unwrap(),
+                3
+            );
+            assert_eq!(
+                serialized_length_from_bytes(&[0xff, 0x01, 0xff, 0x80, 0x80, 0x00]).unwrap(),
+                5
+            );
+
+            // this is an invalid back-ref
+            let e = serialized_length_from_bytes(&[0xff, 0x01, 0xff, 0xfe, 0x10, 0x80, 0x00])
+                .unwrap_err();
+            assert_eq!(e.kind(), ErrorKind::Other);
+            assert_eq!(e.to_string(), "path into atom");
+
+            let e = serialized_length_from_bytes(&[0x8f, 0xff]).unwrap_err();
+            assert_eq!(e.kind(), bad_encoding().kind());
+            assert_eq!(e.to_string(), "bad encoding");
+
+            let e = serialized_length_from_bytes(&[0b11001111, 0xff]).unwrap_err();
+            assert_eq!(e.kind(), bad_encoding().kind());
+            assert_eq!(e.to_string(), "bad encoding");
+
+            let e = serialized_length_from_bytes(&[0b11001111, 0xff, 0, 0]).unwrap_err();
+            assert_eq!(e.kind(), bad_encoding().kind());
+            assert_eq!(e.to_string(), "bad encoding");
+
+            assert_eq!(
+                serialized_length_from_bytes(&[0x8f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+                    .unwrap(),
+                16
+            );
+        }
+
+        #[rstest]
+        // ("foobar" "foobar")
+        #[case("ff86666f6f626172ff86666f6f62617280")]
+        // ("foobar" "foobar")
+        #[case("ff86666f6f626172fe01")]
+        // ((1 2 3 4) 1 2 3 4)
+        #[case("ffff01ff02ff03ff0480ff01ff02ff03ff0480")]
+        // ((1 2 3 4) 1 2 3 4)
+        #[case("ffff01ff02ff03ff0480fe02")]
+        // `(((((a_very_long_repeated_string . 1) .  (2 . 3)) . ((4 . 5) .  (6 . 7))) . (8 . 9)) 10 a_very_long_repeated_string)`
+        #[case(
+            "ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff04\
 05ff0607ff0809ff0aff9b615f766572795f6c6f6e675f72657065617465645f737472696e6780"
-    )]
-    #[case("ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff0405ff0607ff0809ff0afffe4180")]
-    #[case(
-        "ff01ffffffa022cf3c17be4e0e0e0b2e2a3f6dd1ee955528f737f0cb724247bc2e4a776cb989ff\
+        )]
+        #[case("ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff0405ff0607ff0809ff0afffe4180")]
+        #[case(
+            "ff01ffffffa022cf3c17be4e0e0e0b2e2a3f6dd1ee955528f737f0cb724247bc2e4a776cb989ff\
 ff02ffff01ff02ffff01ff02ffff03ffff18ff2fffff010180ffff01ff02ff36ffff04ff02ffff\
 04ff05ffff04ff17ffff04ffff02ff26ffff04ff02ffff04ff0bff80808080ffff04ff2fffff04\
 ff0bffff04ff5fff808080808080808080ffff01ff088080fe81ffffff04ffff01ffffffff4602\
@@ -513,15 +520,16 @@ eb09d18d83bd56482aee566820f5afdce595b3ed095eb36c5cef9301a5383a3b9a6c1a94a85e4f\
 982e1fa3af2c99087e5f6df8b887d30c109f71043671683a1ae985d7d874fbe07dfa6d88b70100\
 00001868747470733a2f2f6368696170702e68706f6f6c2e636f6d0000004080ffa0fc0b1e9409\
 ae5c3c40c50832a7aecc0b3ba4646568a00c01289c45e1f03b2b488080808080"
-    )]
-    fn serialized_length_with_backrefs(#[case] serialization_as_hex: &str) {
-        let buf = Vec::from_hex(serialization_as_hex).unwrap();
-        let len = serialized_length_from_bytes(&buf).expect("serialized_length_from_bytes");
+        )]
+        fn serialized_length_with_backrefs(#[case] serialization_as_hex: &str) {
+            let buf = Vec::from_hex(serialization_as_hex).unwrap();
+            let len = serialized_length_from_bytes(&buf).expect("serialized_length_from_bytes");
 
-        // make sure the serialization is valid
-        let mut allocator = Allocator::new();
-        assert!(node_from_bytes_backrefs(&mut allocator, &buf).is_ok());
+            // make sure the serialization is valid
+            let mut allocator = Allocator::new();
+            assert!(node_from_bytes_backrefs(&mut allocator, &buf).is_ok());
 
-        assert_eq!(len, buf.len() as u64);
+            assert_eq!(len, buf.len() as u64);
+        }
     }
 }

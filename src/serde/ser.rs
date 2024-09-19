@@ -70,36 +70,41 @@ pub fn node_to_bytes(a: &Allocator, node: NodePtr) -> io::Result<Vec<u8>> {
     node_to_bytes_limit(a, node, 2000000)
 }
 
-#[test]
-fn test_serialize_limit() {
-    let mut a = Allocator::new();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let leaf = a.new_atom(&[1, 2, 3, 4, 5]).unwrap();
-    let l1 = a.new_pair(leaf, leaf).unwrap();
-    let l2 = a.new_pair(l1, l1).unwrap();
-    let l3 = a.new_pair(l2, l2).unwrap();
+    #[test]
+    fn test_serialize_limit() {
+        let mut a = Allocator::new();
 
-    {
-        let buffer = Cursor::new(Vec::new());
-        let mut writer = LimitedWriter::new(buffer, 55);
-        node_to_stream(&a, l3, &mut writer).unwrap();
-        let vec = writer.into_inner().into_inner();
-        assert_eq!(
-            vec,
-            &[
-                0xff, 0xff, 0xff, 133, 1, 2, 3, 4, 5, 133, 1, 2, 3, 4, 5, 0xff, 133, 1, 2, 3, 4, 5,
-                133, 1, 2, 3, 4, 5, 0xff, 0xff, 133, 1, 2, 3, 4, 5, 133, 1, 2, 3, 4, 5, 0xff, 133,
-                1, 2, 3, 4, 5, 133, 1, 2, 3, 4, 5
-            ]
-        );
-    }
+        let leaf = a.new_atom(&[1, 2, 3, 4, 5]).unwrap();
+        let l1 = a.new_pair(leaf, leaf).unwrap();
+        let l2 = a.new_pair(l1, l1).unwrap();
+        let l3 = a.new_pair(l2, l2).unwrap();
 
-    {
-        let buffer = Cursor::new(Vec::new());
-        let mut writer = LimitedWriter::new(buffer, 54);
-        assert_eq!(
-            node_to_stream(&a, l3, &mut writer).unwrap_err().kind(),
-            io::ErrorKind::OutOfMemory
-        );
+        {
+            let buffer = Cursor::new(Vec::new());
+            let mut writer = LimitedWriter::new(buffer, 55);
+            node_to_stream(&a, l3, &mut writer).unwrap();
+            let vec = writer.into_inner().into_inner();
+            assert_eq!(
+                vec,
+                &[
+                    0xff, 0xff, 0xff, 133, 1, 2, 3, 4, 5, 133, 1, 2, 3, 4, 5, 0xff, 133, 1, 2, 3,
+                    4, 5, 133, 1, 2, 3, 4, 5, 0xff, 0xff, 133, 1, 2, 3, 4, 5, 133, 1, 2, 3, 4, 5,
+                    0xff, 133, 1, 2, 3, 4, 5, 133, 1, 2, 3, 4, 5
+                ]
+            );
+        }
+
+        {
+            let buffer = Cursor::new(Vec::new());
+            let mut writer = LimitedWriter::new(buffer, 54);
+            assert_eq!(
+                node_to_stream(&a, l3, &mut writer).unwrap_err().kind(),
+                io::ErrorKind::OutOfMemory
+            );
+        }
     }
 }
