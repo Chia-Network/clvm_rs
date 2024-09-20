@@ -59,7 +59,7 @@ rand = "0.8.5"
 sha1 = "0.10.6"
 linreg = "0.2.0"
 serde = "1.0.204"
-serde_json = "1.0.121"
+serde_json = "1.0.128"
 clap = "4.5.11"
 rand_chacha = "0.3.1"
 
