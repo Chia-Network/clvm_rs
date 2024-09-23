@@ -96,75 +96,77 @@ pub fn parse_path<'a>(f: &'a mut Cursor<&[u8]>) -> Result<&'a [u8]> {
 
 #[cfg(test)]
 mod tests {
-    use crate::serde::write_atom::write_atom;
-
     use super::*;
+    use crate::serde::write_atom::write_atom;
+    use rstest::rstest;
 
     use std::io::ErrorKind;
 
-    #[test]
-    fn test_decode_size() {
-        // single-byte length prefix
-        let mut buffer = Cursor::new(&[]);
-        assert_eq!(
-            decode_size_with_offset(&mut buffer, 0x80 | 0x20).unwrap(),
-            (1, 0x20)
-        );
+    #[rstest]
+    // single-byte length prefix
+    #[case(0b10100000, &[], (1, 0x20))]
+    // two-byte length prefix
+    #[case(0b11001111, &[0xaa], (2, 0xfaa))]
+    // this is *just* within what we support
+    // Still a very large blob, probably enough for a DoS attack
+    #[case(0b11111100, &[0x3, 0xff, 0xff, 0xff, 0xff], (6, 0x3ffffffff))]
+    #[case(0b11011111, &[0], (2, 0x1f00))]
+    #[case(0b11101111, &[0, 0], (3, 0xf0000))]
+    #[case(0b11110111, &[0, 0, 0], (4, 0x7000000))]
+    #[case(0b11111011, &[0, 0, 0, 0], (5, 0x300000000))]
+    fn test_decode_size_success(
+        #[case] first_b: u8,
+        #[case] stream: &[u8],
+        #[case] expect: (u8, u64),
+    ) {
+        let mut stream = Cursor::new(stream);
+        let result = decode_size_with_offset(&mut stream, first_b).expect("expect success");
+        assert_eq!(result, expect);
+    }
 
-        // two-byte length prefix
-        let first = 0b11001111;
-        let mut buffer = Cursor::new(&[0xaa]);
+    #[rstest]
+    // this is an atom length-prefix 0xffffffffffff, or (2^48 - 1).
+    // We don't support atoms this large and we should fail before attempting to
+    // allocate this much memory
+    #[case(0b11111110, &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff], "bad encoding")]
+    // this is still too large
+    #[case(0b11111100, &[0x4, 0, 0, 0, 0], "bad encoding")]
+    // this ensures a fuzzer-found bug doesn't reoccur
+    #[case(0b11111100, &[0xff, 0xfe], "failed to fill whole buffer")]
+    // the stream is truncated
+    #[case(0b11111100, &[0x4, 0, 0, 0], "failed to fill whole buffer")]
+    // atoms are too large
+    #[case(0b11111101, &[0, 0, 0, 0, 0], "bad encoding")]
+    #[case(0b11111110, &[0x80, 0, 0, 0, 0, 0], "bad encoding")]
+    #[case(0b11111111, &[0x80, 0, 0, 0, 0, 0, 0], "bad encoding")]
+    fn test_decode_size_failure(#[case] first_b: u8, #[case] stream: &[u8], #[case] expect: &str) {
+        let mut stream = Cursor::new(stream);
         assert_eq!(
-            decode_size_with_offset(&mut buffer, first).unwrap(),
-            (2, 0xfaa)
+            decode_size_with_offset(&mut stream, first_b)
+                .unwrap_err()
+                .to_string(),
+            expect
         );
     }
 
+    #[cfg(debug_assertions)]
     #[test]
-    fn test_large_decode_size() {
-        // this is an atom length-prefix 0xffffffffffff, or (2^48 - 1).
-        // We don't support atoms this large and we should fail before attempting to
-        // allocate this much memory
-        let first = 0b11111110;
-        let mut buffer = Cursor::new(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
-        let ret = decode_size_with_offset(&mut buffer, first);
-        let e = ret.unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
-
-        // this is still too large
-        let first = 0b11111100;
-        let mut buffer = Cursor::new(&[0x4, 0, 0, 0, 0]);
-        let ret = decode_size_with_offset(&mut buffer, first);
-        let e = ret.unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
-
-        // But this is *just* within what we support
-        // Still a very large blob, probably enough for a DoS attack
-        let first = 0b11111100;
-        let mut buffer = Cursor::new(&[0x3, 0xff, 0xff, 0xff, 0xff]);
-        assert_eq!(
-            decode_size_with_offset(&mut buffer, first).unwrap(),
-            (6, 0x3ffffffff)
-        );
-
-        // this ensures a fuzzer-found bug doesn't reoccur
-        let mut buffer = Cursor::new(&[0xff, 0xfe]);
-        let ret = decode_size_with_offset(&mut buffer, first);
-        let e = ret.unwrap_err();
-        assert_eq!(e.kind(), ErrorKind::UnexpectedEof);
-        assert_eq!(e.to_string(), "failed to fill whole buffer");
+    #[should_panic]
+    fn test_decode_size_panic() {
+        let mut stream = Cursor::new(&[0x4, 0, 0, 0]);
+        let _ = decode_size_with_offset(&mut stream, 0x7f);
     }
 
+    #[cfg(not(debug_assertions))]
     #[test]
-    fn test_truncated_decode_size() {
-        // the stream is truncated
-        let first = 0b11111100;
-        let mut cursor = Cursor::new(&[0x4, 0, 0, 0]);
-        let ret = decode_size_with_offset(&mut cursor, first);
-        let e = ret.unwrap_err();
-        assert_eq!(e.kind(), ErrorKind::UnexpectedEof);
+    fn test_decode_size_panic() {
+        let mut stream = Cursor::new(&[0x4, 0, 0, 0]);
+        assert_eq!(
+            decode_size_with_offset(&mut stream, 0x7f)
+                .unwrap_err()
+                .to_string(),
+            "internal error"
+        );
     }
 
     fn check_parse_atom(blob: &[u8], expected_atom: &[u8]) {
