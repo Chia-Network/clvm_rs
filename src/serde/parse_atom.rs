@@ -16,14 +16,12 @@ pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> Result<(u8,
         return Err(internal_error());
     }
 
-    let mut atom_start_offset = 0;
-    let mut bit_mask: u8 = 0x80;
-    let mut b = initial_b;
-    while b & bit_mask != 0 {
-        atom_start_offset += 1;
-        b &= 0xff ^ bit_mask;
-        bit_mask >>= 1;
+    let atom_start_offset = initial_b.leading_ones() as usize;
+    if atom_start_offset >= 8 {
+        return Err(bad_encoding());
     }
+    let bit_mask: u8 = 0xff >> atom_start_offset;
+    let b = initial_b & bit_mask;
     let mut stack_allocation = [0_u8; 8];
     let size_blob = &mut stack_allocation[..atom_start_offset];
     size_blob[0] = b;
