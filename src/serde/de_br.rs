@@ -86,107 +86,93 @@ pub fn node_from_bytes_backrefs_record(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
     use hex::FromHex;
 
-    #[test]
-    fn test_deserialize_with_backrefs() {
-        fn deserialize_check(serialization_as_hex: &str, expected_hash_as_hex: &str) {
-            use crate::serde::object_cache::{treehash, ObjectCache};
-            let buf = Vec::from_hex(serialization_as_hex).unwrap();
-            let mut allocator = Allocator::new();
-            let node = node_from_bytes_backrefs(&mut allocator, &buf).unwrap();
-
-            let mut oc = ObjectCache::new(&allocator, treehash);
-            let calculated_hash = oc.get_or_calculate(&node).unwrap();
-            let ch: &[u8] = calculated_hash;
-            let expected_hash: Vec<u8> = Vec::from_hex(expected_hash_as_hex).unwrap();
-            assert_eq!(expected_hash, ch);
-        }
-
-        // ("foobar" "foobar")
-        deserialize_check(
-            "ff86666f6f626172ff86666f6f62617280",
-            "9148834131750904c023598bed28db269bdb29012514579e723d63e27829bcba",
-        );
-        deserialize_check(
-            "ff86666f6f626172fe01", // ("foobar" "foobar")
-            "9148834131750904c023598bed28db269bdb29012514579e723d63e27829bcba",
-        );
-
-        // ((1 2 3 4) 1 2 3 4)
-        deserialize_check(
-            "ffff01ff02ff03ff0480ff01ff02ff03ff0480",
-            "028c16eb4fec600e6153d8dde60eb3916d13d0dc446b5cd7936a1248f8963bf8",
-        );
-        deserialize_check(
-            "ffff01ff02ff03ff0480fe02", // ((1 2 3 4) 1 2 3 4)
-            "028c16eb4fec600e6153d8dde60eb3916d13d0dc446b5cd7936a1248f8963bf8",
-        );
-
-        // `(((((a_very_long_repeated_string . 1) .  (2 . 3)) . ((4 . 5) .  (6 . 7))) . (8 . 9)) 10 a_very_long_repeated_string)`
-        deserialize_check(
-            "ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff04\
+    #[rstest]
+    // ("foobar" "foobar")
+    #[case(
+        "ff86666f6f626172ff86666f6f62617280",
+        "9148834131750904c023598bed28db269bdb29012514579e723d63e27829bcba"
+    )]
+    // ("foobar" "foobar")
+    #[case(
+        "ff86666f6f626172fe01",
+        "9148834131750904c023598bed28db269bdb29012514579e723d63e27829bcba"
+    )]
+    // ((1 2 3 4) 1 2 3 4)
+    #[case(
+        "ffff01ff02ff03ff0480ff01ff02ff03ff0480",
+        "028c16eb4fec600e6153d8dde60eb3916d13d0dc446b5cd7936a1248f8963bf8"
+    )]
+    // ((1 2 3 4) 1 2 3 4)
+    #[case(
+        "ffff01ff02ff03ff0480fe02",
+        "028c16eb4fec600e6153d8dde60eb3916d13d0dc446b5cd7936a1248f8963bf8"
+    )]
+    // `(((((a_very_long_repeated_string . 1) .  (2 . 3)) . ((4 . 5) .  (6 . 7))) . (8 . 9)) 10 a_very_long_repeated_string)`
+    #[case(
+        "ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff04\
          05ff0607ff0809ff0aff9b615f766572795f6c6f6e675f72657065617465645f737472696e6780",
-            "e23c73777f814e8a4e2785487b272b8b22ddaded1f7cfb808b43f1148602882f",
-        );
-        deserialize_check(
-        "ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff0405ff0607ff0809ff0afffe4180",
-        "e23c73777f814e8a4e2785487b272b8b22ddaded1f7cfb808b43f1148602882f",
-    );
+        "e23c73777f814e8a4e2785487b272b8b22ddaded1f7cfb808b43f1148602882f"
+    )]
+    #[case("ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff0405ff0607ff0809ff0afffe4180", "e23c73777f814e8a4e2785487b272b8b22ddaded1f7cfb808b43f1148602882f")]
+    fn test_deserialize_with_backrefs(
+        #[case] serialization_as_hex: &str,
+        #[case] expected_hash_as_hex: &str,
+    ) {
+        use crate::serde::object_cache::{treehash, ObjectCache};
+        let buf = Vec::from_hex(serialization_as_hex).unwrap();
+        let mut allocator = Allocator::new();
+        let node = node_from_bytes_backrefs(&mut allocator, &buf).unwrap();
+        let mut oc = ObjectCache::new(&allocator, treehash);
+        let calculated_hash = oc.get_or_calculate(&node).unwrap();
+        let ch: &[u8] = calculated_hash;
+        let expected_hash: Vec<u8> = Vec::from_hex(expected_hash_as_hex).unwrap();
+        assert_eq!(expected_hash, ch);
     }
 
-    #[test]
-    fn test_deserialize_with_backrefs_record() {
-        fn deserialize_check(serialization_as_hex: &str, expected_backrefs: &[&'static str]) {
-            use crate::serde::node_to_bytes;
-            let buf = Vec::from_hex(serialization_as_hex).unwrap();
-            let mut allocator = Allocator::new();
-            let (_node, backrefs) = node_from_bytes_backrefs_record(&mut allocator, &buf)
-                .expect("node_from_bytes_backrefs_records");
-            println!("backrefs: {:?}", backrefs);
-            assert_eq!(backrefs.len(), expected_backrefs.len());
+    #[rstest]
+    // ("foobar" "foobar")
+    // no-backrefs
+    #[case("ff86666f6f626172ff86666f6f62617280", &[])]
+    // ("foobar" "foobar")
+    // with back-refs
+    #[case("ff86666f6f626172fe01", &["ff86666f6f62617280"])]
+    // ((1 2 3 4) 1 2 3 4)
+    // no-backrefs
+    #[case("ffff01ff02ff03ff0480ff01ff02ff03ff0480", &[])]
+    // ((1 2 3 4) 1 2 3 4)
+    // with back-refs
+    #[case("ffff01ff02ff03ff0480fe02", &["ff01ff02ff03ff0480"])]
+    // `(((((a_very_long_repeated_string . 1) .  (2 . 3)) . ((4 . 5) .  (6 . 7))) . (8 . 9)) 10 a_very_long_repeated_string)`
+    // no-backrefs
+    #[case("ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff04\
+         05ff0607ff0809ff0aff9b615f766572795f6c6f6e675f72657065617465645f737472696e6780", &[])]
+    // with back-refs
+    #[case("ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff0405ff0607ff0809ff0afffe4180",
+        &["9b615f766572795f6c6f6e675f72657065617465645f737472696e67"])]
+    fn test_deserialize_with_backrefs_record(
+        #[case] serialization_as_hex: &str,
+        #[case] expected_backrefs: &[&'static str],
+    ) {
+        use crate::serde::node_to_bytes;
+        let buf = Vec::from_hex(serialization_as_hex).unwrap();
+        let mut allocator = Allocator::new();
+        let (_node, backrefs) = node_from_bytes_backrefs_record(&mut allocator, &buf)
+            .expect("node_from_bytes_backrefs_records");
+        println!("backrefs: {:?}", backrefs);
+        assert_eq!(backrefs.len(), expected_backrefs.len());
 
-            let expected_backrefs =
-                HashSet::<String>::from_iter(expected_backrefs.iter().map(|s| s.to_string()));
-            let backrefs = HashSet::from_iter(
-                backrefs
-                    .iter()
-                    .map(|br| hex::encode(node_to_bytes(&allocator, *br).expect("node_to_bytes"))),
-            );
-
-            assert_eq!(backrefs, expected_backrefs);
-        }
-
-        // ("foobar" "foobar")
-        // no-backrefs
-        deserialize_check("ff86666f6f626172ff86666f6f62617280", &[]);
-        // with back-refs
-        deserialize_check(
-            "ff86666f6f626172fe01", // ("foobar" "foobar")
-            &["ff86666f6f62617280"],
+        let expected_backrefs =
+            HashSet::<String>::from_iter(expected_backrefs.iter().map(|s| s.to_string()));
+        let backrefs = HashSet::from_iter(
+            backrefs
+                .iter()
+                .map(|br| hex::encode(node_to_bytes(&allocator, *br).expect("node_to_bytes"))),
         );
 
-        // ((1 2 3 4) 1 2 3 4)
-        // no-backrefs
-        deserialize_check("ffff01ff02ff03ff0480ff01ff02ff03ff0480", &[]);
-        // with back-refs
-        deserialize_check(
-            "ffff01ff02ff03ff0480fe02", // ((1 2 3 4) 1 2 3 4)
-            &["ff01ff02ff03ff0480"],
-        );
-
-        // `(((((a_very_long_repeated_string . 1) .  (2 . 3)) . ((4 . 5) .  (6 . 7))) . (8 . 9)) 10 a_very_long_repeated_string)`
-        // no-backrefs
-        deserialize_check(
-            "ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff04\
-         05ff0607ff0809ff0aff9b615f766572795f6c6f6e675f72657065617465645f737472696e6780",
-            &[],
-        );
-        // with back-refs
-        deserialize_check(
-        "ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff0405ff0607ff0809ff0afffe4180",
-        &["9b615f766572795f6c6f6e675f72657065617465645f737472696e67"],
-    );
+        assert_eq!(backrefs, expected_backrefs);
     }
 }
