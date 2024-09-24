@@ -47,12 +47,16 @@ pub fn node_from_stream_backrefs(
             }
             ParseOp::Cons => {
                 // cons
-                if let SExp::Pair(v1, v2) = allocator.sexp(values) {
-                    if let SExp::Pair(v3, v4) = allocator.sexp(v2) {
-                        let new_root = allocator.new_pair(v3, v1)?;
-                        values = allocator.new_pair(new_root, v4)?;
-                    }
-                }
+                // pop left and right values off of the "values" stack, then
+                // push the new pair onto it
+                let SExp::Pair(right, rest) = allocator.sexp(values) else {
+                    panic!("internal error");
+                };
+                let SExp::Pair(left, rest) = allocator.sexp(rest) else {
+                    panic!("internal error");
+                };
+                let new_root = allocator.new_pair(left, right)?;
+                values = allocator.new_pair(new_root, rest)?;
             }
         }
     }
