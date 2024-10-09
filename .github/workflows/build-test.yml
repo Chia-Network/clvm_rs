@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-12, ubuntu-latest, windows-latest]
+        os: [macos-13, ubuntu-latest, windows-latest]
         python: [3.8]
 
     steps:
@@ -49,7 +49,7 @@ jobs:
       - name: Build MacOs with maturin on Python ${{ matrix.python }}
         if: startsWith(matrix.os, 'macos')
         env:
-          MACOSX_DEPLOYMENT_TARGET: "10.14"
+          MACOSX_DEPLOYMENT_TARGET: "13"
         run: |
           python -m venv venv
           ln -s venv/bin/activate
@@ -81,7 +81,7 @@ jobs:
               . /venv/bin/activate && \
               pip install --upgrade pip && \
               pip install maturin && \
-              CC=gcc maturin build -m wheel/Cargo.toml --release --strip --manylinux 2_28 --features=openssl \
+              CC=gcc maturin build -m wheel/Cargo.toml --release --strip --manylinux 2_28 --features=openssl --sdist \
             '
           python -m venv venv
           ln -s venv/bin/activate
@@ -185,7 +185,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-12, ubuntu-latest]
+        os: [macos-13, ubuntu-latest]
         python: [3.8]
     steps:
       - uses: actions/checkout@v4
@@ -220,7 +220,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-12, ubuntu-latest, windows-latest]
+        os: [macos-13, ubuntu-latest, windows-latest]
         python: [3.8]
     steps:
       - uses: actions/checkout@v4
