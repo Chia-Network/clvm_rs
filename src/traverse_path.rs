@@ -52,12 +52,12 @@ pub fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) ->
     let mut byte_idx = node_index.len() - 1;
     let mut bitmask = 0x01;
     while byte_idx > first_bit_byte_index || bitmask < last_bitmask {
-        let is_bit_set: bool = (node_index[byte_idx] & bitmask) != 0;
         match allocator.sexp(arg_list) {
             SExp::Atom => {
                 return Err(EvalErr(arg_list, "path into atom".into()));
             }
             SExp::Pair(left, right) => {
+                let is_bit_set = (node_index[byte_idx] & bitmask) != 0;
                 arg_list = if is_bit_set { right } else { left };
             }
         }
