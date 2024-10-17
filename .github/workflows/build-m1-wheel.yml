@@ -40,6 +40,8 @@ jobs:
           sh rust.sh -y
 
       - name: Build m1 wheels
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "13.0"
         run: |
           python3 -m venv venv
           . ./venv/bin/activate
