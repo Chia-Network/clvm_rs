@@ -6,8 +6,8 @@ use crate::reduction::Response;
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum OperatorSet {
     Default,
-    BLS,    // BLS and coinid operators
-    Keccak, // keccak256 operator (as well as BLS)
+    BLS,
+    Keccak, // keccak256 operator
 }
 
 pub trait Dialect {

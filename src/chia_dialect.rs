@@ -68,15 +68,13 @@ impl Dialect for ChiaDialect {
         o: NodePtr,
         argument_list: NodePtr,
         max_cost: Cost,
-        _extension: OperatorSet,
+        extension: OperatorSet,
     ) -> Response {
         let flags = self.flags
             | match extension {
                 OperatorSet::Default => 0,
-                OperatorSet::BLS => ENABLE_BLS_OPS_OUTSIDE_GUARD,
-                OperatorSet::Keccak => {
-                    ENABLE_KECCAK_OPS_OUTSIDE_GUARD | ENABLE_BLS_OPS_OUTSIDE_GUARD
-                }
+                OperatorSet::BLS => 0,
+                OperatorSet::Keccak => ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
             };
 
         let op_len = allocator.atom_len(o);
