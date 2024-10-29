@@ -41,7 +41,7 @@ num-traits = "0.2.19"
 num-integer = "0.1.46"
 chia-bls = "0.10.0"
 sha2 = "0.10.8"
-openssl = "0.10.66"
+openssl = "0.10.68"
 hex-literal = "0.4.1"
 # for secp sigs
 k256 = "0.13.4"
