@@ -8,6 +8,7 @@ pub enum OperatorSet {
     Default,
     BLS,
     Keccak, // keccak256 operator
+    Unknown,
 }
 
 pub trait Dialect {

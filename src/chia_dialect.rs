@@ -72,6 +72,7 @@ impl Dialect for ChiaDialect {
     ) -> Response {
         let flags = self.flags
             | match extension {
+                OperatorSet::Unknown => 0,
                 OperatorSet::Default => 0,
                 OperatorSet::BLS => 0,
                 OperatorSet::Keccak => ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
@@ -186,10 +187,11 @@ impl Dialect for ChiaDialect {
         match ext {
             // The BLS extensions (and coinid) operators were brought into the
             // main operator set as part of the hard fork
-            0 => OperatorSet::BLS,
+            0 => OperatorSet::Default,
             1 if (self.flags & ENABLE_KECCAK) != 0 => OperatorSet::Keccak,
+            1 => OperatorSet::BLS,
             // new extensions go here
-            _ => OperatorSet::Default,
+            _ => OperatorSet::Unknown,
         }
     }
 

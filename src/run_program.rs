@@ -336,7 +336,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let extension =
             self.dialect
                 .softfork_extension(uint_atom::<4>(self.allocator, extension, "softfork")? as u32);
-        if extension == OperatorSet::Default {
+        if extension == OperatorSet::Unknown {
             err(args, "unknown softfork extension")
         } else {
             Ok((extension, program, env))
