@@ -1187,7 +1187,7 @@ mod tests {
 
         // keccak256 is available when the softfork has activated
         RunProgramTest {
-            prg: "(softfork (q . 1134) (q . 1) (q a (i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ())) (q . ()))",
+            prg: "(softfork (q . 1134) (q . 2) (q a (i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ())) (q . ()))",
             args: "()",
             flags: ENABLE_KECCAK,
             result: Some("()"),
@@ -1196,7 +1196,7 @@ mod tests {
         },
         // make sure keccak is actually executed, by comparing with the wrong output
         RunProgramTest {
-            prg: "(softfork (q . 1134) (q . 1) (q a (i (= (keccak256 (q . \"foobar\")) (q . 0x58d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ())) (q . ()))",
+            prg: "(softfork (q . 1134) (q . 2) (q a (i (= (keccak256 (q . \"foobar\")) (q . 0x58d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ())) (q . ()))",
             args: "()",
             flags: ENABLE_KECCAK,
             result: None,
@@ -1205,12 +1205,21 @@ mod tests {
         },
         // keccak is ignored when the softfork has not activated
         RunProgramTest {
-            prg: "(softfork (q . 1134) (q . 1) (q a (i (= (keccak256 (q . \"foobar\")) (q . 0x58d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ())) (q . ()))",
+            prg: "(softfork (q . 1134) (q . 2) (q a (i (= (keccak256 (q . \"foobar\")) (q . 0x58d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ())) (q . ()))",
             args: "()",
             flags: 0,
             result: Some("()"),
             cost: 1215,
             err: "",
+        },
+        // keccak fails when the softfork has not activated and you're using a previous extension
+        RunProgramTest {
+            prg: "(softfork (q . 1134) (q . 1) (q a (i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ())) (q . ()))",
+            args: "()",
+            flags: 0,
+            result: None,
+            cost: 1215,
+            err: "clvm raise",
         },
 
         // === HARD FORK ===
@@ -1314,32 +1323,42 @@ mod tests {
         res.0
     }
 
-    fn run_test_case(t: &RunProgramTest) {
+    fn run_test_case(test_case: &RunProgramTest) {
         use crate::chia_dialect::ChiaDialect;
         use crate::test_ops::node_eq;
         let mut allocator = Allocator::new();
 
-        let program = check(parse_exp(&mut allocator, t.prg));
-        let args = check(parse_exp(&mut allocator, t.args));
-        let expected_result = &t.result.map(|v| check(parse_exp(&mut allocator, v)));
+        let program = check(parse_exp(&mut allocator, test_case.prg));
+        let args = check(parse_exp(&mut allocator, test_case.args));
+        let expected_result = &test_case
+            .result
+            .map(|v| check(parse_exp(&mut allocator, v)));
 
-        let dialect = ChiaDialect::new(t.flags);
-        println!("prg: {}", t.prg);
-        match run_program(&mut allocator, &dialect, program, args, t.cost) {
+        let dialect = ChiaDialect::new(test_case.flags);
+
+        match run_program(&mut allocator, &dialect, program, args, test_case.cost) {
             Ok(Reduction(cost, prg_result)) => {
                 assert!(node_eq(&allocator, prg_result, expected_result.unwrap()));
-                assert_eq!(cost, t.cost);
+                assert_eq!(cost, test_case.cost);
 
                 // now, run the same program again but with the cost limit 1 too low, to
                 // ensure it fails with the correct error
                 let expected_cost_exceeded =
-                    run_program(&mut allocator, &dialect, program, args, t.cost - 1).unwrap_err();
+                    run_program(&mut allocator, &dialect, program, args, test_case.cost - 1)
+                        .unwrap_err();
                 assert_eq!(expected_cost_exceeded.1, "cost exceeded");
             }
-            Err(err) => {
-                println!("FAILED: {}", err.1);
-                assert_eq!(err.1, t.err);
-                assert!(expected_result.is_none());
+            Err(actual) => {
+                assert_eq!(
+                    actual.1, test_case.err,
+                    "Expected program {} to fail",
+                    test_case.prg
+                );
+                assert!(
+                    expected_result.is_none(),
+                    "Expected program {} to have no result",
+                    test_case.prg
+                );
             }
         }
     }
@@ -1431,14 +1450,14 @@ mod tests {
         (3981700, 0, 0),
         "atom is not a G2 point"
     )]
-    #[case::keccak(
+    #[case::keccak_equal(
         "(i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x))",
-        (1134, 1, ENABLE_KECCAK_OPS_OUTSIDE_GUARD),
+        (1134, 2, ENABLE_KECCAK_OPS_OUTSIDE_GUARD),
         ""
     )]
-    #[case::keccak(
+    #[case::keccak_inequal(
         "(i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873f)) (q . 0) (q x))",
-        (1134, 1, ENABLE_KECCAK_OPS_OUTSIDE_GUARD),
+        (1134, 2, ENABLE_KECCAK_OPS_OUTSIDE_GUARD),
         "clvm raise"
     )]
     fn test_softfork(
@@ -1457,13 +1476,15 @@ mod tests {
 
         // softfork extensions that are enabled
         let ext_enabled = match test_ext {
-            0 => true,
-            1 => (flags & ENABLE_KECCAK) != 0,
+            0 | 1 => true,
+            2 => (flags & ENABLE_KECCAK) != 0,
             _ => false,
         };
+        let supports_op = test_ext >= enabled;
 
         println!("mempool: {mempool} ext: {test_ext} flags: {flags}");
-        let expect_err = match (ext_enabled as u8, (test_ext >= enabled) as u8) {
+        println!("enabled: {ext_enabled} supports: {supports_op}");
+        let expect_err = match (ext_enabled as u8, supports_op as u8) {
             // the extension we're running has not been activated, and we're not
             // running an extension that supports the operator
             (0, 0) => {

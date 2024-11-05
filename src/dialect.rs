@@ -6,7 +6,6 @@ use crate::reduction::Response;
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum OperatorSet {
     Default,
-    BLS,
     Keccak, // keccak256 operator
     Unknown,
 }
