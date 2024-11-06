@@ -72,8 +72,13 @@ impl Dialect for ChiaDialect {
     ) -> Response {
         let flags = self.flags
             | match extension {
+                // This is the default set of operators, so no special flags need to be added.
                 OperatorSet::Default => 0,
-                OperatorSet::BLS => 0,
+
+                // Since BLS has been hardforked in universally, this has no effect.
+                OperatorSet::Bls => 0,
+
+                // Keccak is allowed as if it were a default operator, inside of the softfork guard.
                 OperatorSet::Keccak => ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
             };
 
@@ -184,11 +189,18 @@ impl Dialect for ChiaDialect {
     // return the Operators it enables (or None) if we don't know what it means
     fn softfork_extension(&self, ext: u32) -> OperatorSet {
         match ext {
-            // The BLS extensions (and coinid) operators were brought into the
-            // main operator set as part of the hard fork
-            0 => OperatorSet::BLS,
+            // Extension 0 is for the BLS operators, and is still valid.
+            // However, the extension doesn't add any addition opcodes,
+            // because the BLS operators were hardforked into the main set.
+            0 => OperatorSet::Bls,
+
+            // Extension 1 is for the keccak256 operator.
+            // This is only considered valid in the mempool if it's enabled with the flag.
+            // This is to prevent submission of spends with keccak until the softfork activates.
             1 if (self.flags & ENABLE_KECCAK) != 0 => OperatorSet::Keccak,
-            // new extensions go here
+
+            // Extensions 2 and beyond are considered invalid by the mempool.
+            // However, all future extensions are valid in consensus mode and reserved for future softforks.
             _ => OperatorSet::Default,
         }
     }
