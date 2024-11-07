@@ -2,11 +2,20 @@ use crate::allocator::{Allocator, NodePtr};
 use crate::cost::Cost;
 use crate::reduction::Response;
 
+/// The set of operators that are available in the dialect.
 #[repr(u32)]
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum OperatorSet {
+    /// Any softfork extensions that are not added yet will be rejected.
     Default,
-    BLS,
+
+    /// Originally added BLS operators when inside softfork extension 0.
+    /// The operators have since been hardforked into the main operator set.
+    Bls,
+
+    /// The keccak256 operator, which is only available inside the softfork guard.
+    /// This uses softfork extension 1, which does not conflict with the BLS fork.
+    Keccak,
 }
 
 pub trait Dialect {

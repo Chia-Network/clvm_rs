@@ -6,6 +6,7 @@ use crate::bls_ops::{
 };
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
+use crate::keccak256_ops::op_keccak256;
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
     op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not,
@@ -103,6 +104,7 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
             "%" => a.new_atom(&[61]).unwrap(),
             "secp256k1_verify" => a.new_atom(&[0x13, 0xd6, 0x1f, 0x00]).unwrap(),
             "secp256r1_verify" => a.new_atom(&[0x1c, 0x3a, 0x8f, 0x00]).unwrap(),
+            "keccak256" => a.new_atom(&[62]).unwrap(),
             _ => {
                 panic!("atom not supported \"{}\"", v);
             }
@@ -248,6 +250,8 @@ mod tests {
     #[case("test-secp256r1")]
     #[case("test-modpow")]
     #[case("test-sha256")]
+    #[case("test-keccak256")]
+    #[case("test-keccak256-generated")]
     fn test_ops(#[case] filename: &str) {
         use std::fs::read_to_string;
 
@@ -301,6 +305,7 @@ mod tests {
             ("secp256k1_verify", op_secp256k1_verify as Opf),
             ("secp256r1_verify", op_secp256r1_verify as Opf),
             ("modpow", op_modpow as Opf),
+            ("keccak256", op_keccak256 as Opf),
         ]);
 
         println!("Test cases from: {filename}");
