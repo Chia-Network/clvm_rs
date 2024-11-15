@@ -45,7 +45,7 @@ pub fn serialized_length_from_bytes_trusted(b: &[u8]) -> io::Result<u64> {
     Ok(f.position())
 }
 
-use crate::sha2::Sha256;
+use chia_sha2::Sha256;
 
 fn hash_atom(buf: &[u8]) -> [u8; 32] {
     let mut ctx = Sha256::new();
