@@ -27,8 +27,8 @@ counters = []
 pre-eval = []
 
 # On UNIX-based platforms, you may get a speed boost on `sha256` operations by building
-# with OpenSSL.when enabled
-openssl = ["dep:openssl"]
+# with OpenSSL when enabled
+openssl = ["chia-sha2/openssl"]
 
 [profile.release]
 lto = "thin"
@@ -39,9 +39,8 @@ lazy_static = "1.5.0"
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
 num-integer = "0.1.46"
-chia-bls = "0.10.0"
-sha2 = "0.10.8"
-openssl = "0.10.68"
+chia-bls = "0.15.0"
+chia-sha2 = "0.15.0"
 hex-literal = "0.4.1"
 # for secp sigs
 k256 = "0.13.4"
@@ -69,8 +68,7 @@ num-bigint = { workspace = true }
 num-traits = { workspace = true }
 num-integer = { workspace = true }
 chia-bls = { workspace = true }
-sha2 = { workspace = true }
-openssl = { workspace = true, features = ["vendored"], optional = true }
+chia-sha2 = { workspace = true }
 hex-literal = { workspace = true }
 # for secp sigs
 k256 = { version = "0.13.4", features = ["ecdsa"] }

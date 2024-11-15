@@ -1,6 +1,6 @@
 use std::io::{Error, Read, Result, Write};
 
-use crate::sha2::Sha256;
+use chia_sha2::Sha256;
 
 use super::parse_atom::decode_size_with_offset;
 use super::utils::{copy_exactly, skip_bytes};
