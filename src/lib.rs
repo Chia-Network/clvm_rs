@@ -1,6 +1,7 @@
 pub mod allocator;
 pub mod bls_ops;
 pub mod chia_dialect;
+pub mod collect_dialect;
 pub mod core_ops;
 pub mod cost;
 pub mod dialect;
@@ -19,6 +20,7 @@ pub mod traverse_path;
 
 pub use allocator::{Allocator, Atom, NodePtr, SExp};
 pub use chia_dialect::ChiaDialect;
+pub use collect_dialect::{CollectDialect, CollectedOp};
 pub use run_program::run_program;
 
 pub use chia_dialect::{LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS};

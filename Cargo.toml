@@ -80,6 +80,7 @@ sha3 = "0.10.8"
 rstest = { workspace = true }
 criterion = { workspace = true }
 hex = { workspace = true }
+anyhow = "1.0.93"
 
 [[bench]]
 name = "run-program"
