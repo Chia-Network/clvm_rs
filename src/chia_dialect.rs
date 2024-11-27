@@ -108,7 +108,6 @@ impl Dialect for ChiaDialect {
                     return unknown_operator(allocator, o, argument_list, flags, max_cost);
                 }
             };
-
             return f(allocator, argument_list, max_cost);
         }
         if op_len != 1 {
