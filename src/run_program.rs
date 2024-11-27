@@ -99,6 +99,7 @@ struct RunProgramContext<'a, D> {
     softfork_stack: Vec<SoftforkGuard>,
     #[cfg(feature = "counters")]
     pub counters: Counters,
+
     #[cfg(feature = "pre-eval")]
     pre_eval: Option<PreEval>,
     #[cfg(feature = "pre-eval")]
