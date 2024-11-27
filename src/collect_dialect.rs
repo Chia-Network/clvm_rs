@@ -76,6 +76,9 @@ where
         let opcode = u32::from_be_bytes(atom.as_ref().try_into().unwrap());
 
         let cost = match opcode {
+            // We special case these opcodes and allow the response to pass through otherwise.
+            // If new operators are added to the main dialect, they likely shouldn't be included here.
+            // We're using the same cost to ensure that softfork conditions behave the same.
             0x13d61f00 => SECP256K1_VERIFY_COST,
             0x1c3a8f00 => SECP256R1_VERIFY_COST,
             _ => return response,
