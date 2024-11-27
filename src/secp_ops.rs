@@ -7,8 +7,8 @@ use k256::ecdsa::{Signature as K1Signature, VerifyingKey as K1VerifyingKey};
 use p256::ecdsa::signature::hazmat::PrehashVerifier;
 use p256::ecdsa::{Signature as P1Signature, VerifyingKey as P1VerifyingKey};
 
-pub const SECP256R1_VERIFY_COST: Cost = 1850000;
-pub const SECP256K1_VERIFY_COST: Cost = 1300000;
+pub(crate) const SECP256R1_VERIFY_COST: Cost = 1850000;
+pub(crate) const SECP256K1_VERIFY_COST: Cost = 1300000;
 
 // expects: pubkey msg sig
 pub fn op_secp256r1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
