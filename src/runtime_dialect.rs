@@ -6,7 +6,6 @@ use crate::err_utils::err;
 use crate::f_table::{f_lookup_for_hashmap, FLookup};
 use crate::more_ops::op_unknown;
 use crate::reduction::Response;
-use crate::run_program::CollectedOp;
 use std::collections::HashMap;
 
 pub struct RuntimeDialect {
@@ -42,7 +41,6 @@ impl Dialect for RuntimeDialect {
         argument_list: NodePtr,
         max_cost: Cost,
         _extensions: OperatorSet,
-        _collected_ops: Option<&mut Vec<CollectedOp>>,
     ) -> Response {
         let atom = allocator.atom(o);
         let b = atom.as_ref();
