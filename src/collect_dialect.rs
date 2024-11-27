@@ -88,3 +88,41 @@ where
         Ok(Reduction(cost, NodePtr::NIL))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{run_program, ChiaDialect, SExp};
+
+    use super::*;
+
+    #[test]
+    fn test_signature_collection() -> anyhow::Result<()> {
+        let mut a = Allocator::new();
+
+        let op = a.new_atom(&[0x13, 0xd6, 0x1f, 0x00])?;
+        let fake_arg = a.new_atom(&[1, 2, 3])?;
+        let op_q = a.one();
+        let quoted_fake_arg = a.new_pair(op_q, fake_arg)?;
+        let args = a.new_pair(quoted_fake_arg, NodePtr::NIL)?;
+        let program = a.new_pair(op, args)?;
+
+        let dialect = CollectDialect::new(ChiaDialect::new(0));
+
+        let reduction = run_program(&mut a, &dialect, program, NodePtr::NIL, u64::MAX).unwrap();
+        let collected = dialect.collect();
+
+        assert!(a.atom(reduction.1).is_empty());
+        assert_eq!(collected.len(), 1);
+
+        let collected = collected[0];
+        assert_eq!(collected.op, op);
+
+        let SExp::Pair(f, r) = a.sexp(collected.args) else {
+            unreachable!();
+        };
+        assert!(a.atom(r).is_empty());
+        assert_eq!(f, fake_arg);
+
+        Ok(())
+    }
+}
