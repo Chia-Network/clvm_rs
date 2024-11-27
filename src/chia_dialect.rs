@@ -102,7 +102,6 @@ impl Dialect for ChiaDialect {
             // which makes the multiplier 0x1c3a8f and 0x0cf84f (there is an
             // implied +1) and cost function 0
             let f = match opcode {
-                // If we add more operators here, we will have to exclude them from signature collection.
                 0x13d61f00 => op_secp256k1_verify,
                 0x1c3a8f00 => op_secp256r1_verify,
                 _ => {
