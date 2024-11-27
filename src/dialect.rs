@@ -1,6 +1,7 @@
 use crate::allocator::{Allocator, NodePtr};
 use crate::cost::Cost;
 use crate::reduction::Response;
+use crate::run_program::CollectedOp;
 
 /// The set of operators that are available in the dialect.
 #[repr(u32)]
@@ -30,6 +31,7 @@ pub trait Dialect {
         args: NodePtr,
         max_cost: Cost,
         extensions: OperatorSet,
+        collected_ops: Option<&mut Vec<CollectedOp>>,
     ) -> Response;
     fn allow_unknown_ops(&self) -> bool;
 }

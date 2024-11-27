@@ -64,6 +64,12 @@ impl Counters {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct CollectedOp {
+    pub op: NodePtr,
+    pub args: NodePtr,
+}
+
 // this represents the state we were in before entering a soft-fork guard. We
 // may need this to long-jump out of the guard, and also to validate the cost
 // when exiting the guard
@@ -99,11 +105,11 @@ struct RunProgramContext<'a, D> {
     softfork_stack: Vec<SoftforkGuard>,
     #[cfg(feature = "counters")]
     pub counters: Counters,
-
     #[cfg(feature = "pre-eval")]
     pre_eval: Option<PreEval>,
     #[cfg(feature = "pre-eval")]
     posteval_stack: Vec<Box<PostEval>>,
+    collected_ops: Option<Vec<CollectedOp>>,
 }
 
 fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Cost, EvalErr> {
@@ -195,10 +201,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             counters: Counters::new(),
             pre_eval,
             posteval_stack: Vec::new(),
+            collected_ops: None,
         }
     }
 
-    fn new(allocator: &'a mut Allocator, dialect: &'a D) -> Self {
+    fn new(allocator: &'a mut Allocator, dialect: &'a D, collect_signatures: bool) -> Self {
         RunProgramContext {
             allocator,
             dialect,
@@ -212,6 +219,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             pre_eval: None,
             #[cfg(feature = "pre-eval")]
             posteval_stack: Vec::new(),
+            collected_ops: if collect_signatures {
+                Some(Vec::new())
+            } else {
+                None
+            },
         }
     }
 
@@ -410,6 +422,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 operand_list,
                 max_cost,
                 current_extensions,
+                self.collected_ops.as_mut(),
             )?;
             self.push(r.1)?;
             Ok(r.0)
@@ -511,8 +524,23 @@ pub fn run_program<'a, D: Dialect>(
     env: NodePtr,
     max_cost: Cost,
 ) -> Response {
-    let mut rpc = RunProgramContext::new(allocator, dialect);
+    let mut rpc = RunProgramContext::new(allocator, dialect, false);
     rpc.run_program(program, env, max_cost)
+}
+
+pub fn run_program_with_signatures<'a, D: Dialect>(
+    allocator: &'a mut Allocator,
+    dialect: &'a D,
+    program: NodePtr,
+    env: NodePtr,
+    max_cost: Cost,
+) -> Result<(Reduction, Vec<CollectedOp>), EvalErr> {
+    let mut rpc = RunProgramContext::new(allocator, dialect, true);
+    let reduction = rpc.run_program(program, env, max_cost)?;
+    Ok((
+        reduction,
+        rpc.collected_ops.expect("missing collected signature ops"),
+    ))
 }
 
 #[cfg(feature = "pre-eval")]
@@ -536,7 +564,7 @@ pub fn run_program_with_counters<'a, D: Dialect>(
     env: NodePtr,
     max_cost: Cost,
 ) -> (Counters, Response) {
-    let mut rpc = RunProgramContext::new(allocator, dialect);
+    let mut rpc = RunProgramContext::new(allocator, dialect, false);
     let ret = rpc.run_program(program, env, max_cost);
     rpc.counters.atom_count = rpc.allocator.atom_count() as u32;
     rpc.counters.small_atom_count = rpc.allocator.small_atom_count() as u32;
@@ -551,6 +579,7 @@ mod tests {
 
     use crate::chia_dialect::{ENABLE_KECCAK, ENABLE_KECCAK_OPS_OUTSIDE_GUARD, NO_UNKNOWN_OPS};
     use crate::test_ops::parse_exp;
+    use crate::ChiaDialect;
 
     use rstest::rstest;
 
@@ -1579,5 +1608,40 @@ mod tests {
         assert_eq!(counters.heap_size, 769963);
 
         assert_eq!(result.unwrap().0, cost);
+    }
+
+    #[test]
+    fn test_signature_collection() -> anyhow::Result<()> {
+        let mut a = Allocator::new();
+
+        let op = a.new_atom(&[0x13, 0xd6, 0x1f, 0x00])?;
+        let fake_arg = a.new_atom(&[1, 2, 3])?;
+        let op_q = a.one();
+        let quoted_fake_arg = a.new_pair(op_q, fake_arg)?;
+        let args = a.new_pair(quoted_fake_arg, NodePtr::NIL)?;
+        let program = a.new_pair(op, args)?;
+
+        let (reduction, collected) = run_program_with_signatures(
+            &mut a,
+            &ChiaDialect::new(0),
+            program,
+            NodePtr::NIL,
+            u64::MAX,
+        )
+        .unwrap();
+
+        assert!(a.atom(reduction.1).is_empty());
+        assert_eq!(collected.len(), 1);
+
+        let collected = collected[0];
+        assert_eq!(collected.op, op);
+
+        let SExp::Pair(f, r) = a.sexp(collected.args) else {
+            unreachable!();
+        };
+        assert!(a.atom(r).is_empty());
+        assert_eq!(f, fake_arg);
+
+        Ok(())
     }
 }

@@ -14,8 +14,11 @@ use crate::more_ops::{
     op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not,
     op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract, op_unknown,
 };
-use crate::reduction::Response;
-use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
+use crate::reduction::{Reduction, Response};
+use crate::run_program::CollectedOp;
+use crate::secp_ops::{
+    op_secp256k1_verify, op_secp256r1_verify, SECP256K1_VERIFY_COST, SECP256R1_VERIFY_COST,
+};
 
 // unknown operators are disallowed
 // (otherwise they are no-ops with well defined cost)
@@ -69,6 +72,7 @@ impl Dialect for ChiaDialect {
         argument_list: NodePtr,
         max_cost: Cost,
         extension: OperatorSet,
+        collected_ops: Option<&mut Vec<CollectedOp>>,
     ) -> Response {
         let flags = self.flags
             | match extension {
@@ -101,13 +105,33 @@ impl Dialect for ChiaDialect {
             // the secp operators have a fixed cost of 1850000 and 1300000,
             // which makes the multiplier 0x1c3a8f and 0x0cf84f (there is an
             // implied +1) and cost function 0
+
+            let cost;
+
             let f = match opcode {
-                0x13d61f00 => op_secp256k1_verify,
-                0x1c3a8f00 => op_secp256r1_verify,
+                // If we add more operators here, we will have to exclude them from signature collection.
+                0x13d61f00 => {
+                    cost = SECP256K1_VERIFY_COST;
+                    op_secp256k1_verify
+                }
+                0x1c3a8f00 => {
+                    cost = SECP256R1_VERIFY_COST;
+                    op_secp256r1_verify
+                }
                 _ => {
                     return unknown_operator(allocator, o, argument_list, flags, max_cost);
                 }
             };
+
+            if let Some(ops) = collected_ops {
+                ops.push(CollectedOp {
+                    op: o,
+                    args: argument_list,
+                });
+
+                return Ok(Reduction(cost, NodePtr::NIL));
+            }
+
             return f(allocator, argument_list, max_cost);
         }
         if op_len != 1 {
