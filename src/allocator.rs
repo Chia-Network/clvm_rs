@@ -123,7 +123,7 @@ impl PartialEq for Atom<'_> {
     }
 }
 
-impl<'a> AsRef<[u8]> for Atom<'a> {
+impl AsRef<[u8]> for Atom<'_> {
     fn as_ref(&self) -> &[u8] {
         match self {
             Self::Borrowed(bytes) => bytes,
@@ -132,7 +132,7 @@ impl<'a> AsRef<[u8]> for Atom<'a> {
     }
 }
 
-impl<'a> Deref for Atom<'a> {
+impl Deref for Atom<'_> {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
@@ -140,7 +140,7 @@ impl<'a> Deref for Atom<'a> {
     }
 }
 
-impl<'a> Borrow<[u8]> for Atom<'a> {
+impl Borrow<[u8]> for Atom<'_> {
     fn borrow(&self) -> &[u8] {
         self.as_ref()
     }

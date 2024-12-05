@@ -78,7 +78,6 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
 }
 
 /// calculate the standard `sha256tree` has for a node
-
 pub fn treehash(
     cache: &mut ObjectCache<Bytes32>,
     allocator: &Allocator,
@@ -97,7 +96,6 @@ pub fn treehash(
 
 /// calculate the serialized length (without backrefs) of a node. This is used
 /// to check if using backrefs is actually smaller.
-
 pub fn serialized_length(
     cache: &mut ObjectCache<u64>,
     allocator: &Allocator,
