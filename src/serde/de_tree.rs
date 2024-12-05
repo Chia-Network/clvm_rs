@@ -99,8 +99,9 @@ fn skip_or_sha_bytes<R: Read>(
     }
 }
 
-/// parse a serialized clvm object tree to an array of `ParsedTriple` objects
+type ParsedTriplesOutput = (Vec<ParsedTriple>, Option<Vec<[u8; 32]>>);
 
+/// parse a serialized clvm object tree to an array of `ParsedTriple` objects
 /// This alternative mechanism of deserialization generates an array of
 /// references to each clvm object. A reference contains three values:
 /// a start offset within the blob, an end offset, and a third value that
@@ -111,9 +112,6 @@ fn skip_or_sha_bytes<R: Read>(
 ///
 /// Since these values are offsets into the original buffer, that buffer needs
 /// to be kept around to get the original atoms.
-
-type ParsedTriplesOutput = (Vec<ParsedTriple>, Option<Vec<[u8; 32]>>);
-
 pub fn parse_triples<R: Read>(
     f: &mut R,
     calculate_tree_hashes: bool,

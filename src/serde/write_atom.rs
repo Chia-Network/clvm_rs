@@ -5,7 +5,6 @@ use std::io::ErrorKind;
 /// from 0x00-0x7f also have a prefix encoding their length. This function
 /// writes the correct prefix for an atom of size `size` whose first byte is `atom_0`.
 /// If the atom is of size 0, use any placeholder first byte, as it's ignored anyway.
-
 fn write_atom_encoding_prefix_with_size<W: io::Write>(
     f: &mut W,
     atom_0: u8,
