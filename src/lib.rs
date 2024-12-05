@@ -21,7 +21,9 @@ pub use allocator::{Allocator, Atom, NodePtr, SExp};
 pub use chia_dialect::ChiaDialect;
 pub use run_program::run_program;
 
-pub use chia_dialect::{LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS};
+pub use chia_dialect::{
+    ENABLE_KECCAK, ENABLE_KECCAK_OPS_OUTSIDE_GUARD, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS,
+};
 
 #[cfg(feature = "counters")]
 pub use run_program::run_program_with_counters;
