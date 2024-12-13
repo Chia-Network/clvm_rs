@@ -11,9 +11,8 @@ use std::collections::HashMap;
 type CachedFunction<T> = fn(&mut ObjectCache<T>, &Allocator, NodePtr) -> Option<T>;
 use super::bytes32::{hash_blobs, Bytes32};
 
-pub struct ObjectCache<'a, T> {
+pub struct ObjectCache<T> {
     cache: HashMap<NodePtr, T>,
-    allocator: &'a Allocator,
 
     /// The function `f` is expected to calculate its T value recursively based
     /// on the T values for the left and right child for a pair. For an atom, the
@@ -25,19 +24,18 @@ pub struct ObjectCache<'a, T> {
     f: CachedFunction<T>,
 }
 
-impl<'a, T: Clone> ObjectCache<'a, T> {
-    pub fn new(allocator: &'a Allocator, f: CachedFunction<T>) -> Self {
+impl<T: Clone> ObjectCache<T> {
+    pub fn new(f: CachedFunction<T>) -> Self {
         Self {
             cache: HashMap::new(),
-            allocator,
             f,
         }
     }
 
     /// return the function value for this node, either from cache
     /// or by calculating it
-    pub fn get_or_calculate(&mut self, node: &NodePtr) -> Option<&T> {
-        self.calculate(node);
+    pub fn get_or_calculate(&mut self, allocator: &Allocator, node: &NodePtr) -> Option<&T> {
+        self.calculate(allocator, node);
         self.get_from_cache(node)
     }
 
@@ -53,14 +51,14 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
 
     /// calculate the function's value for the given node, traversing uncached children
     /// as necessary
-    fn calculate(&mut self, root_node: &NodePtr) {
+    fn calculate(&mut self, allocator: &Allocator, root_node: &NodePtr) {
         let mut obj_list = vec![*root_node];
         while let Some(node) = obj_list.pop() {
             let v = self.get_from_cache(&node);
             match v {
                 Some(_) => {}
-                None => match (self.f)(self, self.allocator, node) {
-                    None => match self.allocator.sexp(node) {
+                None => match (self.f)(self, allocator, node) {
+                    None => match allocator.sexp(node) {
                         SExp::Pair(left, right) => {
                             obj_list.push(node);
                             obj_list.push(left);
@@ -166,21 +164,27 @@ mod tests {
         let blob: Vec<u8> = Vec::from_hex(obj_as_hex).unwrap();
         let mut cursor: Cursor<&[u8]> = Cursor::new(&blob);
         let obj = node_from_stream(&mut allocator, &mut cursor).unwrap();
-        let mut oc = ObjectCache::new(&allocator, f);
+        let mut oc = ObjectCache::new(f);
 
         assert_eq!(oc.get_from_cache(&obj), None);
 
-        oc.calculate(&obj);
+        oc.calculate(&allocator, &obj);
 
         assert_eq!(oc.get_from_cache(&obj), Some(&expected_value));
 
-        assert_eq!(oc.get_or_calculate(&obj).unwrap().clone(), expected_value);
+        assert_eq!(
+            oc.get_or_calculate(&allocator, &obj).unwrap().clone(),
+            expected_value
+        );
 
         assert_eq!(oc.get_from_cache(&obj), Some(&expected_value));
 
         // do it again, but the simple way
-        let mut oc = ObjectCache::new(&allocator, f);
-        assert_eq!(oc.get_or_calculate(&obj).unwrap().clone(), expected_value);
+        let mut oc = ObjectCache::new(f);
+        assert_eq!(
+            oc.get_or_calculate(&allocator, &obj).unwrap().clone(),
+            expected_value
+        );
     }
 
     #[test]
@@ -241,14 +245,20 @@ mod tests {
         }
 
         let expected_value = LIST_SIZE * 2 + 1;
-        let mut oc = ObjectCache::new(&allocator, serialized_length);
-        assert_eq!(oc.get_or_calculate(&top).unwrap().clone(), expected_value);
+        let mut oc = ObjectCache::new(serialized_length);
+        assert_eq!(
+            oc.get_or_calculate(&allocator, &top).unwrap().clone(),
+            expected_value
+        );
 
         let expected_value = <[u8; 32]>::from_hex(
             "a168fce695099a30c0745075e6db3722ed7f059e0d7cc4d7e7504e215db5017b",
         )
         .unwrap();
-        let mut oc = ObjectCache::new(&allocator, treehash);
-        assert_eq!(oc.get_or_calculate(&top).unwrap().clone(), expected_value);
+        let mut oc = ObjectCache::new(treehash);
+        assert_eq!(
+            oc.get_or_calculate(&allocator, &top).unwrap().clone(),
+            expected_value
+        );
     }
 }

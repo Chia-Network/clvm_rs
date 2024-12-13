@@ -126,8 +126,8 @@ mod tests {
         let buf = Vec::from_hex(serialization_as_hex).unwrap();
         let mut allocator = Allocator::new();
         let node = node_from_bytes_backrefs(&mut allocator, &buf).unwrap();
-        let mut oc = ObjectCache::new(&allocator, treehash);
-        let calculated_hash = oc.get_or_calculate(&node).unwrap();
+        let mut oc = ObjectCache::new(treehash);
+        let calculated_hash = oc.get_or_calculate(&allocator, &node).unwrap();
         let ch: &[u8] = calculated_hash;
         let expected_hash: Vec<u8> = Vec::from_hex(expected_hash_as_hex).unwrap();
         assert_eq!(expected_hash, ch);
