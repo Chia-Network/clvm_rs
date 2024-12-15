@@ -93,6 +93,8 @@ pub fn node_to_bytes_backrefs(a: &Allocator, node: NodePtr) -> io::Result<Vec<u8
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::serde::node_to_bytes_backrefs;
+
     #[test]
     fn test_serialize_limit() {
         let mut a = Allocator::new();
