@@ -18,6 +18,7 @@ mod test;
 pub use de::node_from_bytes;
 pub use de_br::{node_from_bytes_backrefs, node_from_bytes_backrefs_record};
 pub use de_tree::{parse_triples, ParsedTriple};
+pub use object_cache::{serialized_length, treehash, ObjectCache};
 pub use ser::{node_to_bytes, node_to_bytes_limit};
 pub use ser_br::{node_to_bytes_backrefs, node_to_bytes_backrefs_limit};
 pub use tools::{

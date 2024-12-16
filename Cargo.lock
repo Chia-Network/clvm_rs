@@ -299,6 +299,7 @@ dependencies = [
 name = "clvm_rs-fuzz"
 version = "1.0.0"
 dependencies = [
+ "chia-sha2",
  "clvmr",
  "libfuzzer-sys",
 ]
