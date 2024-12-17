@@ -33,9 +33,15 @@ impl<T: Clone> ObjectCache<T> {
     }
 
     /// return the function value for this node, either from cache
-    /// or by calculating it
-    pub fn get_or_calculate(&mut self, allocator: &Allocator, node: &NodePtr) -> Option<&T> {
-        self.calculate(allocator, node);
+    /// or by calculating it. If the stop_token is specified and is found in the
+    /// CLVM tree below node, traversal will stop and `None` is returned.
+    pub fn get_or_calculate(
+        &mut self,
+        allocator: &Allocator,
+        node: &NodePtr,
+        stop_token: Option<NodePtr>,
+    ) -> Option<&T> {
+        self.calculate(allocator, node, stop_token);
         self.get_from_cache(node)
     }
 
@@ -50,10 +56,24 @@ impl<T: Clone> ObjectCache<T> {
     }
 
     /// calculate the function's value for the given node, traversing uncached children
-    /// as necessary
-    fn calculate(&mut self, allocator: &Allocator, root_node: &NodePtr) {
+    /// as necessary. If, the optional, stop_token NodePtr is encountered in the
+    /// sub tree of root_node, we stop calculations and don't add the the value
+    /// for root_node to the cache. This is / used for accessing incrementally
+    /// built trees, where the stop_token indicates an unfinished part of the
+    /// structure.
+    fn calculate(
+        &mut self,
+        allocator: &Allocator,
+        root_node: &NodePtr,
+        stop_token: Option<NodePtr>,
+    ) {
         let mut obj_list = vec![*root_node];
         while let Some(node) = obj_list.pop() {
+            if stop_token == Some(node) {
+                // we must terminate the search if we hit the stop_token. We can't
+                // traverse past it (since we're serializing incrementally).
+                return;
+            }
             let v = self.get_from_cache(&node);
             match v {
                 Some(_) => {}
@@ -168,12 +188,12 @@ mod tests {
 
         assert_eq!(oc.get_from_cache(&obj), None);
 
-        oc.calculate(&allocator, &obj);
+        oc.calculate(&allocator, &obj, None);
 
         assert_eq!(oc.get_from_cache(&obj), Some(&expected_value));
 
         assert_eq!(
-            oc.get_or_calculate(&allocator, &obj).unwrap().clone(),
+            oc.get_or_calculate(&allocator, &obj, None).unwrap().clone(),
             expected_value
         );
 
@@ -182,7 +202,7 @@ mod tests {
         // do it again, but the simple way
         let mut oc = ObjectCache::new(f);
         assert_eq!(
-            oc.get_or_calculate(&allocator, &obj).unwrap().clone(),
+            oc.get_or_calculate(&allocator, &obj, None).unwrap().clone(),
             expected_value
         );
     }
@@ -247,7 +267,7 @@ mod tests {
         let expected_value = LIST_SIZE * 2 + 1;
         let mut oc = ObjectCache::new(serialized_length);
         assert_eq!(
-            oc.get_or_calculate(&allocator, &top).unwrap().clone(),
+            oc.get_or_calculate(&allocator, &top, None).unwrap().clone(),
             expected_value
         );
 
@@ -257,8 +277,56 @@ mod tests {
         .unwrap();
         let mut oc = ObjectCache::new(treehash);
         assert_eq!(
-            oc.get_or_calculate(&allocator, &top).unwrap().clone(),
+            oc.get_or_calculate(&allocator, &top, None).unwrap().clone(),
             expected_value
         );
+    }
+
+    fn do_check_token(
+        allocator: &Allocator,
+        stop_token: NodePtr,
+        poisoned_nodes: &[NodePtr],
+        good_nodes: &[NodePtr],
+    ) {
+        let mut cache = ObjectCache::new(treehash);
+
+        for n in poisoned_nodes {
+            assert!(cache
+                .get_or_calculate(allocator, n, Some(stop_token))
+                .is_none());
+        }
+
+        for n in good_nodes {
+            assert!(cache
+                .get_or_calculate(allocator, n, Some(stop_token))
+                .is_some());
+        }
+    }
+
+    #[test]
+    fn test_stop_token() {
+        // we build a tree and insert a stop_token and ensure we get `None` in
+        // the appropriate places in the tree
+        //            A
+        //          /   \
+        //         B     C
+        //        / \   / \
+        //       D   E F   G
+        // if F is made the stop-token F, C and A should return None.
+        let mut allocator = Allocator::new();
+
+        let d = allocator.new_atom(b"d").unwrap();
+        let e = allocator.new_atom(b"e").unwrap();
+        let f = allocator.new_atom(b"f").unwrap();
+        let g = allocator.new_atom(b"g").unwrap();
+        let b = allocator.new_pair(d, e).unwrap();
+        let c = allocator.new_pair(f, g).unwrap();
+        let a = allocator.new_pair(b, c).unwrap();
+
+        // if d is the stop token; d,b and a should return None
+        do_check_token(&allocator, d, &[d, b, a], &[e, c, f, g]);
+        do_check_token(&allocator, e, &[e, b, a], &[d, c, f, g]);
+        do_check_token(&allocator, f, &[f, c, a], &[d, e, g, b]);
+        do_check_token(&allocator, g, &[g, c, a], &[d, e, b, f]);
     }
 }

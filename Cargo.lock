@@ -301,6 +301,7 @@ version = "1.0.0"
 dependencies = [
  "chia-sha2",
  "clvmr",
+ "hex",
  "libfuzzer-sys",
 ]
 

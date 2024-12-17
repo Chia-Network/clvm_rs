@@ -12,6 +12,7 @@ cargo-fuzz = true
 libfuzzer-sys = { workspace = true }
 clvmr = { workspace = true }
 chia-sha2 = { workspace = true }
+hex = { workspace = true }
 
 [[bin]]
 name = "fuzz_run_program"
