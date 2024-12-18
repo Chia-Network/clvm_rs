@@ -36,10 +36,10 @@ pub fn node_to_stream_backrefs<W: io::Write>(
         assert!(op == Some(ReadOp::Parse));
 
         let node_serialized_length = *slc
-            .get_or_calculate(allocator, &node_to_write)
+            .get_or_calculate(allocator, &node_to_write, None)
             .expect("couldn't calculate serialized length");
         let node_tree_hash = thc
-            .get_or_calculate(allocator, &node_to_write)
+            .get_or_calculate(allocator, &node_to_write, None)
             .expect("can't get treehash");
         match read_cache_lookup.find_path(node_tree_hash, node_serialized_length) {
             Some(path) => {
@@ -93,6 +93,8 @@ pub fn node_to_bytes_backrefs(a: &Allocator, node: NodePtr) -> io::Result<Vec<u8
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::serde::node_to_bytes_backrefs;
+
     #[test]
     fn test_serialize_limit() {
         let mut a = Allocator::new();
