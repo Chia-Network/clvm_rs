@@ -1,11 +1,9 @@
 use hex::FromHex;
 
 use crate::allocator::Allocator;
-
-use crate::serde::de::node_from_bytes;
-use crate::serde::de_br::node_from_bytes_backrefs;
-use crate::serde::ser::node_to_bytes;
-use crate::serde::ser_br::node_to_bytes_backrefs;
+use crate::serde::{
+    node_from_bytes, node_from_bytes_backrefs, node_to_bytes, node_to_bytes_backrefs, Serializer,
+};
 
 fn check_round_trip(obj_ser_br_hex: &str) {
     // serialized with br => obj => serialized no br =(allow_br)=> obj => serialized w br
@@ -37,6 +35,19 @@ fn check_round_trip(obj_ser_br_hex: &str) {
 
     // and compare to original
     assert_eq!(obj_ser_br, obj_ser_br_1);
+
+    // now reserialize with back-refs using the incremental serializer
+    let mut allocator = Allocator::new();
+    let obj = node_from_bytes(&mut allocator, &obj_ser_no_br_1).unwrap();
+
+    let mut serializer = Serializer::new();
+    let (done, _) = serializer.add(&allocator, obj, None).unwrap();
+    assert!(done);
+    let obj_ser_br_2 = serializer.into_inner();
+
+    // and compare to original
+    assert_eq!(obj_ser_br_1, obj_ser_br_2);
+    assert_eq!(obj_ser_br, obj_ser_br_2);
 }
 
 #[test]
