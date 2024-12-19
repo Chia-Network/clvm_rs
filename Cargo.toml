@@ -92,3 +92,7 @@ harness = false
 [[bench]]
 name = "sha256_hash"
 harness = false
+
+[[bench]]
+name = "serialize"
+harness = false
