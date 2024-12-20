@@ -16,8 +16,34 @@
 ///
 /// All hashes correspond to sha256 tree hashes.
 use std::collections::{HashMap, HashSet};
+use std::hash::{BuildHasher, Hasher};
 
 use super::bytes32::{hash_blob, hash_blobs, Bytes32};
+
+#[derive(Default, Clone, Copy)]
+pub struct IdentityHash(u64);
+
+impl Hasher for IdentityHash {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        self.0 = u64::from_le_bytes(bytes[0..8].try_into().expect("expected 32 byte hashes"));
+    }
+
+    fn write_u64(&mut self, _i: u64) {
+        panic!("This hasher only takes bytes");
+    }
+}
+
+impl BuildHasher for IdentityHash {
+    type Hasher = Self;
+
+    fn build_hasher(&self) -> Self::Hasher {
+        *self
+    }
+}
 
 #[derive(Debug)]
 pub struct ReadCacheLookup {
@@ -28,10 +54,10 @@ pub struct ReadCacheLookup {
     /// the tree hashes of the contents on the left and right
     read_stack: Vec<(Bytes32, Bytes32)>,
 
-    count: HashMap<Bytes32, u32>,
+    count: HashMap<Bytes32, u32, IdentityHash>,
 
     /// a mapping of tree hashes to `(parent, is_right)` tuples
-    parent_lookup: HashMap<Bytes32, Vec<(Bytes32, u8)>>,
+    parent_lookup: HashMap<Bytes32, Vec<(Bytes32, u8)>, IdentityHash>,
 }
 
 impl Default for ReadCacheLookup {
@@ -43,10 +69,12 @@ impl Default for ReadCacheLookup {
 impl ReadCacheLookup {
     pub fn new() -> Self {
         let root_hash = hash_blob(&[1]);
-        let read_stack = vec![];
-        let mut count = HashMap::default();
+        let read_stack = Vec::with_capacity(1000);
+        // all keys in count and parent_lookup are tree-hashes. There's no need
+        // to hash them again for the hash map
+        let mut count = HashMap::with_hasher(IdentityHash::default());
         count.insert(root_hash, 1);
-        let parent_lookup = HashMap::default();
+        let parent_lookup = HashMap::with_hasher(IdentityHash::default());
         Self {
             root_hash,
             read_stack,
@@ -121,18 +149,28 @@ impl ReadCacheLookup {
     /// return the list of minimal-length paths to the given hash which will serialize to no larger
     /// than the given size (or an empty list if no such path exists)
     pub fn find_paths(&self, id: &Bytes32, serialized_length: u64) -> Vec<Vec<u8>> {
-        let mut seen_ids = HashSet::<&Bytes32>::default();
-        let mut possible_responses = vec![];
-        if serialized_length < 3 {
-            return possible_responses;
+        // this function is not cheap. only keep going if there's potential to
+        // save enough bytes
+        if serialized_length < 4 {
+            return vec![];
         }
-        assert!(serialized_length > 2);
+
+        let mut possible_responses = Vec::with_capacity(50);
+
+        // all the values we put in this hash set are themselves sha256 hashes.
+        // There's no point in hashing the hashes
+        let mut seen_ids = HashSet::<&Bytes32, IdentityHash>::with_capacity_and_hasher(
+            1000,
+            IdentityHash::default(),
+        );
+
         let max_bytes_for_path_encoding = serialized_length - 2; // 1 byte for 0xfe, 1 min byte for savings
         let max_path_length: usize = (max_bytes_for_path_encoding.saturating_mul(8) - 1)
             .try_into()
             .unwrap_or(usize::MAX);
         seen_ids.insert(id);
-        let mut partial_paths = vec![(*id, vec![])];
+        let mut partial_paths = Vec::with_capacity(500);
+        partial_paths.push((*id, vec![]));
 
         while !partial_paths.is_empty() {
             let mut new_partial_paths = vec![];
@@ -147,11 +185,11 @@ impl ReadCacheLookup {
                     for (parent, direction) in items.iter() {
                         if *(self.count.get(parent).unwrap_or(&0)) > 0 && !seen_ids.contains(parent)
                         {
-                            let mut new_path = path.clone();
-                            new_path.push(*direction);
-                            if new_path.len() > max_path_length {
+                            if path.len() + 1 > max_path_length {
                                 return possible_responses;
                             }
+                            let mut new_path = path.clone();
+                            new_path.push(*direction);
                             new_partial_paths.push((*parent, new_path));
                         }
                         seen_ids.insert(parent);
