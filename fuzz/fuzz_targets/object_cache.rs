@@ -17,8 +17,8 @@ fn do_fuzz(data: &[u8], short_atoms: bool) {
     visit_tree(&allocator, program, |a, node| {
         let expect_hash = tree_hash(a, node);
         let expect_len = node_to_bytes(a, node).unwrap().len() as u64;
-        let computed_hash = hash_cache.get_or_calculate(a, &node).unwrap();
-        let computed_len = length_cache.get_or_calculate(a, &node).unwrap();
+        let computed_hash = hash_cache.get_or_calculate(a, &node, None).unwrap();
+        let computed_len = length_cache.get_or_calculate(a, &node, None).unwrap();
         assert_eq!(computed_hash, &expect_hash);
         assert_eq!(computed_len, &expect_len);
     });
