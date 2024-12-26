@@ -41,6 +41,7 @@ pub fn node_to_stream_backrefs<W: io::Write>(
         let node_tree_hash = thc
             .get_or_calculate(allocator, &node_to_write, None)
             .expect("can't get treehash");
+
         match read_cache_lookup.find_path(node_tree_hash, node_serialized_length) {
             Some(path) => {
                 f.write_all(&[BACK_REFERENCE])?;
