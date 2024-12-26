@@ -3,11 +3,9 @@
 use std::io;
 use std::io::{Cursor, Write};
 
-use super::bytes32::Bytes32;
-use super::object_cache::{serialized_length, treehash, ObjectCache};
-use super::read_cache_lookup::ReadCacheLookup;
 use super::write_atom::write_atom;
 use crate::allocator::{Allocator, NodePtr, SExp};
+use crate::serde::{TreeCache, TreeUndoState};
 
 const BACK_REFERENCE: u8 = 0xfe;
 const CONS_BOX_MARKER: u8 = 0xff;
@@ -15,19 +13,13 @@ const CONS_BOX_MARKER: u8 = 0xff;
 #[derive(PartialEq, Eq, Clone)]
 enum ReadOp {
     Parse,
-    Cons,
+    Cons(NodePtr),
 }
 
 pub struct Serializer {
     read_op_stack: Vec<ReadOp>,
     write_stack: Vec<NodePtr>,
-
-    read_cache_lookup: ReadCacheLookup,
-
-    thc: ObjectCache<Bytes32>,
-    slc: ObjectCache<u64>,
-
-    sentinel: Option<NodePtr>,
+    tree_cache: TreeCache,
     output: Cursor<Vec<u8>>,
 }
 
@@ -35,7 +27,7 @@ pub struct Serializer {
 pub struct UndoState {
     read_op_stack: Vec<ReadOp>,
     write_stack: Vec<NodePtr>,
-    read_cache_lookup: ReadCacheLookup,
+    tree_cache: TreeUndoState,
     output_position: u64,
 }
 
@@ -47,22 +39,9 @@ impl Serializer {
         Self {
             read_op_stack: vec![ReadOp::Parse],
             write_stack: vec![],
-            read_cache_lookup: ReadCacheLookup::new(),
-            thc: ObjectCache::new(treehash),
-            slc: ObjectCache::new(serialized_length),
-            sentinel,
+            tree_cache: TreeCache::new(sentinel),
             output: Cursor::new(vec![]),
         }
-    }
-
-    fn serialize_pair(&mut self, left: NodePtr, right: NodePtr) -> io::Result<()> {
-        self.output.write_all(&[CONS_BOX_MARKER])?;
-        self.write_stack.push(right);
-        self.write_stack.push(left);
-        self.read_op_stack.push(ReadOp::Cons);
-        self.read_op_stack.push(ReadOp::Parse);
-        self.read_op_stack.push(ReadOp::Parse);
-        Ok(())
     }
 
     /// Resume serializing from the most recent sentinel node (or from the
@@ -77,13 +56,14 @@ impl Serializer {
         let undo_state = UndoState {
             read_op_stack: self.read_op_stack.clone(),
             write_stack: self.write_stack.clone(),
-            read_cache_lookup: self.read_cache_lookup.clone(),
+            tree_cache: self.tree_cache.undo_state(),
             output_position: self.output.position(),
         };
+        self.tree_cache.update(a, node);
         self.write_stack.push(node);
 
         while let Some(node_to_write) = self.write_stack.pop() {
-            if Some(node_to_write) == self.sentinel {
+            if Some(node_to_write) == self.tree_cache.sentinel_node {
                 // we're not done serializing yet, we're stopping, and the
                 // caller will call add() again with the node to serialize
                 // here
@@ -92,57 +72,42 @@ impl Serializer {
             let op = self.read_op_stack.pop();
             assert!(op == Some(ReadOp::Parse));
 
-            let node_serialized_length =
-                self.slc.get_or_calculate(a, &node_to_write, self.sentinel);
-            let node_tree_hash = self.thc.get_or_calculate(a, &node_to_write, self.sentinel);
-            if let (Some(node_tree_hash), Some(node_serialized_length)) =
-                (node_tree_hash, node_serialized_length)
-            {
-                match self
-                    .read_cache_lookup
-                    .find_path(node_tree_hash, *node_serialized_length)
-                {
-                    Some(path) => {
-                        self.output.write_all(&[BACK_REFERENCE])?;
-                        write_atom(&mut self.output, &path)?;
-                        self.read_cache_lookup.push(*node_tree_hash);
-                    }
-                    None => match a.sexp(node_to_write) {
-                        SExp::Pair(left, right) => {
-                            self.serialize_pair(left, right)?;
-                        }
-                        SExp::Atom => {
-                            let atom = a.atom(node_to_write);
-                            write_atom(&mut self.output, atom.as_ref())?;
-                            self.read_cache_lookup.push(*node_tree_hash);
-                        }
-                    },
+            match self.tree_cache.find_path(node_to_write) {
+                Some(path) => {
+                    self.output.write_all(&[BACK_REFERENCE])?;
+                    write_atom(&mut self.output, &path)?;
+                    self.tree_cache.push(node_to_write);
                 }
-            } else {
-                match a.sexp(node_to_write) {
+                None => match a.sexp(node_to_write) {
                     SExp::Pair(left, right) => {
-                        self.serialize_pair(left, right)?;
+                        self.output.write_all(&[CONS_BOX_MARKER])?;
+                        self.write_stack.push(right);
+                        self.write_stack.push(left);
+                        self.read_op_stack.push(ReadOp::Cons(node_to_write));
+                        self.read_op_stack.push(ReadOp::Parse);
+                        self.read_op_stack.push(ReadOp::Parse);
                     }
                     SExp::Atom => {
                         let atom = a.atom(node_to_write);
                         write_atom(&mut self.output, atom.as_ref())?;
+                        self.tree_cache.push(node_to_write);
                     }
-                }
+                },
             }
-            while !self.read_op_stack.is_empty()
-                && self.read_op_stack[self.read_op_stack.len() - 1] == ReadOp::Cons
-            {
+            while let Some(ReadOp::Cons(node)) = self.read_op_stack.last() {
+                let node = *node;
                 self.read_op_stack.pop();
-                self.read_cache_lookup.pop2_and_cons();
+                self.tree_cache.pop2_and_cons(node);
             }
         }
+
         Ok((true, undo_state))
     }
 
     pub fn restore(&mut self, state: UndoState) {
         self.read_op_stack = state.read_op_stack;
         self.write_stack = state.write_stack;
-        self.read_cache_lookup = state.read_cache_lookup;
+        self.tree_cache.restore(state.tree_cache);
         self.output.set_position(state.output_position);
         self.output
             .get_mut()
