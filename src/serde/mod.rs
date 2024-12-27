@@ -22,7 +22,7 @@ pub use de_tree::{parse_triples, ParsedTriple};
 pub use incremental::{Serializer, UndoState};
 pub use object_cache::{serialized_length, treehash, ObjectCache};
 pub use ser::{node_to_bytes, node_to_bytes_limit};
-pub use ser_br::{node_to_bytes_backrefs, node_to_bytes_backrefs_limit};
+pub use ser_br::node_to_bytes_backrefs;
 pub use tools::{
     serialized_length_from_bytes, serialized_length_from_bytes_trusted, tree_hash_from_stream,
 };
