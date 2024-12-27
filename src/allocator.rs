@@ -3,6 +3,7 @@ use crate::number::{number_from_u8, Number};
 use crate::reduction::EvalErr;
 use chia_bls::{G1Element, G2Element};
 use std::borrow::Borrow;
+use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::ops::Deref;
@@ -12,8 +13,17 @@ const MAX_NUM_PAIRS: usize = 62500000;
 const NODE_PTR_IDX_BITS: u32 = 26;
 const NODE_PTR_IDX_MASK: u32 = (1 << NODE_PTR_IDX_BITS) - 1;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NodePtr(u32);
+
+impl fmt::Debug for NodePtr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("NodePtr")
+            .field(&self.object_type())
+            .field(&self.index())
+            .finish()
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum ObjectType {
