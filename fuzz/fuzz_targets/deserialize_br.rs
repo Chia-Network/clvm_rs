@@ -19,7 +19,5 @@ fuzz_target!(|data: &[u8]| {
     let program = node_from_bytes_backrefs(&mut allocator, &b1).unwrap();
 
     let b2 = node_to_bytes_backrefs(&allocator, program).unwrap();
-    if b1 != b2 {
-        panic!("b1 and b2 do not match");
-    }
+    assert_eq!(b1, b2);
 });
