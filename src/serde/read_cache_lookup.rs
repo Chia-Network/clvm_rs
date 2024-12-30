@@ -1,6 +1,6 @@
+use crate::serde::RandomState;
 use bitvec::prelude::*;
 use bitvec::vec::BitVec;
-use rand::Rng;
 /// When deserializing a clvm object, a stack of deserialized child objects
 /// is created, which can be used with back-references. A `ReadCacheLookup` keeps
 /// track of the state of this stack and all child objects under each root
@@ -19,50 +19,8 @@ use rand::Rng;
 ///
 /// All hashes correspond to sha256 tree hashes.
 use std::collections::{HashMap, HashSet};
-use std::hash::{BuildHasher, Hasher};
 
 use super::bytes32::{hash_blob, hash_blobs, Bytes32};
-
-#[derive(Default, Clone, Copy)]
-pub struct IdentityHash(u64, u64);
-
-impl IdentityHash {
-    fn new(salt: u64) -> Self {
-        Self(0, salt)
-    }
-}
-
-impl Hasher for IdentityHash {
-    fn finish(&self) -> u64 {
-        self.0
-    }
-
-    fn write(&mut self, bytes: &[u8]) {
-        self.0 =
-            u64::from_le_bytes(bytes[0..8].try_into().expect("expected 32 byte hashes")) ^ self.1;
-    }
-
-    fn write_u64(&mut self, _i: u64) {
-        panic!("This hasher only takes bytes");
-    }
-}
-
-pub struct RandomState(u64);
-
-impl RandomState {
-    fn new() -> Self {
-        let mut rng = rand::thread_rng();
-        Self(rng.gen())
-    }
-}
-
-impl BuildHasher for RandomState {
-    type Hasher = IdentityHash;
-
-    fn build_hasher(&self) -> Self::Hasher {
-        IdentityHash::new(self.0)
-    }
-}
 
 #[derive(Debug)]
 pub struct ReadCacheLookup {
@@ -91,9 +49,9 @@ impl ReadCacheLookup {
         let read_stack = Vec::with_capacity(1000);
         // all keys in count and parent_lookup are tree-hashes. There's no need
         // to hash them again for the hash map
-        let mut count = HashMap::with_hasher(RandomState::new());
+        let mut count = HashMap::with_hasher(RandomState::default());
         count.insert(root_hash, 1);
-        let parent_lookup = HashMap::with_hasher(RandomState::new());
+        let parent_lookup = HashMap::with_hasher(RandomState::default());
         Self {
             root_hash,
             read_stack,
@@ -178,8 +136,10 @@ impl ReadCacheLookup {
 
         // all the values we put in this hash set are themselves sha256 hashes.
         // There's no point in hashing the hashes
-        let mut seen_ids =
-            HashSet::<&Bytes32, RandomState>::with_capacity_and_hasher(1000, RandomState::new());
+        let mut seen_ids = HashSet::<&Bytes32, RandomState>::with_capacity_and_hasher(
+            1000,
+            RandomState::default(),
+        );
 
         let max_bytes_for_path_encoding = serialized_length - 2; // 1 byte for 0xfe, 1 min byte for savings
         let max_path_length: usize = (max_bytes_for_path_encoding.saturating_mul(8) - 1)
