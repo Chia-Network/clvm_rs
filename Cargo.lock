@@ -344,6 +344,7 @@ dependencies = [
  "num-integer",
  "num-traits",
  "p256",
+ "rand",
  "rstest",
  "sha3",
 ]
