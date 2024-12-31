@@ -10,6 +10,7 @@ use crate::allocator::{Allocator, NodePtr, SExp};
 use std::collections::HashMap;
 type CachedFunction<T> = fn(&mut ObjectCache<T>, &Allocator, NodePtr) -> Option<T>;
 use super::bytes32::{hash_blobs, Bytes32};
+use crate::serde::serialized_length_atom;
 
 pub struct ObjectCache<T> {
     cache: HashMap<NodePtr, T>,
@@ -130,20 +131,7 @@ pub fn serialized_length(
         },
         SExp::Atom => {
             let buf = allocator.atom(node);
-            let lb: u64 = buf.as_ref().len().try_into().unwrap_or(u64::MAX);
-            Some(if lb == 0 || (lb == 1 && buf.as_ref()[0] < 128) {
-                1
-            } else if lb < 0x40 {
-                1 + lb
-            } else if lb < 0x2000 {
-                2 + lb
-            } else if lb < 0x100000 {
-                3 + lb
-            } else if lb < 0x8000000 {
-                4 + lb
-            } else {
-                5 + lb
-            })
+            Some(serialized_length_atom(buf.as_ref()) as u64)
         }
     }
 }
