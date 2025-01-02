@@ -1,6 +1,6 @@
 use clvmr::allocator::Allocator;
 use clvmr::serde::{
-    node_from_bytes, node_from_bytes_backrefs, node_to_bytes, node_to_bytes_backrefs,
+    node_from_bytes, node_from_bytes_backrefs, node_to_bytes, node_to_bytes_backrefs, Serializer,
 };
 use criterion::black_box;
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -29,6 +29,16 @@ fn serialize_benchmark(c: &mut Criterion) {
             b.iter(|| {
                 let start = Instant::now();
                 black_box(node_to_bytes_backrefs(&a, node).expect("node_to_bytes_backrefs"));
+                start.elapsed()
+            })
+        });
+
+        group.bench_function(format!("Serializer {name}"), |b| {
+            b.iter(|| {
+                let start = Instant::now();
+                let mut ser = Serializer::default();
+                let _ = ser.add(&a, node, None);
+                black_box(ser.into_inner());
                 start.elapsed()
             })
         });
