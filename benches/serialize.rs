@@ -13,11 +13,12 @@ fn serialize_benchmark(c: &mut Criterion) {
     // then serialize again.
     let block0: &[u8] = include_bytes!("0.generator");
     let block1: &[u8] = include_bytes!("1.generator");
+    let block2: &[u8] = include_bytes!("2.generator");
 
     let mut group = c.benchmark_group("serialize");
     group.sample_size(10);
 
-    for (block, name) in [(&block0, "0"), (&block1, "1")] {
+    for (block, name) in [(&block0, "0"), (&block1, "1"), (&block2, "2")] {
         let mut a = Allocator::new();
         let node = node_from_bytes_backrefs(&mut a, block).expect("node_from_bytes_backrefs");
         let inflated = node_to_bytes(&a, node).expect("node_to_bytes");
