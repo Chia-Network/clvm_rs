@@ -1,9 +1,11 @@
 #![no_main]
 
 mod fuzzing_utils;
+mod node_eq;
 
 use clvmr::allocator::Allocator;
-use clvmr::serde::{node_to_bytes_backrefs, Serializer};
+use clvmr::serde::{node_from_bytes_backrefs, node_to_bytes_backrefs, Serializer};
+use node_eq::node_eq;
 
 use libfuzzer_sys::fuzz_target;
 
@@ -22,9 +24,16 @@ fn do_fuzz(data: &[u8], short_atoms: bool) {
     assert!(done);
     let b2 = ser.into_inner();
 
-    if b1 != b2 {
-        panic!("b1 and b2 do not match");
+    {
+        // make sure both serializations are valid, and can be parsed to produce
+        // the same tree
+        let b1 = node_from_bytes_backrefs(&mut allocator, &b1).unwrap();
+        let b2 = node_from_bytes_backrefs(&mut allocator, &b2).unwrap();
+        assert!(node_eq(&allocator, b1, program));
+        assert!(node_eq(&allocator, b1, b2));
     }
+
+    assert_eq!(b1, b2);
 }
 
 fuzz_target!(|data: &[u8]| {
