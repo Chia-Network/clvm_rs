@@ -16,7 +16,6 @@ fn serialize_benchmark(c: &mut Criterion) {
     let block2: &[u8] = include_bytes!("2.generator");
 
     let mut group = c.benchmark_group("serialize");
-    group.sample_size(10);
 
     for (block, name) in [(&block0, "0"), (&block1, "1"), (&block2, "2")] {
         let mut a = Allocator::new();

@@ -1,3 +1,6 @@
+use crate::serde::RandomState;
+use bitvec::prelude::*;
+use bitvec::vec::BitVec;
 /// When deserializing a clvm object, a stack of deserialized child objects
 /// is created, which can be used with back-references. A `ReadCacheLookup` keeps
 /// track of the state of this stack and all child objects under each root
@@ -28,10 +31,10 @@ pub struct ReadCacheLookup {
     /// the tree hashes of the contents on the left and right
     read_stack: Vec<(Bytes32, Bytes32)>,
 
-    count: HashMap<Bytes32, u32>,
+    count: HashMap<Bytes32, u32, RandomState>,
 
     /// a mapping of tree hashes to `(parent, is_right)` tuples
-    parent_lookup: HashMap<Bytes32, Vec<(Bytes32, u8)>>,
+    parent_lookup: HashMap<Bytes32, Vec<(Bytes32, bool)>, RandomState>,
 }
 
 impl Default for ReadCacheLookup {
@@ -43,10 +46,12 @@ impl Default for ReadCacheLookup {
 impl ReadCacheLookup {
     pub fn new() -> Self {
         let root_hash = hash_blob(&[1]);
-        let read_stack = vec![];
-        let mut count = HashMap::default();
+        let read_stack = Vec::with_capacity(1000);
+        // all keys in count and parent_lookup are tree-hashes. There's no need
+        // to hash them again for the hash map
+        let mut count = HashMap::with_hasher(RandomState::default());
         count.insert(root_hash, 1);
-        let parent_lookup = HashMap::default();
+        let parent_lookup = HashMap::with_hasher(RandomState::default());
         Self {
             root_hash,
             read_stack,
@@ -67,13 +72,13 @@ impl ReadCacheLookup {
         *self.count.entry(id).or_insert(0) += 1;
         *self.count.entry(new_root_hash).or_insert(0) += 1;
 
-        let new_parent_to_old_root = (new_root_hash, 0);
+        let new_parent_to_old_root = (new_root_hash, false);
         self.parent_lookup
             .entry(id)
             .or_default()
             .push(new_parent_to_old_root);
 
-        let new_parent_to_id = (new_root_hash, 1);
+        let new_parent_to_id = (new_root_hash, true);
         self.parent_lookup
             .entry(self.root_hash)
             .or_default()
@@ -108,12 +113,12 @@ impl ReadCacheLookup {
         self.parent_lookup
             .entry(left.0)
             .or_default()
-            .push((new_root_hash, 0));
+            .push((new_root_hash, false));
 
         self.parent_lookup
             .entry(right.0)
             .or_default()
-            .push((new_root_hash, 1));
+            .push((new_root_hash, true));
 
         self.push(new_root_hash);
     }
@@ -121,18 +126,28 @@ impl ReadCacheLookup {
     /// return the list of minimal-length paths to the given hash which will serialize to no larger
     /// than the given size (or an empty list if no such path exists)
     pub fn find_paths(&self, id: &Bytes32, serialized_length: u64) -> Vec<Vec<u8>> {
-        let mut seen_ids = HashSet::<&Bytes32>::default();
-        let mut possible_responses = vec![];
-        if serialized_length < 3 {
-            return possible_responses;
+        // this function is not cheap. only keep going if there's potential to
+        // save enough bytes
+        if serialized_length < 4 {
+            return vec![];
         }
-        assert!(serialized_length > 2);
+
+        let mut possible_responses = Vec::with_capacity(50);
+
+        // all the values we put in this hash set are themselves sha256 hashes.
+        // There's no point in hashing the hashes
+        let mut seen_ids = HashSet::<&Bytes32, RandomState>::with_capacity_and_hasher(
+            1000,
+            RandomState::default(),
+        );
+
         let max_bytes_for_path_encoding = serialized_length - 2; // 1 byte for 0xfe, 1 min byte for savings
         let max_path_length: usize = (max_bytes_for_path_encoding.saturating_mul(8) - 1)
             .try_into()
             .unwrap_or(usize::MAX);
         seen_ids.insert(id);
-        let mut partial_paths = vec![(*id, vec![])];
+        let mut partial_paths = Vec::with_capacity(500);
+        partial_paths.push((*id, BitVec::with_capacity(100)));
 
         while !partial_paths.is_empty() {
             let mut new_partial_paths = vec![];
@@ -147,11 +162,11 @@ impl ReadCacheLookup {
                     for (parent, direction) in items.iter() {
                         if *(self.count.get(parent).unwrap_or(&0)) > 0 && !seen_ids.contains(parent)
                         {
-                            let mut new_path = path.clone();
-                            new_path.push(*direction);
-                            if new_path.len() > max_path_length {
+                            if path.len() + 1 > max_path_length {
                                 return possible_responses;
                             }
+                            let mut new_path = path.clone();
+                            new_path.push(*direction);
                             new_partial_paths.push((*parent, new_path));
                         }
                         seen_ids.insert(parent);
@@ -185,13 +200,13 @@ impl ReadCacheLookup {
 /// If `A` => `v` then `[A] + [0]` => `v * 2` and `[A] + [1]` => `v * 2 + 1`
 /// Then the integer is turned into the minimal-length array of `u8` representing
 /// that value as an unsigned integer.
-fn reversed_path_to_vec_u8(path: &[u8]) -> Vec<u8> {
+fn reversed_path_to_vec_u8(path: &BitSlice) -> Vec<u8> {
     let byte_count = (path.len() + 1 + 7) >> 3;
     let mut v = vec![0; byte_count];
     let mut index = byte_count - 1;
     let mut mask: u8 = 1;
     for p in path.iter().rev() {
-        if *p != 0 {
+        if p != false {
             v[index] |= mask;
         }
         mask = {
@@ -213,30 +228,33 @@ mod tests {
 
     #[test]
     fn test_path_to_vec_u8() {
-        assert_eq!(reversed_path_to_vec_u8(&[]), vec!(0b1));
-        assert_eq!(reversed_path_to_vec_u8(&[0]), vec!(0b10));
-        assert_eq!(reversed_path_to_vec_u8(&[1]), vec!(0b11));
-        assert_eq!(reversed_path_to_vec_u8(&[0, 0]), vec!(0b100));
-        assert_eq!(reversed_path_to_vec_u8(&[0, 1]), vec!(0b101));
-        assert_eq!(reversed_path_to_vec_u8(&[1, 0]), vec!(0b110));
-        assert_eq!(reversed_path_to_vec_u8(&[1, 1]), vec!(0b111));
-        assert_eq!(reversed_path_to_vec_u8(&[1, 1, 1]), vec!(0b1111));
-        assert_eq!(reversed_path_to_vec_u8(&[0, 1, 1, 1]), vec!(0b10111));
-        assert_eq!(reversed_path_to_vec_u8(&[1, 0, 1, 1, 1]), vec!(0b110111));
+        assert_eq!(reversed_path_to_vec_u8(bits![]), vec!(0b1));
+        assert_eq!(reversed_path_to_vec_u8(bits![0]), vec!(0b10));
+        assert_eq!(reversed_path_to_vec_u8(bits![1]), vec!(0b11));
+        assert_eq!(reversed_path_to_vec_u8(bits![0, 0]), vec!(0b100));
+        assert_eq!(reversed_path_to_vec_u8(bits![0, 1]), vec!(0b101));
+        assert_eq!(reversed_path_to_vec_u8(bits![1, 0]), vec!(0b110));
+        assert_eq!(reversed_path_to_vec_u8(bits![1, 1]), vec!(0b111));
+        assert_eq!(reversed_path_to_vec_u8(bits![1, 1, 1]), vec!(0b1111));
+        assert_eq!(reversed_path_to_vec_u8(bits![0, 1, 1, 1]), vec!(0b10111));
         assert_eq!(
-            reversed_path_to_vec_u8(&[1, 1, 0, 1, 1, 1]),
+            reversed_path_to_vec_u8(bits![1, 0, 1, 1, 1]),
+            vec!(0b110111)
+        );
+        assert_eq!(
+            reversed_path_to_vec_u8(bits![1, 1, 0, 1, 1, 1]),
             vec!(0b1110111)
         );
         assert_eq!(
-            reversed_path_to_vec_u8(&[0, 1, 1, 0, 1, 1, 1]),
+            reversed_path_to_vec_u8(bits![0, 1, 1, 0, 1, 1, 1]),
             vec!(0b10110111)
         );
         assert_eq!(
-            reversed_path_to_vec_u8(&[0, 0, 1, 1, 0, 1, 1, 1]),
+            reversed_path_to_vec_u8(bits![0, 0, 1, 1, 0, 1, 1, 1]),
             vec!(0b1, 0b00110111)
         );
         assert_eq!(
-            reversed_path_to_vec_u8(&[1, 0, 0, 1, 1, 0, 1, 1, 1]),
+            reversed_path_to_vec_u8(bits![1, 0, 0, 1, 1, 0, 1, 1, 1]),
             vec!(0b11, 0b00110111)
         );
     }
