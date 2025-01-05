@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use chia_sha2::Sha256;
 
@@ -25,13 +25,15 @@ fn sha256_hash_benchmark(c: &mut Criterion) {
 
     group.bench_function("hash_benchmark", |b| {
         b.iter(|| {
-            // this figures out how many iterations to run.
-            for val in 0..MAX_VAL {
-                for len in BYTE_LENGTHS {
-                    let bytes = gen_bytes(val, len);
-                    hash_bytes(&bytes);
-                }
-            }
+            black_box(
+                // this figures out how many iterations to run.
+                for val in 0..MAX_VAL {
+                    for len in BYTE_LENGTHS {
+                        let bytes = gen_bytes(val, len);
+                        hash_bytes(&bytes);
+                    }
+                },
+            )
         })
     });
     // create
