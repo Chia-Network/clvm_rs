@@ -22,7 +22,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::bytes32::{hash_blob, hash_blobs, Bytes32};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ReadCacheLookup {
     root_hash: Bytes32,
 

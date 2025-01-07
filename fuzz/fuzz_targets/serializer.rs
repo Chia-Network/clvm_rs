@@ -19,8 +19,8 @@ fn do_fuzz(data: &[u8], short_atoms: bool) {
 
     let b1 = node_to_bytes_backrefs(&allocator, program).unwrap();
 
-    let mut ser = Serializer::new();
-    let (done, _) = ser.add(&allocator, program, None).unwrap();
+    let mut ser = Serializer::new(None);
+    let (done, _) = ser.add(&allocator, program).unwrap();
     assert!(done);
     let b2 = ser.into_inner();
 

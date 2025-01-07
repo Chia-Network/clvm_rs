@@ -40,8 +40,8 @@ fn check_round_trip(obj_ser_br_hex: &str) {
     let mut allocator = Allocator::new();
     let obj = node_from_bytes(&mut allocator, &obj_ser_no_br_1).unwrap();
 
-    let mut serializer = Serializer::new();
-    let (done, _) = serializer.add(&allocator, obj, None).unwrap();
+    let mut serializer = Serializer::new(None);
+    let (done, _) = serializer.add(&allocator, obj).unwrap();
     assert!(done);
     let obj_ser_br_2 = serializer.into_inner();
 

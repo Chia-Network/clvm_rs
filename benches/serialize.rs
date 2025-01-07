@@ -35,8 +35,8 @@ fn serialize_benchmark(c: &mut Criterion) {
         group.bench_function(format!("Serializer {name}"), |b| {
             b.iter(|| {
                 let start = Instant::now();
-                let mut ser = Serializer::default();
-                let _ = ser.add(&a, node, None);
+                let mut ser = Serializer::new(None);
+                let _ = ser.add(&a, node);
                 black_box(ser.into_inner());
                 start.elapsed()
             })

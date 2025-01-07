@@ -25,6 +25,7 @@ impl Hasher for IdentityHash {
     }
 }
 
+#[derive(Clone)]
 pub struct RandomState(u64);
 
 impl Default for RandomState {
