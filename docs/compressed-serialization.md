@@ -9,8 +9,8 @@ duplicating them. These references are referred to as "back references".
 The original serialization format had 3 tokens.
 
 - `0xff` - a pair, followed by the left and right sub-trees.
-- `0x80` - NIL, an empty atom
-- Atom - serialized with a UTF-8 like encoding. (see [CLVM serialization](https://chialisp.com/clvm/#serialization))
+- Atom - values, in the form of an array of bytes. For more details, see [CLVM
+  serialization](https://chialisp.com/clvm/#serialization).
 
 A back reference is introduced by `0xfe` followed by an atom. The atom refers
 back to an already decoded sub tree. The bits are interpreted just like an
@@ -29,9 +29,9 @@ byte index: |  byte 0  |  byte 1  |  byte 2  |  byte 3  |
 bit traversal direction:                          <- x
 ```
 
-A 0 bit means follow the left sub-tree, a 1-bit means follow the right sub-tree.
-The last 1-bit is the terminator, and means we should pick the node at the
-current location in the tree.
+A `0` bit means follow the left sub-tree while a `1` bit means follow the right
+sub-tree. The last 1-bit is the terminator, and means we should pick the node at
+the current location in the tree.
 
 e.g. The reference `0b1011` means:
 
@@ -68,7 +68,7 @@ as we parse, so what a back reference refers to changes as we parse the
 serialized CLVM tree. To understand what the parse stack is, we first need to
 look at how CLVM is parsed.
 
-The parser has a stack of _operations_ and a stack of the parsed result (the
+The parser has a stack of _operations_ and a stack of the parsed results (the
 parse stack).
 
 There are 2 operations that can be pushed onto the operations stack:
@@ -81,7 +81,7 @@ encounter when parsing; an atom or a pair (followed by the left- and right
 sub-trees).
 
 We keep popping operations off of the op-stack until it's empty. We take the
-following actions dependin on the operation:
+following actions depending on the operation:
 
 - `Traverse`, inspect the next byte of the input stream. If it's a pair (`0xff`)
   we push `Cons`, `Traverse`, `Traverse` onto the operations stack. If it's an
@@ -128,7 +128,7 @@ A back reference to `3` would be: `0b1100` (right, left).
 ### Example back-reference
 
 Consider the following LISP structure: ((`1` . `2`) . (`1` . `2`))  
-It Can be serialized as `0xff` `0xff` `1` `2` `0xfe` `0b10`
+It can be serialized as `0xff` `0xff` `1` `2` `0xfe` `0b10`
 
 The parsing steps would be as follows:
 
@@ -181,8 +181,7 @@ When serializing with compression, we need to assign a tree-hash and an
 the sub-tree itself or a back-reference, we need to know whether we have already
 serialized an identical sub tree. If we have, we then have to perform a search
 from that node up all of its parents until we reach the top of the parse stack.
-This, additionally, requires a data structure that knows about the parents of
-all nodes.
+This requires a data structure that knows about the parents of all nodes.
 
 This search is performed in `find_path()`. There may be multiple paths leading
 to the stack (if the same structure is repeated in multiple places). We pick the
