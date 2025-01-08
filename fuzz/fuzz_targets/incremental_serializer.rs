@@ -94,10 +94,10 @@ fn do_fuzz(data: &[u8], short_atoms: bool) {
     {
         node_idx += 1;
 
-        let mut ser = Serializer::new();
-        let (done, _) = ser.add(&allocator, first_step, Some(sentinel)).unwrap();
+        let mut ser = Serializer::new(Some(sentinel));
+        let (done, _) = ser.add(&allocator, first_step).unwrap();
         assert!(!done);
-        let (done, _) = ser.add(&allocator, second_step, None).unwrap();
+        let (done, _) = ser.add(&allocator, second_step).unwrap();
         assert!(done);
 
         // now, make sure that we deserialize to the exact same structure, by

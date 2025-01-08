@@ -27,19 +27,15 @@ pub struct Serializer {
     thc: ObjectCache<Bytes32>,
     slc: ObjectCache<u64>,
 
+    sentinel: Option<NodePtr>,
     output: Cursor<Vec<u8>>,
-}
-
-impl Default for Serializer {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 #[derive(Clone)]
 pub struct UndoState {
     read_op_stack: Vec<ReadOp>,
     write_stack: Vec<NodePtr>,
+    read_cache_lookup: ReadCacheLookup,
     output_position: u64,
 }
 
@@ -47,13 +43,14 @@ pub struct UndoState {
 /// The compression cannot "see through" the sentinel node, so some compression
 /// opportunities may be missed when serializing and compressing incrementally.
 impl Serializer {
-    pub fn new() -> Self {
+    pub fn new(sentinel: Option<NodePtr>) -> Self {
         Self {
             read_op_stack: vec![ReadOp::Parse],
             write_stack: vec![],
             read_cache_lookup: ReadCacheLookup::new(),
             thc: ObjectCache::new(treehash),
             slc: ObjectCache::new(serialized_length),
+            sentinel,
             output: Cursor::new(vec![]),
         }
     }
@@ -72,12 +69,7 @@ impl Serializer {
     /// beginning if this is the first call. Returns true when we're done
     /// serializing. i.e. no sentinel token was encountered. Once this function
     /// returns true, it may not be called again.
-    pub fn add(
-        &mut self,
-        a: &Allocator,
-        node: NodePtr,
-        sentinel: Option<NodePtr>,
-    ) -> io::Result<(bool, UndoState)> {
+    pub fn add(&mut self, a: &Allocator, node: NodePtr) -> io::Result<(bool, UndoState)> {
         // once we're done serializing (i.e. there was no sentinel in the last
         // call to add()), we can't resume
         assert!(!self.read_op_stack.is_empty());
@@ -85,12 +77,13 @@ impl Serializer {
         let undo_state = UndoState {
             read_op_stack: self.read_op_stack.clone(),
             write_stack: self.write_stack.clone(),
+            read_cache_lookup: self.read_cache_lookup.clone(),
             output_position: self.output.position(),
         };
         self.write_stack.push(node);
 
         while let Some(node_to_write) = self.write_stack.pop() {
-            if Some(node_to_write) == sentinel {
+            if Some(node_to_write) == self.sentinel {
                 // we're not done serializing yet, we're stopping, and the
                 // caller will call add() again with the node to serialize
                 // here
@@ -99,8 +92,9 @@ impl Serializer {
             let op = self.read_op_stack.pop();
             assert!(op == Some(ReadOp::Parse));
 
-            let node_serialized_length = self.slc.get_or_calculate(a, &node_to_write, sentinel);
-            let node_tree_hash = self.thc.get_or_calculate(a, &node_to_write, sentinel);
+            let node_serialized_length =
+                self.slc.get_or_calculate(a, &node_to_write, self.sentinel);
+            let node_tree_hash = self.thc.get_or_calculate(a, &node_to_write, self.sentinel);
             if let (Some(node_tree_hash), Some(node_serialized_length)) =
                 (node_tree_hash, node_serialized_length)
             {
@@ -148,6 +142,7 @@ impl Serializer {
     pub fn restore(&mut self, state: UndoState) {
         self.read_op_stack = state.read_op_stack;
         self.write_stack = state.write_stack;
+        self.read_cache_lookup = state.read_cache_lookup;
         self.output.set_position(state.output_position);
         self.output
             .get_mut()
@@ -168,8 +163,6 @@ impl Serializer {
     /// It's only valid to convert to the inner serialized form once
     /// serialization is complete. i.e. after add() returns true.
     pub fn into_inner(self) -> Vec<u8> {
-        // if the sentinel is set, it means we're in the middle of serialization
-        // still
         assert!(self.read_op_stack.is_empty());
         self.output.into_inner()
     }
@@ -192,18 +185,18 @@ mod tests {
         let item = node_from_bytes(&mut a, &hex!("ffff0102ff0304")).unwrap();
         let list = a.new_pair(item, sentinel).unwrap();
 
-        let mut ser = Serializer::new();
+        let mut ser = Serializer::new(Some(sentinel));
         let mut size = ser.size();
         for _ in 0..10 {
             // this keeps returning false because we encounter a sentinel
-            let (done, _) = ser.add(&a, list, Some(sentinel)).unwrap();
+            let (done, _) = ser.add(&a, list).unwrap();
             assert!(!done);
             assert!(ser.size() > size);
             size = ser.size();
         }
 
         // this returns true because we're done now
-        let (done, _) = ser.add(&a, NodePtr::NIL, None).unwrap();
+        let (done, _) = ser.add(&a, NodePtr::NIL).unwrap();
         assert!(done);
 
         let output = ser.into_inner();
@@ -243,10 +236,10 @@ mod tests {
         let node5 = a.new_pair(node3, node4).unwrap();
         let item = a.new_pair(node2, node5).unwrap();
 
-        let mut ser = Serializer::new();
+        let mut ser = Serializer::new(Some(sentinel));
         let mut size = ser.size();
 
-        let (done, _) = ser.add(&a, item, Some(sentinel)).unwrap();
+        let (done, _) = ser.add(&a, item).unwrap();
         assert!(!done);
         assert!(ser.size() > size);
         size = ser.size();
@@ -261,14 +254,14 @@ mod tests {
 
         for _ in 0..10 {
             // this keeps returning false because we encounter a sentinel
-            let (done, _) = ser.add(&a, item, Some(sentinel)).unwrap();
+            let (done, _) = ser.add(&a, item).unwrap();
             assert!(!done);
             assert!(ser.size() > size);
             size = ser.size();
         }
 
         // this returns true because we're done now
-        let (done, _) = ser.add(&a, NodePtr::NIL, None).unwrap();
+        let (done, _) = ser.add(&a, NodePtr::NIL).unwrap();
         assert!(done);
 
         // The "foobar" atom is serialized as 86666f6f626172
@@ -299,13 +292,13 @@ mod tests {
         let item = node_from_bytes(&mut a, &hex!("ffff0102ff0304")).unwrap();
         let list = a.new_pair(item, sentinel).unwrap();
 
-        let mut ser = Serializer::new();
-        let (done, _) = ser.add(&a, list, Some(sentinel)).unwrap();
+        let mut ser = Serializer::new(Some(sentinel));
+        let (done, _) = ser.add(&a, list).unwrap();
         assert!(!done);
         assert_eq!(ser.size(), 8);
         assert_eq!(hex::encode(ser.get_ref()), "ffffff0102ff0304");
 
-        let (done, state) = ser.add(&a, NodePtr::NIL, None).unwrap();
+        let (done, state) = ser.add(&a, NodePtr::NIL).unwrap();
         assert!(done);
         assert_eq!(ser.size(), 9);
         assert_eq!(hex::encode(ser.get_ref()), "ffffff0102ff030480");
@@ -315,17 +308,17 @@ mod tests {
         assert_eq!(ser.size(), 8);
         assert_eq!(hex::encode(ser.get_ref()), "ffffff0102ff0304");
 
-        let (done, _) = ser.add(&a, item, None).unwrap();
+        let (done, _) = ser.add(&a, item).unwrap();
         assert!(done);
 
         assert_eq!(ser.size(), 10);
-        assert_eq!(hex::encode(ser.get_ref()), "ffffff0102ff0304fe04");
+        assert_eq!(hex::encode(ser.get_ref()), "ffffff0102ff0304fe02");
 
         ser.restore(state);
 
         let item = a.new_small_number(1337).unwrap();
 
-        let (done, _) = ser.add(&a, item, None).unwrap();
+        let (done, _) = ser.add(&a, item).unwrap();
 
         assert!(done);
         assert_eq!(ser.size(), 11);
@@ -333,5 +326,133 @@ mod tests {
 
         let output = ser.into_inner();
         assert_eq!(hex::encode(&output), "ffffff0102ff0304820539");
+    }
+
+    #[test]
+    fn test_incremental_restore() {
+        let mut a = Allocator::new();
+
+        let sentinel = a.new_pair(NodePtr::NIL, NodePtr::NIL).unwrap();
+        // ((0x000000000000 . 0x111111111111) . (0x222222222222 . 0x333333333333))
+        let item = node_from_bytes(
+            &mut a,
+            &hex!("ffff8600000000000086111111111111ff8622222222222286333333333333"),
+        )
+        .unwrap();
+        let item1 = a.new_pair(item, sentinel).unwrap();
+
+        // ((0x111111111111 . 0x000000000000) . (0x222222222222 . 0x333333333333))
+        let item = node_from_bytes(
+            &mut a,
+            &hex!("ffff8611111111111186000000000000ff8622222222222286333333333333"),
+        )
+        .unwrap();
+        let item2 = a.new_pair(item, sentinel).unwrap();
+
+        // ((0x000000000000 . 0x111111111111) . (0x333333333333 . 0x222222222222))
+        let item = node_from_bytes(
+            &mut a,
+            &hex!("ffff8600000000000086111111111111ff8633333333333386222222222222"),
+        )
+        .unwrap();
+        let item3 = a.new_pair(item, sentinel).unwrap();
+
+        // add item1, item2, item3
+        // restore to after item1
+        // add item3, item2
+        // terminate the list
+        let mut ser = Serializer::new(Some(sentinel));
+        let (done, _) = ser.add(&a, item1).unwrap();
+        assert!(!done);
+        println!("{}", hex::encode(ser.get_ref()));
+        let (done, restore_state) = ser.add(&a, item2).unwrap();
+        assert!(!done);
+        println!("{}", hex::encode(ser.get_ref()));
+        let (done, _) = ser.add(&a, item3).unwrap();
+        assert!(!done);
+        println!("{}", hex::encode(ser.get_ref()));
+        println!("restore");
+        ser.restore(restore_state);
+        println!("{}", hex::encode(ser.get_ref()));
+
+        let (done, _) = ser.add(&a, item3).unwrap();
+        assert!(!done);
+        println!("{}", hex::encode(ser.get_ref()));
+        let (done, _) = ser.add(&a, item2).unwrap();
+        assert!(!done);
+        println!("{}", hex::encode(ser.get_ref()));
+
+        let (done, _) = ser.add(&a, NodePtr::NIL).unwrap();
+        assert!(done);
+        println!("{}", hex::encode(ser.get_ref()));
+
+        let output = ser.into_inner();
+
+        {
+            let mut a = Allocator::new();
+            let result = node_from_bytes_backrefs(&mut a, &output).expect("invalid serialization");
+            let roundtrip = node_to_bytes(&a, result).expect("failed to serialize");
+            assert_eq!(
+                hex::encode(roundtrip),
+                "
+            ff
+              ff
+                ff
+                  86000000000000
+                  86111111111111
+                ff
+                  86222222222222
+                  86333333333333
+              ff
+                ff
+                  ff
+                    86000000000000
+                    86111111111111
+                  ff
+                    86333333333333
+                    86222222222222
+                ff
+                  ff
+                    ff
+                      86111111111111
+                      86000000000000
+                    ff
+                      86222222222222
+                      86333333333333
+                80"
+                .chars()
+                .filter(|c| !c.is_whitespace())
+                .collect::<String>()
+            );
+        }
+
+        assert_eq!(
+            hex::encode(output),
+            "
+        ff
+          ff
+            ff
+              86000000000000
+              86111111111111
+            ff
+              86222222222222
+              86333333333333
+          ff
+            ff
+              fe04
+            ff
+              fe1d
+              fe2b
+          ff
+            ff
+              ff
+                fe0c
+                fe11
+              fe1b
+            80"
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>()
+        );
     }
 }
