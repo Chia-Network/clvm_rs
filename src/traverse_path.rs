@@ -97,11 +97,11 @@ pub fn traverse_path_with_vec(allocator: &mut Allocator, node_index: &[u8], args
     while byte_idx > first_bit_byte_index || bitmask < last_bitmask {
         let is_bit_set: bool = (node_index[byte_idx] & bitmask) != 0;
         if is_bit_set {
-            // we have traversed right, so we keep processing the Vec
+            // we have traversed right ("rest"), so we keep processing the Vec
             arg_list.pop();
             
         } else {
-            // we have traversed left so we must process the node in the 
+            // we have traversed left (i.e "first" rather than "rest") so we must process the node in the 
             let updated_node_index = &node_index[0..byte_idx]
                 .iter()
                 .chain(std::iter::once(&(node_index[byte_idx] & !bitmask)))
