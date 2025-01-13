@@ -1,7 +1,6 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::Cost;
 use crate::reduction::{EvalErr, Reduction, Response};
-use crate::secp_ops;
 
 // lowered from measured 147 per bit. It doesn't seem to take this long in
 // practice
@@ -76,11 +75,11 @@ pub fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) ->
 pub fn traverse_path_with_vec(
     allocator: &mut Allocator,
     node_index: &[u8],
-    args: &Vec<NodePtr>,
+    args: &[NodePtr],
 ) -> Response {
     // the vec is a stack so a ChiaLisp list of (3 . (2 . (1 . NIL))) would be [1, 2, 3]
     // however entries in this vec may be ChiaLisp SExps so it may look more like [1, (2 . NIL), 3]
-    let mut arg_list: Vec<NodePtr> = args.clone();
+    let mut arg_list: Vec<NodePtr> = args.to_owned();
 
     // find first non-zero byte
     let first_bit_byte_index = first_non_zero(node_index);
@@ -115,15 +114,13 @@ pub fn traverse_path_with_vec(
                     sexp_to_parse = if is_bit_set { right } else { left };
                 }
             }
+        } else if is_bit_set {
+            // we have traversed right ("rest"), so we keep processing the Vec
+            arg_list.pop();
         } else {
-            if is_bit_set {
-                // we have traversed right ("rest"), so we keep processing the Vec
-                arg_list.pop();
-            } else {
-                // we have traversed left (i.e "first" rather than "rest") so we must process the node in the
-                parsing_sexp = true;
-                sexp_to_parse = arg_list.pop().unwrap();
-            }
+            // we have traversed left (i.e "first" rather than "rest") so we must process the node in the
+            parsing_sexp = true;
+            sexp_to_parse = arg_list.pop().unwrap();
         }
 
         if bitmask == 0x80 {
@@ -137,7 +134,7 @@ pub fn traverse_path_with_vec(
     if parsing_sexp {
         return Ok(Reduction(cost, sexp_to_parse));
     }
-    if arg_list.len() == 0 {
+    if arg_list.is_empty() {
         return Ok(Reduction(cost, allocator.nil()));
     }
     // take bottom of stack and make (item . NIL)

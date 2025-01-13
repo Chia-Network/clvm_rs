@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::io;
 use std::io::{Cursor, Read};
 
-use crate::allocator::{Allocator, NodePtr, SExp};
+use crate::allocator::{Allocator, NodePtr};
 use crate::traverse_path::traverse_path_with_vec;
 
 use super::parse_atom::{parse_atom, parse_path};
