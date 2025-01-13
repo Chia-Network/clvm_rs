@@ -56,7 +56,7 @@ pub fn node_from_stream_backrefs(
             }
         }
     }
-    Ok(values.pop().expect("Last node on the stack"))
+    Ok(values.pop().expect("Top of the stack"))
 }
 
 pub fn node_from_bytes_backrefs(allocator: &mut Allocator, b: &[u8]) -> io::Result<NodePtr> {
