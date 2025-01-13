@@ -72,6 +72,49 @@ pub fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) ->
     Ok(Reduction(cost, arg_list))
 }
 
+pub fn traverse_path_with_vec(allocator: &Allocator, node_index: &[u8], args: &Vec<NodePtr>) -> Response {
+    let mut arg_list: Vec<NodePtr> = args.clone();
+
+    // find first non-zero byte
+    let first_bit_byte_index = first_non_zero(node_index);
+
+    let mut cost: Cost = TRAVERSE_BASE_COST
+        + (first_bit_byte_index as Cost) * TRAVERSE_COST_PER_ZERO_BYTE
+        + TRAVERSE_COST_PER_BIT;
+
+    if first_bit_byte_index >= node_index.len() {
+        return Ok(Reduction(cost, allocator.nil()));
+    }
+
+    // find first non-zero bit (the most significant bit is a sentinel)
+    let last_bitmask = msb_mask(node_index[first_bit_byte_index]);
+
+    // follow through the bits, moving left and right
+    let mut byte_idx = node_index.len() - 1;
+    let mut bitmask = 0x01;
+    let mut popped_val = arg_list.pop().expect("Pop or fail");
+    while byte_idx > first_bit_byte_index || bitmask < last_bitmask {
+        let is_bit_set: bool = (node_index[byte_idx] & bitmask) != 0;
+        let sexp = allocator.sexp(popped_val);
+        match sexp {
+            SExp::Atom => {
+                return Err(EvalErr(popped_val, "path into atom".into()));
+            }
+            SExp::Pair(left, right) => {
+                popped_val = if is_bit_set { right } else { left };
+            }
+        }
+        if bitmask == 0x80 {
+            bitmask = 0x01;
+            byte_idx -= 1;
+        } else {
+            bitmask <<= 1;
+        }
+        cost += TRAVERSE_COST_PER_BIT;
+    }
+    Ok(Reduction(cost, popped_val))
+}
+
 // The cost calculation for this version of traverse_path assumes the node_index has the canonical
 // integer representation (which is true for SmallAtom in the allocator). If there are any
 // redundant leading zeros, the slow path must be used
