@@ -77,34 +77,27 @@ fn node_from_stream_backrefs_old(
                     ops.push(ParseOp::SExp);
                 } else if b[0] == BACK_REFERENCE {
                     let path = parse_path(f)?;
-                    let reduction = traverse_path(allocator, path, values)?;
+                    let reduction = traverse_path_with_vec(allocator, path, &values)?;
                     let back_reference = reduction.1;
                     backref_callback(back_reference);
-                    values = allocator.new_pair(back_reference, values)?;
+                    values.push(back_reference);
                 } else {
                     let new_atom = parse_atom(allocator, b[0], f)?;
-                    values = allocator.new_pair(new_atom, values)?;
+                    values.push(new_atom);
                 }
             }
             ParseOp::Cons => {
                 // cons
                 // pop left and right values off of the "values" stack, then
                 // push the new pair onto it
-                let SExp::Pair(right, rest) = allocator.sexp(values) else {
-                    panic!("internal error");
-                };
-                let SExp::Pair(left, rest) = allocator.sexp(rest) else {
-                    panic!("internal error");
-                };
-                let new_root = allocator.new_pair(left, right)?;
-                values = allocator.new_pair(new_root, rest)?;
+                let right = values.pop().expect("No cons without two vals.");
+                let left = values.pop().expect("No cons without two vals.");
+                let root_node = allocator.new_pair(left, right)?;
+                values.push(root_node);
             }
         }
     }
-    match allocator.sexp(values) {
-        SExp::Pair(v1, _v2) => Ok(v1),
-        _ => panic!("unexpected atom"),
-    }
+    Ok(values[0])
 }
 
 pub fn node_from_bytes_backrefs(allocator: &mut Allocator, b: &[u8]) -> io::Result<NodePtr> {
