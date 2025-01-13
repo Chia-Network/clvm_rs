@@ -1,6 +1,7 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::Cost;
 use crate::reduction::{EvalErr, Reduction, Response};
+use crate::secp_ops;
 
 // lowered from measured 147 per bit. It doesn't seem to take this long in
 // practice
@@ -72,7 +73,11 @@ pub fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) ->
     Ok(Reduction(cost, arg_list))
 }
 
-pub fn traverse_path_with_vec(allocator: &mut Allocator, node_index: &[u8], args: &Vec<NodePtr>) -> Response {
+pub fn traverse_path_with_vec(
+    allocator: &mut Allocator,
+    node_index: &[u8],
+    args: &Vec<NodePtr>,
+) -> Response {
     // the vec is a stack so a ChiaLisp list of (3 . (2 . (1 . NIL))) would be [1, 2, 3]
     // however entries in this vec may be ChiaLisp SExps so it may look more like [1, (2 . NIL), 3]
     let mut arg_list: Vec<NodePtr> = args.clone();
@@ -95,23 +100,32 @@ pub fn traverse_path_with_vec(allocator: &mut Allocator, node_index: &[u8], args
     let mut byte_idx = node_index.len() - 1;
     let mut bitmask = 0x01;
 
+    // if we move from parsing the Vec stack to parsing the SExp stack use the following variables
+    let mut parsing_sexp = false;
+    let mut sexp_to_parse = allocator.nil();
+
     while byte_idx > first_bit_byte_index || bitmask < last_bitmask {
         let is_bit_set: bool = (node_index[byte_idx] & bitmask) != 0;
-        if is_bit_set {
-            // we have traversed right ("rest"), so we keep processing the Vec
-            arg_list.pop();
-            
+        if parsing_sexp {
+            match allocator.sexp(sexp_to_parse) {
+                SExp::Atom => {
+                    return Err(EvalErr(sexp_to_parse, "path into atom".into()));
+                }
+                SExp::Pair(left, right) => {
+                    sexp_to_parse = if is_bit_set { right } else { left };
+                }
+            }
         } else {
-            // we have traversed left (i.e "first" rather than "rest") so we must process the node in the 
-            let updated_node_index = &node_index[0..byte_idx]
-                .iter()
-                .chain(std::iter::once(&(node_index[byte_idx] & !bitmask)))
-                .chain(node_index[byte_idx + 1..].iter())
-                .cloned()
-                .collect::<Vec<u8>>();
-            return traverse_path(allocator, &updated_node_index, arg_list.pop().expect("there should be a value here"));
-            // return traverse_path(allocator, what_is_this_value, arg_list[0]);
+            if is_bit_set {
+                // we have traversed right ("rest"), so we keep processing the Vec
+                arg_list.pop();
+            } else {
+                // we have traversed left (i.e "first" rather than "rest") so we must process the node in the
+                parsing_sexp = true;
+                sexp_to_parse = arg_list.pop().unwrap();
+            }
         }
+
         if bitmask == 0x80 {
             bitmask = 0x01;
             byte_idx -= 1;
@@ -119,6 +133,9 @@ pub fn traverse_path_with_vec(allocator: &mut Allocator, node_index: &[u8], args
             bitmask <<= 1;
         }
         cost += TRAVERSE_COST_PER_BIT;
+    }
+    if parsing_sexp {
+        return Ok(Reduction(cost, sexp_to_parse));
     }
     if arg_list.len() == 0 {
         return Ok(Reduction(cost, allocator.nil()));
