@@ -74,6 +74,7 @@ pub fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) ->
 
 pub fn traverse_path_with_vec(allocator: &mut Allocator, node_index: &[u8], args: &Vec<NodePtr>) -> Response {
     // the vec is a stack so a ChiaLisp list of (3 . (2 . (1 . NIL))) would be [1, 2, 3]
+    // however entries in this vec may be ChiaLisp SExps so it may look more like [1, (2 . NIL), 3]
     let mut arg_list: Vec<NodePtr> = args.clone();
 
     // find first non-zero byte
