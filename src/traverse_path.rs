@@ -118,7 +118,7 @@ pub fn traverse_path_with_vec(
             // we have traversed right ("rest"), so we keep processing the Vec
             arg_list.pop();
         } else {
-            // we have traversed left (i.e "first" rather than "rest") so we must process the node in the
+            // we have traversed left (i.e "first" rather than "rest") so we must process as SExp now
             parsing_sexp = true;
             sexp_to_parse = arg_list.pop().unwrap();
         }
