@@ -72,7 +72,8 @@ pub fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) ->
     Ok(Reduction(cost, arg_list))
 }
 
-pub fn traverse_path_with_vec(allocator: &Allocator, node_index: &[u8], args: &Vec<NodePtr>) -> Response {
+pub fn traverse_path_with_vec(allocator: &mut Allocator, node_index: &[u8], args: &Vec<NodePtr>) -> Response {
+    // the vec is a stack so a ChiaLisp list of (3 . (2 . (1 . NIL))) would be [1, 2, 3]
     let mut arg_list: Vec<NodePtr> = args.clone();
 
     // find first non-zero byte
@@ -92,17 +93,23 @@ pub fn traverse_path_with_vec(allocator: &Allocator, node_index: &[u8], args: &V
     // follow through the bits, moving left and right
     let mut byte_idx = node_index.len() - 1;
     let mut bitmask = 0x01;
-    let mut popped_val = arg_list.pop().expect("Pop or fail");
+
     while byte_idx > first_bit_byte_index || bitmask < last_bitmask {
         let is_bit_set: bool = (node_index[byte_idx] & bitmask) != 0;
-        let sexp = allocator.sexp(popped_val);
-        match sexp {
-            SExp::Atom => {
-                return Err(EvalErr(popped_val, "path into atom".into()));
-            }
-            SExp::Pair(left, right) => {
-                popped_val = if is_bit_set { right } else { left };
-            }
+        if is_bit_set {
+            // we have traversed right, so we keep processing the Vec
+            arg_list.pop();
+            
+        } else {
+            // we have traversed left so we must process the node in the 
+            let updated_node_index = &node_index[0..byte_idx]
+                .iter()
+                .chain(std::iter::once(&(node_index[byte_idx] & !bitmask)))
+                .chain(node_index[byte_idx + 1..].iter())
+                .cloned()
+                .collect::<Vec<u8>>();
+            return traverse_path(allocator, &updated_node_index, arg_list.pop().expect("there should be a value here"));
+            // return traverse_path(allocator, what_is_this_value, arg_list[0]);
         }
         if bitmask == 0x80 {
             bitmask = 0x01;
@@ -112,7 +119,19 @@ pub fn traverse_path_with_vec(allocator: &Allocator, node_index: &[u8], args: &V
         }
         cost += TRAVERSE_COST_PER_BIT;
     }
-    Ok(Reduction(cost, popped_val))
+    if arg_list.len() == 0 {
+        return Ok(Reduction(cost, allocator.nil()));
+    }
+    // take bottom of stack and make (item . NIL)
+    let mut backref_node = allocator.new_pair(arg_list[0], allocator.nil())?;
+    if arg_list.len() == 1 {
+        return Ok(Reduction(cost, backref_node));
+    }
+    // for the rest of items starting from last + 1 in stack
+    for x in &arg_list[1..] {
+        backref_node = allocator.new_pair(*x, backref_node)?;
+    }
+    Ok(Reduction(cost, backref_node))
 }
 
 // The cost calculation for this version of traverse_path assumes the node_index has the canonical
