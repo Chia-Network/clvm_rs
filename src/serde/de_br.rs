@@ -82,7 +82,9 @@ pub fn traverse_path_with_vec(
 ) -> io::Result<NodePtr> {
     // the vec is a stack so a ChiaLisp list of (3 . (2 . (1 . NIL))) would be [1, 2, 3]
     // however entries in this vec may be ChiaLisp SExps so it may look more like [1, (2 . NIL), 3]
-    let mut arg_list: Vec<NodePtr> = args.to_owned();
+
+    // instead of popping, we treat this as a pointer to the end of the virtual stack
+    let mut arg_index = args.len() - 1;
 
     // find first non-zero byte
     let first_bit_byte_index = first_non_zero(node_index);
@@ -99,7 +101,7 @@ pub fn traverse_path_with_vec(
 
     // if we move from parsing the Vec stack to parsing the SExp stack use the following variables
     let mut parsing_sexp = false;
-    let mut sexp_to_parse = allocator.nil();
+    let mut sexp_to_parse = NodePtr::NIL;
 
     while byte_idx > first_bit_byte_index || bitmask < last_bitmask {
         let is_bit_set: bool = (node_index[byte_idx] & bitmask) != 0;
@@ -114,11 +116,12 @@ pub fn traverse_path_with_vec(
             }
         } else if is_bit_set {
             // we have traversed right ("rest"), so we keep processing the Vec
-            arg_list.pop();
+            // pop from the stack
+            arg_index -= 1;
         } else {
             // we have traversed left (i.e "first" rather than "rest") so we must process as SExp now
             parsing_sexp = true;
-            sexp_to_parse = arg_list.pop().unwrap();
+            sexp_to_parse = args[arg_index];
         }
 
         if bitmask == 0x80 {
@@ -131,16 +134,13 @@ pub fn traverse_path_with_vec(
     if parsing_sexp {
         return Ok(sexp_to_parse);
     }
-    if arg_list.is_empty() {
-        return Ok(allocator.nil());
-    }
     // take bottom of stack and make (item . NIL)
-    let mut backref_node = allocator.new_pair(arg_list[0], allocator.nil())?;
-    if arg_list.len() == 1 {
+    let mut backref_node = allocator.new_pair(args[0], NodePtr::NIL)?;
+    if arg_index == 0 {
         return Ok(backref_node);
     }
     // for the rest of items starting from last + 1 in stack
-    for x in &arg_list[1..] {
+    for x in args.iter().take(arg_index + 1).skip(1) {
         backref_node = allocator.new_pair(*x, backref_node)?;
     }
     Ok(backref_node)
