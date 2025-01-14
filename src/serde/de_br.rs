@@ -84,7 +84,7 @@ pub fn traverse_path_with_vec(
     // however entries in this vec may be ChiaLisp SExps so it may look more like [1, (2 . NIL), 3]
 
     // instead of popping, we treat this as a pointer to the end of the virtual stack
-    let mut arg_index = args.len() - 1;
+    let mut arg_index: usize = args.len() - 1;
 
     // find first non-zero byte
     let first_bit_byte_index = first_non_zero(node_index);
@@ -117,6 +117,9 @@ pub fn traverse_path_with_vec(
         } else if is_bit_set {
             // we have traversed right ("rest"), so we keep processing the Vec
             // pop from the stack
+            if arg_index == 0 {
+                return Err(EvalErr(sexp_to_parse, "reference not in stack".into()).into());
+            }
             arg_index -= 1;
         } else {
             // we have traversed left (i.e "first" rather than "rest") so we must process as SExp now
