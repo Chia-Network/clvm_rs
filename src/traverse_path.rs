@@ -13,7 +13,7 @@ const TRAVERSE_COST_PER_BIT: Cost = 4;
 
 // return a bitmask with a single bit set, for the most significant set bit in
 // the input byte
-fn msb_mask(byte: u8) -> u8 {
+pub fn msb_mask(byte: u8) -> u8 {
     let mut byte = (byte | (byte >> 1)) as u32;
     byte |= byte >> 2;
     byte |= byte >> 4;
@@ -23,7 +23,7 @@ fn msb_mask(byte: u8) -> u8 {
 
 // return the index of the first non-zero byte in buf. If all bytes are 0, the
 // length (one past end) will be returned.
-const fn first_non_zero(buf: &[u8]) -> usize {
+pub const fn first_non_zero(buf: &[u8]) -> usize {
     let mut c: usize = 0;
     while c < buf.len() && buf[c] == 0 {
         c += 1;
@@ -70,83 +70,6 @@ pub fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) ->
         cost += TRAVERSE_COST_PER_BIT;
     }
     Ok(Reduction(cost, arg_list))
-}
-
-pub fn traverse_path_with_vec(
-    allocator: &mut Allocator,
-    node_index: &[u8],
-    args: &[NodePtr],
-) -> Response {
-    // the vec is a stack so a ChiaLisp list of (3 . (2 . (1 . NIL))) would be [1, 2, 3]
-    // however entries in this vec may be ChiaLisp SExps so it may look more like [1, (2 . NIL), 3]
-    let mut arg_list: Vec<NodePtr> = args.to_owned();
-
-    // find first non-zero byte
-    let first_bit_byte_index = first_non_zero(node_index);
-
-    let mut cost: Cost = TRAVERSE_BASE_COST
-        + (first_bit_byte_index as Cost) * TRAVERSE_COST_PER_ZERO_BYTE
-        + TRAVERSE_COST_PER_BIT;
-
-    if first_bit_byte_index >= node_index.len() {
-        return Ok(Reduction(cost, allocator.nil()));
-    }
-
-    // find first non-zero bit (the most significant bit is a sentinel)
-    let last_bitmask = msb_mask(node_index[first_bit_byte_index]);
-
-    // follow through the bits, moving left and right
-    let mut byte_idx = node_index.len() - 1;
-    let mut bitmask = 0x01;
-
-    // if we move from parsing the Vec stack to parsing the SExp stack use the following variables
-    let mut parsing_sexp = false;
-    let mut sexp_to_parse = allocator.nil();
-
-    while byte_idx > first_bit_byte_index || bitmask < last_bitmask {
-        let is_bit_set: bool = (node_index[byte_idx] & bitmask) != 0;
-        if parsing_sexp {
-            match allocator.sexp(sexp_to_parse) {
-                SExp::Atom => {
-                    return Err(EvalErr(sexp_to_parse, "path into atom".into()));
-                }
-                SExp::Pair(left, right) => {
-                    sexp_to_parse = if is_bit_set { right } else { left };
-                }
-            }
-        } else if is_bit_set {
-            // we have traversed right ("rest"), so we keep processing the Vec
-            arg_list.pop();
-        } else {
-            // we have traversed left (i.e "first" rather than "rest") so we must process as SExp now
-            parsing_sexp = true;
-            sexp_to_parse = arg_list.pop().unwrap();
-        }
-
-        if bitmask == 0x80 {
-            bitmask = 0x01;
-            byte_idx -= 1;
-        } else {
-            bitmask <<= 1;
-        }
-        cost += TRAVERSE_COST_PER_BIT;
-    }
-    if parsing_sexp {
-        return Ok(Reduction(cost, sexp_to_parse));
-    }
-    if arg_list.is_empty() {
-        return Ok(Reduction(cost, allocator.nil()));
-    }
-    // take bottom of stack and make (item . NIL)
-    let mut backref_node = allocator.new_pair(arg_list[0], allocator.nil())?;
-    if arg_list.len() == 1 {
-        return Ok(Reduction(cost, backref_node));
-    }
-    // for the rest of items starting from last + 1 in stack
-    for x in &arg_list[1..] {
-        backref_node = allocator.new_pair(*x, backref_node)?;
-    }
-    Ok(Reduction(cost, backref_node))
 }
 
 // The cost calculation for this version of traverse_path assumes the node_index has the canonical

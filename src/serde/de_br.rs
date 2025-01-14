@@ -2,10 +2,10 @@ use std::collections::HashSet;
 use std::io;
 use std::io::{Cursor, Read};
 
-use crate::allocator::{Allocator, NodePtr};
-use crate::traverse_path::traverse_path_with_vec;
-
 use super::parse_atom::{parse_atom, parse_path};
+use crate::allocator::{Allocator, NodePtr, SExp};
+use crate::reduction::EvalErr;
+use crate::traverse_path::{first_non_zero, msb_mask};
 
 const BACK_REFERENCE: u8 = 0xfe;
 const CONS_BOX_MARKER: u8 = 0xff;
@@ -36,8 +36,7 @@ pub fn node_from_stream_backrefs(
                     ops.push(ParseOp::SExp);
                 } else if b[0] == BACK_REFERENCE {
                     let path = parse_path(f)?;
-                    let reduction = traverse_path_with_vec(allocator, path, &values)?;
-                    let back_reference = reduction.1;
+                    let back_reference = traverse_path_with_vec(allocator, path, &values)?;
                     backref_callback(back_reference);
                     values.push(back_reference);
                 } else {
@@ -74,6 +73,77 @@ pub fn node_from_bytes_backrefs_record(
         backrefs.insert(node);
     })?;
     Ok((ret, backrefs))
+}
+
+pub fn traverse_path_with_vec(
+    allocator: &mut Allocator,
+    node_index: &[u8],
+    args: &[NodePtr],
+) -> io::Result<NodePtr> {
+    // the vec is a stack so a ChiaLisp list of (3 . (2 . (1 . NIL))) would be [1, 2, 3]
+    // however entries in this vec may be ChiaLisp SExps so it may look more like [1, (2 . NIL), 3]
+    let mut arg_list: Vec<NodePtr> = args.to_owned();
+
+    // find first non-zero byte
+    let first_bit_byte_index = first_non_zero(node_index);
+    if first_bit_byte_index >= node_index.len() {
+        return Ok(allocator.nil());
+    }
+
+    // find first non-zero bit (the most significant bit is a sentinel)
+    let last_bitmask = msb_mask(node_index[first_bit_byte_index]);
+
+    // follow through the bits, moving left and right
+    let mut byte_idx = node_index.len() - 1;
+    let mut bitmask = 0x01;
+
+    // if we move from parsing the Vec stack to parsing the SExp stack use the following variables
+    let mut parsing_sexp = false;
+    let mut sexp_to_parse = allocator.nil();
+
+    while byte_idx > first_bit_byte_index || bitmask < last_bitmask {
+        let is_bit_set: bool = (node_index[byte_idx] & bitmask) != 0;
+        if parsing_sexp {
+            match allocator.sexp(sexp_to_parse) {
+                SExp::Atom => {
+                    return Err(EvalErr(sexp_to_parse, "path into atom".into()).into());
+                }
+                SExp::Pair(left, right) => {
+                    sexp_to_parse = if is_bit_set { right } else { left };
+                }
+            }
+        } else if is_bit_set {
+            // we have traversed right ("rest"), so we keep processing the Vec
+            arg_list.pop();
+        } else {
+            // we have traversed left (i.e "first" rather than "rest") so we must process as SExp now
+            parsing_sexp = true;
+            sexp_to_parse = arg_list.pop().unwrap();
+        }
+
+        if bitmask == 0x80 {
+            bitmask = 0x01;
+            byte_idx -= 1;
+        } else {
+            bitmask <<= 1;
+        }
+    }
+    if parsing_sexp {
+        return Ok(sexp_to_parse);
+    }
+    if arg_list.is_empty() {
+        return Ok(allocator.nil());
+    }
+    // take bottom of stack and make (item . NIL)
+    let mut backref_node = allocator.new_pair(arg_list[0], allocator.nil())?;
+    if arg_list.len() == 1 {
+        return Ok(backref_node);
+    }
+    // for the rest of items starting from last + 1 in stack
+    for x in &arg_list[1..] {
+        backref_node = allocator.new_pair(*x, backref_node)?;
+    }
+    Ok(backref_node)
 }
 
 #[cfg(test)]
