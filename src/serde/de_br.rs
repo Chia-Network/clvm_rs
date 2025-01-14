@@ -83,13 +83,17 @@ pub fn traverse_path_with_vec(
     // the vec is a stack so a ChiaLisp list of (3 . (2 . (1 . NIL))) would be [1, 2, 3]
     // however entries in this vec may be ChiaLisp SExps so it may look more like [1, (2 . NIL), 3]
 
+    if args.is_empty() {
+        return Ok(NodePtr::NIL);
+    }
+
     // instead of popping, we treat this as a pointer to the end of the virtual stack
     let mut arg_index: usize = args.len() - 1;
 
     // find first non-zero byte
     let first_bit_byte_index = first_non_zero(node_index);
     if first_bit_byte_index >= node_index.len() {
-        return Ok(allocator.nil());
+        return Ok(NodePtr::NIL);
     }
 
     // find first non-zero bit (the most significant bit is a sentinel)
