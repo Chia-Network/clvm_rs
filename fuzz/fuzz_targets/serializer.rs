@@ -1,6 +1,6 @@
 #![no_main]
 
-mod fuzzing_utils;
+mod make_tree;
 mod node_eq;
 
 use clvmr::allocator::Allocator;
@@ -11,11 +11,10 @@ use libfuzzer_sys::fuzz_target;
 
 // serializing with the regular compressed serializer should yield the same
 // result as using the incremental one (as long as it's in a single add() call).
-fn do_fuzz(data: &[u8], short_atoms: bool) {
-    let mut cursor = fuzzing_utils::BitCursor::new(data);
-
+fuzz_target!(|data: &[u8]| {
+    let mut unstructured = arbitrary::Unstructured::new(data);
     let mut allocator = Allocator::new();
-    let program = fuzzing_utils::make_tree(&mut allocator, &mut cursor, short_atoms);
+    let program = make_tree::make_tree(&mut allocator, &mut unstructured);
 
     let b1 = node_to_bytes_backrefs(&allocator, program).unwrap();
 
@@ -34,9 +33,4 @@ fn do_fuzz(data: &[u8], short_atoms: bool) {
     }
 
     assert_eq!(b1, b2);
-}
-
-fuzz_target!(|data: &[u8]| {
-    do_fuzz(data, true);
-    do_fuzz(data, false);
 });
