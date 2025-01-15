@@ -138,7 +138,7 @@ pub fn traverse_path_with_vec(
     // however entries in this vec may be ChiaLisp SExps so it may look more like [1, (2 . NIL), 3]
 
     if args.is_empty() {
-        return Ok(NodePtr::NIL);
+        return Err(EvalErr(NodePtr::NIL, "path into atom".into()).into());
     }
 
     // instead of popping, we treat this as a pointer to the end of the virtual stack
