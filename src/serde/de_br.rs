@@ -176,9 +176,11 @@ pub fn traverse_path_with_vec(
             // we have traversed right ("rest"), so we keep processing the Vec
             // pop from the stack
             if arg_index == 0 {
-                return Err(EvalErr(sexp_to_parse, "reference not in stack".into()).into());
+                // if we have reached the end of the stack, we must start parsing as NIL
+                parsing_sexp = true;
+            } else {
+                arg_index -= 1;
             }
-            arg_index -= 1;
         } else {
             // we have traversed left (i.e "first" rather than "rest") so we must process as SExp now
             parsing_sexp = true;
