@@ -25,7 +25,6 @@ fuzz_target!(|data: &[u8]| {
     assert_eq!(b1, b3);
 });
 
-
 #[cfg(feature = "counters")]
 fuzz_target!(|data: &[u8]| {
     let mut allocator = Allocator::new();
