@@ -46,7 +46,7 @@ fn compute_serialized_len(a: &Allocator, n: NodePtr) -> u64 {
 fuzz_target!(|data: &[u8]| {
     let mut unstructured = arbitrary::Unstructured::new(data);
     let mut allocator = Allocator::new();
-    let program = make_tree::make_tree(&mut allocator, &mut unstructured);
+    let program = make_tree::make_tree_limits(&mut allocator, &mut unstructured, 10_000, 20_000);
 
     let mut hash_cache = ObjectCache::new(treehash);
     let mut length_cache = ObjectCache::new(serialized_length);

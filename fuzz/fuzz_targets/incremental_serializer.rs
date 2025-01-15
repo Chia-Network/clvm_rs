@@ -1,10 +1,12 @@
 #![no_main]
 
 mod make_tree;
+mod node_eq;
 
-use clvmr::serde::{node_from_bytes_backrefs, node_to_bytes, Serializer};
+use clvmr::serde::{node_from_bytes_backrefs, Serializer};
 use clvmr::{Allocator, NodePtr, SExp};
 use make_tree::make_tree_limits;
+use std::collections::HashSet;
 
 use libfuzzer_sys::fuzz_target;
 
@@ -30,6 +32,7 @@ fn insert_sentinel(
     let mut copy = Vec::new();
     let mut ops = vec![TreeOp::SExp(root)];
     let mut subtree: Option<NodePtr> = None;
+    let mut seen_nodes = HashSet::<NodePtr>::new();
 
     while let Some(op) = ops.pop() {
         match op {
@@ -44,7 +47,9 @@ fn insert_sentinel(
                     node_idx -= 1;
                     continue;
                 }
-                node_idx -= 1;
+                if seen_nodes.insert(node) {
+                    node_idx -= 1;
+                }
                 match a.sexp(node) {
                     SExp::Atom => {
                         copy.push(node);
@@ -81,8 +86,10 @@ fuzz_target!(|data: &[u8]| {
     let mut allocator = Allocator::new();
 
     // since we copy the tree, we must limit the number of pairs created, to not
-    // exceed the limit of the Allocator
-    let program = make_tree_limits(&mut allocator, &mut unstructured, 10_000_000, 10_000_000);
+    // exceed the limit of the Allocator. Since we run this test for every node
+    // in the resulting tree, a tree being too large causes the fuzzer to
+    // time-out.
+    let program = make_tree_limits(&mut allocator, &mut unstructured, 10_000, 10_000);
 
     // this just needs to be a unique NodePtr, that won't appear in the tree
     let sentinel = allocator.new_pair(NodePtr::NIL, NodePtr::NIL).unwrap();
@@ -106,11 +113,7 @@ fuzz_target!(|data: &[u8]| {
         // now, make sure that we deserialize to the exact same structure, by
         // comparing the uncompressed form
         let roundtrip = node_from_bytes_backrefs(&mut allocator, ser.get_ref()).unwrap();
-        let b1 = node_to_bytes(&allocator, roundtrip).unwrap();
-
-        let b2 = node_to_bytes(&allocator, program).unwrap();
-
-        assert_eq!(&hex::encode(&b1), &hex::encode(&b2));
+        assert!(node_eq::node_eq(&allocator, program, roundtrip));
 
         // free the memory used by the last iteration from the allocator,
         // otherwise we'll exceed the Allocator limits eventually
