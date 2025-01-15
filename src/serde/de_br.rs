@@ -5,7 +5,7 @@ use std::io::{Cursor, Read};
 use super::parse_atom::{parse_atom, parse_path};
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::reduction::EvalErr;
-use crate::traverse_path::{first_non_zero, msb_mask};
+use crate::traverse_path::{first_non_zero, msb_mask, traverse_path};
 
 const BACK_REFERENCE: u8 = 0xfe;
 const CONS_BOX_MARKER: u8 = 0xff;
@@ -58,9 +58,63 @@ pub fn node_from_stream_backrefs(
     Ok(values.pop().expect("Top of the stack"))
 }
 
+fn node_from_stream_backrefs_old(
+    allocator: &mut Allocator,
+    f: &mut Cursor<&[u8]>,
+    mut backref_callback: impl FnMut(NodePtr),
+) -> io::Result<NodePtr> {
+    let mut values = allocator.nil();
+    let mut ops = vec![ParseOp::SExp];
+
+    let mut b = [0; 1];
+    while let Some(op) = ops.pop() {
+        match op {
+            ParseOp::SExp => {
+                f.read_exact(&mut b)?;
+                if b[0] == CONS_BOX_MARKER {
+                    ops.push(ParseOp::Cons);
+                    ops.push(ParseOp::SExp);
+                    ops.push(ParseOp::SExp);
+                } else if b[0] == BACK_REFERENCE {
+                    let path = parse_path(f)?;
+                    let reduction = traverse_path(allocator, path, values)?;
+                    let back_reference = reduction.1;
+                    backref_callback(back_reference);
+                    values = allocator.new_pair(back_reference, values)?;
+                } else {
+                    let new_atom = parse_atom(allocator, b[0], f)?;
+                    values = allocator.new_pair(new_atom, values)?;
+                }
+            }
+            ParseOp::Cons => {
+                // cons
+                // pop left and right values off of the "values" stack, then
+                // push the new pair onto it
+                let SExp::Pair(right, rest) = allocator.sexp(values) else {
+                    panic!("internal error");
+                };
+                let SExp::Pair(left, rest) = allocator.sexp(rest) else {
+                    panic!("internal error");
+                };
+                let new_root = allocator.new_pair(left, right)?;
+                values = allocator.new_pair(new_root, rest)?;
+            }
+        }
+    }
+    match allocator.sexp(values) {
+        SExp::Pair(v1, _v2) => Ok(v1),
+        _ => panic!("unexpected atom"),
+    }
+}
+
 pub fn node_from_bytes_backrefs(allocator: &mut Allocator, b: &[u8]) -> io::Result<NodePtr> {
     let mut buffer = Cursor::new(b);
     node_from_stream_backrefs(allocator, &mut buffer, |_node| {})
+}
+
+pub fn node_from_bytes_backrefs_old(allocator: &mut Allocator, b: &[u8]) -> io::Result<NodePtr> {
+    let mut buffer = Cursor::new(b);
+    node_from_stream_backrefs_old(allocator, &mut buffer, |_node| {})
 }
 
 pub fn node_from_bytes_backrefs_record(
@@ -196,10 +250,14 @@ mod tests {
         let buf = Vec::from_hex(serialization_as_hex).unwrap();
         let mut allocator = Allocator::new();
         let node = node_from_bytes_backrefs(&mut allocator, &buf).unwrap();
+        let old_node = node_from_bytes_backrefs_old(&mut allocator, &buf).unwrap();
         let mut oc = ObjectCache::new(treehash);
         let calculated_hash = oc.get_or_calculate(&allocator, &node, None).unwrap();
         let ch: &[u8] = calculated_hash;
         let expected_hash: Vec<u8> = Vec::from_hex(expected_hash_as_hex).unwrap();
+        assert_eq!(expected_hash, ch);
+        let calculated_hash = oc.get_or_calculate(&allocator, &old_node, None).unwrap();
+        let ch: &[u8] = calculated_hash;
         assert_eq!(expected_hash, ch);
     }
 
