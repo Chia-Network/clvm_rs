@@ -17,21 +17,24 @@ enum NodeType {
 }
 
 #[allow(dead_code)]
-pub fn make_tree(a: &mut Allocator, unstructured: &mut Unstructured) -> NodePtr {
-    make_tree_limits(a, unstructured, 60_000_000, 60_000_000)
+pub fn make_tree(a: &mut Allocator, unstructured: &mut Unstructured) -> (NodePtr, u32) {
+    make_tree_limits(a, unstructured, 600_000, true)
 }
 
+/// returns an arbitrary CLVM tree structure and the number of (unique) nodes
+/// it's made up of. That's both pairs and atoms.
 pub fn make_tree_limits(
     a: &mut Allocator,
     unstructured: &mut Unstructured,
-    mut max_pairs: i64,
-    mut max_atoms: i64,
-) -> NodePtr {
+    mut max_nodes: i64,
+    reuse_nodes: bool,
+) -> (NodePtr, u32) {
     let mut previous_nodes = Vec::<NodePtr>::new();
     let mut value_stack = Vec::<NodePtr>::new();
     let mut op_stack = vec![Op::SubTree];
     // the number of Op::SubTree items on the op_stack
     let mut sub_trees: i64 = 1;
+    let mut counter = 0;
 
     while let Some(op) = op_stack.pop() {
         match op {
@@ -43,6 +46,7 @@ pub fn make_tree_limits(
                 } else {
                     a.new_pair(right, left).expect("out of memory (pair)")
                 };
+                counter += 1;
                 value_stack.push(pair);
                 previous_nodes.push(pair);
             }
@@ -54,17 +58,16 @@ pub fn make_tree_limits(
                     match unstructured.arbitrary::<NodeType>() {
                         Err(..) => value_stack.push(NodePtr::NIL),
                         Ok(NodeType::Pair) => {
-                            if sub_trees > unstructured.len() as i64
-                                || max_pairs <= 0
-                                || max_atoms <= 0
-                            {
+                            if sub_trees > unstructured.len() as i64 || max_nodes <= 0 {
                                 // there isn't much entropy left, don't grow the
                                 // tree anymore
-                                value_stack.push(
+                                value_stack.push(if reuse_nodes {
                                     *unstructured
                                         .choose(&previous_nodes)
-                                        .unwrap_or(&NodePtr::NIL),
-                                );
+                                        .unwrap_or(&NodePtr::NIL)
+                                } else {
+                                    NodePtr::NIL
+                                });
                             } else {
                                 // swap left and right arbitrarily, to avoid
                                 // having a bias because we build the tree depth
@@ -74,11 +77,11 @@ pub fn make_tree_limits(
                                 op_stack.push(Op::SubTree);
                                 op_stack.push(Op::SubTree);
                                 sub_trees += 2;
-                                max_pairs -= 1;
-                                max_atoms -= 2;
+                                max_nodes -= 2;
                             }
                         }
                         Ok(NodeType::Bytes) => {
+                            counter += 1;
                             value_stack.push(match unstructured.arbitrary::<Vec<u8>>() {
                                 Err(..) => NodePtr::NIL,
                                 Ok(val) => {
@@ -89,6 +92,7 @@ pub fn make_tree_limits(
                             });
                         }
                         Ok(NodeType::U8) => {
+                            counter += 1;
                             value_stack.push(match unstructured.arbitrary::<u8>() {
                                 Err(..) => NodePtr::NIL,
                                 Ok(val) => a
@@ -97,6 +101,7 @@ pub fn make_tree_limits(
                             });
                         }
                         Ok(NodeType::U16) => {
+                            counter += 1;
                             value_stack.push(match unstructured.arbitrary::<u16>() {
                                 Err(..) => NodePtr::NIL,
                                 Ok(val) => a
@@ -105,17 +110,20 @@ pub fn make_tree_limits(
                             });
                         }
                         Ok(NodeType::U32) => {
+                            counter += 1;
                             value_stack.push(match unstructured.arbitrary::<u32>() {
                                 Err(..) => NodePtr::NIL,
                                 Ok(val) => a.new_number(val.into()).expect("out of memory (atom)"),
                             });
                         }
                         Ok(NodeType::Previous) => {
-                            value_stack.push(
+                            value_stack.push(if reuse_nodes {
                                 *unstructured
                                     .choose(&previous_nodes)
-                                    .unwrap_or(&NodePtr::NIL),
-                            );
+                                    .unwrap_or(&NodePtr::NIL)
+                            } else {
+                                NodePtr::NIL
+                            });
                         }
                     }
                 }
@@ -123,5 +131,8 @@ pub fn make_tree_limits(
         }
     }
     assert_eq!(value_stack.len(), 1);
-    *value_stack.last().expect("internal error, empty stack")
+    (
+        *value_stack.last().expect("internal error, empty stack"),
+        counter,
+    )
 }

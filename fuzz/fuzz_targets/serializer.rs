@@ -14,7 +14,7 @@ use libfuzzer_sys::fuzz_target;
 fuzz_target!(|data: &[u8]| {
     let mut unstructured = arbitrary::Unstructured::new(data);
     let mut allocator = Allocator::new();
-    let program = make_tree::make_tree(&mut allocator, &mut unstructured);
+    let (program, _) = make_tree::make_tree(&mut allocator, &mut unstructured);
 
     let b1 = node_to_bytes_backrefs(&allocator, program).unwrap();
 

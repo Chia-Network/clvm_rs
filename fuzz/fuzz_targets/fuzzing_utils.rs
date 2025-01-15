@@ -1,5 +1,7 @@
 use chia_sha2::Sha256;
 use clvmr::allocator::{Allocator, NodePtr, SExp};
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 
 #[allow(dead_code)]
 fn hash_atom(buf: &[u8]) -> [u8; 32] {
@@ -21,30 +23,43 @@ fn hash_pair(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
 #[allow(dead_code)]
 enum TreeOp {
     SExp(NodePtr),
-    Cons,
+    Cons(NodePtr),
 }
 
 #[allow(dead_code)]
 pub fn tree_hash(a: &Allocator, node: NodePtr) -> [u8; 32] {
-    let mut hashes = Vec::new();
+    let mut hashes = Vec::<[u8; 32]>::new();
     let mut ops = vec![TreeOp::SExp(node)];
+    let mut cache = HashMap::<NodePtr, [u8; 32]>::new();
 
     while let Some(op) = ops.pop() {
         match op {
-            TreeOp::SExp(node) => match a.sexp(node) {
-                SExp::Atom => {
-                    hashes.push(hash_atom(a.atom(node).as_ref()));
-                }
-                SExp::Pair(left, right) => {
-                    ops.push(TreeOp::Cons);
-                    ops.push(TreeOp::SExp(left));
-                    ops.push(TreeOp::SExp(right));
-                }
+            TreeOp::SExp(node) => match cache.entry(node) {
+                Entry::Occupied(e) => hashes.push(*e.get()),
+                Entry::Vacant(e) => match a.sexp(node) {
+                    SExp::Atom => {
+                        let hash = hash_atom(a.atom(node).as_ref());
+                        e.insert(hash);
+                        hashes.push(hash);
+                    }
+                    SExp::Pair(left, right) => {
+                        ops.push(TreeOp::Cons(node));
+                        ops.push(TreeOp::SExp(left));
+                        ops.push(TreeOp::SExp(right));
+                    }
+                },
             },
-            TreeOp::Cons => {
+            TreeOp::Cons(node) => {
                 let first = hashes.pop().unwrap();
                 let rest = hashes.pop().unwrap();
-                hashes.push(hash_pair(&first, &rest));
+                match cache.entry(node) {
+                    Entry::Occupied(e) => hashes.push(*e.get()),
+                    Entry::Vacant(e) => {
+                        let hash = hash_pair(&first, &rest);
+                        e.insert(hash);
+                        hashes.push(hash);
+                    }
+                }
             }
         }
     }
