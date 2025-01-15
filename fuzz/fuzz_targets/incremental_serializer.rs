@@ -1,10 +1,10 @@
 #![no_main]
 
-mod fuzzing_utils;
+mod make_tree;
 
 use clvmr::serde::{node_from_bytes_backrefs, node_to_bytes, Serializer};
 use clvmr::{Allocator, NodePtr, SExp};
-use fuzzing_utils::{make_tree, BitCursor};
+use make_tree::make_tree_limits;
 
 use libfuzzer_sys::fuzz_target;
 
@@ -76,15 +76,18 @@ fn insert_sentinel(
 
 // we ensure that serializing a structure in two steps results in a valid form
 // as well as that it correctly represents the tree.
-fn do_fuzz(data: &[u8], short_atoms: bool) {
-    let mut cursor = BitCursor::new(data);
-
+fuzz_target!(|data: &[u8]| {
+    let mut unstructured = arbitrary::Unstructured::new(data);
     let mut allocator = Allocator::new();
-    let program = make_tree(&mut allocator, &mut cursor, short_atoms);
+
+    // since we copy the tree, we must limit the number of pairs created, to not
+    // exceed the limit of the Allocator
+    let program = make_tree_limits(&mut allocator, &mut unstructured, 10_000_000, 10_000_000);
 
     // this just needs to be a unique NodePtr, that won't appear in the tree
     let sentinel = allocator.new_pair(NodePtr::NIL, NodePtr::NIL).unwrap();
 
+    let checkpoint = allocator.checkpoint();
     // count up intil we've used every node as the sentinel/cut-point
     let mut node_idx = 0;
 
@@ -108,10 +111,9 @@ fn do_fuzz(data: &[u8], short_atoms: bool) {
         let b2 = node_to_bytes(&allocator, program).unwrap();
 
         assert_eq!(&hex::encode(&b1), &hex::encode(&b2));
-    }
-}
 
-fuzz_target!(|data: &[u8]| {
-    do_fuzz(data, true);
-    do_fuzz(data, false);
+        // free the memory used by the last iteration from the allocator,
+        // otherwise we'll exceed the Allocator limits eventually
+        allocator.restore_checkpoint(&checkpoint);
+    }
 });
