@@ -143,7 +143,7 @@ pub fn traverse_path_with_vec(
     }
 
     // instead of popping, we treat this as a pointer to the end of the virtual stack
-    let mut arg_index: usize = args.len() - 1;
+    let mut arg_index: usize = if parsing_sexp { 0 } else { args.len() - 1 };
 
     // find first non-zero byte
     let first_bit_byte_index = first_non_zero(node_index);
