@@ -137,11 +137,9 @@ pub fn traverse_path_with_vec(
     // the vec is a stack so a ChiaLisp list of (3 . (2 . (1 . NIL))) would be [1, 2, 3]
     // however entries in this vec may be ChiaLisp SExps so it may look more like [1, (2 . NIL), 3]
 
+    let mut parsing_sexp = false;
     if args.is_empty() {
-        if node_index == [1] || node_index == [0] {
-            return Ok(NodePtr::NIL);
-        }
-        return Err(EvalErr(NodePtr::NIL, "path into atom".into()).into());
+        parsing_sexp = true;
     }
 
     // instead of popping, we treat this as a pointer to the end of the virtual stack
@@ -161,7 +159,6 @@ pub fn traverse_path_with_vec(
     let mut bitmask = 0x01;
 
     // if we move from parsing the Vec stack to parsing the SExp stack use the following variables
-    let mut parsing_sexp = false;
     let mut sexp_to_parse = NodePtr::NIL;
 
     while byte_idx > first_bit_byte_index || bitmask < last_bitmask {
