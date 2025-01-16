@@ -1,7 +1,8 @@
 use clvmr::allocator::Allocator;
 use clvmr::serde::{
-    node_from_bytes, node_from_bytes_backrefs, node_to_bytes_backrefs,
-    serialized_length_from_bytes, serialized_length_from_bytes_trusted, tree_hash_from_stream,
+    node_from_bytes, node_from_bytes_backrefs, node_from_bytes_backrefs_old,
+    node_to_bytes_backrefs, serialized_length_from_bytes, serialized_length_from_bytes_trusted,
+    tree_hash_from_stream,
 };
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::include_bytes;
@@ -61,6 +62,15 @@ fn deserialize_benchmark(c: &mut Criterion) {
                 a.restore_checkpoint(&iter_checkpoint);
                 let start = Instant::now();
                 node_from_bytes_backrefs(&mut a, bl).expect("node_from_bytes_backrefs");
+                start.elapsed()
+            })
+        });
+
+        group.bench_function(format!("node_from_bytes_backrefs_old{name_suffix}"), |b| {
+            b.iter(|| {
+                a.restore_checkpoint(&iter_checkpoint);
+                let start = Instant::now();
+                node_from_bytes_backrefs_old(&mut a, bl).expect("node_from_bytes_backrefs_old");
                 start.elapsed()
             })
         });
