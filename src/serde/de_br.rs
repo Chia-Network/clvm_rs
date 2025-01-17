@@ -2,10 +2,10 @@ use std::collections::HashSet;
 use std::io;
 use std::io::{Cursor, Read};
 
-use crate::allocator::{Allocator, NodePtr, SExp};
-use crate::traverse_path::traverse_path;
-
 use super::parse_atom::{parse_atom, parse_path};
+use crate::allocator::{Allocator, NodePtr, SExp};
+use crate::reduction::EvalErr;
+use crate::traverse_path::{first_non_zero, msb_mask, traverse_path};
 
 const BACK_REFERENCE: u8 = 0xfe;
 const CONS_BOX_MARKER: u8 = 0xff;
@@ -18,6 +18,47 @@ enum ParseOp {
 
 /// deserialize a clvm node from a `std::io::Cursor`
 pub fn node_from_stream_backrefs(
+    allocator: &mut Allocator,
+    f: &mut Cursor<&[u8]>,
+    mut backref_callback: impl FnMut(NodePtr),
+) -> io::Result<NodePtr> {
+    let mut values = Vec::<NodePtr>::new();
+    let mut ops = vec![ParseOp::SExp];
+
+    let mut b = [0; 1];
+    while let Some(op) = ops.pop() {
+        match op {
+            ParseOp::SExp => {
+                f.read_exact(&mut b)?;
+                if b[0] == CONS_BOX_MARKER {
+                    ops.push(ParseOp::Cons);
+                    ops.push(ParseOp::SExp);
+                    ops.push(ParseOp::SExp);
+                } else if b[0] == BACK_REFERENCE {
+                    let path = parse_path(f)?;
+                    let back_reference = traverse_path_with_vec(allocator, path, &values)?;
+                    backref_callback(back_reference);
+                    values.push(back_reference);
+                } else {
+                    let new_atom = parse_atom(allocator, b[0], f)?;
+                    values.push(new_atom);
+                }
+            }
+            ParseOp::Cons => {
+                // cons
+                // pop left and right values off of the "values" stack, then
+                // push the new pair onto it
+                let right = values.pop().expect("No cons without two vals.");
+                let left = values.pop().expect("No cons without two vals.");
+                let root_node = allocator.new_pair(left, right)?;
+                values.push(root_node);
+            }
+        }
+    }
+    Ok(values.pop().expect("Top of the stack"))
+}
+
+fn node_from_stream_backrefs_old(
     allocator: &mut Allocator,
     f: &mut Cursor<&[u8]>,
     mut backref_callback: impl FnMut(NodePtr),
@@ -71,6 +112,11 @@ pub fn node_from_bytes_backrefs(allocator: &mut Allocator, b: &[u8]) -> io::Resu
     node_from_stream_backrefs(allocator, &mut buffer, |_node| {})
 }
 
+pub fn node_from_bytes_backrefs_old(allocator: &mut Allocator, b: &[u8]) -> io::Result<NodePtr> {
+    let mut buffer = Cursor::new(b);
+    node_from_stream_backrefs_old(allocator, &mut buffer, |_node| {})
+}
+
 pub fn node_from_bytes_backrefs_record(
     allocator: &mut Allocator,
     b: &[u8],
@@ -81,6 +127,86 @@ pub fn node_from_bytes_backrefs_record(
         backrefs.insert(node);
     })?;
     Ok((ret, backrefs))
+}
+
+pub fn traverse_path_with_vec(
+    allocator: &mut Allocator,
+    node_index: &[u8],
+    args: &[NodePtr],
+) -> io::Result<NodePtr> {
+    // the vec is a stack so a ChiaLisp list of (3 . (2 . (1 . NIL))) would be [1, 2, 3]
+    // however entries in this vec may be ChiaLisp SExps so it may look more like [1, (2 . NIL), 3]
+
+    let mut parsing_sexp = false;
+    if args.is_empty() {
+        parsing_sexp = true;
+    }
+
+    // instead of popping, we treat this as a pointer to the end of the virtual stack
+    let mut arg_index: usize = if parsing_sexp { 0 } else { args.len() - 1 };
+
+    // find first non-zero byte
+    let first_bit_byte_index = first_non_zero(node_index);
+    if first_bit_byte_index >= node_index.len() {
+        return Ok(NodePtr::NIL);
+    }
+
+    // find first non-zero bit (the most significant bit is a sentinel)
+    let last_bitmask = msb_mask(node_index[first_bit_byte_index]);
+
+    // follow through the bits, moving left and right
+    let mut byte_idx = node_index.len() - 1;
+    let mut bitmask = 0x01;
+
+    // if we move from parsing the Vec stack to parsing the SExp stack use the following variables
+    let mut sexp_to_parse = NodePtr::NIL;
+
+    while byte_idx > first_bit_byte_index || bitmask < last_bitmask {
+        let is_bit_set: bool = (node_index[byte_idx] & bitmask) != 0;
+        if parsing_sexp {
+            match allocator.sexp(sexp_to_parse) {
+                SExp::Atom => {
+                    return Err(EvalErr(sexp_to_parse, "path into atom".into()).into());
+                }
+                SExp::Pair(left, right) => {
+                    sexp_to_parse = if is_bit_set { right } else { left };
+                }
+            }
+        } else if is_bit_set {
+            // we have traversed right ("rest"), so we keep processing the Vec
+            // pop from the stack
+            if arg_index == 0 {
+                // if we have reached the end of the stack, we must start parsing as NIL
+                parsing_sexp = true;
+            } else {
+                arg_index -= 1;
+            }
+        } else {
+            // we have traversed left (i.e "first" rather than "rest") so we must process as SExp now
+            parsing_sexp = true;
+            sexp_to_parse = args[arg_index];
+        }
+
+        if bitmask == 0x80 {
+            bitmask = 0x01;
+            byte_idx -= 1;
+        } else {
+            bitmask <<= 1;
+        }
+    }
+    if parsing_sexp {
+        return Ok(sexp_to_parse);
+    }
+    // take bottom of stack and make (item . NIL)
+    let mut backref_node = allocator.new_pair(args[0], NodePtr::NIL)?;
+    if arg_index == 0 {
+        return Ok(backref_node);
+    }
+    // for the rest of items starting from last + 1 in stack
+    for x in args.iter().take(arg_index + 1).skip(1) {
+        backref_node = allocator.new_pair(*x, backref_node)?;
+    }
+    Ok(backref_node)
 }
 
 #[cfg(test)]
@@ -126,10 +252,14 @@ mod tests {
         let buf = Vec::from_hex(serialization_as_hex).unwrap();
         let mut allocator = Allocator::new();
         let node = node_from_bytes_backrefs(&mut allocator, &buf).unwrap();
+        let old_node = node_from_bytes_backrefs_old(&mut allocator, &buf).unwrap();
         let mut oc = ObjectCache::new(treehash);
         let calculated_hash = oc.get_or_calculate(&allocator, &node, None).unwrap();
         let ch: &[u8] = calculated_hash;
         let expected_hash: Vec<u8> = Vec::from_hex(expected_hash_as_hex).unwrap();
+        assert_eq!(expected_hash, ch);
+        let calculated_hash = oc.get_or_calculate(&allocator, &old_node, None).unwrap();
+        let ch: &[u8] = calculated_hash;
         assert_eq!(expected_hash, ch);
     }
 

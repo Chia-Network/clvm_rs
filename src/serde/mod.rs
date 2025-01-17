@@ -19,7 +19,9 @@ pub mod write_atom;
 mod test;
 
 pub use de::node_from_bytes;
-pub use de_br::{node_from_bytes_backrefs, node_from_bytes_backrefs_record};
+pub use de_br::{
+    node_from_bytes_backrefs, node_from_bytes_backrefs_old, node_from_bytes_backrefs_record,
+};
 pub use de_tree::{parse_triples, ParsedTriple};
 pub use identity_hash::RandomState;
 pub use incremental::{Serializer, UndoState};
