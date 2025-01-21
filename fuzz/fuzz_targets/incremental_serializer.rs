@@ -1,16 +1,18 @@
 #![no_main]
 
 mod make_tree;
+mod node_eq;
 
-use clvmr::serde::{node_from_bytes_backrefs, node_to_bytes, Serializer};
+use clvmr::serde::{node_from_bytes_backrefs, Serializer};
 use clvmr::{Allocator, NodePtr, SExp};
 use make_tree::make_tree_limits;
+use std::collections::HashMap;
 
 use libfuzzer_sys::fuzz_target;
 
 enum TreeOp {
     SExp(NodePtr),
-    Cons,
+    Cons(NodePtr),
 }
 
 // returns the new root (with a sentinel) as well as the sub-tree under the
@@ -30,6 +32,7 @@ fn insert_sentinel(
     let mut copy = Vec::new();
     let mut ops = vec![TreeOp::SExp(root)];
     let mut subtree: Option<NodePtr> = None;
+    let mut copied_nodes = HashMap::<NodePtr, NodePtr>::new();
 
     while let Some(op) = ops.pop() {
         match op {
@@ -44,22 +47,29 @@ fn insert_sentinel(
                     node_idx -= 1;
                     continue;
                 }
-                node_idx -= 1;
                 match a.sexp(node) {
                     SExp::Atom => {
+                        node_idx -= 1;
                         copy.push(node);
                     }
                     SExp::Pair(left, right) => {
-                        ops.push(TreeOp::Cons);
-                        ops.push(TreeOp::SExp(left));
-                        ops.push(TreeOp::SExp(right));
+                        if let Some(copied_node) = copied_nodes.get(&node) {
+                            copy.push(*copied_node);
+                        } else {
+                            node_idx -= 1;
+                            ops.push(TreeOp::Cons(node));
+                            ops.push(TreeOp::SExp(left));
+                            ops.push(TreeOp::SExp(right));
+                        }
                     }
                 }
             }
-            TreeOp::Cons => {
+            TreeOp::Cons(node) => {
                 let left = copy.pop().unwrap();
                 let right = copy.pop().unwrap();
-                copy.push(a.new_pair(left, right).unwrap());
+                let new_node = a.new_pair(left, right).unwrap();
+                copy.push(new_node);
+                copied_nodes.insert(node, new_node);
             }
         }
     }
@@ -81,22 +91,22 @@ fuzz_target!(|data: &[u8]| {
     let mut allocator = Allocator::new();
 
     // since we copy the tree, we must limit the number of pairs created, to not
-    // exceed the limit of the Allocator
-    let program = make_tree_limits(&mut allocator, &mut unstructured, 10_000_000, 10_000_000);
+    // exceed the limit of the Allocator. Since we run this test for every node
+    // in the resulting tree, a tree being too large causes the fuzzer to
+    // time-out.
+    let (program, node_count) = make_tree_limits(&mut allocator, &mut unstructured, 600_000, false);
 
     // this just needs to be a unique NodePtr, that won't appear in the tree
     let sentinel = allocator.new_pair(NodePtr::NIL, NodePtr::NIL).unwrap();
 
     let checkpoint = allocator.checkpoint();
     // count up intil we've used every node as the sentinel/cut-point
-    let mut node_idx = 0;
+    let node_idx = unstructured.int_in_range(0..=node_count).unwrap_or(5) as i32;
 
     // try to put the sentinel in all positions, to get full coverage
-    while let Some((first_step, second_step)) =
+    if let Some((first_step, second_step)) =
         insert_sentinel(&mut allocator, program, node_idx, sentinel)
     {
-        node_idx += 1;
-
         let mut ser = Serializer::new(Some(sentinel));
         let (done, _) = ser.add(&allocator, first_step).unwrap();
         assert!(!done);
@@ -106,11 +116,7 @@ fuzz_target!(|data: &[u8]| {
         // now, make sure that we deserialize to the exact same structure, by
         // comparing the uncompressed form
         let roundtrip = node_from_bytes_backrefs(&mut allocator, ser.get_ref()).unwrap();
-        let b1 = node_to_bytes(&allocator, roundtrip).unwrap();
-
-        let b2 = node_to_bytes(&allocator, program).unwrap();
-
-        assert_eq!(&hex::encode(&b1), &hex::encode(&b2));
+        assert!(node_eq::node_eq(&allocator, program, roundtrip));
 
         // free the memory used by the last iteration from the allocator,
         // otherwise we'll exceed the Allocator limits eventually
