@@ -1,6 +1,8 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 
+mod make_tree;
+
 use clvmr::allocator::{Allocator, NodePtr};
 use clvmr::bls_ops::{
     op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
@@ -17,7 +19,6 @@ use clvmr::more_ops::{
 };
 use clvmr::reduction::{EvalErr, Response};
 use clvmr::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
-use clvmr::serde::node_from_bytes;
 
 type Opf = fn(&mut Allocator, NodePtr, Cost) -> Response;
 
@@ -74,14 +75,9 @@ const FUNS: [Opf; 46] = [
 ];
 
 fuzz_target!(|data: &[u8]| {
+    let mut unstructured = arbitrary::Unstructured::new(data);
     let mut allocator = Allocator::new();
-
-    let args = match node_from_bytes(&mut allocator, data) {
-        Err(_) => {
-            return;
-        }
-        Ok(r) => r,
-    };
+    let (args, _) = make_tree::make_tree(&mut allocator, &mut unstructured);
 
     let allocator_checkpoint = allocator.checkpoint();
 
