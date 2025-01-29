@@ -13,7 +13,7 @@ const TRAVERSE_COST_PER_BIT: Cost = 4;
 
 // return a bitmask with a single bit set, for the most significant set bit in
 // the input byte
-pub fn msb_mask(byte: u8) -> u8 {
+pub(crate) fn msb_mask(byte: u8) -> u8 {
     let mut byte = (byte | (byte >> 1)) as u32;
     byte |= byte >> 2;
     byte |= byte >> 4;
