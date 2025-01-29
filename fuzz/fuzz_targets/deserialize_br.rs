@@ -25,9 +25,10 @@ fuzz_target!(|data: &[u8]| {
     assert_eq!(b1, b3);
 });
 
-#[cfg(feature = "counters")]
+// #[cfg(feature = "counters")]
 fuzz_target!(|data: &[u8]| {
     let mut allocator = Allocator::new();
+    let cp = allocator.checkpoint();
     let program = match node_from_bytes_backrefs(&mut allocator, data) {
         Err(_) => {
             return;
@@ -38,11 +39,10 @@ fuzz_target!(|data: &[u8]| {
     let b1 = node_to_bytes_backrefs(&allocator, program).unwrap();
 
     // reset allocators
-    let mut allocator = Allocator::new();
-    let mut allocator_old = Allocator::new();
+    allocator.restore_checkpoint(&cp);
 
-    let mut allocator = Allocator::new();
     let program = node_from_bytes_backrefs(&mut allocator, &b1).unwrap();
+    allocator.restore_checkpoint(&cp);
     let program_old = node_from_bytes_backrefs_old(&mut allocator_old, &b1).unwrap();
     assert!(allocator.pair_count() <= allocator_old.pair_count());
 });
