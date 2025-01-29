@@ -8,10 +8,7 @@ edition = "2021"
 [package.metadata]
 cargo-fuzz = true
 
-[features]
-# when enabling the "counters" features, the CLVM interpreter is instrumented to
-# collect counters about the programs it executes
-counters = ["clvmr/counters"]
+features=["counters"]
 
 [dependencies]
 libfuzzer-sys = { workspace = true }
