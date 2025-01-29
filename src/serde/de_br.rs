@@ -222,6 +222,12 @@ mod tests {
         "ff86666f6f626172ff86666f6f62617280",
         "9148834131750904c023598bed28db269bdb29012514579e723d63e27829bcba"
     )]
+    // ()
+    // stackpointer to 0
+    #[case(
+        "fffe0100",
+        "8b7bb45fbbdd29c84edcab98274c6e084f19af64d24c65a475562dbbfee67735"
+    )]
     // ("foobar" "foobar")
     #[case(
         "ff86666f6f626172fe01",
