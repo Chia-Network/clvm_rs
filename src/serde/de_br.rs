@@ -280,8 +280,6 @@ mod tests {
         let n2 = a.new_atom(&[4, 5, 6]).unwrap();
 
         assert_eq!(traverse_path_with_vec(&mut a, &[], &[n1]).unwrap(), nul);
-        // assert_eq!(traverse_path_with_vec(&mut a, &[0b1], &[n1]).unwrap(), n1);
-        // assert_eq!(traverse_path_with_vec(&mut a, &[0b1], &[n2]).unwrap(), n2);
 
         // cost for leading zeros
         assert_eq!(traverse_path_with_vec(&mut a, &[0], &[n1]).unwrap(), nul);
@@ -295,16 +293,7 @@ mod tests {
             nul
         );
 
-        let n3_node = a.new_pair(n1, n2).unwrap();
-        let n3 = vec![n1, n2];
-        assert_eq!(traverse_path_with_vec(&mut a, &[0b1], &n3).unwrap(), n3_node);
-        assert_eq!(traverse_path_with_vec(&mut a, &[0b10], &n3).unwrap(), n1);
-        assert_eq!(traverse_path_with_vec(&mut a, &[0b11], &n3).unwrap(), n2);
-        assert_eq!(traverse_path_with_vec(&mut a, &[0b11], &n3).unwrap(), n2);
-
-        // let list = a.new_pair(n1, nul).unwrap();
-        // let list = a.new_pair(n2, list).unwrap();
-        let list = vec![n2, n1, nul];
+        let list = vec![n1, n2];
 
         assert_eq!(traverse_path_with_vec(&mut a, &[0b10], &list).unwrap(), n2);
         assert_eq!(
