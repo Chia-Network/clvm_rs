@@ -296,31 +296,18 @@ mod tests {
         let list = vec![n1, n2];
 
         assert_eq!(traverse_path_with_vec(&mut a, &[0b10], &list).unwrap(), n2);
-        assert_eq!(
-            traverse_path_with_vec(&mut a, &[0b101], &list).unwrap(), 
-            n1
-        );
+        assert_eq!(traverse_path_with_vec(&mut a, &[0b101], &list).unwrap(), n1);
         assert_eq!(
             traverse_path_with_vec(&mut a, &[0b111], &list).unwrap(),
             nul
         );
 
         // errors
-        assert!(
-            traverse_path_with_vec(&mut a, &[0b1011], &list).is_err()
-        );
-        assert!(
-            traverse_path_with_vec(&mut a, &[0b1101], &list).is_err()
-        );
-        assert!(
-            traverse_path_with_vec(&mut a, &[0b1001], &list).is_err()
-        );
-        assert!(
-            traverse_path_with_vec(&mut a, &[0b1010], &list).is_err()
-        );
-        assert!(
-            traverse_path_with_vec(&mut a, &[0b1110], &list).is_err()
-        );
+        assert!(traverse_path_with_vec(&mut a, &[0b1011], &list).is_err());
+        assert!(traverse_path_with_vec(&mut a, &[0b1101], &list).is_err());
+        assert!(traverse_path_with_vec(&mut a, &[0b1001], &list).is_err());
+        assert!(traverse_path_with_vec(&mut a, &[0b1010], &list).is_err());
+        assert!(traverse_path_with_vec(&mut a, &[0b1110], &list).is_err());
     }
 
     #[rstest]
