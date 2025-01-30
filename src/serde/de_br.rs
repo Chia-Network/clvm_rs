@@ -137,10 +137,7 @@ pub fn traverse_path_with_vec(
     // the vec is a stack so a ChiaLisp list of (3 . (2 . (1 . NIL))) would be [1, 2, 3]
     // however entries in this vec may be ChiaLisp SExps so it may look more like [1, (2 . NIL), 3]
 
-    let mut parsing_sexp = false;
-    if args.is_empty() {
-        parsing_sexp = true;
-    }
+    let mut parsing_sexp = args.is_empty();
 
     // instead of popping, we treat this as a pointer to the end of the virtual stack
     let mut arg_index: usize = if parsing_sexp { 0 } else { args.len() - 1 };
