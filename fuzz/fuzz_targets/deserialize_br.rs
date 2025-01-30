@@ -42,7 +42,8 @@ fuzz_target!(|data: &[u8]| {
     allocator.restore_checkpoint(&cp);
 
     let program = node_from_bytes_backrefs(&mut allocator, &b1).unwrap();
+    let new_pair_count = allocator.pair_count();
     allocator.restore_checkpoint(&cp);
-    let program_old = node_from_bytes_backrefs_old(&mut allocator_old, &b1).unwrap();
-    assert!(allocator.pair_count() <= allocator_old.pair_count());
+    let program_old = node_from_bytes_backrefs_old(&mut allocator, &b1).unwrap();
+    assert!(new_pair_count <= allocator.pair_count());
 });

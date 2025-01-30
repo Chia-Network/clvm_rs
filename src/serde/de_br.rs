@@ -132,7 +132,7 @@ pub fn node_from_bytes_backrefs_record(
 pub fn traverse_path_with_vec(
     allocator: &mut Allocator,
     node_index: &[u8],
-    args: &mut Vec<(NodePtr, Option<NodePtr>)>,
+    args: &mut [(NodePtr, Option<NodePtr>)],
 ) -> io::Result<NodePtr> {
     // the vec is a stack so a ChiaLisp list of (3 . (2 . (1 . NIL))) would be [1, 2, 3]
     // however entries in this vec may be ChiaLisp SExps so it may look more like [1, (2 . NIL), 3]
