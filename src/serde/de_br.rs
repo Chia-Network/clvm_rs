@@ -22,7 +22,7 @@ pub fn node_from_stream_backrefs(
     f: &mut Cursor<&[u8]>,
     mut backref_callback: impl FnMut(NodePtr),
 ) -> io::Result<NodePtr> {
-    let mut values = Vec::<NodePtr>::new();
+    let mut values = Vec::<(NodePtr, Option<NodePtr>)>::new();
     let mut ops = vec![ParseOp::SExp];
 
     let mut b = [0; 1];
@@ -36,12 +36,12 @@ pub fn node_from_stream_backrefs(
                     ops.push(ParseOp::SExp);
                 } else if b[0] == BACK_REFERENCE {
                     let path = parse_path(f)?;
-                    let back_reference = traverse_path_with_vec(allocator, path, &values)?;
+                    let back_reference = traverse_path_with_vec(allocator, path, &mut values)?;
                     backref_callback(back_reference);
-                    values.push(back_reference);
+                    values.push((back_reference, None));
                 } else {
                     let new_atom = parse_atom(allocator, b[0], f)?;
-                    values.push(new_atom);
+                    values.push((new_atom, None));
                 }
             }
             ParseOp::Cons => {
@@ -50,12 +50,12 @@ pub fn node_from_stream_backrefs(
                 // push the new pair onto it
                 let right = values.pop().expect("No cons without two vals.");
                 let left = values.pop().expect("No cons without two vals.");
-                let root_node = allocator.new_pair(left, right)?;
-                values.push(root_node);
+                let root_node = allocator.new_pair(left.0, right.0)?;
+                values.push((root_node, None));
             }
         }
     }
-    Ok(values.pop().expect("Top of the stack"))
+    Ok(values.pop().expect("Top of the stack").0)
 }
 
 fn node_from_stream_backrefs_old(
@@ -132,7 +132,7 @@ pub fn node_from_bytes_backrefs_record(
 pub fn traverse_path_with_vec(
     allocator: &mut Allocator,
     node_index: &[u8],
-    args: &[NodePtr],
+    args: &mut Vec<(NodePtr, Option<NodePtr>)>,
 ) -> io::Result<NodePtr> {
     // the vec is a stack so a ChiaLisp list of (3 . (2 . (1 . NIL))) would be [1, 2, 3]
     // however entries in this vec may be ChiaLisp SExps so it may look more like [1, (2 . NIL), 3]
@@ -163,7 +163,11 @@ pub fn traverse_path_with_vec(
         if parsing_sexp {
             match allocator.sexp(sexp_to_parse) {
                 SExp::Atom => {
-                    return Err(EvalErr(sexp_to_parse, "path into atom".into()).into());
+                    return Err(EvalErr(
+                        sexp_to_parse,
+                        "invalid backreference during deserialisation".into(),
+                    )
+                    .into());
                 }
                 SExp::Pair(left, right) => {
                     sexp_to_parse = if is_bit_set { right } else { left };
@@ -181,7 +185,7 @@ pub fn traverse_path_with_vec(
         } else {
             // we have traversed left (i.e "first" rather than "rest") so we must process as SExp now
             parsing_sexp = true;
-            sexp_to_parse = args[arg_index];
+            sexp_to_parse = args[arg_index].0;
         }
 
         if bitmask == 0x80 {
@@ -193,16 +197,19 @@ pub fn traverse_path_with_vec(
     }
     if parsing_sexp {
         return Ok(sexp_to_parse);
+    } else if args[arg_index].1.is_some() {
+        return Ok(args[arg_index].1.unwrap());
     }
     // take bottom of stack and make (item . NIL)
-    let mut backref_node = allocator.new_pair(args[0], NodePtr::NIL)?;
+    let mut backref_node = allocator.new_pair(args[0].0, NodePtr::NIL)?;
     if arg_index == 0 {
         return Ok(backref_node);
     }
     // for the rest of items starting from last + 1 in stack
     for x in args.iter().take(arg_index + 1).skip(1) {
-        backref_node = allocator.new_pair(*x, backref_node)?;
+        backref_node = allocator.new_pair(x.0, backref_node)?;
     }
+    args[arg_index].1 = Some(backref_node);
     Ok(backref_node)
 }
 
@@ -276,35 +283,49 @@ mod tests {
         let n1 = a.new_atom(&[0, 1, 2]).unwrap();
         let n2 = a.new_atom(&[4, 5, 6]).unwrap();
 
-        assert_eq!(traverse_path_with_vec(&mut a, &[], &[n1]).unwrap(), nul);
+        let mut list: Vec<(NodePtr, Option<NodePtr>)> = vec![(n1, None)];
+
+        assert_eq!(traverse_path_with_vec(&mut a, &[], &mut list).unwrap(), nul);
 
         // cost for leading zeros
-        assert_eq!(traverse_path_with_vec(&mut a, &[0], &[n1]).unwrap(), nul);
-        assert_eq!(traverse_path_with_vec(&mut a, &[0, 0], &[n1]).unwrap(), nul);
         assert_eq!(
-            traverse_path_with_vec(&mut a, &[0, 0, 0], &[n1]).unwrap(),
+            traverse_path_with_vec(&mut a, &[0], &mut list).unwrap(),
             nul
         );
         assert_eq!(
-            traverse_path_with_vec(&mut a, &[0, 0, 0, 0], &[n1]).unwrap(),
+            traverse_path_with_vec(&mut a, &[0, 0], &mut list).unwrap(),
+            nul
+        );
+        assert_eq!(
+            traverse_path_with_vec(&mut a, &[0, 0, 0], &mut list).unwrap(),
+            nul
+        );
+        assert_eq!(
+            traverse_path_with_vec(&mut a, &[0, 0, 0, 0], &mut list).unwrap(),
             nul
         );
 
-        let list = vec![n1, n2];
+        let mut list: Vec<(NodePtr, Option<NodePtr>)> = vec![(n1, None), (n2, None)];
 
-        assert_eq!(traverse_path_with_vec(&mut a, &[0b10], &list).unwrap(), n2);
-        assert_eq!(traverse_path_with_vec(&mut a, &[0b101], &list).unwrap(), n1);
         assert_eq!(
-            traverse_path_with_vec(&mut a, &[0b111], &list).unwrap(),
+            traverse_path_with_vec(&mut a, &[0b10], &mut list).unwrap(),
+            n2
+        );
+        assert_eq!(
+            traverse_path_with_vec(&mut a, &[0b101], &mut list).unwrap(),
+            n1
+        );
+        assert_eq!(
+            traverse_path_with_vec(&mut a, &[0b111], &mut list).unwrap(),
             nul
         );
 
         // errors
-        assert!(traverse_path_with_vec(&mut a, &[0b1011], &list).is_err());
-        assert!(traverse_path_with_vec(&mut a, &[0b1101], &list).is_err());
-        assert!(traverse_path_with_vec(&mut a, &[0b1001], &list).is_err());
-        assert!(traverse_path_with_vec(&mut a, &[0b1010], &list).is_err());
-        assert!(traverse_path_with_vec(&mut a, &[0b1110], &list).is_err());
+        assert!(traverse_path_with_vec(&mut a, &[0b1011], &mut list).is_err());
+        assert!(traverse_path_with_vec(&mut a, &[0b1101], &mut list).is_err());
+        assert!(traverse_path_with_vec(&mut a, &[0b1001], &mut list).is_err());
+        assert!(traverse_path_with_vec(&mut a, &[0b1010], &mut list).is_err());
+        assert!(traverse_path_with_vec(&mut a, &[0b1110], &mut list).is_err());
     }
 
     #[rstest]
