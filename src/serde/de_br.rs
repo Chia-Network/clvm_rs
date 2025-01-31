@@ -198,11 +198,13 @@ pub fn traverse_path_with_vec(
     if parsing_sexp {
         return Ok(sexp_to_parse);
     } else if args[arg_index].1.is_some() {
+        // cached entry exists - use that instead of recreating the pairs
         return Ok(args[arg_index].1.unwrap());
     }
     // take bottom of stack and make (item . NIL)
     let mut backref_node = allocator.new_pair(args[0].0, NodePtr::NIL)?;
     if arg_index == 0 {
+        args[arg_index].1 = Some(backref_node);
         return Ok(backref_node);
     }
     // for the rest of items starting from last + 1 in stack
