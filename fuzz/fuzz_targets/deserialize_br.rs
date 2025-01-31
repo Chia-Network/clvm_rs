@@ -26,7 +26,6 @@ fuzz_target!(|data: &[u8]| {
     assert_eq!(b1, b3);
     let b2 = node_to_bytes_backrefs(&allocator, program).unwrap();
     assert_eq!(b1, b2);
-    
 });
 
 // // #[cfg(feature = "counters")]
