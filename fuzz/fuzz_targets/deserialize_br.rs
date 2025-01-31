@@ -16,12 +16,12 @@ fuzz_target!(|data: &[u8]| {
 
     let b1 = node_to_bytes_backrefs(&allocator, program).unwrap();
 
-    let mut allocator = Allocator::new();
-    let mut allocator_for_old = Allocator::new();
+    cp = allocator.checkpoint();
     let program = node_from_bytes_backrefs(&mut allocator, &b1).unwrap();
     let new_pair_count = allocator.pair_count();
-    let program_old = node_from_bytes_backrefs_old(&mut allocator_for_old, &b1).unwrap();
-    assert!(new_pair_count <= allocator_for_old.pair_count());
+    allocator.restore_checkpoint(&cp);
+    let program_old = node_from_bytes_backrefs_old(&mut allocator, &b1).unwrap();
+    assert!(new_pair_count <= allocator.pair_count());
     let b2 = node_to_bytes_backrefs(&allocator, program).unwrap();
     assert_eq!(b1, b2);
     let b3 = node_to_bytes_backrefs(&allocator, program_old).unwrap();
