@@ -8,8 +8,6 @@ edition = "2021"
 [package.metadata]
 cargo-fuzz = true
 
-features=["counters"]
-
 [dependencies]
 libfuzzer-sys = { workspace = true }
 clvmr = { workspace = true, features = ["counters"] }
