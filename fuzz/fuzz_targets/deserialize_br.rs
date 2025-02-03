@@ -23,7 +23,10 @@ fuzz_target!(|data: &[u8]| {
 
     let program_old = node_from_bytes_backrefs_old(&mut allocator, &b1);
 
-    assert_eq!(program, program_old);
+    assert!(!(program.is_err() ^ program_old.is_err()));
+    if program.is_err() {
+        assert_eq!(program.err(), program_old.err());
+    }
 
     let program = program.unwrap();
     let program_old = program_old.unwrap();
