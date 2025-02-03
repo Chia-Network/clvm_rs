@@ -207,9 +207,20 @@ pub fn traverse_path_with_vec(
         args[arg_index].1 = Some(backref_node);
         return Ok(backref_node);
     }
+
+    let mut starting_point: usize = 1;
+
+    for x in (starting_point..arg_index).rev() {
+        if args[x].1.is_some() {
+            backref_node = args[x].1.unwrap();
+            starting_point = x + 1;
+        }
+    }
+
     // for the rest of items starting from last + 1 in stack
-    for x in args.iter().take(arg_index + 1).skip(1) {
+    for x in args.iter_mut().take(arg_index + 1).skip(starting_point) {
         backref_node = allocator.new_pair(x.0, backref_node)?;
+        x.1 = Some(backref_node);
     }
     args[arg_index].1 = Some(backref_node);
     Ok(backref_node)
