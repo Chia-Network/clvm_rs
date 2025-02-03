@@ -1,4 +1,7 @@
 #![no_main]
+
+mod node_eq;
+
 use clvmr::allocator::Allocator;
 use clvmr::serde::node_from_bytes_backrefs;
 use clvmr::serde::node_from_bytes_backrefs_old;
@@ -16,16 +19,11 @@ fuzz_target!(|data: &[u8]| {
 
     let b1 = node_to_bytes_backrefs(&allocator, program).unwrap();
 
-    // let cp = allocator.checkpoint();
-    let program = node_from_bytes_backrefs(&mut allocator, &b1).unwrap();
-    // let new_pair_count = allocator.pair_count();
-    // allocator.restore_checkpoint(&cp);
-    let program_old = node_from_bytes_backrefs_old(&mut allocator, &b1).unwrap();
-    // assert!(new_pair_count <= allocator.pair_count());
-    let b3 = node_to_bytes_backrefs(&allocator, program_old).unwrap();
-    assert_eq!(b1, b3);
-    let b2 = node_to_bytes_backrefs(&allocator, program).unwrap();
-    assert_eq!(b1, b2);
+    let program = node_from_bytes_backrefs(&mut allocator, &b1);
+
+    let program_old = node_from_bytes_backrefs_old(&mut allocator, &b1);
+
+    assert!(node_eq::node_eq(&allocator, program, program_old));
 });
 
 // // #[cfg(feature = "counters")]
