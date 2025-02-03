@@ -214,6 +214,7 @@ pub fn traverse_path_with_vec(
         if args[x].1.is_some() {
             backref_node = args[x].1.unwrap();
             starting_point = x + 1;
+            break;
         }
     }
 
