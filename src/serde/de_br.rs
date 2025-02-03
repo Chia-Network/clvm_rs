@@ -208,7 +208,7 @@ pub fn traverse_path_with_vec(
         return Ok(backref_node);
     }
     // for the rest of items starting from last + 1 in stack
-    for x in args[1..arg_index] {
+    for x in args.iter().take(arg_index + 1).skip(1) {
         backref_node = allocator.new_pair(x.0, backref_node)?;
     }
     args[arg_index].1 = Some(backref_node);
