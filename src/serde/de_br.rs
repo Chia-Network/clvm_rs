@@ -219,6 +219,7 @@ pub fn traverse_path_with_vec(
             backref_node = pair;
             continue;
         }
+        allocator.increase_pair_max(1)?;
         backref_node = allocator.new_pair(x.0, backref_node)?;
         x.1 = Some(backref_node);
     }

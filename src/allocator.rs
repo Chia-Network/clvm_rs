@@ -354,6 +354,14 @@ impl Allocator {
         Ok(())
     }
 
+    pub fn increase_pair_max(&mut self, amount: usize) -> Result<(), EvalErr> {
+        // increase the max number of pairs by the amount, but don't exceed usize::MAX
+        let max_increase = usize::MAX - self.max_num_pairs;
+        let increase = amount.min(max_increase);
+        self.max_num_pairs += increase;
+        Ok(())
+    }
+
     pub fn new_substr(&mut self, node: NodePtr, start: u32, end: u32) -> Result<NodePtr, EvalErr> {
         self.check_atom_limit()?;
 
