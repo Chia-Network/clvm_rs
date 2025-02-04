@@ -177,6 +177,8 @@ pub struct Allocator {
     // the number of small atoms we've allocated. We keep track of these to ensure the limit on the
     // number of atoms is identical to what it was before the small-atom optimization
     small_atoms: usize,
+    max_num_atoms: usize,
+    max_num_pairs: usize,
 }
 
 impl Default for Allocator {
@@ -244,6 +246,8 @@ impl Allocator {
             // initialize this to 2 to behave as if we had allocated atoms for
             // nil() and one(), like we used to
             small_atoms: 2,
+            max_num_atoms: MAX_NUM_ATOMS,
+            max_num_pairs: MAX_NUM_PAIRS,
         };
         r.u8_vec.reserve(1024 * 1024);
         r.atom_vec.reserve(256);
@@ -332,11 +336,19 @@ impl Allocator {
 
     pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr> {
         let idx = self.pair_vec.len();
-        if idx == MAX_NUM_PAIRS {
+        if idx >= self.max_num_pairs {
             return err(self.nil(), "too many pairs");
         }
         self.pair_vec.push(IntPair { first, rest });
         Ok(NodePtr::new(ObjectType::Pair, idx))
+    }
+
+    pub fn reduce_pair_max(&mut self, amount: usize) -> Result<(), EvalErr> {
+        if self.max_num_pairs - amount <= self.pair_vec.len() {
+            return err(self.nil(), "reduce_pair_max: amount exceeds current pair count");
+        }
+        self.max_num_pairs -= amount;
+        Ok(())
     }
 
     pub fn new_substr(&mut self, node: NodePtr, start: u32, end: u32) -> Result<NodePtr, EvalErr> {
@@ -650,7 +662,7 @@ impl Allocator {
 
     #[inline]
     fn check_atom_limit(&self) -> Result<(), EvalErr> {
-        if self.atom_vec.len() + self.small_atoms == MAX_NUM_ATOMS {
+        if self.atom_vec.len() + self.small_atoms == self.max_num_atoms {
             err(self.nil(), "too many atoms")
         } else {
             Ok(())
