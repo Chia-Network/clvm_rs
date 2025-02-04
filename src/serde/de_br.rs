@@ -41,6 +41,7 @@ pub fn node_from_stream_backrefs(
                     let path = parse_path(f)?;
                     let back_reference = traverse_path_with_vec(allocator, path, &mut values)?;
                     backref_callback(back_reference);
+                    allocator.reduce_pair_max(1)?;
                     values.push((back_reference, None));
                 } else {
                     let new_atom = parse_atom(allocator, b[0], f)?;
