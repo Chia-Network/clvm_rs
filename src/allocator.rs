@@ -347,7 +347,11 @@ impl Allocator {
         if self.max_num_pairs - amount <= self.pair_vec.len() {
             return err(
                 self.nil(),
-                "reduce_pair_max: amount exceeds current pair count",
+                format!(
+                    "reduce_pair_max: amount exceeds current pair count ({} pairs allocated, {} max pairs)",
+                    self.pair_vec.len(),
+                    self.max_num_pairs
+                ).as_str(),
             );
         }
         self.max_num_pairs -= amount;
