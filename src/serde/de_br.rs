@@ -22,6 +22,9 @@ pub fn node_from_stream_backrefs(
     f: &mut Cursor<&[u8]>,
     mut backref_callback: impl FnMut(NodePtr),
 ) -> io::Result<NodePtr> {
+    // this contains the actual value and then an optional cached list which represents value stack as a chialisp list
+    // we only build this list when we need it - i.e we have a backreference that points at the stack itself rather than a value
+    // we reuse the most recent cached value when rebuilding the list
     let mut values = Vec::<(NodePtr, Option<NodePtr>)>::new();
     let mut ops = vec![ParseOp::SExp];
 
@@ -155,7 +158,7 @@ pub fn traverse_path_with_vec(
     let mut byte_idx = node_index.len() - 1;
     let mut bitmask = 0x01;
 
-    // if we move from parsing the Vec stack to parsing the SExp stack use the following variables
+    // if we move from parsing the Vec stack to parsing the SExp stack use the following variable
     let mut sexp_to_parse = NodePtr::NIL;
 
     while byte_idx > first_bit_byte_index || bitmask < last_bitmask {
@@ -175,11 +178,11 @@ pub fn traverse_path_with_vec(
             }
         } else if is_bit_set {
             // we have traversed right ("rest"), so we keep processing the Vec
-            // pop from the stack
             if arg_index == 0 {
                 // if we have reached the end of the stack, we must start parsing as NIL
                 parsing_sexp = true;
             } else {
+                // pop from the stack
                 arg_index -= 1;
             }
         } else {
@@ -195,6 +198,7 @@ pub fn traverse_path_with_vec(
             bitmask <<= 1;
         }
     }
+
     if parsing_sexp {
         return Ok(sexp_to_parse);
     } else if args[arg_index].1.is_some() {
