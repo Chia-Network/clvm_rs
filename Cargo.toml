@@ -59,7 +59,7 @@ sha1 = "0.10.6"
 linreg = "0.2.0"
 serde = "1.0.214"
 serde_json = "1.0.133"
-clap = "4.5.20"
+clap = "4.5.28"
 rand_chacha = "0.3.1"
 bitvec = "1.0.1"
 arbitrary = { version = "1.4.1", features = ["derive"] }
