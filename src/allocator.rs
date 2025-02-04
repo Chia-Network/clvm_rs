@@ -345,7 +345,10 @@ impl Allocator {
 
     pub fn reduce_pair_max(&mut self, amount: usize) -> Result<(), EvalErr> {
         if self.max_num_pairs - amount <= self.pair_vec.len() {
-            return err(self.nil(), "reduce_pair_max: amount exceeds current pair count");
+            return err(
+                self.nil(),
+                "reduce_pair_max: amount exceeds current pair count",
+            );
         }
         self.max_num_pairs -= amount;
         Ok(())

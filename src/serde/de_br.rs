@@ -44,7 +44,7 @@ pub fn node_from_stream_backrefs(
                     values.push((back_reference, None));
                 } else {
                     let new_atom = parse_atom(allocator, b[0], f)?;
-                    allocator.reduce_pair_max(1)?;  // return error if we have too many pairs
+                    allocator.reduce_pair_max(1)?; // return error if we have too many pairs
                     values.push((new_atom, None));
                 }
             }
