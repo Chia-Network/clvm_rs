@@ -55,6 +55,7 @@ pub fn node_from_stream_backrefs(
                 let right = values.pop().expect("No cons without two vals.");
                 let left = values.pop().expect("No cons without two vals.");
                 let root_node = allocator.new_pair(left.0, right.0)?;
+                allocator.reduce_pair_max(1)?;
                 values.push((root_node, None));
             }
         }
