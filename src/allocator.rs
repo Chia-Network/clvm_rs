@@ -360,9 +360,7 @@ impl Allocator {
 
     pub fn increase_pair_max(&mut self, amount: usize) -> Result<(), EvalErr> {
         // increase the max number of pairs by `amount`, but don't exceed MAX_NUM_ATOMS
-        let max_increase = MAX_NUM_ATOMS - self.max_num_pairs;
-        let increase = amount.min(max_increase);
-        self.max_num_pairs += increase;
+        self.max_num_pairs = MAX_NUM_PAIRS.min(self.max_num_pairs + amount);
         Ok(())
     }
 
