@@ -359,8 +359,10 @@ impl Allocator {
     }
 
     pub fn increase_pair_max(&mut self, amount: usize) -> Result<(), EvalErr> {
-        // increase the max number of pairs by `amount`, but don't exceed usize::MAX
-        self.max_num_pairs = self.max_num_pairs.saturating_add(amount);
+        // increase the max number of pairs by `amount`, but don't exceed MAX_NUM_ATOMS
+        let max_increase = MAX_NUM_ATOMS - self.max_num_pairs;
+        let increase = amount.min(max_increase);
+        self.max_num_pairs += increase;
         Ok(())
     }
 
