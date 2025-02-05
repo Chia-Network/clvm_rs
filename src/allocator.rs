@@ -336,7 +336,7 @@ impl Allocator {
 
     pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr> {
         let idx = self.pair_vec.len();
-        if idx >= self.max_num_pairs {
+        if idx == self.max_num_pairs {
             return err(self.nil(), "too many pairs");
         }
         self.pair_vec.push(IntPair { first, rest });
@@ -344,7 +344,7 @@ impl Allocator {
     }
 
     pub fn reduce_pair_max(&mut self, amount: usize) -> Result<(), EvalErr> {
-        if self.max_num_pairs - amount <= self.pair_vec.len() {
+        if self.max_num_pairs - self.pair_vec.len() < amount {
             return err(
                 self.nil(),
                 format!(
