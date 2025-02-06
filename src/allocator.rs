@@ -698,7 +698,7 @@ impl Allocator {
 
     #[cfg(feature = "counters")]
     pub fn pair_count(&self) -> usize {
-        self.pair_vec.len()
+        self.pair_vec.len() + self.num_ghost_pairs
     }
 
     #[cfg(feature = "counters")]
