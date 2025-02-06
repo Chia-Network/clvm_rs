@@ -11,6 +11,7 @@ fuzz_target!(|data: &[u8]| {
     let cp = allocator.checkpoint();
     let program = match node_from_bytes_backrefs(&mut allocator, data) {
         Err(_) => {
+            assert!(node_from_bytes_backrefs_old(&mut allocator, data).is_err());
             return;
         }
         Ok(r) => r,
