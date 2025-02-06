@@ -26,5 +26,10 @@ fuzz_target!(|data: &[u8]| {
     let new_pair_count = allocator.pair_count();
     allocator.restore_checkpoint(&cp);
     let _program_old = node_from_bytes_backrefs_old(&mut allocator, &b1).unwrap();
-    assert!(new_pair_count == allocator.pair_count());
+    assert!(
+        new_pair_count == allocator.pair_count(),
+        "Pair counts don't match: new implementation used {} pairs, old implementation used {} pairs",
+        new_pair_count,
+        allocator.pair_count()
+    );
 });
