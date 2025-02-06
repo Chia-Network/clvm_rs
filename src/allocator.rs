@@ -107,6 +107,8 @@ pub struct Checkpoint {
     pairs: usize,
     atoms: usize,
     small_atoms: usize,
+    max_num_atoms: usize,
+    ghost_pairs: usize,
 }
 
 pub enum NodeVisitor<'a> {
@@ -264,6 +266,8 @@ impl Allocator {
             pairs: self.pair_vec.len(),
             atoms: self.atom_vec.len(),
             small_atoms: self.small_atoms,
+            max_num_atoms: self.max_num_atoms,
+            ghost_pairs: self.num_ghost_pairs,
         }
     }
 
@@ -279,6 +283,8 @@ impl Allocator {
         self.pair_vec.truncate(cp.pairs);
         self.atom_vec.truncate(cp.atoms);
         self.small_atoms = cp.small_atoms;
+        self.max_num_atoms = cp.max_num_atoms;
+        self.num_ghost_pairs = cp.ghost_pairs;
     }
 
     pub fn new_atom(&mut self, v: &[u8]) -> Result<NodePtr, EvalErr> {
@@ -699,6 +705,11 @@ impl Allocator {
     #[cfg(feature = "counters")]
     pub fn pair_count(&self) -> usize {
         self.pair_vec.len() + self.num_ghost_pairs
+    }
+
+    #[cfg(feature = "counters")]
+    pub fn pair_count_no_ghosts(&self) -> usize {
+        self.pair_vec.len()
     }
 
     #[cfg(feature = "counters")]
