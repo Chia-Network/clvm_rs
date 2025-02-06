@@ -178,7 +178,7 @@ pub struct Allocator {
     // number of atoms is identical to what it was before the small-atom optimization
     small_atoms: usize,
     max_num_atoms: usize,
-    max_num_pairs: usize,
+    num_ghost_pairs: usize,
 }
 
 impl Default for Allocator {
@@ -247,7 +247,7 @@ impl Allocator {
             // nil() and one(), like we used to
             small_atoms: 2,
             max_num_atoms: MAX_NUM_ATOMS,
-            max_num_pairs: MAX_NUM_PAIRS,
+            num_ghost_pairs: 0,
         };
         r.u8_vec.reserve(1024 * 1024);
         r.atom_vec.reserve(256);
@@ -336,7 +336,7 @@ impl Allocator {
 
     pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr> {
         let idx = self.pair_vec.len();
-        if idx == self.max_num_pairs {
+        if idx == MAX_NUM_PAIRS - self.num_ghost_pairs {
             return err(self.nil(), "too many pairs");
         }
         self.pair_vec.push(IntPair { first, rest });
@@ -344,23 +344,23 @@ impl Allocator {
     }
 
     pub fn reduce_pair_max(&mut self, amount: usize) -> Result<(), EvalErr> {
-        if self.max_num_pairs - self.pair_vec.len() < amount {
+        if MAX_NUM_PAIRS - self.num_ghost_pairs - self.pair_vec.len() < amount {
             return err(
                 self.nil(),
                 format!(
-                    "reduce_pair_max: amount exceeds current pair count ({} pairs allocated, {} max pairs)",
+                    "reduce_pair_max: amount exceeds current pair count ({} pairs allocated, {} ghost pairs)",
                     self.pair_vec.len(),
-                    self.max_num_pairs
+                    self.num_ghost_pairs
                 ).as_str(),
             );
         }
-        self.max_num_pairs -= amount;
+        self.num_ghost_pairs += amount;
         Ok(())
     }
 
     pub fn increase_pair_max(&mut self, amount: usize) -> Result<(), EvalErr> {
-        // increase the max number of pairs by `amount`, but don't exceed MAX_NUM_ATOMS
-        self.max_num_pairs = MAX_NUM_PAIRS.min(self.max_num_pairs + amount);
+        // currently let this panic with overflow if we go below 0 to debug if/where it happens
+        self.num_ghost_pairs -= amount;
         Ok(())
     }
 
