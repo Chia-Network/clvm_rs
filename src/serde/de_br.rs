@@ -287,6 +287,26 @@ mod tests {
         assert_eq!(expected_hash, ch);
     }
 
+    #[cfg(feature = "counters")]
+    #[test]
+    fn test_counters() {
+        use crate::allocator::Allocator;
+
+        let mut a = Allocator::new();
+        let cp = a.checkpoint();
+        a.add_ghost_pair(1).unwrap();
+        assert_eq!(a.pair_count(), 1);
+
+        a.restore_checkpoint(&cp);
+        let buf = Vec::from_hex("0a").unwrap();
+        let _node = node_from_bytes_backrefs(&mut a, &buf).unwrap();
+        let pair_count = a.pair_count();
+        a.restore_checkpoint(&cp);
+        let _old_node = node_from_bytes_backrefs_old(&mut a, &buf).unwrap();
+        let old_pair_count = a.pair_count();
+        assert_eq!(pair_count, old_pair_count);
+    }
+
     #[test]
     fn test_traverse_path_with_vec() {
         use crate::allocator::Allocator;
