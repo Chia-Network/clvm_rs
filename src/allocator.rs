@@ -346,7 +346,7 @@ impl Allocator {
     // this code is used when we are simulating pairs with a vec locally
     // in the deserialize_br code
     // we must maintain parity with the old deserialize_br code so need to track the skipped pairs
-    pub fn reduce_pair_max(&mut self, amount: usize) -> Result<(), EvalErr> {
+    pub fn add_ghost_pair(&mut self, amount: usize) -> Result<(), EvalErr> {
         if MAX_NUM_PAIRS - self.num_ghost_pairs - self.pair_vec.len() < amount {
             return err(
                 self.nil(),
@@ -362,7 +362,7 @@ impl Allocator {
     }
 
     // this code is used when we actually create the pairs that were previously skipped ghost pairs
-    pub fn increase_pair_max(&mut self, amount: usize) -> Result<(), EvalErr> {
+    pub fn remove_ghost_pair(&mut self, amount: usize) -> Result<(), EvalErr> {
         // currently let this panic with overflow if we go below 0 to debug if/where it happens
         self.num_ghost_pairs -= amount;
         Ok(())

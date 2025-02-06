@@ -41,11 +41,11 @@ pub fn node_from_stream_backrefs(
                     let path = parse_path(f)?;
                     let back_reference = traverse_path_with_vec(allocator, path, &mut values)?;
                     backref_callback(back_reference);
-                    allocator.reduce_pair_max(1)?;
+                    allocator.add_ghost_pair(1)?;
                     values.push((back_reference, None));
                 } else {
                     let new_atom = parse_atom(allocator, b[0], f)?;
-                    allocator.reduce_pair_max(1)?; // return error if we have too many pairs
+                    allocator.add_ghost_pair(1)?; // return error if we have too many pairs
                     values.push((new_atom, None));
                 }
             }
@@ -56,7 +56,7 @@ pub fn node_from_stream_backrefs(
                 let right = values.pop().expect("No cons without two vals.");
                 let left = values.pop().expect("No cons without two vals.");
                 let root_node = allocator.new_pair(left.0, right.0)?;
-                allocator.reduce_pair_max(1)?;
+                allocator.add_ghost_pair(1)?;
                 values.push((root_node, None));
             }
         }
@@ -219,7 +219,7 @@ pub fn traverse_path_with_vec(
             backref_node = pair;
             continue;
         }
-        allocator.increase_pair_max(1)?;
+        allocator.remove_ghost_pair(1)?;
         backref_node = allocator.new_pair(x.0, backref_node)?;
         x.1 = Some(backref_node);
     }
