@@ -208,25 +208,11 @@ pub fn traverse_path_with_vec(
         // cached entry exists - use that instead of recreating the pairs
         return Ok(args[arg_index].1.unwrap());
     }
-    // take bottom of stack and make (item . NIL)
-    // or fetch from cache if it exists
-    let mut backref_node = match args[0].1 {
-        Some(cached) => cached,
-        None => {
-            let node = allocator.new_pair(args[0].0, NodePtr::NIL)?;
-            allocator.increase_pair_max(1)?;
-            args[0].1 = Some(node);
-            node
-        }
-    };
 
-    if arg_index == 0 {
-        args[arg_index].1 = Some(backref_node);
-        return Ok(backref_node);
-    }
+    let mut backref_node = NodePtr::NIL;
 
     // for the rest of items starting from last + 1 in stack
-    for x in args.iter_mut().take(arg_index + 1).skip(1) {
+    for x in args.iter_mut().take(arg_index + 1) {
         if let Some(pair) = x.1 {
             backref_node = pair;
             continue;
