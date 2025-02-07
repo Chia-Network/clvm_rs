@@ -342,7 +342,7 @@ impl Allocator {
 
     pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr> {
         let idx = self.pair_vec.len();
-        if idx == MAX_NUM_PAIRS - self.num_ghost_pairs {
+        if idx > MAX_NUM_PAIRS - self.num_ghost_pairs {
             return err(self.nil(), "too many pairs");
         }
         self.pair_vec.push(IntPair { first, rest });
@@ -356,11 +356,7 @@ impl Allocator {
         if MAX_NUM_PAIRS - self.num_ghost_pairs - self.pair_vec.len() < amount {
             return err(
                 self.nil(),
-                format!(
-                    "reduce_pair_max: amount exceeds current pair count ({} pairs allocated, {} ghost pairs)",
-                    self.pair_vec.len(),
-                    self.num_ghost_pairs
-                ).as_str(),
+                "too many pairs"
             );
         }
         self.num_ghost_pairs += amount;
