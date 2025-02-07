@@ -354,10 +354,7 @@ impl Allocator {
     // we must maintain parity with the old deserialize_br code so need to track the skipped pairs
     pub fn add_ghost_pair(&mut self, amount: usize) -> Result<(), EvalErr> {
         if MAX_NUM_PAIRS - self.num_ghost_pairs - self.pair_vec.len() < amount {
-            return err(
-                self.nil(),
-                "too many pairs"
-            );
+            return err(self.nil(), "too many pairs");
         }
         self.num_ghost_pairs += amount;
         Ok(())
