@@ -204,12 +204,7 @@ pub fn traverse_path_with_vec(
 
     if parsing_sexp {
         return Ok(sexp_to_parse);
-    } // else if args[arg_index].1.is_some() {
-      //     // cached entry exists - use that instead of recreating the pairs
-      //     return Ok(args[arg_index].1.unwrap());
-      // }
-
-    // TODO: uncomment above once we have fixed the bug
+    }
 
     let mut backref_node = NodePtr::NIL;
 
