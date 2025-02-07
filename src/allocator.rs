@@ -1041,6 +1041,19 @@ mod tests {
         }
 
         assert_eq!(a.new_pair(atom, atom).unwrap_err().1, "too many pairs");
+        assert_eq!(a.add_ghost_pair(1).unwrap_err().1, "too many pairs");
+    }
+
+    #[test]
+    fn test_ghost_pair_limit() {
+        let mut a = Allocator::new();
+        let atom = a.new_atom(b"foo").unwrap();
+        // one pair is OK
+        let _pair1 = a.new_pair(atom, atom).unwrap();
+        a.add_ghost_pair(MAX_NUM_PAIRS - 1).unwrap();
+
+        assert_eq!(a.new_pair(atom, atom).unwrap_err().1, "too many pairs");
+        assert_eq!(a.add_ghost_pair(1).unwrap_err().1, "too many pairs");
     }
 
     #[test]
