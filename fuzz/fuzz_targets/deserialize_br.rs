@@ -10,10 +10,10 @@ use libfuzzer_sys::fuzz_target;
 fuzz_target!(|data: &[u8]| {
     let mut allocator = Allocator::new();
     let res1 = node_from_bytes_backrefs(&mut allocator, data);
-    let node_count = allocator.node_count();
+    let node_count = allocator.pair_count();
     let res2 = node_from_bytes_backrefs_old(&mut allocator, data);
-    // check that the new implementation creates the same number of nodes as the old one
-    assert_eq!(node_count * 2, allocator.node_count());
+    // check that the new implementation creates the same number of pair nodes as the old one
+    assert_eq!(node_count * 2, allocator.pair_count());
     match (res1, res2) {
         (Err(e1), Err(e2)) => {
             assert_eq!(e1, e2);
