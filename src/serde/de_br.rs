@@ -354,6 +354,7 @@ mod tests {
 
         // errors
         assert!(traverse_path_with_vec(&mut a, &[0b1011], &mut list).is_err());
+        assert!(traverse_path_with_vec(&mut a, &[0b1111], &mut list).is_err());
         assert!(traverse_path_with_vec(&mut a, &[0b1101], &mut list).is_err());
         assert!(traverse_path_with_vec(&mut a, &[0b1001], &mut list).is_err());
         assert!(traverse_path_with_vec(&mut a, &[0b1010], &mut list).is_err());
