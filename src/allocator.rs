@@ -107,7 +107,6 @@ pub struct Checkpoint {
     pairs: usize,
     atoms: usize,
     small_atoms: usize,
-    max_num_atoms: usize,
     ghost_pairs: usize,
 }
 
@@ -179,7 +178,9 @@ pub struct Allocator {
     // the number of small atoms we've allocated. We keep track of these to ensure the limit on the
     // number of atoms is identical to what it was before the small-atom optimization
     small_atoms: usize,
-    max_num_atoms: usize,
+
+    // this tracks the pairs that are being skipped from optimisations
+    // we track this to simulate a compatible maximum with older versions
     num_ghost_pairs: usize,
 }
 
@@ -248,7 +249,6 @@ impl Allocator {
             // initialize this to 2 to behave as if we had allocated atoms for
             // nil() and one(), like we used to
             small_atoms: 2,
-            max_num_atoms: MAX_NUM_ATOMS,
             num_ghost_pairs: 0,
         };
         r.u8_vec.reserve(1024 * 1024);
@@ -266,7 +266,6 @@ impl Allocator {
             pairs: self.pair_vec.len(),
             atoms: self.atom_vec.len(),
             small_atoms: self.small_atoms,
-            max_num_atoms: self.max_num_atoms,
             ghost_pairs: self.num_ghost_pairs,
         }
     }
@@ -283,7 +282,6 @@ impl Allocator {
         self.pair_vec.truncate(cp.pairs);
         self.atom_vec.truncate(cp.atoms);
         self.small_atoms = cp.small_atoms;
-        self.max_num_atoms = cp.max_num_atoms;
         self.num_ghost_pairs = cp.ghost_pairs;
     }
 
@@ -363,6 +361,7 @@ impl Allocator {
     // this code is used when we actually create the pairs that were previously skipped ghost pairs
     pub fn remove_ghost_pair(&mut self, amount: usize) -> Result<(), EvalErr> {
         // currently let this panic with overflow if we go below 0 to debug if/where it happens
+        debug_assert!(self.num_ghost_pairs >= amount);
         self.num_ghost_pairs -= amount;
         Ok(())
     }
@@ -678,7 +677,7 @@ impl Allocator {
 
     #[inline]
     fn check_atom_limit(&self) -> Result<(), EvalErr> {
-        if self.atom_vec.len() + self.small_atoms == self.max_num_atoms {
+        if self.atom_vec.len() + self.small_atoms == MAX_NUM_ATOMS {
             err(self.nil(), "too many atoms")
         } else {
             Ok(())
