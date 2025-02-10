@@ -15,7 +15,7 @@ fuzz_target!(|data: &[u8]| {
     // check that the new implementation creates the same number of pair nodes as the old one
     assert_eq!(node_count * 2, allocator.pair_count());
     match (res1, res2) {
-        (Err(e1), Err(e2)) => {
+        (Err(_e1), Err(_e2)) => {
             // both failed, that's fine
             return;
         }
