@@ -363,8 +363,8 @@ mod tests {
         let test_val = traverse_path_with_vec(&mut a, &[0b1], &mut list).unwrap();
         assert!(node_eq(&a, test_val, list_node));
         // check cache has been created
-        assert!(list[0].1.is_some());
-        assert!(list[1].1.is_some());
+        assert!(node_eq(&a, list[0].1.unwrap(), list_node_part));
+        assert!(node_eq(&a, list[1].1.unwrap(), list_node));
         // // do it again with caches present
         let test_val = traverse_path_with_vec(&mut a, &[0b1], &mut list).unwrap();
         assert!(node_eq(&a, test_val, list_node));
@@ -376,6 +376,10 @@ mod tests {
         assert_eq!(
             traverse_path_with_vec(&mut a, &[0b1], &mut list).unwrap(),
             list_node
+        );
+        assert_eq!(
+            traverse_path_with_vec(&mut a, &[0b11], &mut list).unwrap(),
+            list_node_part
         );
         assert_eq!(
             traverse_path_with_vec(&mut a, &[0b10], &mut list).unwrap(),
