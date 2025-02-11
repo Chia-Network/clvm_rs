@@ -107,6 +107,7 @@ pub struct Checkpoint {
     pairs: usize,
     atoms: usize,
     small_atoms: usize,
+    ghost_pairs: usize,
 }
 
 pub enum NodeVisitor<'a> {
@@ -177,6 +178,10 @@ pub struct Allocator {
     // the number of small atoms we've allocated. We keep track of these to ensure the limit on the
     // number of atoms is identical to what it was before the small-atom optimization
     small_atoms: usize,
+
+    // this tracks the pairs that are being skipped from optimisations
+    // we track this to simulate a compatible maximum with older versions
+    num_ghost_pairs: usize,
 }
 
 impl Default for Allocator {
@@ -244,6 +249,7 @@ impl Allocator {
             // initialize this to 2 to behave as if we had allocated atoms for
             // nil() and one(), like we used to
             small_atoms: 2,
+            num_ghost_pairs: 0,
         };
         r.u8_vec.reserve(1024 * 1024);
         r.atom_vec.reserve(256);
@@ -260,6 +266,7 @@ impl Allocator {
             pairs: self.pair_vec.len(),
             atoms: self.atom_vec.len(),
             small_atoms: self.small_atoms,
+            ghost_pairs: self.num_ghost_pairs,
         }
     }
 
@@ -275,6 +282,7 @@ impl Allocator {
         self.pair_vec.truncate(cp.pairs);
         self.atom_vec.truncate(cp.atoms);
         self.small_atoms = cp.small_atoms;
+        self.num_ghost_pairs = cp.ghost_pairs;
     }
 
     pub fn new_atom(&mut self, v: &[u8]) -> Result<NodePtr, EvalErr> {
@@ -332,11 +340,30 @@ impl Allocator {
 
     pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr> {
         let idx = self.pair_vec.len();
-        if idx == MAX_NUM_PAIRS {
+        if idx >= MAX_NUM_PAIRS - self.num_ghost_pairs {
             return err(self.nil(), "too many pairs");
         }
         self.pair_vec.push(IntPair { first, rest });
         Ok(NodePtr::new(ObjectType::Pair, idx))
+    }
+
+    // this code is used when we are simulating pairs with a vec locally
+    // in the deserialize_br code
+    // we must maintain parity with the old deserialize_br code so need to track the skipped pairs
+    pub fn add_ghost_pair(&mut self, amount: usize) -> Result<(), EvalErr> {
+        if MAX_NUM_PAIRS - self.num_ghost_pairs - self.pair_vec.len() < amount {
+            return err(self.nil(), "too many pairs");
+        }
+        self.num_ghost_pairs += amount;
+        Ok(())
+    }
+
+    // this code is used when we actually create the pairs that were previously skipped ghost pairs
+    pub fn remove_ghost_pair(&mut self, amount: usize) -> Result<(), EvalErr> {
+        // currently let this panic with overflow if we go below 0 to debug if/where it happens
+        debug_assert!(self.num_ghost_pairs >= amount);
+        self.num_ghost_pairs -= amount;
+        Ok(())
     }
 
     pub fn new_substr(&mut self, node: NodePtr, start: u32, end: u32) -> Result<NodePtr, EvalErr> {
@@ -669,6 +696,11 @@ impl Allocator {
 
     #[cfg(feature = "counters")]
     pub fn pair_count(&self) -> usize {
+        self.pair_vec.len() + self.num_ghost_pairs
+    }
+
+    #[cfg(feature = "counters")]
+    pub fn pair_count_no_ghosts(&self) -> usize {
         self.pair_vec.len()
     }
 
@@ -1008,6 +1040,19 @@ mod tests {
         }
 
         assert_eq!(a.new_pair(atom, atom).unwrap_err().1, "too many pairs");
+        assert_eq!(a.add_ghost_pair(1).unwrap_err().1, "too many pairs");
+    }
+
+    #[test]
+    fn test_ghost_pair_limit() {
+        let mut a = Allocator::new();
+        let atom = a.new_atom(b"foo").unwrap();
+        // one pair is OK
+        let _pair1 = a.new_pair(atom, atom).unwrap();
+        a.add_ghost_pair(MAX_NUM_PAIRS - 1).unwrap();
+
+        assert_eq!(a.new_pair(atom, atom).unwrap_err().1, "too many pairs");
+        assert_eq!(a.add_ghost_pair(1).unwrap_err().1, "too many pairs");
     }
 
     #[test]

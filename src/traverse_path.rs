@@ -13,7 +13,7 @@ const TRAVERSE_COST_PER_BIT: Cost = 4;
 
 // return a bitmask with a single bit set, for the most significant set bit in
 // the input byte
-fn msb_mask(byte: u8) -> u8 {
+pub(crate) fn msb_mask(byte: u8) -> u8 {
     let mut byte = (byte | (byte >> 1)) as u32;
     byte |= byte >> 2;
     byte |= byte >> 4;
@@ -23,7 +23,7 @@ fn msb_mask(byte: u8) -> u8 {
 
 // return the index of the first non-zero byte in buf. If all bytes are 0, the
 // length (one past end) will be returned.
-const fn first_non_zero(buf: &[u8]) -> usize {
+pub const fn first_non_zero(buf: &[u8]) -> usize {
     let mut c: usize = 0;
     while c < buf.len() && buf[c] == 0 {
         c += 1;
