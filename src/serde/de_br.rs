@@ -224,6 +224,8 @@ pub fn traverse_path_with_vec(
 #[cfg(test)]
 mod tests {
 
+    use crate::test_ops::node_eq;
+
     use super::*;
     use rstest::rstest;
 
@@ -338,7 +340,43 @@ mod tests {
         );
 
         let mut list: Vec<(NodePtr, Option<NodePtr>)> = vec![(n1, None), (n2, None)];
+        let list_node_part = a.new_pair(n1, NodePtr::NIL).unwrap();
+        let list_node = a.new_pair(n2, list_node_part).unwrap();
 
+        assert_eq!(
+            traverse_path_with_vec(&mut a, &[0b10], &mut list).unwrap(),
+            n2
+        );
+
+        assert_eq!(
+            traverse_path_with_vec(&mut a, &[0b101], &mut list).unwrap(),
+            n1
+        );
+        assert_eq!(
+            traverse_path_with_vec(&mut a, &[0b111], &mut list).unwrap(),
+            nul
+        );
+        // confirm we have no cache before we call the function
+        assert!(list[0].1.is_none());
+        assert!(list[1].1.is_none());
+        a.add_ghost_pair(2).unwrap();
+        let test_val = traverse_path_with_vec(&mut a, &[0b1], &mut list).unwrap();
+        assert!(node_eq(&a, test_val, list_node));
+        // check cache has been created
+        assert!(list[0].1.is_some());
+        assert!(list[1].1.is_some());
+        // // do it again with caches present
+        let test_val = traverse_path_with_vec(&mut a, &[0b1], &mut list).unwrap();
+        assert!(node_eq(&a, test_val, list_node));
+
+        // try with cache generated outside of function
+        let mut list: Vec<(NodePtr, Option<NodePtr>)> =
+            vec![(n1, Some(list_node_part)), (n2, Some(list_node))];
+
+        assert_eq!(
+            traverse_path_with_vec(&mut a, &[0b1], &mut list).unwrap(),
+            list_node
+        );
         assert_eq!(
             traverse_path_with_vec(&mut a, &[0b10], &mut list).unwrap(),
             n2
