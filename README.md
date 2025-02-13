@@ -6,7 +6,7 @@ Rust implementation of clvm.
 ![Build Wheels](https://github.com/Chia-Network/clvm_rs/actions/workflows/build-test.yml/badge.svg)
 
 ![PyPI](https://img.shields.io/pypi/v/clvm_rs?logo=pypi)
-[![Crates.io](https://img.shields.io/crates/v/clvm_rs.svg)](https://crates.io/crates/clvm_rs)
+[![Crates.io](https://img.shields.io/crates/v/clvmr.svg)](https://crates.io/crates/clvmr)
 
 The cargo workspace includes an rlib crate, for use with rust or other applications, and a python wheel.
 
