@@ -1,5 +1,13 @@
 Rust implementation of clvm.
 
+![GitHub](https://img.shields.io/github/license/Chia-Network/clvm_rs?logo=Github)
+[![Coverage Status](https://coveralls.io/repos/github/Chia-Network/clvm_rs/badge.svg?branch=main)](https://coveralls.io/github/Chia-Network/clvm_rs?branch=main)
+![Build Crate](https://github.com/Chia-Network/clvm_rs/actions/workflows/build-crate.yml/badge.svg)
+![Build Wheels](https://github.com/Chia-Network/clvm_rs/actions/workflows/build-test.yml/badge.svg)
+
+![PyPI](https://img.shields.io/pypi/v/clvm_rs?logo=pypi)
+[![Crates.io](https://img.shields.io/crates/v/clvmr.svg)](https://crates.io/crates/clvmr)
+
 The cargo workspace includes an rlib crate, for use with rust or other applications, and a python wheel.
 
 The python wheel is in `wheel`. The npm package is in `wasm`.
