@@ -21,6 +21,7 @@ use bitvec::vec::BitVec;
 use std::collections::{HashMap, HashSet};
 
 use super::bytes32::{hash_blob, hash_blobs, Bytes32};
+use super::serialized_length::atom_length_bits;
 
 #[derive(Debug, Clone)]
 pub struct ReadCacheLookup {
@@ -153,7 +154,14 @@ impl ReadCacheLookup {
             let mut new_partial_paths = vec![];
             for (node, path) in partial_paths.iter_mut() {
                 if *node == self.root_hash {
-                    possible_responses.push(reversed_path_to_vec_u8(path));
+                    // make sure we never return a path that needs more (or the
+                    // same) bytes to serialize than the node we're referencing.
+                    if let Some(path_len) = atom_length_bits(path.len() as u64) {
+                        if path_len < max_bytes_for_path_encoding {
+                            let p = reversed_path_to_vec_u8(path);
+                            possible_responses.push(p);
+                        }
+                    }
                     continue;
                 }
 
@@ -162,12 +170,14 @@ impl ReadCacheLookup {
                     for (parent, direction) in items.iter() {
                         if *(self.count.get(parent).unwrap_or(&0)) > 0 && !seen_ids.contains(parent)
                         {
-                            if path.len() + 1 > max_path_length {
+                            if path.len() > max_path_length {
                                 return possible_responses;
                             }
-                            let mut new_path = path.clone();
-                            new_path.push(*direction);
-                            new_partial_paths.push((*parent, new_path));
+                            if path.len() < max_path_length {
+                                let mut new_path = path.clone();
+                                new_path.push(*direction);
+                                new_partial_paths.push((*parent, new_path));
+                            }
                         }
                         seen_ids.insert(parent);
                     }
