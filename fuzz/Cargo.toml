@@ -98,3 +98,9 @@ name = "incremental-serializer"
 path = "fuzz_targets/incremental_serializer.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "serializer-cmp"
+path = "fuzz_targets/serializer_cmp.rs"
+test = false
+doc = false

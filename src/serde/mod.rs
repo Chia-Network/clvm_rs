@@ -26,6 +26,7 @@ pub use de_tree::{parse_triples, ParsedTriple};
 pub use identity_hash::RandomState;
 pub use incremental::{Serializer, UndoState};
 pub use object_cache::{serialized_length, treehash, ObjectCache};
+pub use read_cache_lookup::ReadCacheLookup;
 pub use ser::{node_to_bytes, node_to_bytes_limit};
 pub use ser_br::{node_to_bytes_backrefs, node_to_bytes_backrefs_limit};
 pub use serialized_length::{serialized_length_atom, serialized_length_small_number};
