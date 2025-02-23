@@ -1,19 +1,31 @@
-use super::bytes32::{hash_blobs, Bytes32};
 use super::{ChildPos, PathBuilder};
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::serde::serialized_length_atom;
 use crate::serde::RandomState;
 use crate::serde::VisitedNodes;
+use rand::prelude::*;
+use sha1::{Digest, Sha1};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
 const MIN_SERIALIZED_LENGTH: u64 = 4;
 
+type Bytes20 = [u8; 20];
+
+fn hash_blobs(salt: &[u8], blobs: &[&[u8]]) -> Bytes20 {
+    let mut ctx = Sha1::default();
+    ctx.update(salt);
+    for blob in blobs.iter() {
+        ctx.update(blob);
+    }
+    ctx.finalize().into()
+}
+
 #[derive(Clone, Debug)]
 struct NodeEntry {
     /// the tree hash of this node. It may be None if it or any of its children
     /// is the sentinel node, which means we can't compute the tree hash.
-    tree_hash: Option<Bytes32>,
+    tree_hash: Option<Bytes20>,
     /// a node can have an arbitrary number of parents, since they can be reused
     /// this is a list of parent nodes, followed by whether we're the left or
     /// right child. The u32 is an index into the node_entry vector.
@@ -75,7 +87,7 @@ pub struct TreeCache {
     /// node_entry vector. For any given tree hash, we're only supposed to
     /// have a single NodeEntry. There may be multiple NodePtr referring to
     /// the same NodeEntry (if they are identical sub trees).
-    hash_to_node: HashMap<Bytes32, u32, RandomState>,
+    hash_to_node: HashMap<Bytes20, u32, RandomState>,
 
     /// When deserializing, we keep a stack of tokens we've parsed so far, this
     /// stack is maintaining that same state, since that's what back-references
@@ -95,13 +107,20 @@ pub struct TreeCache {
     /// update(), the tree is assumed to be placed at the sentinel node in the
     /// previous call to update()
     pub sentinel_node: Option<NodePtr>,
+
+    /// We compute hash-trees using SHA-1 in order to determine whether the
+    /// trees are identical or not. To mitigate malicious SHA-1 hash collisions,
+    /// we stalt the hashes
+    salt: [u8; 8],
 }
 
 impl TreeCache {
     pub fn new(sentinel: Option<NodePtr>) -> Self {
+        let mut rng = rand::thread_rng();
         Self {
             sentinel_node: sentinel,
             hash_to_node: HashMap::with_hasher(RandomState::default()),
+            salt: rng.gen(),
             ..Default::default()
         }
     }
@@ -200,7 +219,7 @@ impl TreeCache {
                         continue;
                     }
                     let buf = a.atom(node);
-                    let hash = hash_blobs(&[&[1], buf.as_ref()]);
+                    let hash = hash_blobs(&self.salt, &[&[1], buf.as_ref()]);
 
                     // record the mapping of this node to the
                     // corresponding NodeEntry index
@@ -251,7 +270,11 @@ impl TreeCache {
                     let (hash, idx) = if let (Some(left_hash), Some(right_hash)) =
                         (left.tree_hash, right.tree_hash)
                     {
-                        let hash = hash_blobs(&[&[2], left_hash.as_ref(), right_hash.as_ref()]);
+                        let hash = hash_blobs(
+                            &self.salt,
+                            &[&[2], left_hash.as_ref(), right_hash.as_ref()],
+                        );
+
                         (Some(hash), self.hash_to_node.get(&hash))
                     } else {
                         (None, None)
