@@ -1,3 +1,4 @@
+#![allow(clippy::useless_conversion)]
 use std::io;
 
 use super::lazy_node::LazyNode;

@@ -95,7 +95,7 @@ const MODPOW_COST_PER_BYTE_EXPONENT: Cost = 3;
 const MODPOW_COST_PER_BYTE_MOD: Cost = 21;
 
 fn limbs_for_int(v: &Number) -> usize {
-    ((v.bits() + 7) / 8) as usize
+    v.bits().div_ceil(8) as usize
 }
 
 #[cfg(test)]
