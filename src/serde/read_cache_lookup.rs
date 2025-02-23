@@ -142,7 +142,7 @@ impl ReadCacheLookup {
             RandomState::default(),
         );
 
-        let max_bytes_for_path_encoding = serialized_length - 2; // 1 byte for 0xfe, 1 min byte for savings
+        let max_bytes_for_path_encoding = serialized_length - 1; // 1 byte for 0xfe
         let max_path_length: usize = (max_bytes_for_path_encoding.saturating_mul(8) - 1)
             .try_into()
             .unwrap_or(usize::MAX);
@@ -156,10 +156,13 @@ impl ReadCacheLookup {
                 if *node == self.root_hash {
                     // make sure we never return a path that needs more (or the
                     // same) bytes to serialize than the node we're referencing.
-                    if let Some(path_len) = atom_length_bits(path.len() as u64) {
-                        if path_len < max_bytes_for_path_encoding {
-                            let p = reversed_path_to_vec_u8(path);
-                            possible_responses.push(p);
+                    // path.len() + 1 is because reversed_path_to_vec_u8() will
+                    // also add the "terminator" bit, at the far left (MSB)
+                    // if we have 8 steps to traverse, we need 9 bits to represent
+                    // it as a path
+                    if let Some(path_len) = atom_length_bits(path.len() as u64 + 1) {
+                        if path_len <= max_bytes_for_path_encoding {
+                            possible_responses.push(reversed_path_to_vec_u8(path));
                         }
                     }
                     continue;
