@@ -1,3 +1,5 @@
+use bumpalo::Bump;
+
 #[repr(u8)]
 #[derive(PartialEq, Eq, Clone, Debug, Copy, Hash)]
 pub enum ChildPos {
@@ -9,33 +11,42 @@ pub enum ChildPos {
 /// are laid out in big-endian order, where the left-most byte is index 0. The
 /// path is built from left to right, since it's parsed right to left when
 /// followed).
-#[derive(Clone, Debug, PartialEq)]
-pub struct PathBuilder {
-    // TODO: It might make sense to implement small object optimization here.
-    // The vast majority of paths are just a single byte, statically allocate 8
-    // would seem reasonable
-    store: Vec<u8>,
+#[derive(Debug, PartialEq)]
+pub struct PathBuilder<'a> {
+    store: &'a mut [u8],
+    in_use: u32,
     /// the bit the next write will happen to (counts down)
     bit_pos: u8,
 }
 
-impl Default for PathBuilder {
+impl Default for PathBuilder<'_> {
     fn default() -> Self {
         Self {
-            store: Vec::with_capacity(16),
+            store: &mut [],
+            in_use: 0,
             bit_pos: 7,
         }
     }
 }
 
-impl PathBuilder {
-    pub fn push(&mut self, dir: ChildPos) {
+impl<'a> PathBuilder<'a> {
+    pub fn push(&mut self, a: &'a Bump, dir: ChildPos) {
         if self.bit_pos == 7 {
-            self.store.push(0);
+            if self.in_use as usize == self.store.len() {
+                let old_size = self.store.len();
+                let new_size = std::cmp::max(old_size * 2, 16);
+                let new_store = a.alloc_slice_fill_default::<u8>(new_size);
+                new_store[0..old_size].copy_from_slice(self.store);
+                self.store = new_store;
+            }
+            self.in_use += 1;
         }
 
+        assert!(self.in_use > 0);
+        assert!(self.store.len() >= self.in_use as usize);
+
         if dir == ChildPos::Right {
-            *self.store.last_mut().unwrap() |= 1 << self.bit_pos;
+            self.store[self.in_use as usize - 1] |= 1 << self.bit_pos;
         }
         if self.bit_pos == 0 {
             self.bit_pos = 7;
@@ -44,20 +55,28 @@ impl PathBuilder {
         }
     }
 
-    pub fn done(mut self) -> Vec<u8> {
+    pub fn clone(&self, a: &'a Bump) -> Self {
+        Self {
+            store: a.alloc_slice_copy(self.store),
+            in_use: self.in_use,
+            bit_pos: self.bit_pos,
+        }
+    }
+
+    pub fn done(self) -> Vec<u8> {
         if self.bit_pos < 7 {
             let right_shift = self.bit_pos + 1;
             let left_shift = 7 - self.bit_pos;
             // we need to shift all bits to the right, to right-align the path
             let mask = 0xff << left_shift;
-            for idx in (1..self.store.len()).rev() {
+            for idx in (1..self.in_use as usize).rev() {
                 self.store[idx] >>= right_shift;
                 let from_next = self.store[idx - 1] << left_shift;
                 self.store[idx] |= from_next & mask;
             }
             self.store[0] >>= right_shift;
         }
-        self.store
+        self.store[0..self.in_use as usize].to_vec()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -66,9 +85,9 @@ impl PathBuilder {
 
     pub fn len(&self) -> u32 {
         if self.bit_pos == 7 {
-            (self.store.len() as u32) * u8::BITS
+            self.in_use * u8::BITS
         } else {
-            (self.store.len() as u32) * u8::BITS - self.bit_pos as u32 - 1
+            self.in_use * u8::BITS - self.bit_pos as u32 - 1
         }
     }
 
@@ -76,7 +95,7 @@ impl PathBuilder {
     /// plus 1 (for the 0xfe introduction) is larger or equal to the one we're
     /// deduplicating, we should leave it.
     pub fn serialized_length(&self) -> u32 {
-        let len = self.store.len() as u32;
+        let len = self.in_use;
         match len {
             0 => 1,
             // if we have one byte, the top bit determines whether we can
@@ -108,7 +127,7 @@ impl PathBuilder {
         match lhs_len.cmp(&rhs_len) {
             Ordering::Less => true,
             Ordering::Greater => false,
-            Ordering::Equal => self.store <= rhs.store,
+            Ordering::Equal => rhs.store.cmp(&self.store) != Ordering::Less,
         }
     }
 }
@@ -120,17 +139,20 @@ mod tests {
     use hex;
     use rstest::rstest;
 
-    fn build_path(input: &[u8]) -> PathBuilder {
+    fn build_path<'a>(a: &'a Bump, input: &[u8]) -> PathBuilder<'a> {
         let mut path = PathBuilder::default();
         // keep in mind that paths are built in reverse order (starting from the
         // target).
         for (idx, b) in input.iter().enumerate() {
             assert_eq!(path.len(), idx as u32);
-            path.push(if *b == 0 {
-                ChildPos::Left
-            } else {
-                ChildPos::Right
-            });
+            path.push(
+                a,
+                if *b == 0 {
+                    ChildPos::Left
+                } else {
+                    ChildPos::Right
+                },
+            );
         }
         path
     }
@@ -155,7 +177,8 @@ mod tests {
     #[case(&[1,1,1,0,0], "1c")]
     #[case(&[1,0,1,0,0,1,0,0,0], "0148")]
     fn test_build(#[case] input: &[u8], #[case] expect: &str) {
-        let path = build_path(input);
+        let a = Bump::new();
+        let path = build_path(&a, input);
         let ret = path.done();
         assert_eq!(hex::encode(ret), expect);
     }
@@ -187,8 +210,9 @@ mod tests {
     #[case(&[1,1,0,0,0,0,0,0,0], &[1,0,0,0,0,0,0,0,0], false)]
     #[case(&[1,1,0,0,0,0,0,0,1], &[1,0,0,0,0,0,0,0,0], false)]
     fn test_better_than(#[case] lhs: &[u8], #[case] rhs: &[u8], #[case] expect: bool) {
-        let lhs = build_path(lhs);
-        let rhs = build_path(rhs);
+        let a = Bump::new();
+        let lhs = build_path(&a, lhs);
+        let rhs = build_path(&a, rhs);
         assert_eq!(lhs.better_than(&rhs), expect);
     }
 
@@ -209,9 +233,10 @@ mod tests {
     #[case(513)]
     #[case(0xfff9)]
     fn test_serialized_length(#[case] num_bits: u32) {
+        let a = Bump::new();
         let mut path = PathBuilder::default();
         for _ in 0..num_bits {
-            path.push(ChildPos::Right);
+            path.push(&a, ChildPos::Right);
         }
         let ser_len = path.serialized_length();
         let vec = path.done();
