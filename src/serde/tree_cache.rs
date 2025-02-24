@@ -3,6 +3,7 @@ use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::serde::serialized_length_atom;
 use crate::serde::RandomState;
 use crate::serde::VisitedNodes;
+use bumpalo::Bump;
 use rand::prelude::*;
 use sha1::{Digest, Sha1};
 use std::collections::hash_map::Entry;
@@ -39,9 +40,9 @@ struct NodeEntry {
     pub on_stack: u32,
 }
 
-struct PartialPath {
+struct PartialPath<'alloc> {
     // the path we've built so far
-    path: PathBuilder,
+    path: PathBuilder<&'alloc Bump>,
     // if we're traversing the stack, this is the stack position. Note that this
     // is not an index into the stack array, it's a counter of how far away from
     // the top of the stack we are. 0 means we're at the top, and we've found
@@ -387,6 +388,8 @@ impl TreeCache {
 
         let mut seen = VisitedNodes::new(self.node_entry.len() as u32);
 
+        let arena = Bump::new();
+
         // We perform a breadth-first search from the node we're finding a path
         // to, up through its parents until we find the top of the stack. Note
         // since nodes are deduplicated, they may have multiple parents.
@@ -400,7 +403,7 @@ impl TreeCache {
 
         // this child pos represents the path terminator bit
         partial_paths.push(PartialPath {
-            path: PathBuilder::default(),
+            path: PathBuilder::new(&arena),
             stack_pos: -1,
             idx,
             child: ChildPos::Right,
@@ -410,7 +413,7 @@ impl TreeCache {
         // the ones whose length is "path_length", which is incremented for every pass
         let mut pass_length = 0;
 
-        let ret: PathBuilder = loop {
+        let ret: PathBuilder<&Bump> = loop {
             if partial_paths.is_empty() {
                 return None;
             }
@@ -533,7 +536,7 @@ impl TreeCache {
         if u64::from(backref_len) + 1 > entry.serialized_length {
             None
         } else {
-            Some(ret.done())
+            Some(ret.done().to_vec())
         }
     }
 }

@@ -1,3 +1,5 @@
+use std::alloc::Allocator;
+
 #[repr(u8)]
 #[derive(PartialEq, Eq, Clone, Debug, Copy, Hash)]
 pub enum ChildPos {
@@ -10,25 +12,23 @@ pub enum ChildPos {
 /// path is built from left to right, since it's parsed right to left when
 /// followed).
 #[derive(Clone, Debug, PartialEq)]
-pub struct PathBuilder {
+pub struct PathBuilder<A: Allocator> {
     // TODO: It might make sense to implement small object optimization here.
     // The vast majority of paths are just a single byte, statically allocate 8
     // would seem reasonable
-    store: Vec<u8>,
+    store: Vec<u8, A>,
     /// the bit the next write will happen to (counts down)
     bit_pos: u8,
 }
 
-impl Default for PathBuilder {
-    fn default() -> Self {
+impl<A: Allocator> PathBuilder<A> {
+    pub fn new(allocator: A) -> Self {
         Self {
-            store: Vec::with_capacity(16),
+            store: Vec::with_capacity_in(16, allocator),
             bit_pos: 7,
         }
     }
-}
 
-impl PathBuilder {
     pub fn clear(&mut self) {
         self.bit_pos = 7;
         self.store.clear();
@@ -49,7 +49,7 @@ impl PathBuilder {
         }
     }
 
-    pub fn done(mut self) -> Vec<u8> {
+    pub fn done(mut self) -> Vec<u8, A> {
         if self.bit_pos < 7 {
             let right_shift = self.bit_pos + 1;
             let left_shift = 7 - self.bit_pos;
@@ -138,9 +138,10 @@ mod tests {
     use crate::serde::serialized_length_atom;
     use hex;
     use rstest::rstest;
+    use std::alloc::System;
 
-    fn build_path(input: &[u8]) -> PathBuilder {
-        let mut path = PathBuilder::default();
+    fn build_path(input: &[u8]) -> PathBuilder<System> {
+        let mut path = PathBuilder::new(System);
         // keep in mind that paths are built in reverse order (starting from the
         // target).
         for (idx, b) in input.iter().enumerate() {
@@ -215,7 +216,7 @@ mod tests {
     #[case(80, 80, "ffffffffffffffffffff")]
     #[case(80, 79, "7fffffffffffffffffff")]
     fn test_truncate(#[case] num_bits: usize, #[case] truncate: u32, #[case] expect: &str) {
-        let mut path = PathBuilder::default();
+        let mut path = PathBuilder::new(System);
         for _i in 0..num_bits {
             path.push(ChildPos::Right);
         }
@@ -260,7 +261,7 @@ mod tests {
     #[case(80, 15, "ffff")]
     #[case(80, 79, "ffffffffffffffffffff")]
     fn test_truncate_add(#[case] num_bits: usize, #[case] truncate: u32, #[case] expect: &str) {
-        let mut path = PathBuilder::default();
+        let mut path = PathBuilder::new(System);
         for _i in 0..num_bits {
             path.push(ChildPos::Right);
         }
@@ -274,7 +275,7 @@ mod tests {
     fn test_clear(
         #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)] num_bits: usize,
     ) {
-        let mut path = PathBuilder::default();
+        let mut path = PathBuilder::new(System);
         for _i in 0..num_bits {
             path.push(ChildPos::Right);
         }
@@ -331,7 +332,7 @@ mod tests {
     #[case(513)]
     #[case(0xfff9)]
     fn test_serialized_length(#[case] num_bits: u32) {
-        let mut path = PathBuilder::default();
+        let mut path = PathBuilder::new(System);
         for _ in 0..num_bits {
             path.push(ChildPos::Right);
         }
