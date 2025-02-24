@@ -63,7 +63,7 @@ pub fn node_to_stream_backrefs<W: io::Write>(
                 }
             },
         }
-        while !read_op_stack.is_empty() && read_op_stack[read_op_stack.len() - 1] == ReadOp::Cons {
+        while let Some(ReadOp::Cons) = read_op_stack.last() {
             read_op_stack.pop();
             read_cache_lookup.pop2_and_cons();
         }
