@@ -23,14 +23,10 @@ fuzz_target!(|data: &[u8]| {
     assert!(done);
     let b2 = ser.into_inner();
 
-    {
-        // make sure both serializations are valid, and can be parsed to produce
-        // the same tree
-        let b1 = node_from_bytes_backrefs(&mut allocator, &b1).unwrap();
-        let b2 = node_from_bytes_backrefs(&mut allocator, &b2).unwrap();
-        assert!(node_eq(&allocator, b1, program));
-        assert!(node_eq(&allocator, b1, b2));
-    }
-
-    assert_eq!(b1, b2);
+    // make sure both serializations are valid, and can be parsed to produce
+    // the same tree
+    let b1 = node_from_bytes_backrefs(&mut allocator, &b1).unwrap();
+    let b2 = node_from_bytes_backrefs(&mut allocator, &b2).unwrap();
+    assert!(node_eq(&allocator, b1, program));
+    assert!(node_eq(&allocator, b1, b2));
 });

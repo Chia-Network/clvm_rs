@@ -7,6 +7,7 @@ use clvmr::allocator::{Allocator, NodePtr, SExp};
 use clvmr::serde::node_from_bytes_backrefs;
 use clvmr::serde::write_atom::write_atom;
 use clvmr::serde::ReadCacheLookup;
+use clvmr::serde::TreeCache;
 use clvmr::serde::{serialized_length, treehash, ObjectCache};
 use std::io;
 use std::io::Cursor;
@@ -22,11 +23,11 @@ const CONS_BOX_MARKER: u8 = 0xff;
 #[derive(PartialEq, Eq)]
 enum ReadOp {
     Parse,
-    Cons,
+    Cons(NodePtr),
 }
 
 // make sure back-references returned by ReadCacheLookup are smaller than the
-// node they reference
+// node they reference and compare ReadCacheLookup and ObjectCache against TreeCache
 pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> io::Result<Vec<u8>> {
     let mut f = Cursor::new(Vec::new());
 
@@ -37,6 +38,9 @@ pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> io::Resu
 
     let mut thc = ObjectCache::new(treehash);
     let mut slc = ObjectCache::new(serialized_length);
+
+    let mut tree_cache = TreeCache::new(None);
+    tree_cache.update(allocator, node);
 
     while let Some(node_to_write) = write_stack.pop() {
         let op = read_op_stack.pop();
@@ -49,12 +53,50 @@ pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> io::Resu
             .get_or_calculate(allocator, &node_to_write, None)
             .expect("can't get treehash");
 
-        let result1 = read_cache_lookup.find_path(node_tree_hash, node_serialized_length);
+        let mut result1 = read_cache_lookup.find_path(node_tree_hash, node_serialized_length);
+        let result2 = tree_cache.find_path(node_to_write);
+        let points_to_stack = if let Some(ref p1) = result1 {
+            // the read_cache_lookup supports finding references to the
+            // stack element itself (a node that doesn't exist in the
+            // original tree). tree_cache does not, so exempt this from
+            // the comparison
+            // a path pointing to the stack is one that only has 1-bits
+            (p1[0] as u32 + 1).count_ones() == 1 && p1[1..].iter().all(|n| *n == 0xff)
+        } else {
+            false
+        };
+
+        if !points_to_stack {
+            match (&result1, &result2) {
+                (Some(p1), Some(p2)) => {
+                    // sometimes there are multiple paths to the node, and which
+                    // one we pick may be somewhat arbitrary, just depending on
+                    // the order we visit them. This check is just to make sure
+                    // we find paths of equal lengths (i.e. both should be the
+                    // shortest path)
+                    if p1.len() != p2.len() || p1[0].leading_zeros() != p2[0].leading_zeros() {
+                        panic!("inconsistent results, {p1:?} != {p2:?} serialized-length: {node_serialized_length}");
+                    }
+                }
+                (None, None) => {}
+                (Some(p1), None) => {
+                    panic!("read_cache_lookup: {p1:?}, tree_cache: None serialized-length: {node_serialized_length}");
+                }
+                (None, Some(p2)) => {
+                    panic!("read_cache_lookup: None, tree_cache: {p2:?} serialized-length: {node_serialized_length}");
+                }
+            };
+        } else {
+            // in order to keep the ReadCacheLookup in sync with TreeCache
+            // pretend the lookup resulted in the same path (or no path)
+            result1 = result2;
+        }
         match result1 {
             Some(path) => {
                 f.write_all(&[BACK_REFERENCE])?;
                 write_atom(&mut f, &path)?;
                 read_cache_lookup.push(*node_tree_hash);
+                tree_cache.push(node_to_write);
                 {
                     // make sure the path is never encoded as more bytes than
                     // the node we're referencing
@@ -71,7 +113,7 @@ pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> io::Resu
                     f.write_all(&[CONS_BOX_MARKER])?;
                     write_stack.push(right);
                     write_stack.push(left);
-                    read_op_stack.push(ReadOp::Cons);
+                    read_op_stack.push(ReadOp::Cons(node_to_write));
                     read_op_stack.push(ReadOp::Parse);
                     read_op_stack.push(ReadOp::Parse);
                 }
@@ -79,10 +121,12 @@ pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> io::Resu
                     let atom = allocator.atom(node_to_write);
                     write_atom(&mut f, atom.as_ref())?;
                     read_cache_lookup.push(*node_tree_hash);
+                    tree_cache.push(node_to_write);
                 }
             },
         }
-        while let Some(ReadOp::Cons) = read_op_stack.last() {
+        while let Some(ReadOp::Cons(node)) = read_op_stack.last() {
+            tree_cache.pop2_and_cons(*node);
             read_op_stack.pop();
             read_cache_lookup.pop2_and_cons();
         }
