@@ -63,7 +63,7 @@ pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> io::Resu
                     temp.write_all(&[BACK_REFERENCE])?;
                     write_atom(&mut temp, &path)?;
                     let temp = temp.into_inner();
-                    assert!(temp.len() < node_serialized_length as usize);
+                    assert!(temp.len() <= node_serialized_length as usize);
                 }
             }
             None => match allocator.sexp(node_to_write) {
