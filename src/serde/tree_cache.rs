@@ -72,6 +72,12 @@ pub struct TreeUndoState {
     sentinel_entry: Option<u32>,
 }
 
+/// The TreeCache builds a "shadow tree" mirroring a CLVM tree but with
+/// additional metadata, as well as joining identical sub trees. This is done by
+/// the update() function. This data structure then supports find_path() for
+/// finding back-reference paths during CLVM serialization with compression.
+/// find_path() performs a reverse-search from a specified node to the top of
+/// the parse stack, tracking the state of the parser.
 #[derive(Default)]
 pub struct TreeCache {
     /// caches extra metadata about a tree of nodes. The value is an index into
@@ -358,7 +364,7 @@ impl TreeCache {
 
     /// If a node with this hash already exists and is eligible to be
     /// referenced, this function returns the path (environment lookup) from the
-    /// current serializeation state to that tree. The serialization state is
+    /// current serialization state to that tree. The serialization state is
     /// the stack of nodes currently in-flight. The bottom value in the stack is
     /// where the final tree is being collected as we parse. Nodes are eligible
     /// to be referenced after they've been serialized once. That's when they're
@@ -386,6 +392,12 @@ impl TreeCache {
         // produce. If we find a path of this length, we won't return it.
         let path_length_limit = (entry.serialized_length - 1).saturating_mul(8);
 
+        // During this search (from `node` to the top of the stack) we need to
+        // track all nodes we've already visited. It's critical to terminate any
+        // partial path that hits an already visited node, otherwise we may end
+        // up stuck in an infinite cycle. We also save time by not
+        // re-considering a node via a different path, that we already know will
+        // be longer than the one first visiting this node.
         let mut seen = VisitedNodes::new(self.node_entry.len() as u32);
 
         let arena = Bump::new();
@@ -396,9 +408,16 @@ impl TreeCache {
         // We aim to have every "partial path" have the same length path, since
         // it's breadth first.
         let mut partial_paths = Vec::<PartialPath>::with_capacity(20);
-        // we treat partial paths as a ring buffer, where we take one step at a
-        // time for each path. This cursor points into the current partial path
-        // being extended.
+
+        // The search from `node` to the top of the stack is essentially a
+        // regular djikstra's algorithm. Instead of a priority queue of the
+        // frontier of vertices, we use a flat vector of partial_paths, all
+        // stepping forward in lock step. Cursor is the index into partial_paths
+        // pointing to the path we're currently considering and pass_length
+        // indicates the length of paths that we want to consider in this pass
+        // over the vector. This ensures that all partial paths move in
+        // lock-step. This is important, since this algorithm rely on the
+        // *first* path that reaches the target is also the shortest one.
         let mut cursor = 0;
 
         // this child pos represents the path terminator bit
