@@ -68,7 +68,7 @@ enum CacheOp {
 #[derive(Clone)]
 pub struct TreeUndoState {
     stack: Vec<u32>,
-    lookup: VisitedNodes,
+    serialized_nodes: VisitedNodes,
     sentinel_entry: Option<u32>,
 }
 
@@ -104,10 +104,10 @@ pub struct TreeCache {
 
     /// This records which NodeEntries have been serialized so far. When we look
     /// for back-references, we can only pick nodes in this set. nodes with
-    /// small serialized length are not inserted. This lookup is built and
+    /// small serialized length are not inserted. This set is built and
     /// updated as we serialize, to ensure we only include nodes that *can* be
     /// referenced.
-    lookup: VisitedNodes,
+    serialized_nodes: VisitedNodes,
 
     /// if the sentinel node is set, we can't compute the tree hashes or
     /// serialized length for this node nor any of its ancestors. When calling
@@ -139,7 +139,7 @@ impl TreeCache {
         };
         TreeUndoState {
             stack: self.stack.clone(),
-            lookup: self.lookup.clone(),
+            serialized_nodes: self.serialized_nodes.clone(),
             sentinel_entry,
         }
     }
@@ -157,7 +157,7 @@ impl TreeCache {
         for idx in &self.stack {
             self.node_entry[*idx as usize].on_stack += 1;
         }
-        self.lookup = st.lookup;
+        self.serialized_nodes = st.serialized_nodes;
         if let Some(sentinel_entry) = st.sentinel_entry {
             self.cache
                 .insert(self.sentinel_node.unwrap(), sentinel_entry);
@@ -332,7 +332,7 @@ impl TreeCache {
         root_entry.parents.extend(root_parents);
 
         // allocate memory to track the new nodes
-        self.lookup.extend(self.node_entry.len() as u32);
+        self.serialized_nodes.extend(self.node_entry.len() as u32);
     }
 
     /// the push() and pop2_and_cons() functions are used to maintain the
@@ -344,7 +344,7 @@ impl TreeCache {
         entry.on_stack += 1;
 
         if entry.tree_hash.is_some() && entry.serialized_length >= MIN_SERIALIZED_LENGTH {
-            self.lookup.visit(idx);
+            self.serialized_nodes.visit(idx);
         }
         self.stack.push(idx);
     }
@@ -368,13 +368,13 @@ impl TreeCache {
     /// the stack of nodes currently in-flight. The bottom value in the stack is
     /// where the final tree is being collected as we parse. Nodes are eligible
     /// to be referenced after they've been serialized once. That's when they're
-    /// added to the lookup hashmap.
+    /// added to the serialized_nodes set.
     pub fn find_path(&self, node: NodePtr) -> Option<Vec<u8>> {
         if node == NodePtr::NIL {
             return None;
         }
         let idx = *self.cache.get(&node).expect("invalid node");
-        if !self.lookup.is_visited(idx) {
+        if !self.serialized_nodes.is_visited(idx) {
             return None;
         };
 
@@ -413,7 +413,7 @@ impl TreeCache {
         // regular djikstra's algorithm. Instead of a priority queue of the
         // frontier of vertices, we use a flat vector of partial_paths, all
         // stepping forward in lock step. Cursor is the index into partial_paths
-        // pointing to the path we're currently considering and pass_length
+        // pointing to the path we're currently considering and current_length
         // indicates the length of paths that we want to consider in this pass
         // over the vector. This ensures that all partial paths move in
         // lock-step. This is important, since this algorithm rely on the
@@ -429,22 +429,22 @@ impl TreeCache {
         });
 
         // in order to advance every partial path in lock step we only advance
-        // the ones whose length is "path_length", which is incremented for every pass
-        let mut pass_length = 0;
+        // the ones whose length is "current_length", which is incremented for every pass
+        let mut current_length = 0;
 
         let ret: PathBuilder = loop {
             if partial_paths.is_empty() {
                 return None;
             }
-            if cursor == 0 && pass_length > path_length_limit {
+            if cursor == 0 && current_length > path_length_limit {
                 return None;
             }
             let p = &mut partial_paths[cursor];
-            if u64::from(p.path.len()) > pass_length {
+            if u64::from(p.path.len()) > current_length {
                 cursor += 1;
                 if cursor >= partial_paths.len() {
                     cursor = 0;
-                    pass_length += 1;
+                    current_length += 1;
                 }
                 continue;
             }
@@ -459,7 +459,7 @@ impl TreeCache {
                 cursor += 1;
                 if cursor >= partial_paths.len() {
                     cursor = 0;
-                    pass_length += 1;
+                    current_length += 1;
                 }
                 continue;
             }
@@ -469,7 +469,7 @@ impl TreeCache {
                 partial_paths.swap_remove(cursor);
                 if cursor >= partial_paths.len() {
                     cursor = 0;
-                    pass_length += 1;
+                    current_length += 1;
                 }
                 continue;
             }
@@ -544,7 +544,7 @@ impl TreeCache {
             }
             if cursor >= partial_paths.len() {
                 cursor = 0;
-                pass_length += 1;
+                current_length += 1;
             }
         };
 

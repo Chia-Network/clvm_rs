@@ -91,7 +91,7 @@ impl<'a> PathBuilder<'a> {
         }
     }
 
-    /// returns the number of bytes this atom would need to serialize If this,
+    /// returns the number of bytes this atom would need to serialize. If this,
     /// plus 1 (for the 0xfe introduction) is larger or equal to the one we're
     /// deduplicating, we should leave it.
     pub fn serialized_length(&self) -> u32 {
@@ -115,7 +115,7 @@ impl<'a> PathBuilder<'a> {
         }
     }
 
-    /// returns true if self is better ithan or equal to the right hand side. We
+    /// returns true if self is better than or equal to the right hand side. We
     /// use this to decide whether to replace the best path we've found so far. If
     /// they're equally good, we prefer to not make any changes. The metric we use
     /// is shorter is better and lexicographically smaller is better.
