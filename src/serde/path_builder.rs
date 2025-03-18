@@ -114,22 +114,6 @@ impl<'a> PathBuilder<'a> {
             _ => 5 + len,
         }
     }
-
-    /// returns true if self is better than or equal to the right hand side. We
-    /// use this to decide whether to replace the best path we've found so far. If
-    /// they're equally good, we prefer to not make any changes. The metric we use
-    /// is shorter is better and lexicographically smaller is better.
-    pub fn better_than(&self, rhs: &Self) -> bool {
-        use std::cmp::Ordering;
-
-        let rhs_len = rhs.len();
-        let lhs_len = self.len();
-        match lhs_len.cmp(&rhs_len) {
-            Ordering::Less => true,
-            Ordering::Greater => false,
-            Ordering::Equal => rhs.store.cmp(&self.store) != Ordering::Less,
-        }
-    }
 }
 
 #[cfg(test)]
@@ -181,39 +165,6 @@ mod tests {
         let path = build_path(&a, input);
         let ret = path.done();
         assert_eq!(hex::encode(ret), expect);
-    }
-
-    #[rstest]
-    // length
-    #[case(&[1], &[1], true)]
-    #[case(&[1], &[1,1], true)]
-    #[case(&[1, 1], &[1], false)]
-    #[case(&[1], &[1], true)]
-    // byte boundary 7 & 8 bits
-    #[case(&[1,1,1,1,1,1,1],   &[1,1,1,1,1,1,1], true)]
-    #[case(&[1,1,1,1,1,1,1],   &[1,1,1,1,1,1,1,1], true)]
-    #[case(&[1,1,1,1,1,1,1,1], &[1,1,1,1,1,1,1], false)]
-    // byte boundary 8 & 9 bits
-    #[case(&[1,1,1,1,1,1,1,1],   &[1,1,1,1,1,1,1,1], true)]
-    #[case(&[1,1,1,1,1,1,1,1,1], &[1,1,1,1,1,1,1,1,1], true)]
-    #[case(&[1,1,1,1,1,1,1,1],   &[1,1,1,1,1,1,1,1,1], true)]
-    #[case(&[1,1,1,1,1,1,1,1,1], &[1,1,1,1,1,1,1,1], false)]
-    // lexicographic
-    #[case(&[1,0], &[1,1], true)]
-    #[case(&[1,1], &[1,1], true)]
-    #[case(&[1,1], &[1,0], false)]
-    // byte boundary
-    #[case(&[1,0,0,0,0,0,0,0,0], &[1,1,0,0,0,0,0,0,0], true)]
-    #[case(&[1,0,0,0,0,0,0,0,1], &[1,1,0,0,0,0,0,0,0], true)]
-    #[case(&[1,1,0,0,0,0,0,0,0], &[1,1,0,0,0,0,0,0,0], true)]
-    #[case(&[1,1,0,0,0,0,0,0,1], &[1,1,0,0,0,0,0,0,0], false)]
-    #[case(&[1,1,0,0,0,0,0,0,0], &[1,0,0,0,0,0,0,0,0], false)]
-    #[case(&[1,1,0,0,0,0,0,0,1], &[1,0,0,0,0,0,0,0,0], false)]
-    fn test_better_than(#[case] lhs: &[u8], #[case] rhs: &[u8], #[case] expect: bool) {
-        let a = Bump::new();
-        let lhs = build_path(&a, lhs);
-        let rhs = build_path(&a, rhs);
-        assert_eq!(lhs.better_than(&rhs), expect);
     }
 
     #[rstest]
