@@ -24,7 +24,7 @@ fn hash_blobs(salt: &[u8], blobs: &[&[u8]]) -> Bytes20 {
 
 #[derive(Clone, Debug)]
 struct NodeEntry {
-    /// the tree hash of this node. It may be None if it or any of its children
+    /// the tree hash of this node. It may be None if it or any of its descendants
     /// is the sentinel node, which means we can't compute the tree hash.
     tree_hash: Option<Bytes20>,
     /// a node can have an arbitrary number of parents, since they can be reused
