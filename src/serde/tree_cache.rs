@@ -29,7 +29,7 @@ struct NodeEntry {
     tree_hash: Option<Bytes20>,
     /// a node can have an arbitrary number of parents, since they can be reused
     /// this is a list of parent nodes, followed by whether we're the left or
-    /// right child. The u32 is an index into the node_entry vector.
+    /// right child. The u32 is an index into the node_entries vector.
     parents: Vec<(u32, ChildPos)>,
     /// if this node doesn't have a tree_hash, the serialized length is not
     /// valid as it cannot be computed.
@@ -81,22 +81,22 @@ pub struct TreeUndoState {
 #[derive(Default)]
 pub struct TreeCache {
     /// caches extra metadata about a tree of nodes. The value is an index into
-    /// the node_entry vector.
+    /// the node_entries vector.
     cache: HashMap<NodePtr, u32>,
 
     /// The metadata for all nodes in the tree. This is like a shadow tree
     /// structure to the NodePtr one. The most important difference is that
     /// identical nodes are merged, using the same NodeEntry, and additional
     /// metadata is kept, such as the tree hash.
-    node_entry: Vec<NodeEntry>,
+    node_entries: Vec<NodeEntry>,
 
     /// maps tree-hashes to the index of the corresponding NodeEntry in the
-    /// node_entry vector. For any given tree hash, we're only supposed to
+    /// node_entries vector. For any given tree hash, we're only supposed to
     /// have a single NodeEntry. There may be multiple NodePtr referring to
     /// the same NodeEntry (if they are identical sub trees).
     hash_to_node: HashMap<Bytes20, u32, RandomState>,
 
-    /// When deserializing, we keep a stack of tokens we've parsed so far, this
+    /// When deserializing, we keep a stack of nodes we've parsed so far, this
     /// stack is maintaining that same state, since that's what back-references
     /// are pointing into. Nodes that have the sentinel as direct decendants
     /// don't have a tree-hash, so it's set to None for those entries
@@ -146,16 +146,16 @@ impl TreeCache {
 
     pub fn restore(&mut self, st: TreeUndoState) {
         for idx in &self.stack {
-            self.node_entry[*idx as usize].on_stack -= 1;
+            self.node_entries[*idx as usize].on_stack -= 1;
         }
         #[cfg(not(debug_assertions))]
-        for e in &self.node_entry {
+        for e in &self.node_entries {
             assert_eq!(e.on_stack, 0);
         }
 
         self.stack = st.stack;
         for idx in &self.stack {
-            self.node_entry[*idx as usize].on_stack += 1;
+            self.node_entries[*idx as usize].on_stack += 1;
         }
         self.serialized_nodes = st.serialized_nodes;
         if let Some(sentinel_entry) = st.sentinel_entry {
@@ -171,7 +171,7 @@ impl TreeCache {
             // This position in the tree is now replaced by "root". Update
             // the node cache to reflect this
             if let Some(idx) = self.cache.get(&placement) {
-                root_parents.append(&mut self.node_entry[*idx as usize].parents);
+                root_parents.append(&mut self.node_entries[*idx as usize].parents);
             }
         };
 
@@ -180,7 +180,7 @@ impl TreeCache {
         // serialized length of the sentinel node, so it and all its ancestors
         // will be blank, and not participate in the lookup.
         let mut ops = vec![CacheOp::Traverse(root)];
-        // the node traversal stack. Each element is an index into node_entry
+        // the node traversal stack. Each element is an index into node_entries
         let mut stack = Vec::<u32>::new();
 
         while let Some(op) = ops.pop() {
@@ -190,7 +190,7 @@ impl TreeCache {
                     // node. It means we have to stop the traversal, as it's a
                     // place holder for an unknown sub tree.
                     if Some(node) == self.sentinel_node {
-                        let idx = self.node_entry.len() as u32;
+                        let idx = self.node_entries.len() as u32;
                         let entry = NodeEntry {
                             tree_hash: None,
                             parents: vec![],
@@ -198,7 +198,7 @@ impl TreeCache {
                             on_stack: 0,
                         };
                         self.cache.insert(node, idx);
-                        self.node_entry.push(entry);
+                        self.node_entries.push(entry);
                         stack.push(idx);
                         continue;
                     }
@@ -244,12 +244,12 @@ impl TreeCache {
                         }
                         Entry::Vacant(ne) => ne,
                     };
-                    let idx = self.node_entry.len() as u32;
+                    let idx = self.node_entries.len() as u32;
                     ne.insert(idx);
                     e.insert(idx);
                     stack.push(idx);
                     let serialized_length = serialized_length_atom(buf.as_ref());
-                    self.node_entry.push(NodeEntry {
+                    self.node_entries.push(NodeEntry {
                         tree_hash: Some(hash),
                         parents: vec![],
                         serialized_length: u64::from(serialized_length),
@@ -270,8 +270,8 @@ impl TreeCache {
                     let right_idx = stack.pop().expect("empty stack") as usize;
                     let left_idx = stack.pop().expect("empty stack") as usize;
 
-                    let left = &self.node_entry[left_idx];
-                    let right = &self.node_entry[right_idx];
+                    let left = &self.node_entries[left_idx];
+                    let right = &self.node_entries[right_idx];
                     let serialized_length = 1 + left.serialized_length + right.serialized_length;
 
                     let (hash, idx) = if let (Some(left_hash), Some(right_hash)) =
@@ -292,14 +292,14 @@ impl TreeCache {
                     let idx = if let Some(idx) = idx {
                         *idx
                     } else {
-                        let idx = self.node_entry.len() as u32;
+                        let idx = self.node_entries.len() as u32;
                         let entry = NodeEntry {
                             tree_hash: hash,
                             parents: vec![],
                             serialized_length,
                             on_stack: 0,
                         };
-                        self.node_entry.push(entry);
+                        self.node_entries.push(entry);
                         if let Some(h) = hash {
                             let existing = self.hash_to_node.insert(h, idx);
                             assert_eq!(existing, None);
@@ -307,10 +307,10 @@ impl TreeCache {
                         idx
                     };
 
-                    self.node_entry[left_idx]
+                    self.node_entries[left_idx]
                         .parents
                         .push((idx, ChildPos::Left));
-                    self.node_entry[right_idx]
+                    self.node_entries[right_idx]
                         .parents
                         .push((idx, ChildPos::Right));
                     e.insert(idx);
@@ -328,11 +328,11 @@ impl TreeCache {
         // this root, as that's where this tree is placed.
         let root_idx = stack[0];
         debug_assert_eq!(root_idx, *self.cache.get(&root).expect("root not in cache"));
-        let root_entry = &mut self.node_entry[root_idx as usize];
+        let root_entry = &mut self.node_entries[root_idx as usize];
         root_entry.parents.extend(root_parents);
 
         // allocate memory to track the new nodes
-        self.serialized_nodes.extend(self.node_entry.len() as u32);
+        self.serialized_nodes.extend(self.node_entries.len() as u32);
     }
 
     /// the push() and pop2_and_cons() functions are used to maintain the
@@ -340,7 +340,7 @@ impl TreeCache {
     /// paths into this stack when creating back-references.
     pub fn push(&mut self, node: NodePtr) {
         let idx = *self.cache.get(&node).expect("invalid node");
-        let entry = &mut self.node_entry[idx as usize];
+        let entry = &mut self.node_entries[idx as usize];
         entry.on_stack += 1;
 
         if entry.tree_hash.is_some() && entry.serialized_length >= MIN_SERIALIZED_LENGTH {
@@ -351,7 +351,7 @@ impl TreeCache {
 
     fn pop(&mut self) {
         let idx = self.stack.pop().expect("empty stack");
-        let entry = &mut self.node_entry[idx as usize];
+        let entry = &mut self.node_entries[idx as usize];
         assert!(entry.on_stack > 0);
         entry.on_stack -= 1;
     }
@@ -378,7 +378,7 @@ impl TreeCache {
             return None;
         };
 
-        let entry = &self.node_entry[idx as usize];
+        let entry = &self.node_entries[idx as usize];
 
         // if there's no tree-hash for this node, it means it's the sentinel
         // node, or one of its ancestors. We can't build a path to it
@@ -398,7 +398,7 @@ impl TreeCache {
         // up stuck in an infinite cycle. We also save time by not
         // re-considering a node via a different path, that we already know will
         // be longer than the one first visiting this node.
-        let mut seen = BitSet::new(self.node_entry.len() as u32);
+        let mut seen = BitSet::new(self.node_entries.len() as u32);
 
         let arena = Bump::new();
 
@@ -475,7 +475,7 @@ impl TreeCache {
             }
             p.path.push(&arena, p.child);
 
-            let entry = &self.node_entry[p.idx as usize];
+            let entry = &self.node_entries[p.idx as usize];
             let idx = p.idx;
 
             // this search can branch if the node has parents or if it's on the
@@ -501,7 +501,7 @@ impl TreeCache {
                 // mutate partial_paths and p is a reference into one of its
                 // elements
                 let mut current_path = p.path.clone(&arena);
-                debug_assert_eq!(self.node_entry[idx as usize].tree_hash, entry.tree_hash);
+                debug_assert_eq!(self.node_entries[idx as usize].tree_hash, entry.tree_hash);
 
                 debug_assert!(remaining_parents.is_empty() || used_p);
                 for parent in remaining_parents {
