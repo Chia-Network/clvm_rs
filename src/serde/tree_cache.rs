@@ -82,7 +82,7 @@ pub struct TreeUndoState {
 pub struct TreeCache {
     /// caches extra metadata about a tree of nodes. The value is an index into
     /// the node_entries vector.
-    cache: HashMap<NodePtr, u32>,
+    node_map: HashMap<NodePtr, u32>,
 
     /// The metadata for all nodes in the tree. This is like a shadow tree
     /// structure to the NodePtr one. The most important difference is that
@@ -134,7 +134,7 @@ impl TreeCache {
 
     pub fn undo_state(&self) -> TreeUndoState {
         let sentinel_entry = match self.sentinel_node {
-            Some(sentinel) => self.cache.get(&sentinel).cloned(),
+            Some(sentinel) => self.node_map.get(&sentinel).cloned(),
             None => None,
         };
         TreeUndoState {
@@ -159,7 +159,7 @@ impl TreeCache {
         }
         self.serialized_nodes = st.serialized_nodes;
         if let Some(sentinel_entry) = st.sentinel_entry {
-            self.cache
+            self.node_map
                 .insert(self.sentinel_node.unwrap(), sentinel_entry);
         }
     }
@@ -169,8 +169,8 @@ impl TreeCache {
         if let Some(placement) = self.sentinel_node {
             // "placement" is the sentinel node we used in the last update.
             // This position in the tree is now replaced by "root". Update
-            // the node cache to reflect this
-            if let Some(idx) = self.cache.get(&placement) {
+            // the node node_map to reflect this
+            if let Some(idx) = self.node_map.get(&placement) {
                 root_parents.append(&mut self.node_entries[*idx as usize].parents);
             }
         };
@@ -197,15 +197,15 @@ impl TreeCache {
                             serialized_length: 0,
                             on_stack: 0,
                         };
-                        self.cache.insert(node, idx);
+                        self.node_map.insert(node, idx);
                         self.node_entries.push(entry);
                         stack.push(idx);
                         continue;
                     }
 
-                    let e = match self.cache.entry(node) {
+                    let e = match self.node_map.entry(node) {
                         Entry::Occupied(e) => {
-                            // If this node is already in the cache, meaning
+                            // If this node is already in the node_map, meaning
                             // we've already traversed it once. No need to do it
                             // again.
                             let idx = *e.get();
@@ -216,8 +216,8 @@ impl TreeCache {
                     };
 
                     // traverse the node. If it's a pair, push the work
-                    // onto the op stack, otherwise, hash and cache the
-                    // atom. We'll hash and cache the pairs as we
+                    // onto the op stack, otherwise, hash and node_map the
+                    // atom. We'll hash and node_map the pairs as we
                     // unwind.
                     if let SExp::Pair(left, right) = a.sexp(node) {
                         ops.push(CacheOp::Cons(node));
@@ -257,10 +257,10 @@ impl TreeCache {
                     });
                 }
                 CacheOp::Cons(node) => {
-                    let e = match self.cache.entry(node) {
+                    let e = match self.node_map.entry(node) {
                         Entry::Occupied(e) => {
-                            // even though node wasn't in the cache when we pushed this
-                            // CacheOp, it may be in the cache now.
+                            // even though node wasn't in the node_map when we pushed this
+                            // CacheOp, it may be in the node_map now.
                             let idx = *e.get();
                             stack.push(idx);
                             continue;
@@ -327,7 +327,10 @@ impl TreeCache {
         // update(), we transfer the parents from the previous sentinel node to
         // this root, as that's where this tree is placed.
         let root_idx = stack[0];
-        debug_assert_eq!(root_idx, *self.cache.get(&root).expect("root not in cache"));
+        debug_assert_eq!(
+            root_idx,
+            *self.node_map.get(&root).expect("root not in node_map")
+        );
         let root_entry = &mut self.node_entries[root_idx as usize];
         root_entry.parents.extend(root_parents);
 
@@ -339,7 +342,7 @@ impl TreeCache {
     /// current serialization state. We need to know this to produce correct
     /// paths into this stack when creating back-references.
     pub fn push(&mut self, node: NodePtr) {
-        let idx = *self.cache.get(&node).expect("invalid node");
+        let idx = *self.node_map.get(&node).expect("invalid node");
         let entry = &mut self.node_entries[idx as usize];
         entry.on_stack += 1;
 
@@ -373,7 +376,7 @@ impl TreeCache {
         if node == NodePtr::NIL {
             return None;
         }
-        let idx = *self.cache.get(&node).expect("invalid node");
+        let idx = *self.node_map.get(&node).expect("invalid node");
         if !self.serialized_nodes.is_visited(idx) {
             return None;
         };
