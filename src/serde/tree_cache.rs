@@ -66,7 +66,7 @@ enum CacheOp {
 }
 
 #[derive(Clone)]
-pub struct TreeUndoState {
+pub struct TreeCacheCheckpoint {
     stack: Vec<u32>,
     serialized_nodes: BitSet,
     sentinel_entry: Option<u32>,
@@ -132,19 +132,19 @@ impl TreeCache {
         }
     }
 
-    pub fn undo_state(&self) -> TreeUndoState {
+    pub fn undo_state(&self) -> TreeCacheCheckpoint {
         let sentinel_entry = match self.sentinel_node {
             Some(sentinel) => self.node_map.get(&sentinel).cloned(),
             None => None,
         };
-        TreeUndoState {
+        TreeCacheCheckpoint {
             stack: self.stack.clone(),
             serialized_nodes: self.serialized_nodes.clone(),
             sentinel_entry,
         }
     }
 
-    pub fn restore(&mut self, st: TreeUndoState) {
+    pub fn restore(&mut self, st: TreeCacheCheckpoint) {
         for idx in &self.stack {
             self.node_entries[*idx as usize].on_stack -= 1;
         }

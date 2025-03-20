@@ -5,7 +5,7 @@ use std::io::{Cursor, Write};
 
 use super::write_atom::write_atom;
 use crate::allocator::{Allocator, NodePtr, SExp};
-use crate::serde::{TreeCache, TreeUndoState};
+use crate::serde::{TreeCache, TreeCacheCheckpoint};
 
 const BACK_REFERENCE: u8 = 0xfe;
 const CONS_BOX_MARKER: u8 = 0xff;
@@ -27,7 +27,7 @@ pub struct Serializer {
 pub struct UndoState {
     read_op_stack: Vec<ReadOp>,
     write_stack: Vec<NodePtr>,
-    tree_cache: TreeUndoState,
+    tree_cache: TreeCacheCheckpoint,
     output_position: u64,
 }
 

@@ -38,4 +38,4 @@ pub use serialized_length::{serialized_length_atom, serialized_length_small_numb
 pub use tools::{
     serialized_length_from_bytes, serialized_length_from_bytes_trusted, tree_hash_from_stream,
 };
-pub use tree_cache::{TreeCache, TreeUndoState};
+pub use tree_cache::{TreeCache, TreeCacheCheckpoint};
