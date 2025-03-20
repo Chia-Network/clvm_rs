@@ -78,6 +78,7 @@ pub struct TreeUndoState {
 /// finding back-reference paths during CLVM serialization with compression.
 /// find_path() performs a reverse-search from a specified node to the top of
 /// the parse stack, tracking the state of the parser.
+/// For example use, see test_basic_tree() below.
 #[derive(Default)]
 pub struct TreeCache {
     /// caches extra metadata about a tree of nodes. The value is an index into
@@ -98,8 +99,7 @@ pub struct TreeCache {
 
     /// When deserializing, we keep a stack of nodes we've parsed so far, this
     /// stack is maintaining that same state, since that's what back-references
-    /// are pointing into. Nodes that have the sentinel as direct decendants
-    /// don't have a tree-hash, so it's set to None for those entries
+    /// are pointing into.
     stack: Vec<u32>,
 
     /// This records which NodeEntries have been serialized so far. When we look
