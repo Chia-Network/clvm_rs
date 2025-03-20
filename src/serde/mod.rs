@@ -1,3 +1,4 @@
+mod bitset;
 mod bytes32;
 mod de;
 mod de_br;
@@ -15,12 +16,12 @@ mod serialized_length;
 mod tools;
 mod tree_cache;
 mod utils;
-mod visited_nodes;
 pub mod write_atom;
 
 #[cfg(test)]
 mod test;
 
+pub use bitset::BitSet;
 pub use de::node_from_bytes;
 pub use de_br::{
     node_from_bytes_backrefs, node_from_bytes_backrefs_old, node_from_bytes_backrefs_record,
@@ -38,4 +39,3 @@ pub use tools::{
     serialized_length_from_bytes, serialized_length_from_bytes_trusted, tree_hash_from_stream,
 };
 pub use tree_cache::{TreeCache, TreeUndoState};
-pub use visited_nodes::VisitedNodes;

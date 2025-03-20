@@ -1,8 +1,8 @@
 use super::{ChildPos, PathBuilder};
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::serde::serialized_length_atom;
+use crate::serde::BitSet;
 use crate::serde::RandomState;
-use crate::serde::VisitedNodes;
 use bumpalo::Bump;
 use rand::prelude::*;
 use sha1::{Digest, Sha1};
@@ -68,7 +68,7 @@ enum CacheOp {
 #[derive(Clone)]
 pub struct TreeUndoState {
     stack: Vec<u32>,
-    serialized_nodes: VisitedNodes,
+    serialized_nodes: BitSet,
     sentinel_entry: Option<u32>,
 }
 
@@ -107,7 +107,7 @@ pub struct TreeCache {
     /// small serialized length are not inserted. This set is built and
     /// updated as we serialize, to ensure we only include nodes that *can* be
     /// referenced.
-    serialized_nodes: VisitedNodes,
+    serialized_nodes: BitSet,
 
     /// if the sentinel node is set, we can't compute the tree hashes or
     /// serialized length for this node nor any of its ancestors. When calling
@@ -398,7 +398,7 @@ impl TreeCache {
         // up stuck in an infinite cycle. We also save time by not
         // re-considering a node via a different path, that we already know will
         // be longer than the one first visiting this node.
-        let mut seen = VisitedNodes::new(self.node_entry.len() as u32);
+        let mut seen = BitSet::new(self.node_entry.len() as u32);
 
         let arena = Bump::new();
 

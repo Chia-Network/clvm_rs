@@ -2,11 +2,11 @@
 /// during a tree search or not. We terminate a search path if we've reached the
 /// node first via a different (shorter) path.
 #[derive(Clone, Default)]
-pub struct VisitedNodes {
+pub struct BitSet {
     bits: Vec<usize>,
 }
 
-impl VisitedNodes {
+impl BitSet {
     const BITS: usize = usize::BITS as usize;
 
     /// specify the number of nodes to track
@@ -44,7 +44,7 @@ mod tests {
 
     #[test]
     fn test_visited_nodes() {
-        let mut n = VisitedNodes::new(100);
+        let mut n = BitSet::new(100);
         for i in 0..100 {
             assert!(!n.is_visited(i));
             assert!(!n.visit(i));
@@ -56,7 +56,7 @@ mod tests {
 
     #[test]
     fn test_visited_nodes_reverse() {
-        let mut n = VisitedNodes::new(100);
+        let mut n = BitSet::new(100);
         for i in (0..100).rev() {
             assert!(!n.is_visited(i));
             assert!(!n.visit(i));
@@ -68,7 +68,7 @@ mod tests {
 
     #[test]
     fn test_extend() {
-        let mut n = VisitedNodes::default();
+        let mut n = BitSet::default();
         n.extend(1);
         assert!(!n.is_visited(0));
         assert!(!n.visit(0));
