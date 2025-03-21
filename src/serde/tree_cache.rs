@@ -117,7 +117,7 @@ pub struct TreeCache {
 
     /// We compute hash-trees using SHA-1 in order to determine whether the
     /// trees are identical or not. To mitigate malicious SHA-1 hash collisions,
-    /// we stalt the hashes
+    /// we salt the hashes
     salt: [u8; 8],
 }
 
