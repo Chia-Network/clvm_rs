@@ -104,3 +104,9 @@ name = "serializer-cmp"
 path = "fuzz_targets/serializer_cmp.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "tree-cache"
+path = "fuzz_targets/tree_cache.rs"
+test = false
+doc = false

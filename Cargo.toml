@@ -63,6 +63,7 @@ clap = "4.5.29"
 rand_chacha = "0.3.1"
 bitvec = "1.0.1"
 arbitrary = { version = "1.4.1", features = ["derive"] }
+bumpalo = "3.17.0"
 
 [dependencies]
 lazy_static = { workspace = true }
@@ -79,6 +80,9 @@ p256 = { version = "0.13.2", features = ["ecdsa"] }
 # for keccak256
 sha3 = "0.10.8"
 rand = { workspace = true }
+hex = { workspace = true }
+sha1 = { workspace = true }
+bumpalo = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }
