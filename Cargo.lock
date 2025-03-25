@@ -285,7 +285,7 @@ checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
 name = "clvm-rs-test-tools"
-version = "0.2.0"
+version = "0.12.1"
 dependencies = [
  "chia-bls",
  "clap",
@@ -304,7 +304,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_rs"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "clvmr",
  "pyo3",
@@ -323,7 +323,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_wasm"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "clvmr",
  "getrandom",
@@ -334,7 +334,7 @@ dependencies = [
 
 [[package]]
 name = "clvmr"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "bitvec",
  "bumpalo",
