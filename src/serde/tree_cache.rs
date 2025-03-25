@@ -13,12 +13,10 @@ const MIN_SERIALIZED_LENGTH: u64 = 4;
 
 type Bytes20 = [u8; 20];
 
-fn hash_blobs(salt: &[u8], blobs: &[&[u8]]) -> Bytes20 {
+fn hash_atom(salt: &[u8], blob: &[u8]) -> Bytes20 {
     let mut ctx = Sha1::default();
     ctx.update(salt);
-    for blob in blobs.iter() {
-        ctx.update(blob);
-    }
+    ctx.update(blob);
     ctx.finalize().into()
 }
 
@@ -95,7 +93,11 @@ pub struct TreeCache {
     /// node_entries vector. For any given tree hash, we're only supposed to
     /// have a single NodeEntry. There may be multiple NodePtr referring to
     /// the same NodeEntry (if they are identical sub trees).
-    hash_to_node: HashMap<Bytes20, u32, RandomState>,
+    atom_lookup: HashMap<Bytes20, u32, RandomState>,
+
+    /// maps left + right child indices to the index of the pair with those
+    /// children. This is the atom_lookup counterpart for pairs
+    pair_lookup: HashMap<u64, u32>,
 
     /// When deserializing, we keep a stack of nodes we've parsed so far, this
     /// stack is maintaining that same state, since that's what back-references
@@ -126,7 +128,7 @@ impl TreeCache {
         let mut rng = rand::thread_rng();
         Self {
             sentinel_node: sentinel,
-            hash_to_node: HashMap::with_hasher(RandomState::default()),
+            atom_lookup: HashMap::with_hasher(RandomState::default()),
             salt: rng.gen(),
             ..Default::default()
         }
@@ -226,14 +228,14 @@ impl TreeCache {
                         continue;
                     }
                     let buf = a.atom(node);
-                    let hash = hash_blobs(&self.salt, &[&[1], buf.as_ref()]);
+                    let hash = hash_atom(&self.salt, buf.as_ref());
 
                     // record the mapping of this node to the
                     // corresponding NodeEntry index
                     // now that we've hashed the node, it might be
                     // identical to an existing one. If so, use the
                     // same NodeEntry, otherwise, add a new one.
-                    let ne = match self.hash_to_node.entry(hash) {
+                    let ne = match self.atom_lookup.entry(hash) {
                         Entry::Occupied(ne) => {
                             // we already have a node with this
                             // hash
@@ -272,39 +274,31 @@ impl TreeCache {
 
                     let left = &self.node_entries[left_idx];
                     let right = &self.node_entries[right_idx];
-                    let serialized_length = 1 + left.serialized_length + right.serialized_length;
+                    let serialized_length =
+                        if left.serialized_length > 0 && right.serialized_length > 0 {
+                            1 + left.serialized_length + right.serialized_length
+                        } else {
+                            0
+                        };
 
-                    let (hash, idx) = if let (Some(left_hash), Some(right_hash)) =
-                        (left.tree_hash, right.tree_hash)
-                    {
-                        let hash = hash_blobs(
-                            &self.salt,
-                            &[&[2], left_hash.as_ref(), right_hash.as_ref()],
-                        );
-
-                        (Some(hash), self.hash_to_node.get(&hash))
-                    } else {
-                        (None, None)
-                    };
+                    let key: u64 = ((left_idx as u64) << 32) | (right_idx as u64);
 
                     // if we already have a NodeEntry, use it, otherwise add
                     // a new one
-                    let idx = if let Some(idx) = idx {
-                        *idx
-                    } else {
-                        let idx = self.node_entries.len() as u32;
-                        let entry = NodeEntry {
-                            tree_hash: hash,
-                            parents: vec![],
-                            serialized_length,
-                            on_stack: 0,
-                        };
-                        self.node_entries.push(entry);
-                        if let Some(h) = hash {
-                            let existing = self.hash_to_node.insert(h, idx);
-                            assert_eq!(existing, None);
+                    let idx = match self.pair_lookup.entry(key) {
+                        Entry::Occupied(e) => *e.get(),
+                        Entry::Vacant(e) => {
+                            let idx = self.node_entries.len() as u32;
+                            let entry = NodeEntry {
+                                tree_hash: None,
+                                parents: vec![],
+                                serialized_length,
+                                on_stack: 0,
+                            };
+                            self.node_entries.push(entry);
+                            e.insert(idx);
+                            idx
                         }
-                        idx
                     };
 
                     self.node_entries[left_idx]
@@ -346,7 +340,9 @@ impl TreeCache {
         let entry = &mut self.node_entries[idx as usize];
         entry.on_stack += 1;
 
-        if entry.tree_hash.is_some() && entry.serialized_length >= MIN_SERIALIZED_LENGTH {
+        // serialized_length is 0 for nodes that are the sentinel or one of its
+        // parents
+        if entry.serialized_length >= MIN_SERIALIZED_LENGTH {
             self.serialized_nodes.visit(idx);
         }
         self.stack.push(idx);
@@ -383,9 +379,11 @@ impl TreeCache {
 
         let entry = &self.node_entries[idx as usize];
 
-        // if there's no tree-hash for this node, it means it's the sentinel
+        // if there's no serialized length for this node, it means it's the sentinel
         // node, or one of its ancestors. We can't build a path to it
-        entry.tree_hash?;
+        if entry.serialized_length == 0 {
+            return None;
+        }
 
         if entry.serialized_length < MIN_SERIALIZED_LENGTH {
             return None;
