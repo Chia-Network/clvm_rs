@@ -29,10 +29,6 @@ pub const LIMIT_HEAP: u32 = 0x0004;
 // This is a hard-fork and should only be enabled when it activates
 pub const ENABLE_KECCAK_OPS_OUTSIDE_GUARD: u32 = 0x0100;
 
-// enables the keccak softfork extension. This is a soft-fork and
-// should be set for blocks past the activation height.
-pub const ENABLE_KECCAK: u32 = 0x0200;
-
 // The default mode when running grnerators in mempool-mode (i.e. the stricter
 // mode)
 pub const MEMPOOL_MODE: u32 = NO_UNKNOWN_OPS | LIMIT_HEAP;
@@ -195,9 +191,7 @@ impl Dialect for ChiaDialect {
             0 => OperatorSet::Bls,
 
             // Extension 1 is for the keccak256 operator.
-            // This is only considered valid in the mempool if it's enabled with the flag.
-            // This is to prevent submission of spends with keccak until the softfork activates.
-            1 if (self.flags & ENABLE_KECCAK) != 0 => OperatorSet::Keccak,
+            1 => OperatorSet::Keccak,
 
             // Extensions 2 and beyond are considered invalid by the mempool.
             // However, all future extensions are valid in consensus mode and reserved for future softforks.
