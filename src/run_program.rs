@@ -549,7 +549,7 @@ pub fn run_program_with_counters<'a, D: Dialect>(
 mod tests {
     use super::*;
 
-    use crate::chia_dialect::{ENABLE_KECCAK, ENABLE_KECCAK_OPS_OUTSIDE_GUARD, NO_UNKNOWN_OPS};
+    use crate::chia_dialect::{ENABLE_KECCAK_OPS_OUTSIDE_GUARD, NO_UNKNOWN_OPS};
     use crate::test_ops::parse_exp;
 
     use rstest::rstest;
@@ -1179,7 +1179,7 @@ mod tests {
         RunProgramTest {
             prg: "(softfork (q . 1432) (q . 1) (q a (i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x)) (q . ())) (q . ()))",
             args: "()",
-            flags: ENABLE_KECCAK,
+            flags: 0,
             result: Some("()"),
             cost: 1513,
             err: "",
@@ -1189,7 +1189,7 @@ mod tests {
         RunProgramTest {
             prg: "(softfork (q . 1134) (q . 1) (q a (i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ())) (q . ()))",
             args: "()",
-            flags: ENABLE_KECCAK,
+            flags: 0,
             result: Some("()"),
             cost: 1215,
             err: "",
@@ -1198,19 +1198,10 @@ mod tests {
         RunProgramTest {
             prg: "(softfork (q . 1134) (q . 1) (q a (i (= (keccak256 (q . \"foobar\")) (q . 0x58d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ())) (q . ()))",
             args: "()",
-            flags: ENABLE_KECCAK,
+            flags: 0,
             result: None,
             cost: 1215,
             err: "clvm raise",
-        },
-        // keccak is ignored when the softfork has not activated
-        RunProgramTest {
-            prg: "(softfork (q . 1134) (q . 1) (q a (i (= (keccak256 (q . \"foobar\")) (q . 0x58d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ())) (q . ()))",
-            args: "()",
-            flags: 0,
-            result: Some("()"),
-            cost: 1215,
-            err: "",
         },
 
         // === HARD FORK ===
@@ -1220,7 +1211,7 @@ mod tests {
         RunProgramTest {
             prg: "(a (i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ()))",
             args: "()",
-            flags: ENABLE_KECCAK | ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
+            flags: ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
             result: Some("()"),
             cost: 994,
             err: "",
@@ -1445,7 +1436,7 @@ mod tests {
         #[case] prg: &'static str,
         #[case] fields: (u64, u8, u32), // cost, enabled, hard_fork_flag
         #[case] err: &'static str,
-        #[values(0, ENABLE_KECCAK)] flags: u32,
+        #[values(0)] flags: u32,
         #[values(false, true)] mempool: bool,
         #[values(0, 1, 2)] test_ext: u8,
     ) {
@@ -1456,9 +1447,10 @@ mod tests {
         let flags = flags | if mempool { NO_UNKNOWN_OPS } else { 0 };
 
         // softfork extensions that are enabled
+        #[allow(clippy::match_like_matches_macro)]
         let ext_enabled = match test_ext {
-            0 => true,
-            1 => (flags & ENABLE_KECCAK) != 0,
+            0 => true, // BLS
+            1 => true, // KECCAK
             _ => false,
         };
 
