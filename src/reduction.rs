@@ -21,6 +21,6 @@ impl std::error::Error for EvalErr {}
 
 impl From<EvalErr> for io::Error {
     fn from(v: EvalErr) -> Self {
-        Self::new(io::ErrorKind::Other, v.1)
+        Self::other(v.1)
     }
 }
