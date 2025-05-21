@@ -110,3 +110,15 @@ name = "tree-cache"
 path = "fuzz_targets/tree_cache.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "canonical-serialization"
+path = "fuzz_targets/canonical_serialization.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "canonical-serialization-br"
+path = "fuzz_targets/canonical_serialization_br.rs"
+test = false
+doc = false
