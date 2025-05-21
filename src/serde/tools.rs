@@ -2,7 +2,7 @@ use std::io;
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use super::errors::bad_encoding;
-use super::parse_atom::decode_size;
+use super::parse_atom::{decode_size, decode_size_with_offset};
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const BACK_REFERENCE: u8 = 0xfe;
@@ -171,11 +171,69 @@ pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
     }
 }
 
+fn is_canonical_atom(f: &mut Cursor<&[u8]>, first_byte: u8) -> bool {
+    if first_byte == 0x80 || first_byte <= MAX_SINGLE_BYTE {
+        return true;
+    }
+
+    let Ok((prefix_len, atom_len)) = decode_size_with_offset(f, first_byte) else {
+        return false;
+    };
+
+    let min_value = match prefix_len {
+        1 => 1,
+        2 => 1 << 6,
+        3 => 1 << (5 + 8),
+        4 => 1 << (4 + 8 + 8),
+        5 => 1 << (4 + 8 + 8 + 8),
+        6 => 1 << (4 + 8 + 8 + 8 + 8),
+        _ => panic!("unexpected atom length prefix {}", prefix_len),
+    };
+    if f.seek(SeekFrom::Current(atom_len as i64)).is_err() {
+        return false;
+    }
+    atom_len >= min_value
+}
+
+pub fn is_canonical_serialization(b: &[u8]) -> bool {
+    let mut f = Cursor::new(b);
+    let mut counter = 1;
+    let mut b = [0; 1];
+    while counter > 0 {
+        counter -= 1;
+        if f.read_exact(&mut b).is_err() {
+            return false;
+        }
+        if b[0] == CONS_BOX_MARKER {
+            // we expect to parse two more items from the stream
+            // the left and right sub tree
+            counter += 2;
+        } else if b[0] == BACK_REFERENCE {
+            // This is a back-ref. We don't actually need to resolve it, just
+            // parse the path and move on
+            if f.read_exact(&mut b).is_err() {
+                return false;
+            }
+            if !is_canonical_atom(&mut f, b[0]) {
+                return false;
+            }
+        } else if !is_canonical_atom(&mut f, b[0]) {
+            return false;
+        }
+        if (f.get_ref().len() as u64) < f.position() {
+            return false;
+        }
+    }
+    f.get_ref().len() as u64 == f.position()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use crate::serde::node_from_bytes_backrefs;
+    use crate::Allocator;
     use hex::FromHex;
+    use rstest::rstest;
 
     #[test]
     fn test_tree_hash_max_single_byte() {
@@ -282,124 +340,116 @@ mod tests {
         );
     }
 
-    #[cfg(test)]
-    mod test {
-        use super::*;
-        use crate::serde::node_from_bytes_backrefs;
-        use crate::Allocator;
-        use rstest::rstest;
+    #[test]
+    fn test_serialized_length_from_bytes_trusted() {
+        assert_eq!(
+            serialized_length_from_bytes_trusted(&[0x7f, 0x00, 0x00, 0x00]).unwrap(),
+            1
+        );
+        assert_eq!(
+            serialized_length_from_bytes_trusted(&[0x80, 0x00, 0x00, 0x00]).unwrap(),
+            1
+        );
+        assert_eq!(
+            serialized_length_from_bytes_trusted(&[0xff, 0x00, 0x00, 0x00]).unwrap(),
+            3
+        );
+        assert_eq!(
+            serialized_length_from_bytes_trusted(&[0xff, 0x01, 0xff, 0x80, 0x80, 0x00]).unwrap(),
+            5
+        );
 
-        #[test]
-        fn test_serialized_length_from_bytes_trusted() {
-            assert_eq!(
-                serialized_length_from_bytes_trusted(&[0x7f, 0x00, 0x00, 0x00]).unwrap(),
-                1
-            );
-            assert_eq!(
-                serialized_length_from_bytes_trusted(&[0x80, 0x00, 0x00, 0x00]).unwrap(),
-                1
-            );
-            assert_eq!(
-                serialized_length_from_bytes_trusted(&[0xff, 0x00, 0x00, 0x00]).unwrap(),
-                3
-            );
-            assert_eq!(
-                serialized_length_from_bytes_trusted(&[0xff, 0x01, 0xff, 0x80, 0x80, 0x00])
-                    .unwrap(),
-                5
-            );
-
-            // this is an invalid back-ref
-            // but it's not validated
-            assert_eq!(
-                serialized_length_from_bytes_trusted(&[0xff, 0x01, 0xff, 0xfe, 0x10, 0x80, 0x00])
-                    .unwrap(),
-                6
-            );
-
-            let e = serialized_length_from_bytes_trusted(&[0x8f, 0xff]).unwrap_err();
-            assert_eq!(e.kind(), bad_encoding().kind());
-            assert_eq!(e.to_string(), "bad encoding");
-
-            let e = serialized_length_from_bytes_trusted(&[0b11001111, 0xff]).unwrap_err();
-            assert_eq!(e.kind(), bad_encoding().kind());
-            assert_eq!(e.to_string(), "bad encoding");
-
-            let e = serialized_length_from_bytes_trusted(&[0b11001111, 0xff, 0, 0]).unwrap_err();
-            assert_eq!(e.kind(), bad_encoding().kind());
-            assert_eq!(e.to_string(), "bad encoding");
-
-            assert_eq!(
-                serialized_length_from_bytes_trusted(&[
-                    0x8f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-                ])
+        // this is an invalid back-ref
+        // but it's not validated
+        assert_eq!(
+            serialized_length_from_bytes_trusted(&[0xff, 0x01, 0xff, 0xfe, 0x10, 0x80, 0x00])
                 .unwrap(),
-                16
-            );
-        }
+            6
+        );
 
-        #[test]
-        fn test_serialized_length_from_bytes() {
-            use std::io::ErrorKind;
-            assert_eq!(
-                serialized_length_from_bytes(&[0x7f, 0x00, 0x00, 0x00]).unwrap(),
-                1
-            );
-            assert_eq!(
-                serialized_length_from_bytes(&[0x80, 0x00, 0x00, 0x00]).unwrap(),
-                1
-            );
-            assert_eq!(
-                serialized_length_from_bytes(&[0xff, 0x00, 0x00, 0x00]).unwrap(),
-                3
-            );
-            assert_eq!(
-                serialized_length_from_bytes(&[0xff, 0x01, 0xff, 0x80, 0x80, 0x00]).unwrap(),
-                5
-            );
+        let e = serialized_length_from_bytes_trusted(&[0x8f, 0xff]).unwrap_err();
+        assert_eq!(e.kind(), bad_encoding().kind());
+        assert_eq!(e.to_string(), "bad encoding");
 
-            // this is an invalid back-ref
-            let e = serialized_length_from_bytes(&[0xff, 0x01, 0xff, 0xfe, 0x10, 0x80, 0x00])
-                .unwrap_err();
-            assert_eq!(e.kind(), ErrorKind::Other);
-            assert_eq!(e.to_string(), "path into atom");
+        let e = serialized_length_from_bytes_trusted(&[0b11001111, 0xff]).unwrap_err();
+        assert_eq!(e.kind(), bad_encoding().kind());
+        assert_eq!(e.to_string(), "bad encoding");
 
-            let e = serialized_length_from_bytes(&[0x8f, 0xff]).unwrap_err();
-            assert_eq!(e.kind(), bad_encoding().kind());
-            assert_eq!(e.to_string(), "bad encoding");
+        let e = serialized_length_from_bytes_trusted(&[0b11001111, 0xff, 0, 0]).unwrap_err();
+        assert_eq!(e.kind(), bad_encoding().kind());
+        assert_eq!(e.to_string(), "bad encoding");
 
-            let e = serialized_length_from_bytes(&[0b11001111, 0xff]).unwrap_err();
-            assert_eq!(e.kind(), bad_encoding().kind());
-            assert_eq!(e.to_string(), "bad encoding");
+        assert_eq!(
+            serialized_length_from_bytes_trusted(&[
+                0x8f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            ])
+            .unwrap(),
+            16
+        );
+    }
 
-            let e = serialized_length_from_bytes(&[0b11001111, 0xff, 0, 0]).unwrap_err();
-            assert_eq!(e.kind(), bad_encoding().kind());
-            assert_eq!(e.to_string(), "bad encoding");
+    #[test]
+    fn test_serialized_length_from_bytes() {
+        use std::io::ErrorKind;
+        assert_eq!(
+            serialized_length_from_bytes(&[0x7f, 0x00, 0x00, 0x00]).unwrap(),
+            1
+        );
+        assert_eq!(
+            serialized_length_from_bytes(&[0x80, 0x00, 0x00, 0x00]).unwrap(),
+            1
+        );
+        assert_eq!(
+            serialized_length_from_bytes(&[0xff, 0x00, 0x00, 0x00]).unwrap(),
+            3
+        );
+        assert_eq!(
+            serialized_length_from_bytes(&[0xff, 0x01, 0xff, 0x80, 0x80, 0x00]).unwrap(),
+            5
+        );
 
-            assert_eq!(
-                serialized_length_from_bytes(&[0x8f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-                    .unwrap(),
-                16
-            );
-        }
+        // this is an invalid back-ref
+        let e =
+            serialized_length_from_bytes(&[0xff, 0x01, 0xff, 0xfe, 0x10, 0x80, 0x00]).unwrap_err();
+        assert_eq!(e.kind(), ErrorKind::Other);
+        assert_eq!(e.to_string(), "path into atom");
 
-        #[rstest]
-        // ("foobar" "foobar")
-        #[case("ff86666f6f626172ff86666f6f62617280")]
-        // ("foobar" "foobar")
-        #[case("ff86666f6f626172fe01")]
-        // ((1 2 3 4) 1 2 3 4)
-        #[case("ffff01ff02ff03ff0480ff01ff02ff03ff0480")]
-        // ((1 2 3 4) 1 2 3 4)
-        #[case("ffff01ff02ff03ff0480fe02")]
-        // `(((((a_very_long_repeated_string . 1) .  (2 . 3)) . ((4 . 5) .  (6 . 7))) . (8 . 9)) 10 a_very_long_repeated_string)`
-        #[case(
-            "ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff04\
+        let e = serialized_length_from_bytes(&[0x8f, 0xff]).unwrap_err();
+        assert_eq!(e.kind(), bad_encoding().kind());
+        assert_eq!(e.to_string(), "bad encoding");
+
+        let e = serialized_length_from_bytes(&[0b11001111, 0xff]).unwrap_err();
+        assert_eq!(e.kind(), bad_encoding().kind());
+        assert_eq!(e.to_string(), "bad encoding");
+
+        let e = serialized_length_from_bytes(&[0b11001111, 0xff, 0, 0]).unwrap_err();
+        assert_eq!(e.kind(), bad_encoding().kind());
+        assert_eq!(e.to_string(), "bad encoding");
+
+        assert_eq!(
+            serialized_length_from_bytes(&[0x8f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+                .unwrap(),
+            16
+        );
+    }
+
+    #[rstest]
+    // ("foobar" "foobar")
+    #[case("ff86666f6f626172ff86666f6f62617280")]
+    // ("foobar" "foobar")
+    #[case("ff86666f6f626172fe01")]
+    // ((1 2 3 4) 1 2 3 4)
+    #[case("ffff01ff02ff03ff0480ff01ff02ff03ff0480")]
+    // ((1 2 3 4) 1 2 3 4)
+    #[case("ffff01ff02ff03ff0480fe02")]
+    // `(((((a_very_long_repeated_string . 1) .  (2 . 3)) . ((4 . 5) .  (6 . 7))) . (8 . 9)) 10 a_very_long_repeated_string)`
+    #[case(
+        "ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff04\
 05ff0607ff0809ff0aff9b615f766572795f6c6f6e675f72657065617465645f737472696e6780"
-        )]
-        #[case("ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff0405ff0607ff0809ff0afffe4180")]
-        #[case(
-            "ff01ffffffa022cf3c17be4e0e0e0b2e2a3f6dd1ee955528f737f0cb724247bc2e4a776cb989ff\
+    )]
+    #[case("ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff0405ff0607ff0809ff0afffe4180")]
+    #[case(
+        "ff01ffffffa022cf3c17be4e0e0e0b2e2a3f6dd1ee955528f737f0cb724247bc2e4a776cb989ff\
 ff02ffff01ff02ffff01ff02ffff03ffff18ff2fffff010180ffff01ff02ff36ffff04ff02ffff\
 04ff05ffff04ff17ffff04ffff02ff26ffff04ff02ffff04ff0bff80808080ffff04ff2fffff04\
 ff0bffff04ff5fff808080808080808080ffff01ff088080fe81ffffff04ffff01ffffffff4602\
@@ -520,16 +570,53 @@ eb09d18d83bd56482aee566820f5afdce595b3ed095eb36c5cef9301a5383a3b9a6c1a94a85e4f\
 982e1fa3af2c99087e5f6df8b887d30c109f71043671683a1ae985d7d874fbe07dfa6d88b70100\
 00001868747470733a2f2f6368696170702e68706f6f6c2e636f6d0000004080ffa0fc0b1e9409\
 ae5c3c40c50832a7aecc0b3ba4646568a00c01289c45e1f03b2b488080808080"
-        )]
-        fn serialized_length_with_backrefs(#[case] serialization_as_hex: &str) {
-            let buf = Vec::from_hex(serialization_as_hex).unwrap();
-            let len = serialized_length_from_bytes(&buf).expect("serialized_length_from_bytes");
+    )]
+    fn serialized_length_with_backrefs(#[case] serialization_as_hex: &str) {
+        let buf = Vec::from_hex(serialization_as_hex).unwrap();
+        let len = serialized_length_from_bytes(&buf).expect("serialized_length_from_bytes");
 
-            // make sure the serialization is valid
-            let mut allocator = Allocator::new();
-            assert!(node_from_bytes_backrefs(&mut allocator, &buf).is_ok());
+        // make sure the serialization is valid
+        let mut allocator = Allocator::new();
+        assert!(node_from_bytes_backrefs(&mut allocator, &buf).is_ok());
 
-            assert_eq!(len, buf.len() as u64);
-        }
+        assert_eq!(len, buf.len() as u64);
+    }
+
+    #[rstest]
+    #[case("c000")]
+    #[case("c03f")]
+    #[case("e00000")]
+    #[case("e01fff")]
+    #[case("f0000000")]
+    #[case("f00fffff")]
+    #[case("f800000000")]
+    #[case("f807ffffff")]
+    #[case("fc0000000000")]
+    #[case("fc03ffffffff")]
+    #[case("c000")]
+    #[case("c03f")]
+    #[case("e00000")]
+    #[case("e01fff")]
+    #[case("f0000000")]
+    #[case("f00fffff")]
+    #[case("f800000000")]
+    #[case("f807ffffff")]
+    #[case("fc0000000000")]
+    #[case("fc03ffffffff")]
+    #[case("ff808080")]
+    fn test_clvm_not_canonical(#[case] input: &str) {
+        assert!(!is_canonical_serialization(
+            &hex::decode(input).expect("invalid hex in test case")
+        ));
+    }
+
+    #[rstest]
+    #[case("c040", 66)]
+    #[case("e02000", 8195)]
+    #[case("f0100000", 1048580)]
+    fn test_clvm_canonical(#[case] input: &str, #[case] size: usize) {
+        let mut input = hex::decode(input).expect("invalid hex in test case");
+        input.resize(size, 0);
+        assert!(is_canonical_serialization(input.as_slice()));
     }
 }
