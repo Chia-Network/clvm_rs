@@ -106,8 +106,9 @@ pub struct Checkpoint {
     u8s: usize,
     pairs: usize,
     atoms: usize,
-    small_atoms: usize,
+    ghost_atoms: usize,
     ghost_pairs: usize,
+    ghost_heap: usize,
 }
 
 pub enum NodeVisitor<'a> {
@@ -175,13 +176,13 @@ pub struct Allocator {
     // the atom_vec may not grow past this
     heap_limit: usize,
 
-    // the number of small atoms we've allocated. We keep track of these to ensure the limit on the
-    // number of atoms is identical to what it was before the small-atom optimization
-    small_atoms: usize,
-
-    // this tracks the pairs that are being skipped from optimisations
-    // we track this to simulate a compatible maximum with older versions
-    num_ghost_pairs: usize,
+    // the ghost counters are pretend atoms/pairs, that were optimized out. We
+    // still account for them to not affect the limits of atoms and pairs. Those
+    // limits must stay the same for consensus purpose.
+    // For example, a "small atom", which is allocated in-place in the NodePtr.
+    ghost_atoms: usize,
+    ghost_pairs: usize,
+    ghost_heap: usize,
 }
 
 impl Default for Allocator {
@@ -248,8 +249,9 @@ impl Allocator {
             heap_limit: heap_limit - 1,
             // initialize this to 2 to behave as if we had allocated atoms for
             // nil() and one(), like we used to
-            small_atoms: 2,
-            num_ghost_pairs: 0,
+            ghost_atoms: 2,
+            ghost_pairs: 0,
+            ghost_heap: 0,
         };
         r.u8_vec.reserve(1024 * 1024);
         r.atom_vec.reserve(256);
@@ -265,8 +267,9 @@ impl Allocator {
             u8s: self.u8_vec.len(),
             pairs: self.pair_vec.len(),
             atoms: self.atom_vec.len(),
-            small_atoms: self.small_atoms,
-            ghost_pairs: self.num_ghost_pairs,
+            ghost_atoms: self.ghost_atoms,
+            ghost_pairs: self.ghost_pairs,
+            ghost_heap: self.ghost_heap,
         }
     }
 
@@ -281,19 +284,20 @@ impl Allocator {
         self.u8_vec.truncate(cp.u8s);
         self.pair_vec.truncate(cp.pairs);
         self.atom_vec.truncate(cp.atoms);
-        self.small_atoms = cp.small_atoms;
-        self.num_ghost_pairs = cp.ghost_pairs;
+        self.ghost_atoms = cp.ghost_atoms;
+        self.ghost_pairs = cp.ghost_pairs;
+        self.ghost_heap = cp.ghost_heap;
     }
 
     pub fn new_atom(&mut self, v: &[u8]) -> Result<NodePtr, EvalErr> {
         let start = self.u8_vec.len() as u32;
-        if (self.heap_limit - start as usize) < v.len() {
+        if (self.heap_limit - start as usize - self.ghost_heap) < v.len() {
             return err(self.nil(), "out of memory");
         }
         let idx = self.atom_vec.len();
         self.check_atom_limit()?;
         if let Some(ret) = fits_in_small_atom(v) {
-            self.small_atoms += 1;
+            self.ghost_atoms += 1;
             Ok(NodePtr::new(ObjectType::SmallAtom, ret as usize))
         } else {
             self.u8_vec.extend_from_slice(v);
@@ -306,7 +310,7 @@ impl Allocator {
     pub fn new_small_number(&mut self, v: u32) -> Result<NodePtr, EvalErr> {
         debug_assert!(v <= NODE_PTR_IDX_MASK);
         self.check_atom_limit()?;
-        self.small_atoms += 1;
+        self.ghost_atoms += 1;
         Ok(NodePtr::new(ObjectType::SmallAtom, v as usize))
     }
 
@@ -340,7 +344,7 @@ impl Allocator {
 
     pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr> {
         let idx = self.pair_vec.len();
-        if idx >= MAX_NUM_PAIRS - self.num_ghost_pairs {
+        if idx >= MAX_NUM_PAIRS - self.ghost_pairs {
             return err(self.nil(), "too many pairs");
         }
         self.pair_vec.push(IntPair { first, rest });
@@ -351,18 +355,18 @@ impl Allocator {
     // in the deserialize_br code
     // we must maintain parity with the old deserialize_br code so need to track the skipped pairs
     pub fn add_ghost_pair(&mut self, amount: usize) -> Result<(), EvalErr> {
-        if MAX_NUM_PAIRS - self.num_ghost_pairs - self.pair_vec.len() < amount {
+        if MAX_NUM_PAIRS - self.ghost_pairs - self.pair_vec.len() < amount {
             return err(self.nil(), "too many pairs");
         }
-        self.num_ghost_pairs += amount;
+        self.ghost_pairs += amount;
         Ok(())
     }
 
     // this code is used when we actually create the pairs that were previously skipped ghost pairs
     pub fn remove_ghost_pair(&mut self, amount: usize) -> Result<(), EvalErr> {
         // currently let this panic with overflow if we go below 0 to debug if/where it happens
-        debug_assert!(self.num_ghost_pairs >= amount);
-        self.num_ghost_pairs -= amount;
+        debug_assert!(self.ghost_pairs >= amount);
+        self.ghost_pairs -= amount;
         Ok(())
     }
 
@@ -403,7 +407,7 @@ impl Allocator {
                 let buf = &buf[4 - len as usize..];
                 let substr = &buf[start as usize..end as usize];
                 if let Some(new_val) = fits_in_small_atom(substr) {
-                    self.small_atoms += 1;
+                    self.ghost_atoms += 1;
                     Ok(NodePtr::new(ObjectType::SmallAtom, new_val as usize))
                 } else {
                     let start = self.u8_vec.len();
@@ -423,11 +427,34 @@ impl Allocator {
     pub fn new_concat(&mut self, new_size: usize, nodes: &[NodePtr]) -> Result<NodePtr, EvalErr> {
         self.check_atom_limit()?;
         let start = self.u8_vec.len();
-        if self.heap_limit - start < new_size {
+        if self.heap_limit - start - self.ghost_heap < new_size {
             return err(self.nil(), "out of memory");
         }
-        // TODO: maybe it would make sense to have a special case where
-        // nodes.len() == 1. We can just return the same node
+
+        if nodes.is_empty() {
+            if 0 != new_size {
+                return err(
+                    self.nil(),
+                    "(internal error) concat passed invalid new_size",
+                );
+            }
+            // pretend that we created a new atom and allocated new_size bytes on the heap
+            self.ghost_atoms += 1;
+            return Ok(NodePtr::NIL);
+        }
+
+        if nodes.len() == 1 {
+            if self.atom_len(nodes[0]) != new_size {
+                return err(
+                    self.nil(),
+                    "(internal error) concat passed invalid new_size",
+                );
+            }
+            // pretend that we created a new atom and allocated new_size bytes on the heap
+            self.ghost_heap += new_size;
+            self.ghost_atoms += 1;
+            return Ok(nodes[0]);
+        }
 
         self.u8_vec.reserve(new_size);
 
@@ -677,7 +704,7 @@ impl Allocator {
 
     #[inline]
     fn check_atom_limit(&self) -> Result<(), EvalErr> {
-        if self.atom_vec.len() + self.small_atoms == MAX_NUM_ATOMS {
+        if self.atom_vec.len() + self.ghost_atoms == MAX_NUM_ATOMS {
             err(self.nil(), "too many atoms")
         } else {
             Ok(())
@@ -691,12 +718,12 @@ impl Allocator {
 
     #[cfg(feature = "counters")]
     pub fn small_atom_count(&self) -> usize {
-        self.small_atoms
+        self.ghost_atoms
     }
 
     #[cfg(feature = "counters")]
     pub fn pair_count(&self) -> usize {
-        self.pair_vec.len() + self.num_ghost_pairs
+        self.pair_vec.len() + self.ghost_pairs
     }
 
     #[cfg(feature = "counters")]
@@ -984,7 +1011,7 @@ mod tests {
         }
         assert_eq!(a.new_atom(b"foobar").unwrap_err().1, "too many atoms");
         assert_eq!(a.u8_vec.len(), 0);
-        assert_eq!(a.small_atoms, MAX_NUM_ATOMS);
+        assert_eq!(a.ghost_atoms, MAX_NUM_ATOMS);
     }
 
     #[test]
@@ -997,7 +1024,7 @@ mod tests {
         }
         assert_eq!(a.new_small_number(3).unwrap_err().1, "too many atoms");
         assert_eq!(a.u8_vec.len(), 0);
-        assert_eq!(a.small_atoms, MAX_NUM_ATOMS);
+        assert_eq!(a.ghost_atoms, MAX_NUM_ATOMS);
     }
 
     #[test]
@@ -1011,7 +1038,7 @@ mod tests {
         let atom = a.new_atom(b"foo").unwrap();
         assert_eq!(a.new_substr(atom, 1, 2).unwrap_err().1, "too many atoms");
         assert_eq!(a.u8_vec.len(), 0);
-        assert_eq!(a.small_atoms, MAX_NUM_ATOMS);
+        assert_eq!(a.ghost_atoms, MAX_NUM_ATOMS);
     }
 
     #[test]
@@ -1025,7 +1052,7 @@ mod tests {
         let atom = a.new_atom(b"foo").unwrap();
         assert_eq!(a.new_concat(3, &[atom]).unwrap_err().1, "too many atoms");
         assert_eq!(a.u8_vec.len(), 0);
-        assert_eq!(a.small_atoms, MAX_NUM_ATOMS);
+        assert_eq!(a.ghost_atoms, MAX_NUM_ATOMS);
     }
 
     #[test]
@@ -1188,6 +1215,18 @@ mod tests {
             a.new_concat(2, &[atom1, atom2, atom3]).unwrap_err().1,
             "(internal error) concat passed invalid new_size"
         );
+
+        assert_eq!(
+            a.new_concat(2, &[atom3]).unwrap_err().1,
+            "(internal error) concat passed invalid new_size"
+        );
+        assert_eq!(
+            a.new_concat(1, &[]).unwrap_err().1,
+            "(internal error) concat passed invalid new_size"
+        );
+
+        assert_eq!(a.new_concat(0, &[]).unwrap(), NodePtr::NIL);
+        assert_eq!(a.new_concat(1, &[atom1]).unwrap(), atom1);
     }
 
     #[test]

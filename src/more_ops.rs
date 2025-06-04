@@ -638,11 +638,15 @@ pub fn op_concat(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
             cost + total_size as Cost * CONCAT_COST_PER_BYTE,
             max_cost,
         )?;
-        match a.sexp(arg) {
+        let len = match a.sexp(arg) {
             SExp::Pair(_, _) => return err(arg, "concat on list"),
-            SExp::Atom => total_size += a.atom_len(arg),
+            SExp::Atom => a.atom_len(arg),
         };
-        terms.push(arg);
+        if len > 0 {
+            // skip NIL arguments, as an optimization
+            total_size += len;
+            terms.push(arg);
+        }
     }
 
     cost += total_size as Cost * CONCAT_COST_PER_BYTE;
