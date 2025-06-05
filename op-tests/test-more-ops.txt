@@ -620,7 +620,10 @@ strlen "the quick brown fox jumps over the lazy dogs" => 44 | 227
 
 concat ( "ab" ) => FAIL
 concat ( "ab" ) "1" => FAIL
+concat => "" | 142
 concat "" => "" | 277
+concat "" "" => "" | 412
+concat "" "" "" => "" | 547
 concat "abc" => "abc" | 316
 concat "a" => "a" | 290
 concat "a" "b" => "ab" | 438
@@ -632,6 +635,7 @@ concat 0x00 0x00 => 0x0000 | 438
 concat 0x00 0xff => 0x00ff | 438
 concat 0xbaad 0xf00d => 0xbaadf00d | 464
 concat "foo" "bar" => "foobar" | 490
+concat "" "a" "" => "a" | 560
 
 substr => FAIL
 substr "abc" => FAIL
