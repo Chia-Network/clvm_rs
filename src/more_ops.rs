@@ -429,7 +429,7 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
         )?;
 
         match a.node(arg) {
-            NodeVisitor::Buffer(buf) => {
+            NodeVisitor::Buffer(buf, _) => {
                 use crate::number::number_from_u8;
                 total += number_from_u8(buf);
                 byte_count += buf.len();
@@ -438,7 +438,7 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
                 total += val;
                 byte_count += len_for_value(val);
             }
-            NodeVisitor::Pair(_, _) => {
+            NodeVisitor::Pair(..) => {
                 return err(arg, "+ requires int args");
             }
         }
@@ -463,7 +463,7 @@ pub fn op_subtract(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
             total = v;
         } else {
             match a.node(arg) {
-                NodeVisitor::Buffer(buf) => {
+                NodeVisitor::Buffer(buf, _) => {
                     use crate::number::number_from_u8;
                     total -= number_from_u8(buf);
                     byte_count += buf.len();
@@ -472,7 +472,7 @@ pub fn op_subtract(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
                     total -= val;
                     byte_count += len_for_value(val);
                 }
-                NodeVisitor::Pair(_, _) => {
+                NodeVisitor::Pair(..) => {
                     return err(arg, "- requires int args");
                 }
             }
@@ -499,7 +499,7 @@ pub fn op_multiply(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
         }
 
         let l1 = match a.node(arg) {
-            NodeVisitor::Buffer(buf) => {
+            NodeVisitor::Buffer(buf, _) => {
                 use crate::number::number_from_u8;
                 total *= number_from_u8(buf);
                 buf.len()
@@ -508,7 +508,7 @@ pub fn op_multiply(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
                 total *= val;
                 len_for_value(val)
             }
-            NodeVisitor::Pair(_, _) => {
+            NodeVisitor::Pair(..) => {
                 return err(arg, "* requires int args");
             }
         };
