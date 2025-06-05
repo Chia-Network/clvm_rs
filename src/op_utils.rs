@@ -61,7 +61,7 @@ pub fn uint_atom<const SIZE: usize>(
     op_name: &str,
 ) -> Result<u64, EvalErr> {
     match a.node(args) {
-        NodeVisitor::Buffer(bytes) => {
+        NodeVisitor::Buffer(bytes, _) => {
             if bytes.is_empty() {
                 return Ok(0);
             }
@@ -88,7 +88,7 @@ pub fn uint_atom<const SIZE: usize>(
             Ok(ret)
         }
         NodeVisitor::U32(val) => Ok(val as u64),
-        NodeVisitor::Pair(_, _) => err(args, &format!("{op_name} requires int arg")),
+        NodeVisitor::Pair(..) => err(args, &format!("{op_name} requires int arg")),
     }
 }
 
@@ -101,7 +101,7 @@ pub fn atom<'a>(a: &'a Allocator, n: NodePtr, op_name: &str) -> Result<Atom<'a>,
 
 pub fn i32_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<i32, EvalErr> {
     match a.node(args) {
-        NodeVisitor::Buffer(buf) => match i32_from_u8(buf) {
+        NodeVisitor::Buffer(buf, _) => match i32_from_u8(buf) {
             Some(v) => Ok(v),
             _ => err(
                 args,
@@ -109,7 +109,7 @@ pub fn i32_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<i32, Eval
             ),
         },
         NodeVisitor::U32(val) => Ok(val as i32),
-        NodeVisitor::Pair(_, _) => err(args, &format!("{op_name} requires int32 args")),
+        NodeVisitor::Pair(..) => err(args, &format!("{op_name} requires int32 args")),
     }
 }
 

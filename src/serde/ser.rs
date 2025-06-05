@@ -42,13 +42,13 @@ pub fn node_to_stream<W: io::Write>(a: &Allocator, node: NodePtr, f: &mut W) -> 
     let mut values: Vec<NodePtr> = vec![node];
     while let Some(v) = values.pop() {
         match a.node(v) {
-            NodeVisitor::Buffer(buf) => write_atom(f, buf)?,
+            NodeVisitor::Buffer(buf, _) => write_atom(f, buf)?,
             NodeVisitor::U32(val) => {
                 let buf = val.to_be_bytes();
                 let len = len_for_value(val);
                 write_atom(f, &buf[4 - len..])?
             }
-            NodeVisitor::Pair(left, right) => {
+            NodeVisitor::Pair(left, right, _) => {
                 f.write_all(&[CONS_BOX_MARKER])?;
                 values.push(right);
                 values.push(left);
