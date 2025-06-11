@@ -219,7 +219,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         /* Join the top two operands. */
         let v1 = self.pop()?;
         let v2 = self.pop()?;
-        let p = self.allocator.new_pair(v1, v2)?;
+        let p = self.allocator.new_weak_pair(v1, v2)?;
         self.push(p)?;
         Ok(0)
     }
@@ -280,9 +280,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let SExp::Pair(op_node, op_list) = self.allocator.sexp(program) else {
             // the program is just a bitfield path through the env tree
             let r = match self.allocator.node(program) {
-                NodeVisitor::Buffer(buf) => traverse_path(self.allocator, buf, env)?,
+                NodeVisitor::Buffer(buf, _) => traverse_path(self.allocator, buf, env)?,
                 NodeVisitor::U32(val) => traverse_path_fast(self.allocator, val, env)?,
-                NodeVisitor::Pair(_, _) => {
+                NodeVisitor::Pair(_, _, _) => {
                     panic!("expected atom, got pair");
                 }
             };

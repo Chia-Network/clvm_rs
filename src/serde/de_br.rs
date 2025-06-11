@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::io;
 use std::io::{Cursor, Read};
 
@@ -20,7 +19,6 @@ enum ParseOp {
 pub fn node_from_stream_backrefs(
     allocator: &mut Allocator,
     f: &mut Cursor<&[u8]>,
-    mut backref_callback: impl FnMut(NodePtr),
 ) -> io::Result<NodePtr> {
     // this contains the actual value and then an optional cached list which represents value stack as a chialisp list
     // we only build this list when we need it - i.e we have a backreference that points at the stack itself rather than a value
@@ -40,7 +38,6 @@ pub fn node_from_stream_backrefs(
                 } else if b[0] == BACK_REFERENCE {
                     let path = parse_path(f)?;
                     let back_reference = traverse_path_with_vec(allocator, path, &mut values)?;
-                    backref_callback(back_reference);
                     allocator.add_ghost_pair(1)?;
                     values.push((back_reference, None));
                 } else {
@@ -67,7 +64,6 @@ pub fn node_from_stream_backrefs(
 fn node_from_stream_backrefs_old(
     allocator: &mut Allocator,
     f: &mut Cursor<&[u8]>,
-    mut backref_callback: impl FnMut(NodePtr),
 ) -> io::Result<NodePtr> {
     let mut values = allocator.nil();
     let mut ops = vec![ParseOp::SExp];
@@ -85,7 +81,6 @@ fn node_from_stream_backrefs_old(
                     let path = parse_path(f)?;
                     let reduction = traverse_path(allocator, path, values)?;
                     let back_reference = reduction.1;
-                    backref_callback(back_reference);
                     values = allocator.new_pair(back_reference, values)?;
                 } else {
                     let new_atom = parse_atom(allocator, b[0], f)?;
@@ -115,24 +110,12 @@ fn node_from_stream_backrefs_old(
 
 pub fn node_from_bytes_backrefs(allocator: &mut Allocator, b: &[u8]) -> io::Result<NodePtr> {
     let mut buffer = Cursor::new(b);
-    node_from_stream_backrefs(allocator, &mut buffer, |_node| {})
+    node_from_stream_backrefs(allocator, &mut buffer)
 }
 
 pub fn node_from_bytes_backrefs_old(allocator: &mut Allocator, b: &[u8]) -> io::Result<NodePtr> {
     let mut buffer = Cursor::new(b);
-    node_from_stream_backrefs_old(allocator, &mut buffer, |_node| {})
-}
-
-pub fn node_from_bytes_backrefs_record(
-    allocator: &mut Allocator,
-    b: &[u8],
-) -> io::Result<(NodePtr, HashSet<NodePtr>)> {
-    let mut buffer = Cursor::new(b);
-    let mut backrefs = HashSet::<NodePtr>::new();
-    let ret = node_from_stream_backrefs(allocator, &mut buffer, |node| {
-        backrefs.insert(node);
-    })?;
-    Ok((ret, backrefs))
+    node_from_stream_backrefs_old(allocator, &mut buffer)
 }
 
 pub fn traverse_path_with_vec(
@@ -401,48 +384,5 @@ mod tests {
         assert!(traverse_path_with_vec(&mut a, &[0b1001], &mut list).is_err());
         assert!(traverse_path_with_vec(&mut a, &[0b1010], &mut list).is_err());
         assert!(traverse_path_with_vec(&mut a, &[0b1110], &mut list).is_err());
-    }
-
-    #[rstest]
-    // ("foobar" "foobar")
-    // no-backrefs
-    #[case("ff86666f6f626172ff86666f6f62617280", &[])]
-    // ("foobar" "foobar")
-    // with back-refs
-    #[case("ff86666f6f626172fe01", &["ff86666f6f62617280"])]
-    // ((1 2 3 4) 1 2 3 4)
-    // no-backrefs
-    #[case("ffff01ff02ff03ff0480ff01ff02ff03ff0480", &[])]
-    // ((1 2 3 4) 1 2 3 4)
-    // with back-refs
-    #[case("ffff01ff02ff03ff0480fe02", &["ff01ff02ff03ff0480"])]
-    // `(((((a_very_long_repeated_string . 1) .  (2 . 3)) . ((4 . 5) .  (6 . 7))) . (8 . 9)) 10 a_very_long_repeated_string)`
-    // no-backrefs
-    #[case("ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff04\
-         05ff0607ff0809ff0aff9b615f766572795f6c6f6e675f72657065617465645f737472696e6780", &[])]
-    // with back-refs
-    #[case("ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff0405ff0607ff0809ff0afffe4180",
-        &["9b615f766572795f6c6f6e675f72657065617465645f737472696e67"])]
-    fn test_deserialize_with_backrefs_record(
-        #[case] serialization_as_hex: &str,
-        #[case] expected_backrefs: &[&'static str],
-    ) {
-        use crate::serde::node_to_bytes;
-        let buf = Vec::from_hex(serialization_as_hex).unwrap();
-        let mut allocator = Allocator::new();
-        let (_node, backrefs) = node_from_bytes_backrefs_record(&mut allocator, &buf)
-            .expect("node_from_bytes_backrefs_records");
-        println!("backrefs: {:?}", backrefs);
-        assert_eq!(backrefs.len(), expected_backrefs.len());
-
-        let expected_backrefs =
-            HashSet::<String>::from_iter(expected_backrefs.iter().map(|s| s.to_string()));
-        let backrefs = HashSet::from_iter(
-            backrefs
-                .iter()
-                .map(|br| hex::encode(node_to_bytes(&allocator, *br).expect("node_to_bytes"))),
-        );
-
-        assert_eq!(backrefs, expected_backrefs);
     }
 }
