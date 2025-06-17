@@ -61,7 +61,7 @@ pub fn uint_atom<const SIZE: usize>(
     op_name: &str,
 ) -> Result<u64, EvalErr> {
     match a.node(args) {
-        NodeVisitor::Buffer(bytes, _) => {
+        NodeVisitor::Buffer(bytes) => {
             if bytes.is_empty() {
                 return Ok(0);
             }
@@ -101,7 +101,7 @@ pub fn atom<'a>(a: &'a Allocator, n: NodePtr, op_name: &str) -> Result<Atom<'a>,
 
 pub fn i32_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<i32, EvalErr> {
     match a.node(args) {
-        NodeVisitor::Buffer(buf, _) => match i32_from_u8(buf) {
+        NodeVisitor::Buffer(buf) => match i32_from_u8(buf) {
             Some(v) => Ok(v),
             _ => err(
                 args,

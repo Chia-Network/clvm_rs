@@ -429,7 +429,7 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
         )?;
 
         match a.node(arg) {
-            NodeVisitor::Buffer(buf, _) => {
+            NodeVisitor::Buffer(buf) => {
                 use crate::number::number_from_u8;
                 total += number_from_u8(buf);
                 byte_count += buf.len();
@@ -463,7 +463,7 @@ pub fn op_subtract(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
             total = v;
         } else {
             match a.node(arg) {
-                NodeVisitor::Buffer(buf, _) => {
+                NodeVisitor::Buffer(buf) => {
                     use crate::number::number_from_u8;
                     total -= number_from_u8(buf);
                     byte_count += buf.len();
@@ -499,7 +499,7 @@ pub fn op_multiply(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
         }
 
         let l1 = match a.node(arg) {
-            NodeVisitor::Buffer(buf, _) => {
+            NodeVisitor::Buffer(buf) => {
                 use crate::number::number_from_u8;
                 total *= number_from_u8(buf);
                 buf.len()

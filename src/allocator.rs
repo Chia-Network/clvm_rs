@@ -82,6 +82,7 @@ impl NodePtr {
 
     #[cfg(feature = "allocator-debug")]
     const fn new(object_type: ObjectType, index: usize) -> Self {
+        assert!(matches!(object_type, ObjectType::SmallAtom));
         debug_assert!(index <= NODE_PTR_IDX_MASK as usize);
         NodePtr(
             ((object_type as u32) << NODE_PTR_IDX_BITS) | (index as u32),
@@ -142,7 +143,6 @@ pub enum SExp {
 struct AtomBuf {
     start: u32,
     end: u32,
-    refcount: u8,
 }
 
 impl AtomBuf {
@@ -171,7 +171,7 @@ pub struct Checkpoint {
 }
 
 pub enum NodeVisitor<'a> {
-    Buffer(&'a [u8], u8),
+    Buffer(&'a [u8]),
     U32(u32),
     Pair(NodePtr, NodePtr, u8),
 }
@@ -432,11 +432,7 @@ impl Allocator {
         } else {
             self.u8_vec.extend_from_slice(v);
             let end = self.u8_vec.len() as u32;
-            self.atom_vec.push(AtomBuf {
-                start,
-                end,
-                refcount: 0,
-            });
+            self.atom_vec.push(AtomBuf { start, end });
             Ok(self.mk_node(ObjectType::Bytes, idx))
         }
     }
@@ -479,10 +475,7 @@ impl Allocator {
     fn inc_refcount(&mut self, node: NodePtr) {
         let index = node.index() as usize;
         match node.object_type() {
-            ObjectType::Bytes => {
-                let atom = &mut self.atom_vec[index];
-                atom.refcount = atom.refcount.saturating_add(1);
-            }
+            ObjectType::Bytes => {}
             ObjectType::SmallAtom => {}
             ObjectType::Pair => {
                 let pair = &mut self.pair_vec[index];
@@ -501,7 +494,7 @@ impl Allocator {
             rest,
             refcount: 0,
         });
-        Ok(NodePtr::new(ObjectType::Pair, idx))
+        Ok(self.mk_node(ObjectType::Pair, idx))
     }
 
     pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr> {
@@ -572,7 +565,6 @@ impl Allocator {
                 self.atom_vec.push(AtomBuf {
                     start: atom.start + start,
                     end: atom.start + end,
-                    refcount: 0,
                 });
                 Ok(self.mk_node(ObjectType::Bytes, idx))
             }
@@ -594,7 +586,6 @@ impl Allocator {
                     self.atom_vec.push(AtomBuf {
                         start: start as u32,
                         end: end as u32,
-                        refcount: 0,
                     });
                     Ok(self.mk_node(ObjectType::Bytes, idx))
                 }
@@ -682,7 +673,6 @@ impl Allocator {
         self.atom_vec.push(AtomBuf {
             start: (start as u32),
             end,
-            refcount: 0,
         });
         Ok(self.mk_node(ObjectType::Bytes, idx))
     }
@@ -874,7 +864,7 @@ impl Allocator {
             ObjectType::Bytes => {
                 let atom = self.atom_vec[index as usize];
                 let buf = &self.u8_vec[atom.start as usize..atom.end as usize];
-                NodeVisitor::Buffer(buf, atom.refcount)
+                NodeVisitor::Buffer(buf)
             }
             ObjectType::SmallAtom => NodeVisitor::U32(index),
             ObjectType::Pair => {
@@ -2159,38 +2149,12 @@ c6c886f6b57ec72a6178288c47c33577\
     fn test_refcount_initial() {
         let mut a = Allocator::new();
 
-        // atoms are created with 0 references
         let atom1 = a.new_atom(b"foobar").unwrap();
-        assert!(matches!(a.node(atom1), NodeVisitor::Buffer(b"foobar", 0)));
-
         let atom2 = a.new_atom(b"barfoo").unwrap();
-        assert!(matches!(a.node(atom2), NodeVisitor::Buffer(b"barfoo", 0)));
 
         // pairs are created with 0 references
         let pair1 = a.new_pair(atom1, atom2).unwrap();
         assert!(matches!(a.node(pair1), NodeVisitor::Pair(_, _, 0)));
-    }
-
-    #[test]
-    fn test_refcount_atom_increment() {
-        let mut a = Allocator::new();
-
-        let atom1 = a.new_atom(b"foobar").unwrap();
-        let atom2 = a.new_atom(b"barfoo").unwrap();
-
-        // putting atoms in a pair increments the refcount
-        let _pair1 = a.new_pair(atom1, atom2).unwrap();
-        assert!(matches!(a.node(atom1), NodeVisitor::Buffer(b"foobar", 1)));
-        assert!(matches!(a.node(atom2), NodeVisitor::Buffer(b"barfoo", 1)));
-
-        // putting them in a weak pair does not increment the refcount
-        let _weak_pair1 = a.new_weak_pair(atom1, atom2).unwrap();
-        assert!(matches!(a.node(atom1), NodeVisitor::Buffer(b"foobar", 1)));
-        assert!(matches!(a.node(atom2), NodeVisitor::Buffer(b"barfoo", 1)));
-
-        // putting an atom twice in a pair increments the refcount by 2
-        let _pair2 = a.new_pair(atom2, atom2).unwrap();
-        assert!(matches!(a.node(atom2), NodeVisitor::Buffer(b"barfoo", 3)));
     }
 
     #[test]
@@ -2235,28 +2199,6 @@ c6c886f6b57ec72a6178288c47c33577\
         // when creating the 256th reference, the refcount stays at 255
         let _ = a.new_pair(pair1, NodePtr::NIL).unwrap();
         assert!(matches!(a.node(pair1), NodeVisitor::Pair(_, _, 255)));
-    }
-
-    #[test]
-    fn test_refcount_atom_max() {
-        let mut a = Allocator::new();
-
-        // the reference counters are 8-bit with saturating add. So they should
-        // max out at 255
-
-        let atom1 = a.new_atom(b"foobar").unwrap();
-        for i in 1..=255 {
-            let _ = a.new_pair(atom1, NodePtr::NIL).unwrap();
-            if let NodeVisitor::Buffer(_, refcount) = a.node(atom1) {
-                assert_eq!(refcount, i);
-            } else {
-                panic!("unexpected node");
-            }
-        }
-
-        // when creating the 256th reference, the refcount stays at 255
-        let _ = a.new_pair(atom1, NodePtr::NIL).unwrap();
-        assert!(matches!(a.node(atom1), NodeVisitor::Buffer(_, 255)));
     }
 }
 
