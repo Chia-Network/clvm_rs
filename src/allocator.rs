@@ -8,11 +8,46 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::ops::Deref;
 
+#[cfg(feature = "allocator-debug")]
+use rand::RngCore;
+
+#[cfg(feature = "allocator-debug")]
+use rand;
+
 const MAX_NUM_ATOMS: usize = 62500000;
 const MAX_NUM_PAIRS: usize = 62500000;
 const NODE_PTR_IDX_BITS: u32 = 26;
 const NODE_PTR_IDX_MASK: u32 = (1 << NODE_PTR_IDX_BITS) - 1;
 
+#[cfg(feature = "allocator-debug")]
+#[derive(Clone, Copy)]
+struct AllocatorReference {
+    fingerprint: u64,
+    version: usize,
+}
+
+#[cfg(feature = "allocator-debug")]
+#[derive(Clone, Copy)]
+pub struct NodePtr(u32, AllocatorReference);
+
+#[cfg(feature = "allocator-debug")]
+impl Hash for NodePtr {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+#[cfg(feature = "allocator-debug")]
+impl PartialEq for NodePtr {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&other.0)
+    }
+}
+
+#[cfg(feature = "allocator-debug")]
+impl Eq for NodePtr {}
+
+#[cfg(not(feature = "allocator-debug"))]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NodePtr(u32);
 
@@ -39,9 +74,31 @@ enum ObjectType {
 impl NodePtr {
     pub const NIL: Self = Self::new(ObjectType::SmallAtom, 0);
 
+    #[cfg(not(feature = "allocator-debug"))]
     const fn new(object_type: ObjectType, index: usize) -> Self {
         debug_assert!(index <= NODE_PTR_IDX_MASK as usize);
         NodePtr(((object_type as u32) << NODE_PTR_IDX_BITS) | (index as u32))
+    }
+
+    #[cfg(feature = "allocator-debug")]
+    const fn new(object_type: ObjectType, index: usize) -> Self {
+        debug_assert!(index <= NODE_PTR_IDX_MASK as usize);
+        NodePtr(
+            ((object_type as u32) << NODE_PTR_IDX_BITS) | (index as u32),
+            AllocatorReference {
+                fingerprint: u64::MAX,
+                version: usize::MAX,
+            },
+        )
+    }
+
+    #[cfg(feature = "allocator-debug")]
+    const fn new_debug(object_type: ObjectType, index: usize, ar: AllocatorReference) -> Self {
+        debug_assert!(index <= NODE_PTR_IDX_MASK as usize);
+        NodePtr(
+            ((object_type as u32) << NODE_PTR_IDX_BITS) | (index as u32),
+            ar,
+        )
     }
 
     pub fn is_atom(self) -> bool {
@@ -183,6 +240,13 @@ pub struct Allocator {
     ghost_atoms: usize,
     ghost_pairs: usize,
     ghost_heap: usize,
+
+    #[cfg(feature = "allocator-debug")]
+    fingerprint: u64,
+
+    // the number of atoms and pairs at different versions
+    #[cfg(feature = "allocator-debug")]
+    versions: Vec<(usize, usize)>,
 }
 
 impl Default for Allocator {
@@ -252,11 +316,70 @@ impl Allocator {
             ghost_atoms: 2,
             ghost_pairs: 0,
             ghost_heap: 0,
+
+            #[cfg(feature = "allocator-debug")]
+            fingerprint: rand::thread_rng().next_u64(),
+
+            #[cfg(feature = "allocator-debug")]
+            versions: Vec::new(),
         };
         r.u8_vec.reserve(1024 * 1024);
         r.atom_vec.reserve(256);
         r.pair_vec.reserve(256);
         r
+    }
+
+    #[cfg(feature = "allocator-debug")]
+    fn validate_node(&self, n: NodePtr) {
+        if n.1.fingerprint == u64::MAX && n.1.version == usize::MAX {
+            assert!(matches!(n.object_type(), ObjectType::SmallAtom));
+            return;
+        }
+
+        assert_eq!(
+            n.1.fingerprint, self.fingerprint,
+            "using a NodePtr on the wrong Allocator"
+        );
+        // if n.1.version is equal to self.versions.len() it means no
+        // restore_checkpoint() has been called since this NodePtr was created
+        if n.1.version < self.versions.len() {
+            // self.versions contains the number of atoms (.0) and pairs (.1) at
+            // the specific version
+            match n.object_type() {
+                ObjectType::Bytes => {
+                    assert!(
+                        (n.index() as usize) < self.versions[n.1.version].0,
+                        "NodePtr (atom) was invalidated by restore_checkpoint()"
+                    );
+                }
+                ObjectType::Pair => {
+                    assert!(
+                        (n.index() as usize) < self.versions[n.1.version].1,
+                        "NodePtr (pair) was invalidated by restore_checkpoint()"
+                    );
+                }
+                ObjectType::SmallAtom => {}
+            }
+        }
+    }
+
+    #[inline(always)]
+    #[cfg(not(feature = "allocator-debug"))]
+    fn mk_node(&self, t: ObjectType, idx: usize) -> NodePtr {
+        NodePtr::new(t, idx)
+    }
+
+    #[inline(always)]
+    #[cfg(feature = "allocator-debug")]
+    fn mk_node(&self, t: ObjectType, idx: usize) -> NodePtr {
+        NodePtr::new_debug(
+            t,
+            idx,
+            AllocatorReference {
+                fingerprint: self.fingerprint,
+                version: self.versions.len(),
+            },
+        )
     }
 
     // create a checkpoint for the current state of the allocator. This can be
@@ -287,6 +410,12 @@ impl Allocator {
         self.ghost_atoms = cp.ghost_atoms;
         self.ghost_pairs = cp.ghost_pairs;
         self.ghost_heap = cp.ghost_heap;
+
+        // This invalidates all NodePtrs with higher index than this, with a
+        // lower version than self.versions.len()
+        #[cfg(feature = "allocator-debug")]
+        self.versions
+            .push((self.atom_vec.len(), self.pair_vec.len()));
     }
 
     pub fn new_atom(&mut self, v: &[u8]) -> Result<NodePtr, EvalErr> {
@@ -298,12 +427,12 @@ impl Allocator {
         self.check_atom_limit()?;
         if let Some(ret) = fits_in_small_atom(v) {
             self.ghost_atoms += 1;
-            Ok(NodePtr::new(ObjectType::SmallAtom, ret as usize))
+            Ok(self.mk_node(ObjectType::SmallAtom, ret as usize))
         } else {
             self.u8_vec.extend_from_slice(v);
             let end = self.u8_vec.len() as u32;
             self.atom_vec.push(AtomBuf { start, end });
-            Ok(NodePtr::new(ObjectType::Bytes, idx))
+            Ok(self.mk_node(ObjectType::Bytes, idx))
         }
     }
 
@@ -311,7 +440,7 @@ impl Allocator {
         debug_assert!(v <= NODE_PTR_IDX_MASK);
         self.check_atom_limit()?;
         self.ghost_atoms += 1;
-        Ok(NodePtr::new(ObjectType::SmallAtom, v as usize))
+        Ok(self.mk_node(ObjectType::SmallAtom, v as usize))
     }
 
     pub fn new_number(&mut self, v: Number) -> Result<NodePtr, EvalErr> {
@@ -343,12 +472,17 @@ impl Allocator {
     }
 
     pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr> {
+        #[cfg(feature = "allocator-debug")]
+        {
+            self.validate_node(first);
+            self.validate_node(rest);
+        }
         let idx = self.pair_vec.len();
         if idx >= MAX_NUM_PAIRS - self.ghost_pairs {
             return err(self.nil(), "too many pairs");
         }
         self.pair_vec.push(IntPair { first, rest });
-        Ok(NodePtr::new(ObjectType::Pair, idx))
+        Ok(self.mk_node(ObjectType::Pair, idx))
     }
 
     // this code is used when we are simulating pairs with a vec locally
@@ -371,6 +505,9 @@ impl Allocator {
     }
 
     pub fn new_substr(&mut self, node: NodePtr, start: u32, end: u32) -> Result<NodePtr, EvalErr> {
+        #[cfg(feature = "allocator-debug")]
+        self.validate_node(node);
+
         self.check_atom_limit()?;
 
         fn bounds_check(node: NodePtr, start: u32, end: u32, len: u32) -> Result<(), EvalErr> {
@@ -397,7 +534,7 @@ impl Allocator {
                     start: atom.start + start,
                     end: atom.start + end,
                 });
-                Ok(NodePtr::new(ObjectType::Bytes, idx))
+                Ok(self.mk_node(ObjectType::Bytes, idx))
             }
             ObjectType::SmallAtom => {
                 let val = node.index();
@@ -408,7 +545,7 @@ impl Allocator {
                 let substr = &buf[start as usize..end as usize];
                 if let Some(new_val) = fits_in_small_atom(substr) {
                     self.ghost_atoms += 1;
-                    Ok(NodePtr::new(ObjectType::SmallAtom, new_val as usize))
+                    Ok(self.mk_node(ObjectType::SmallAtom, new_val as usize))
                 } else {
                     let start = self.u8_vec.len();
                     let end = start + substr.len();
@@ -418,13 +555,20 @@ impl Allocator {
                         start: start as u32,
                         end: end as u32,
                     });
-                    Ok(NodePtr::new(ObjectType::Bytes, idx))
+                    Ok(self.mk_node(ObjectType::Bytes, idx))
                 }
             }
         }
     }
 
     pub fn new_concat(&mut self, new_size: usize, nodes: &[NodePtr]) -> Result<NodePtr, EvalErr> {
+        #[cfg(feature = "allocator-debug")]
+        {
+            for n in nodes {
+                self.validate_node(*n);
+            }
+        }
+
         self.check_atom_limit()?;
         let start = self.u8_vec.len();
         if self.heap_limit - start - self.ghost_heap < new_size {
@@ -440,7 +584,7 @@ impl Allocator {
             }
             // pretend that we created a new atom and allocated new_size bytes on the heap
             self.ghost_atoms += 1;
-            return Ok(NodePtr::NIL);
+            return Ok(self.nil());
         }
 
         if nodes.len() == 1 {
@@ -498,10 +642,15 @@ impl Allocator {
             start: (start as u32),
             end,
         });
-        Ok(NodePtr::new(ObjectType::Bytes, idx))
+        Ok(self.mk_node(ObjectType::Bytes, idx))
     }
 
     pub fn atom_eq(&self, lhs: NodePtr, rhs: NodePtr) -> bool {
+        #[cfg(feature = "allocator-debug")]
+        {
+            self.validate_node(lhs);
+            self.validate_node(rhs);
+        }
         let lhs_type = lhs.object_type();
         let rhs_type = rhs.object_type();
 
@@ -551,6 +700,9 @@ impl Allocator {
     }
 
     pub fn atom(&self, node: NodePtr) -> Atom {
+        #[cfg(feature = "allocator-debug")]
+        self.validate_node(node);
+
         let index = node.index();
 
         match node.object_type() {
@@ -568,6 +720,9 @@ impl Allocator {
     }
 
     pub fn atom_len(&self, node: NodePtr) -> usize {
+        #[cfg(feature = "allocator-debug")]
+        self.validate_node(node);
+
         let index = node.index();
 
         match node.object_type() {
@@ -583,6 +738,9 @@ impl Allocator {
     }
 
     pub fn small_number(&self, node: NodePtr) -> Option<u32> {
+        #[cfg(feature = "allocator-debug")]
+        self.validate_node(node);
+
         match node.object_type() {
             ObjectType::SmallAtom => Some(node.index()),
             ObjectType::Bytes => {
@@ -595,6 +753,9 @@ impl Allocator {
     }
 
     pub fn number(&self, node: NodePtr) -> Number {
+        #[cfg(feature = "allocator-debug")]
+        self.validate_node(node);
+
         let index = node.index();
 
         match node.object_type() {
@@ -604,12 +765,15 @@ impl Allocator {
             }
             ObjectType::SmallAtom => Number::from(index),
             _ => {
-                panic!("number() calld on pair");
+                panic!("number() called on pair");
             }
         }
     }
 
     pub fn g1(&self, node: NodePtr) -> Result<G1Element, EvalErr> {
+        #[cfg(feature = "allocator-debug")]
+        self.validate_node(node);
+
         let idx = match node.object_type() {
             ObjectType::Bytes => node.index(),
             ObjectType::SmallAtom => {
@@ -632,6 +796,9 @@ impl Allocator {
     }
 
     pub fn g2(&self, node: NodePtr) -> Result<G2Element, EvalErr> {
+        #[cfg(feature = "allocator-debug")]
+        self.validate_node(node);
+
         let idx = match node.object_type() {
             ObjectType::Bytes => node.index(),
             ObjectType::SmallAtom => {
@@ -656,6 +823,9 @@ impl Allocator {
     }
 
     pub fn node(&self, node: NodePtr) -> NodeVisitor {
+        #[cfg(feature = "allocator-debug")]
+        self.validate_node(node);
+
         let index = node.index();
 
         match node.object_type() {
@@ -673,6 +843,9 @@ impl Allocator {
     }
 
     pub fn sexp(&self, node: NodePtr) -> SExp {
+        #[cfg(feature = "allocator-debug")]
+        self.validate_node(node);
+
         match node.object_type() {
             ObjectType::Bytes | ObjectType::SmallAtom => SExp::Atom,
             ObjectType::Pair => {
@@ -688,6 +861,9 @@ impl Allocator {
     //     ...
     // }
     pub fn next(&self, n: NodePtr) -> Option<(NodePtr, NodePtr)> {
+        #[cfg(feature = "allocator-debug")]
+        self.validate_node(n);
+
         match self.sexp(n) {
             SExp::Pair(first, rest) => Some((first, rest)),
             SExp::Atom => None,
@@ -695,11 +871,11 @@ impl Allocator {
     }
 
     pub fn nil(&self) -> NodePtr {
-        NodePtr::new(ObjectType::SmallAtom, 0)
+        self.mk_node(ObjectType::SmallAtom, 0)
     }
 
     pub fn one(&self) -> NodePtr {
-        NodePtr::new(ObjectType::SmallAtom, 1)
+        self.mk_node(ObjectType::SmallAtom, 1)
     }
 
     #[inline]
@@ -917,6 +1093,7 @@ mod tests {
         a.number(pair);
     }
 
+    #[cfg(not(feature = "allocator-debug"))]
     #[test]
     #[should_panic]
     fn test_invalid_node_ptr_type() {
@@ -1934,5 +2111,124 @@ c6c886f6b57ec72a6178288c47c33577\
         assert_eq!(format!("{}", num), text);
         let ptr = a.new_number(num).unwrap();
         assert_eq!(a.atom(ptr).as_ref(), buf);
+    }
+}
+
+#[cfg(feature = "allocator-debug")]
+#[cfg(test)]
+mod debug_tests {
+    use super::*;
+    use chia_bls::PublicKey;
+    use chia_bls::Signature;
+    use rstest::rstest;
+
+    fn new_node(a: &mut Allocator, case: u8) -> (NodePtr, usize) {
+        match case {
+            0 => (a.nil(), 0),
+            1 => (a.one(), 1),
+            2 => (a.new_atom(b"foobar").expect("new_atom"), 6),
+            3 => (a.new_pair(NodePtr::NIL, NodePtr::NIL).expect("new_pair"), 0),
+            4 => (a.new_concat(2, &[a.one(), a.one()]).expect("new_concat"), 2),
+            5 => (a.new_substr(a.one(), 0, 1).expect("new_substr"), 1),
+            6 => (a.new_small_number(1337).expect("new_small_number"), 2),
+            7 => (a.new_number(u32::MAX.into()).expect("new_number"), 5),
+            8 => (a.new_g1(PublicKey::default()).expect("new_g1"), 48),
+            9 => (a.new_g2(Signature::default()).expect("new_g2"), 32),
+            _ => {
+                panic!("unexpected case");
+            }
+        }
+    }
+
+    fn access_node(a: &mut Allocator, n: NodePtr, len: usize, case: u8) {
+        match case {
+            0 => {
+                let _ = a.new_pair(n, a.nil());
+            }
+            1 => {
+                let _ = a.new_pair(a.nil(), n);
+            }
+            2 => {
+                let _ = a.new_substr(n, 0, (len / 2) as u32);
+            }
+            3 => {
+                let _ = a.new_concat(len, &[n]);
+            }
+            4 => {
+                let _ = a.new_concat(len + 1, &[a.one(), n]);
+            }
+            5 => {
+                a.atom_eq(a.one(), n);
+            }
+            6 => {
+                a.atom_eq(n, a.one());
+            }
+            7 => {
+                a.atom(n);
+            }
+            8 => {
+                a.atom_len(n);
+            }
+            9 => {
+                a.small_number(n);
+            }
+            10 => {
+                a.number(n);
+            }
+            11 => {
+                let _ = a.g1(n);
+            }
+            12 => {
+                let _ = a.g2(n);
+            }
+            13 => {
+                a.node(n);
+            }
+            14 => {
+                a.sexp(n);
+            }
+            15 => {
+                a.next(n);
+            }
+            _ => {
+                panic!("unexpected case");
+            }
+        }
+    }
+
+    #[rstest]
+    #[should_panic(expected = "using a NodePtr on the wrong Allocator")]
+    fn mixing_allocators(
+        #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)] create_case: u8,
+        #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] access_case: u8,
+    ) {
+        let mut a1 = Allocator::new();
+        let mut a2 = Allocator::new();
+
+        let (node, len) = new_node(&mut a1, create_case);
+        access_node(&mut a2, node, len, access_case);
+    }
+
+    #[rstest]
+    #[should_panic(expected = "was invalidated by restore_checkpoint()")]
+    fn invalidating_node(
+        #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)] create_case: u8,
+        #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] access_case: u8,
+    ) {
+        let mut a1 = Allocator::new();
+        let checkpoint = a1.checkpoint();
+
+        let (node, len) = new_node(&mut a1, create_case);
+
+        // this will invalidate "node"
+        a1.restore_checkpoint(&checkpoint);
+        access_node(&mut a1, node, len, access_case);
+
+        if matches!(a1.node(node), NodeVisitor::U32(_)) {
+            // small atoms aren't allocated on the heap, so we don't know
+            // whether they should have been invalidated or not. They never are
+            // in practice.
+            panic!("simulated NodePtr was invalidated by restore_checkpoint()");
+        }
     }
 }

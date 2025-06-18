@@ -237,6 +237,9 @@ jobs:
       - name: cargo test (default)
         run: cargo test && cargo test --release
 
+      - name: cargo test (allocator-debug)
+        run: cargo test --features allocator-debug && cargo test --features allocator-debug --release
+
       - name: cargo test (counters)
         run: cargo test --features=counters && cargo test --features=counters --release
 
