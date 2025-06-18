@@ -26,6 +26,10 @@ counters = []
 # debugging and tracing of programs.
 pre-eval = []
 
+# when enabled, NodePtr will contain additional metadata to assert that they are
+# used correctly
+allocator-debug = []
+
 # On UNIX-based platforms, you may get a speed boost on `sha256` operations by building
 # with OpenSSL when enabled
 openssl = ["chia-sha2/openssl"]
