@@ -1,6 +1,6 @@
 [package]
 name = "clvm-rs-test-tools"
-version = "0.14.0"
+version = "0.15.0"
 authors = ["Arvid Norberg <arvid@chia.net>", "Cameron Cooper <cameron@chia.net>"]
 edition = "2021"
 license = "Apache-2.0"
