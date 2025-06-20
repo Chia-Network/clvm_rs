@@ -61,7 +61,7 @@ impl fmt::Debug for NodePtr {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-enum ObjectType {
+pub enum ObjectType {
     // The low bits form an index into the pair_vec
     Pair,
     // The low bits form an index into the atom_vec
@@ -112,7 +112,9 @@ impl NodePtr {
         self.object_type() == ObjectType::Pair
     }
 
-    fn object_type(self) -> ObjectType {
+    /// This is an advanced API that exposes implementation details.
+    /// Returns the internal representation of this node
+    pub fn object_type(self) -> ObjectType {
         match self.0 >> NODE_PTR_IDX_BITS {
             0 => ObjectType::Pair,
             1 => ObjectType::Bytes,
@@ -121,7 +123,9 @@ impl NodePtr {
         }
     }
 
-    fn index(self) -> u32 {
+    /// This is an advanced API that exposes implementation details.
+    /// Returns a dense index of low numbers for the specific ObjectType
+    pub fn index(self) -> u32 {
         self.0 & NODE_PTR_IDX_MASK
     }
 }

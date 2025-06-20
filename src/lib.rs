@@ -17,7 +17,7 @@ pub mod secp_ops;
 pub mod serde;
 pub mod traverse_path;
 
-pub use allocator::{Allocator, Atom, NodePtr, SExp};
+pub use allocator::{Allocator, Atom, NodePtr, ObjectType, SExp};
 pub use chia_dialect::ChiaDialect;
 pub use run_program::run_program;
 
