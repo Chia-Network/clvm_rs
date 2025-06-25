@@ -1,6 +1,7 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::Cost;
-use crate::reduction::{EvalErr, Reduction, Response};
+use crate::error::EvalErr;
+use crate::reduction::{Reduction, Response};
 
 // lowered from measured 147 per bit. It doesn't seem to take this long in
 // practice

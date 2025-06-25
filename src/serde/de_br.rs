@@ -3,7 +3,7 @@ use std::io::{Cursor, Read};
 
 use super::parse_atom::{parse_atom, parse_path};
 use crate::allocator::{Allocator, NodePtr, SExp};
-use crate::reduction::EvalErr;
+use crate::error::EvalErr;
 use crate::traverse_path::{first_non_zero, msb_mask, traverse_path};
 
 const BACK_REFERENCE: u8 = 0xfe;

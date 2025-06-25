@@ -1,6 +1,6 @@
 use crate::err_utils::err;
+use crate::error::EvalErr;
 use crate::number::{number_from_u8, Number};
-use crate::reduction::EvalErr;
 use chia_bls::{G1Element, G2Element};
 use std::borrow::Borrow;
 use std::fmt;

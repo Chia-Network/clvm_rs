@@ -13,9 +13,10 @@ use crate::more_ops::{
     op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
 };
 use crate::number::Number;
-use crate::reduction::{EvalErr, Reduction, Response};
+use crate::reduction::{Reduction, Response};
 use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
 
+use crate::error::EvalErr;
 use hex::FromHex;
 use num_traits::Num;
 use std::cmp::min;

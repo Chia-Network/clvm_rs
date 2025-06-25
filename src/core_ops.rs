@@ -1,8 +1,9 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::Cost;
 use crate::err_utils::err;
+use crate::error::EvalErr;
 use crate::op_utils::{first, get_args, nilp, rest};
-use crate::reduction::{EvalErr, Reduction, Response};
+use crate::reduction::{Reduction, Response};
 
 const FIRST_COST: Cost = 30;
 const IF_COST: Cost = 33;

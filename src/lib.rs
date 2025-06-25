@@ -35,5 +35,6 @@ pub use run_program::Counters;
 #[cfg(test)]
 mod tests;
 
+mod error;
 #[cfg(test)]
 mod test_ops;

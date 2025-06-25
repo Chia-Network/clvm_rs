@@ -1,8 +1,8 @@
 use crate::allocator::{Allocator, Atom, NodePtr, NodeVisitor, SExp};
 use crate::cost::Cost;
 use crate::err_utils::err;
+use crate::error::EvalErr;
 use crate::number::Number;
-use crate::reduction::EvalErr;
 use crate::reduction::{Reduction, Response};
 use lazy_static::lazy_static;
 use num_bigint::{BigUint, Sign};

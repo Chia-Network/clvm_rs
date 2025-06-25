@@ -3,8 +3,9 @@ use crate::allocator::{Allocator, Checkpoint, NodePtr, NodeVisitor, SExp};
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;
+use crate::error::EvalErr;
 use crate::op_utils::{first, get_args, uint_atom};
-use crate::reduction::{EvalErr, Reduction, Response};
+use crate::reduction::{Reduction, Response};
 
 // lowered from 46
 const QUOTE_COST: Cost = 20;

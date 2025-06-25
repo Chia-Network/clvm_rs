@@ -1,5 +1,5 @@
 use crate::allocator::Allocator;
-use crate::reduction::EvalErr;
+use crate::error::EvalErr;
 
 pub type Cost = u64;
 
