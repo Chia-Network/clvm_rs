@@ -16,6 +16,7 @@ pub mod runtime_dialect;
 pub mod secp_ops;
 pub mod serde;
 pub mod traverse_path;
+pub mod error;
 
 pub use allocator::{Allocator, Atom, NodePtr, ObjectType, SExp};
 pub use chia_dialect::ChiaDialect;
@@ -35,6 +36,5 @@ pub use run_program::Counters;
 #[cfg(test)]
 mod tests;
 
-mod error;
 #[cfg(test)]
 mod test_ops;
