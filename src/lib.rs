@@ -5,6 +5,7 @@ pub mod core_ops;
 pub mod cost;
 pub mod dialect;
 pub mod err_utils;
+pub mod error;
 pub mod f_table;
 pub mod keccak256_ops;
 pub mod more_ops;
@@ -16,7 +17,6 @@ pub mod runtime_dialect;
 pub mod secp_ops;
 pub mod serde;
 pub mod traverse_path;
-pub mod error;
 
 pub use allocator::{Allocator, Atom, NodePtr, ObjectType, SExp};
 pub use chia_dialect::ChiaDialect;
