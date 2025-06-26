@@ -347,6 +347,7 @@ dependencies = [
  "rstest",
  "sha1",
  "sha3",
+ "thiserror",
 ]
 
 [[package]]
