@@ -4,7 +4,6 @@ pub mod chia_dialect;
 pub mod core_ops;
 pub mod cost;
 pub mod dialect;
-pub mod err_utils;
 pub mod error;
 pub mod f_table;
 pub mod keccak256_ops;

@@ -7,7 +7,7 @@ use crate::bls_ops::{
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
-use crate::err_utils::err;
+use crate::error::OperatorError;
 use crate::keccak256_ops::op_keccak256;
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
@@ -41,7 +41,7 @@ fn unknown_operator(
     max_cost: Cost,
 ) -> Response {
     if (flags & NO_UNKNOWN_OPS) != 0 {
-        err(o, "unimplemented operator")
+        Err(OperatorError::Unimplemented(o))?
     } else {
         op_unknown(allocator, o, args, max_cost)
     }

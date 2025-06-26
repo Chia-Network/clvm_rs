@@ -1,5 +1,5 @@
+use crate::error::{CLVMResult, EvalErr};
 use std::io;
-use std::io::ErrorKind;
 
 /// all atoms serialize their contents verbatim. All expect those one-byte atoms
 /// from 0x00-0x7f also have a prefix encoding their length. This function
@@ -9,21 +9,24 @@ fn write_atom_encoding_prefix_with_size<W: io::Write>(
     f: &mut W,
     atom_0: u8,
     size: u64,
-) -> io::Result<()> {
+) -> CLVMResult<()> {
     if size == 0 {
-        f.write_all(&[0x80])
+        f.write_all(&[0x80]).map_err(EvalErr::SerializationError)
     } else if size == 1 && atom_0 < 0x80 {
         Ok(())
     } else if size < 0x40 {
         f.write_all(&[0x80 | (size as u8)])
+            .map_err(EvalErr::SerializationError)
     } else if size < 0x2000 {
         f.write_all(&[0xc0 | (size >> 8) as u8, size as u8])
+            .map_err(EvalErr::SerializationError)
     } else if size < 0x10_0000 {
         f.write_all(&[
             (0xe0 | (size >> 16)) as u8,
             ((size >> 8) & 0xff) as u8,
             ((size) & 0xff) as u8,
         ])
+        .map_err(EvalErr::SerializationError)
     } else if size < 0x800_0000 {
         f.write_all(&[
             (0xf0 | (size >> 24)) as u8,
@@ -31,6 +34,7 @@ fn write_atom_encoding_prefix_with_size<W: io::Write>(
             ((size >> 8) & 0xff) as u8,
             ((size) & 0xff) as u8,
         ])
+        .map_err(EvalErr::SerializationError)
     } else if size < 0x4_0000_0000 {
         f.write_all(&[
             (0xf8 | (size >> 32)) as u8,
@@ -39,16 +43,17 @@ fn write_atom_encoding_prefix_with_size<W: io::Write>(
             ((size >> 8) & 0xff) as u8,
             ((size) & 0xff) as u8,
         ])
+        .map_err(EvalErr::SerializationError)
     } else {
-        Err(io::Error::new(ErrorKind::InvalidData, "atom too big"))
+        Err(EvalErr::InvalidDataAtomTooBig)
     }
 }
 
 /// serialize an atom
-pub fn write_atom<W: io::Write>(f: &mut W, atom: &[u8]) -> io::Result<()> {
+pub fn write_atom<W: io::Write>(f: &mut W, atom: &[u8]) -> CLVMResult<()> {
     let u8_0 = if !atom.is_empty() { atom[0] } else { 0 };
     write_atom_encoding_prefix_with_size(f, u8_0, atom.len() as u64)?;
-    f.write_all(atom)
+    f.write_all(atom).map_err(EvalErr::SerializationError)
 }
 
 #[cfg(test)]

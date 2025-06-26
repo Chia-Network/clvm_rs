@@ -2,8 +2,8 @@ use super::traverse_path::{traverse_path, traverse_path_fast};
 use crate::allocator::{Allocator, Checkpoint, NodePtr, NodeVisitor, SExp};
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
-use crate::err_utils::err;
-use crate::error::EvalErr;
+
+use crate::error::{CLVMResult, EvalErr, RuntimeError};
 use crate::op_utils::{first, get_args, uint_atom};
 use crate::reduction::{Reduction, Response};
 
@@ -22,7 +22,7 @@ const STACK_SIZE_LIMIT: usize = 20000000;
 
 #[cfg(feature = "pre-eval")]
 pub type PreEval =
-    Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<PostEval>>, EvalErr>>;
+    Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> CLVMResult<Option<Box<PostEval>>>>;
 
 #[cfg(feature = "pre-eval")]
 pub type PostEval = dyn Fn(&mut Allocator, Option<NodePtr>);
@@ -107,12 +107,12 @@ struct RunProgramContext<'a, D> {
     posteval_stack: Vec<Box<PostEval>>,
 }
 
-fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Cost, EvalErr> {
+fn augment_cost_errors(r: CLVMResult<Cost>, max_cost: NodePtr) -> CLVMResult<Cost> {
     r.map_err(|e| {
-        if &e.1 != "cost exceeded" {
+        if e != EvalErr::CostExceeded(max_cost) {
             e
         } else {
-            EvalErr(max_cost, e.1)
+            EvalErr::CostExceeded(max_cost)
         }
     })
 }
@@ -151,28 +151,28 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     #[inline(always)]
     fn account_op_push(&mut self) {}
 
-    pub fn pop(&mut self) -> Result<NodePtr, EvalErr> {
+    pub fn pop(&mut self) -> CLVMResult<NodePtr> {
         let v: Option<NodePtr> = self.val_stack.pop();
         match v {
             None => {
                 let node: NodePtr = self.allocator.nil();
-                err(node, "runtime error: value stack empty")
+                Err(RuntimeError::ValueStackEmpty(node))?
             }
             Some(k) => Ok(k),
         }
     }
-    pub fn push(&mut self, node: NodePtr) -> Result<(), EvalErr> {
+    pub fn push(&mut self, node: NodePtr) -> CLVMResult<()> {
         if self.val_stack.len() == STACK_SIZE_LIMIT {
-            return err(node, "value stack limit reached");
+            return Err(RuntimeError::ValueStackLimitReached(node))?;
         }
         self.val_stack.push(node);
         self.account_val_push();
         Ok(())
     }
 
-    pub fn push_env(&mut self, env: NodePtr) -> Result<(), EvalErr> {
+    pub fn push_env(&mut self, env: NodePtr) -> CLVMResult<()> {
         if self.env_stack.len() == STACK_SIZE_LIMIT {
-            return err(env, "environment stack limit reached");
+            return Err(RuntimeError::EnviromentStackLimitReached(env))?;
         }
         self.env_stack.push(env);
         self.account_env_push();
@@ -216,7 +216,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    fn cons_op(&mut self) -> Result<Cost, EvalErr> {
+    fn cons_op(&mut self) -> CLVMResult<Cost> {
         /* Join the top two operands. */
         let v1 = self.pop()?;
         let v2 = self.pop()?;
@@ -230,7 +230,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         operator_node: NodePtr,
         operand_list: NodePtr,
         env: NodePtr,
-    ) -> Result<Cost, EvalErr> {
+    ) -> CLVMResult<Cost> {
         // special case check for quote
         if self.allocator.small_number(operator_node) == Some(self.dialect.quote_kw()) {
             self.push(operand_list)?;
@@ -260,7 +260,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             }
             // ensure a correct nil terminator
             if self.allocator.atom_len(operands) != 0 {
-                err(operand_list, "bad operand list")
+                Err(EvalErr::BadOperandList(operand_list))
             } else {
                 self.push(self.allocator.nil())?;
                 Ok(OP_COST)
@@ -268,7 +268,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    fn eval_pair(&mut self, program: NodePtr, env: NodePtr) -> Result<Cost, EvalErr> {
+    fn eval_pair(&mut self, program: NodePtr, env: NodePtr) -> CLVMResult<Cost> {
         #[cfg(feature = "pre-eval")]
         if let Some(pre_eval) = &self.pre_eval {
             if let Some(post_eval) = pre_eval(self.allocator, program, env)? {
@@ -284,7 +284,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 NodeVisitor::Buffer(buf) => traverse_path(self.allocator, buf, env)?,
                 NodeVisitor::U32(val) => traverse_path_fast(self.allocator, val, env)?,
                 NodeVisitor::Pair(_, _) => {
-                    panic!("expected atom, got pair");
+                    return Err(EvalErr::ExpectedAtomGotPair(program));
                 }
             };
             self.push(r.1)?;
@@ -299,7 +299,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                     "in the ((X)...) syntax, the inner list",
                 )?;
                 if let SExp::Pair(_, _) = self.allocator.sexp(inner) {
-                    return err(program, "in ((X)...) syntax X must be lone atom");
+                    return Err(EvalErr::InPairMustBeLoneAtom(program));
                 }
                 self.push_env(env)?;
                 self.push(new_operator)?;
@@ -312,13 +312,13 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    fn swap_eval_op(&mut self) -> Result<Cost, EvalErr> {
+    fn swap_eval_op(&mut self) -> CLVMResult<Cost> {
         let v2 = self.pop()?;
         let program: NodePtr = self.pop()?;
         let env: NodePtr = *self
             .env_stack
             .last()
-            .ok_or_else(|| EvalErr(program, "runtime error: env stack empty".into()))?;
+            .ok_or(RuntimeError::EnviromentStackEmpty(program))?;
         self.push(v2)?;
 
         // on the way back, build a list from the values
@@ -331,24 +331,24 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     fn parse_softfork_arguments(
         &self,
         args: NodePtr,
-    ) -> Result<(OperatorSet, NodePtr, NodePtr), EvalErr> {
+    ) -> CLVMResult<(OperatorSet, NodePtr, NodePtr)> {
         let [_cost, extension, program, env] = get_args::<4>(self.allocator, args, "softfork")?;
 
         let extension =
             self.dialect
                 .softfork_extension(uint_atom::<4>(self.allocator, extension, "softfork")? as u32);
         if extension == OperatorSet::Default {
-            err(args, "unknown softfork extension")
+            Err(EvalErr::UnknownSoftforkExtension(args))
         } else {
             Ok((extension, program, env))
         }
     }
 
-    fn apply_op(&mut self, current_cost: Cost, max_cost: Cost) -> Result<Cost, EvalErr> {
+    fn apply_op(&mut self, current_cost: Cost, max_cost: Cost) -> CLVMResult<Cost> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
         if self.env_stack.pop().is_none() {
-            return err(operator, "runtime error: env stack empty");
+            return Err(RuntimeError::EnviromentStackEmpty(operator))?;
         }
         let op_atom = self.allocator.small_number(operator);
 
@@ -362,10 +362,10 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 "softfork",
             )?;
             if expected_cost > max_cost {
-                return err(operand_list, "cost exceeded");
+                return Err(EvalErr::CostExceeded(operand_list));
             }
             if expected_cost == 0 {
-                return err(operand_list, "cost must be > 0");
+                return Err(EvalErr::CostBelowZero(operand_list));
             }
 
             // we can't blindly propagate errors here, since we handle errors
@@ -417,7 +417,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    fn exit_guard(&mut self, current_cost: Cost) -> Result<Cost, EvalErr> {
+    fn exit_guard(&mut self, current_cost: Cost) -> CLVMResult<Cost> {
         // this is called when we are done executing a softfork program.
         // This is when we have to validate the cost
         let guard = self
@@ -432,7 +432,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 current_cost - guard.start_cost,
                 guard.expected_cost - guard.start_cost
             );
-            return err(self.allocator.nil(), "softfork specified cost mismatch");
+            return Err(EvalErr::SoftforkSpecifiedCostMismatch(self.allocator.nil()));
         }
 
         // restore the allocator to the state when we entered the softfork guard
@@ -477,7 +477,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             };
 
             if cost > effective_max_cost {
-                return err(max_cost_ptr, "cost exceeded");
+                return Err(EvalErr::CostExceeded(max_cost_ptr));
             }
             let top = self.op_stack.pop();
             let op = match top {
@@ -1326,11 +1326,14 @@ mod tests {
                 // ensure it fails with the correct error
                 let expected_cost_exceeded =
                     run_program(&mut allocator, &dialect, program, args, t.cost - 1).unwrap_err();
-                assert_eq!(expected_cost_exceeded.1, "cost exceeded");
+                assert_eq!(
+                    expected_cost_exceeded,
+                    EvalErr::CostExceeded(allocator.nil())
+                );
             }
             Err(err) => {
-                println!("FAILED: {}", err.1);
-                assert_eq!(err.1, t.err);
+                println!("FAILED: {}", err);
+                assert_eq!(err.to_string(), t.err);
                 assert!(expected_result.is_none());
             }
         }

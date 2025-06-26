@@ -237,7 +237,7 @@ mod tests {
         let result = op(&mut a, args, 10000000000 as Cost);
         match result {
             Err(e) => {
-                println!("Error: {}", e.1);
+                println!("Error: {}", e.to_string());
                 assert_eq!(expected, "FAIL");
             }
             Ok(Reduction(cost, ret_value)) => {
@@ -360,7 +360,7 @@ mod tests {
         let a1 = allocator.new_atom(&[65]).unwrap();
         let args = allocator.new_pair(a1, allocator.nil()).unwrap();
         let result = op_raise(&mut allocator, args, 100000);
-        assert_eq!(result, Err(EvalErr(a1, "clvm raise".to_string())));
+        assert_eq!(result.unwrap_err(), EvalErr::Raise(a1));
     }
 
     #[test]
@@ -375,7 +375,7 @@ mod tests {
         // ((a1 a2))
         args = allocator.new_pair(args, allocator.nil()).unwrap();
         let result = op_raise(&mut allocator, args, 100000);
-        assert_eq!(result, Err(EvalErr(args, "clvm raise".to_string())));
+        assert_eq!(result.unwrap_err(), EvalErr::Raise(args));
     }
 
     #[test]
@@ -388,7 +388,7 @@ mod tests {
         // (a1 a2)
         args = allocator.new_pair(a1, args).unwrap();
         let result = op_raise(&mut allocator, args, 100000);
-        assert_eq!(result, Err(EvalErr(args, "clvm raise".to_string())));
+        assert_eq!(result.unwrap_err(), EvalErr::Raise(args));
     }
 
     #[cfg(feature = "pre-eval")]
@@ -405,8 +405,7 @@ mod tests {
     type Callback = Box<dyn Fn(&mut Allocator, Option<NodePtr>)>;
 
     #[cfg(feature = "pre-eval")]
-    type PreEvalF =
-        Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Callback>, EvalErr>>;
+    type PreEvalF = Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> CLVMResult<Option<Callback>>>;
 
     // Ensure pre_eval_f and post_eval_f are working as expected.
     #[cfg(feature = "pre-eval")]

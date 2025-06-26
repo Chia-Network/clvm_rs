@@ -1,8 +1,7 @@
-use std::io::{Cursor, Read, Result, Seek, SeekFrom};
+use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use crate::allocator::{Allocator, NodePtr};
-
-use super::errors::{bad_encoding, internal_error};
+use crate::error::{CLVMResult, EvalErr};
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 
@@ -10,15 +9,15 @@ const MAX_SINGLE_BYTE: u8 = 0x7f;
 /// of the atom and the full length of the atom.
 /// Atoms whose value fit in 7 bits don't have a length prefix, so those should
 /// be handled specially and never passed to this function.
-pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> Result<(u8, u64)> {
+pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> CLVMResult<(u8, u64)> {
     debug_assert!((initial_b & 0x80) != 0);
     if (initial_b & 0x80) == 0 {
-        return Err(internal_error());
+        return Err(EvalErr::InternalError);
     }
 
     let atom_start_offset = initial_b.leading_ones() as usize;
     if atom_start_offset >= 8 {
-        return Err(bad_encoding());
+        return Err(EvalErr::BadEncoding);
     }
     let bit_mask: u8 = 0xff >> atom_start_offset;
     let b = initial_b & bit_mask;
@@ -32,25 +31,25 @@ pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> Result<(u8,
     // need to convert size_blob to an int
     let mut atom_size: u64 = 0;
     if size_blob.len() > 6 {
-        return Err(bad_encoding());
+        return Err(EvalErr::BadEncoding);
     }
     for b in size_blob {
         atom_size <<= 8;
         atom_size += *b as u64;
     }
     if atom_size >= 0x400000000 {
-        return Err(bad_encoding());
+        return Err(EvalErr::BadEncoding);
     }
     Ok((atom_start_offset as u8, atom_size))
 }
 
-pub fn decode_size<R: Read>(f: &mut R, initial_b: u8) -> Result<u64> {
+pub fn decode_size<R: Read>(f: &mut R, initial_b: u8) -> CLVMResult<u64> {
     decode_size_with_offset(f, initial_b).map(|v| v.1)
 }
 
 /// parse an atom from the stream and return a pointer to it
 /// the first byte has already been read
-fn parse_atom_ptr<'a>(f: &'a mut Cursor<&[u8]>, first_byte: u8) -> Result<&'a [u8]> {
+fn parse_atom_ptr<'a>(f: &'a mut Cursor<&[u8]>, first_byte: u8) -> CLVMResult<&'a [u8]> {
     let blob = if first_byte <= MAX_SINGLE_BYTE {
         let pos = f.position() as usize;
         &f.get_ref()[pos - 1..pos]
@@ -58,7 +57,7 @@ fn parse_atom_ptr<'a>(f: &'a mut Cursor<&[u8]>, first_byte: u8) -> Result<&'a [u
         let blob_size = decode_size(f, first_byte)?;
         let pos = f.position() as usize;
         if f.get_ref().len() < pos + blob_size as usize {
-            return Err(bad_encoding());
+            return Err(EvalErr::BadEncoding);
         }
         f.seek(SeekFrom::Current(blob_size as i64))?;
         &f.get_ref()[pos..(pos + blob_size as usize)]
@@ -74,7 +73,7 @@ pub fn parse_atom(
     allocator: &mut Allocator,
     first_byte: u8,
     f: &mut Cursor<&[u8]>,
-) -> Result<NodePtr> {
+) -> CLVMResult<NodePtr> {
     if first_byte == 0x01 {
         Ok(allocator.one())
     } else if first_byte == 0x80 {
@@ -86,7 +85,7 @@ pub fn parse_atom(
 }
 
 /// parse an atom from the stream and return a pointer to it
-pub fn parse_path<'a>(f: &'a mut Cursor<&[u8]>) -> Result<&'a [u8]> {
+pub fn parse_path<'a>(f: &'a mut Cursor<&[u8]>) -> CLVMResult<&'a [u8]> {
     let mut buf1: [u8; 1] = [0];
     f.read_exact(&mut buf1)?;
     parse_atom_ptr(f, buf1[0])
@@ -97,8 +96,6 @@ mod tests {
     use super::*;
     use crate::serde::write_atom::write_atom;
     use rstest::rstest;
-
-    use std::io::ErrorKind;
 
     #[rstest]
     // single-byte length prefix
@@ -221,6 +218,6 @@ mod tests {
         let mut allocator = Allocator::new();
         let ret = parse_atom(&mut allocator, first, &mut cursor);
         let err = ret.unwrap_err();
-        assert_eq!(err.kind(), ErrorKind::UnexpectedEof);
+        assert_eq!(err.to_string(), "IO Error".to_string());
     }
 }

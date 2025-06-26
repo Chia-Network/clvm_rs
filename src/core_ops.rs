@@ -1,7 +1,7 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::Cost;
-use crate::err_utils::err;
-use crate::error::EvalErr;
+
+use crate::error::{CLVMResult, EvalErr, OperatorError};
 use crate::op_utils::{first, get_args, nilp, rest};
 use crate::reduction::{Reduction, Response};
 
@@ -60,14 +60,14 @@ pub fn op_raise(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response 
         input
     };
 
-    err(throw_value, "clvm raise")
+    Err(EvalErr::Raise(throw_value))
 }
 
-fn ensure_atom(a: &Allocator, n: NodePtr, op: &str) -> Result<(), EvalErr> {
+fn ensure_atom(a: &Allocator, n: NodePtr, op: &str) -> CLVMResult<()> {
     if let SExp::Atom = a.sexp(n) {
         Ok(())
     } else {
-        Err(EvalErr(n, format!("{op} on list")))
+        Err(OperatorError::UsedOnList(n, op.to_string()))?
     }
 }
 

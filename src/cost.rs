@@ -1,11 +1,11 @@
 use crate::allocator::Allocator;
-use crate::error::EvalErr;
+use crate::error::{CLVMResult, EvalErr};
 
 pub type Cost = u64;
 
-pub fn check_cost(a: &Allocator, cost: Cost, max_cost: Cost) -> Result<(), EvalErr> {
+pub fn check_cost(a: &Allocator, cost: Cost, max_cost: Cost) -> CLVMResult<()> {
     if cost > max_cost {
-        Err(EvalErr(a.nil(), "cost exceeded".into()))
+        Err(EvalErr::CostExceeded(a.nil()))
     } else {
         Ok(())
     }
