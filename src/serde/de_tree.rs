@@ -1,9 +1,9 @@
-use std::io::{Error, Read, Result, Write};
-
-use chia_sha2::Sha256;
+use std::io::{Error, Read, Write};
 
 use super::parse_atom::decode_size_with_offset;
 use super::utils::{copy_exactly, skip_bytes};
+use crate::error::CLVMResult;
+use chia_sha2::Sha256;
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const CONS_BOX_MARKER: u8 = 0xff;
@@ -11,11 +11,11 @@ const CONS_BOX_MARKER: u8 = 0xff;
 struct ShaWrapper(Sha256);
 
 impl Write for ShaWrapper {
-    fn write(&mut self, blob: &[u8]) -> std::result::Result<usize, Error> {
+    fn write(&mut self, blob: &[u8]) -> Result<usize, Error> {
         self.0.update(blob);
         Ok(blob.len())
     }
-    fn flush(&mut self) -> std::result::Result<(), Error> {
+    fn flush(&mut self) -> Result<(), Error> {
         Ok(())
     }
 }
@@ -81,7 +81,7 @@ fn skip_or_sha_bytes<R: Read>(
     f: &mut R,
     size: u64,
     calculate_tree_hashes: bool,
-) -> Result<Option<[u8; 32]>> {
+) -> CLVMResult<Option<[u8; 32]>> {
     if calculate_tree_hashes {
         let mut h = Sha256::new();
         h.update([1]);
@@ -115,7 +115,7 @@ type ParsedTriplesOutput = (Vec<ParsedTriple>, Option<Vec<[u8; 32]>>);
 pub fn parse_triples<R: Read>(
     f: &mut R,
     calculate_tree_hashes: bool,
-) -> Result<ParsedTriplesOutput> {
+) -> CLVMResult<ParsedTriplesOutput> {
     let mut r = Vec::new();
     let mut tree_hashes = Vec::new();
     let mut op_stack = vec![ParseOpRef::ParseObj];

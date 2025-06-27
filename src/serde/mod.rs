@@ -3,7 +3,6 @@ mod bytes32;
 mod de;
 mod de_br;
 mod de_tree;
-mod errors;
 mod identity_hash;
 mod incremental;
 mod object_cache;

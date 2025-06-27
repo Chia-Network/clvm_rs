@@ -5,15 +5,16 @@ use std::io::Write;
 
 use super::write_atom::write_atom;
 use crate::allocator::{len_for_value, Allocator, NodePtr, NodeVisitor};
+use crate::error::CLVMResult;
 
 const CONS_BOX_MARKER: u8 = 0xff;
 
-pub struct LimitedWriter<W: io::Write> {
+pub struct LimitedWriter<W: Write> {
     inner: W,
     limit: usize,
 }
 
-impl<W: io::Write> LimitedWriter<W> {
+impl<W: Write> LimitedWriter<W> {
     pub fn new(w: W, limit: usize) -> LimitedWriter<W> {
         LimitedWriter { inner: w, limit }
     }
@@ -23,7 +24,7 @@ impl<W: io::Write> LimitedWriter<W> {
     }
 }
 
-impl<W: io::Write> Write for LimitedWriter<W> {
+impl<W: Write> Write for LimitedWriter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if self.limit < buf.len() {
             return Err(ErrorKind::OutOfMemory.into());
@@ -36,9 +37,8 @@ impl<W: io::Write> Write for LimitedWriter<W> {
         self.inner.flush()
     }
 }
-
 /// serialize a node
-pub fn node_to_stream<W: io::Write>(a: &Allocator, node: NodePtr, f: &mut W) -> io::Result<()> {
+pub fn node_to_stream<W: Write>(a: &Allocator, node: NodePtr, f: &mut W) -> CLVMResult<()> {
     let mut values: Vec<NodePtr> = vec![node];
     while let Some(v) = values.pop() {
         match a.node(v) {
@@ -58,7 +58,7 @@ pub fn node_to_stream<W: io::Write>(a: &Allocator, node: NodePtr, f: &mut W) -> 
     Ok(())
 }
 
-pub fn node_to_bytes_limit(a: &Allocator, node: NodePtr, limit: usize) -> io::Result<Vec<u8>> {
+pub fn node_to_bytes_limit(a: &Allocator, node: NodePtr, limit: usize) -> CLVMResult<Vec<u8>> {
     let buffer = Cursor::new(Vec::new());
     let mut writer = LimitedWriter::new(buffer, limit);
     node_to_stream(a, node, &mut writer)?;
@@ -66,13 +66,14 @@ pub fn node_to_bytes_limit(a: &Allocator, node: NodePtr, limit: usize) -> io::Re
     Ok(vec)
 }
 
-pub fn node_to_bytes(a: &Allocator, node: NodePtr) -> io::Result<Vec<u8>> {
+pub fn node_to_bytes(a: &Allocator, node: NodePtr) -> CLVMResult<Vec<u8>> {
     node_to_bytes_limit(a, node, 2000000)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::EvalErr;
 
     #[test]
     fn test_serialize_limit() {
@@ -102,8 +103,8 @@ mod tests {
             let buffer = Cursor::new(Vec::new());
             let mut writer = LimitedWriter::new(buffer, 54);
             assert_eq!(
-                node_to_stream(&a, l3, &mut writer).unwrap_err().kind(),
-                io::ErrorKind::OutOfMemory
+                node_to_stream(&a, l3, &mut writer).unwrap_err(),
+                EvalErr::OutOfMemory(a.nil())
             );
         }
     }
