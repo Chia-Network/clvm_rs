@@ -280,8 +280,8 @@ pub enum RuntimeError {
     ValueStackLimitReached(NodePtr),
 
     #[error("Environment Stack Empty, {0:?}")]
-    EnviromentStackEmpty(NodePtr),
+    EnvironmentStackEmpty(NodePtr),
 
-    #[error("Enviroment Stack Limit Reached, {0:?}")]
-    EnviromentStackLimitReached(NodePtr),
+    #[error("Environment Stack Limit Reached, {0:?}")]
+    EnvironmentStackLimitReached(NodePtr),
 }

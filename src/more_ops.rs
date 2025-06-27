@@ -693,12 +693,12 @@ fn test_op_ash() {
 
     assert_eq!(
         test_shift(op_ash, &mut a, &[1], &[0x80, 0, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(a.nil())
+        EvalErr::ShiftTooLarge(a.byte_false())
     );
 
     assert_eq!(
         test_shift(op_ash, &mut a, &[1], &[0x80, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(a.nil())
+        EvalErr::ShiftTooLarge(a.byte_true())
     );
 
     let node = test_shift(op_ash, &mut a, &[1], &[0x80, 0]).unwrap().1;
@@ -748,12 +748,12 @@ fn test_op_lsh() {
 
     assert_eq!(
         test_shift(op_lsh, &mut a, &[1], &[0x80, 0, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(a.nil())
+        EvalErr::ShiftTooLarge(a.byte_false())
     );
 
     assert_eq!(
         test_shift(op_lsh, &mut a, &[1], &[0x80, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(a.nil())
+        EvalErr::ShiftTooLarge(a.byte_true())
     );
 
     let node = test_shift(op_lsh, &mut a, &[1], &[0x80, 0]).unwrap().1;

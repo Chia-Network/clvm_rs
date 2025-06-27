@@ -172,7 +172,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
     pub fn push_env(&mut self, env: NodePtr) -> CLVMResult<()> {
         if self.env_stack.len() == STACK_SIZE_LIMIT {
-            return Err(RuntimeError::EnviromentStackLimitReached(env))?;
+            return Err(RuntimeError::EnvironmentStackLimitReached(env))?;
         }
         self.env_stack.push(env);
         self.account_env_push();
@@ -318,7 +318,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let env: NodePtr = *self
             .env_stack
             .last()
-            .ok_or(RuntimeError::EnviromentStackEmpty(program))?;
+            .ok_or(RuntimeError::EnvironmentStackEmpty(program))?;
         self.push(v2)?;
 
         // on the way back, build a list from the values
@@ -348,7 +348,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
         if self.env_stack.pop().is_none() {
-            return Err(RuntimeError::EnviromentStackEmpty(operator))?;
+            return Err(RuntimeError::EnvironmentStackEmpty(operator))?;
         }
         let op_atom = self.allocator.small_number(operator);
 

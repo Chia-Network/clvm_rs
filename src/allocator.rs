@@ -785,7 +785,7 @@ impl Allocator {
         let array: &[u8; 48] = &self.u8_vec[atom.start as usize..atom.end as usize]
             .try_into()
             .expect("atom size is not 48 bytes"); // TODO: Review this.
-        G1Element::from_bytes(array).map_err(|_| EvalErr::G1(G1Error::NotG1Size(node)))
+        G1Element::from_bytes(array).map_err(|_| EvalErr::G1(G1Error::NotValidG1Point(node)))
     }
 
     pub fn g2(&self, node: NodePtr) -> CLVMResult<G2Element> {
@@ -811,7 +811,7 @@ impl Allocator {
             .try_into()
             .expect("atom size is not 96 bytes"); // TODO: Review this.
 
-        G2Element::from_bytes(array).map_err(|_| EvalErr::G2(G2Error::NotG2Size(node)))
+        G2Element::from_bytes(array).map_err(|_| EvalErr::G2(G2Error::NotValidG2Point(node)))
     }
 
     pub fn node(&self, node: NodePtr) -> NodeVisitor {
@@ -868,6 +868,18 @@ impl Allocator {
 
     pub fn one(&self) -> NodePtr {
         self.mk_node(ObjectType::SmallAtom, 1)
+    }
+
+    pub fn byte_false(&self) -> NodePtr {
+        self.mk_node(ObjectType::Bytes, 0)
+    }
+
+    pub fn byte_true(&self) -> NodePtr {
+        self.mk_node(ObjectType::Bytes, 1)
+    }
+
+    pub fn pair(&self) -> NodePtr {
+        self.mk_node(ObjectType::Pair, 0)
     }
 
     #[inline]
@@ -1295,23 +1307,27 @@ mod tests {
 
         assert_eq!(
             a.new_substr(atom, 1, 0).unwrap_err(),
-            EvalErr::Substring(SubstringError::StartGreaterThanEnd(a.nil(), 1, 0))
+            EvalErr::Substring(SubstringError::StartGreaterThanEnd(a.byte_false(), 1, 0))
         );
         assert_eq!(
             a.new_substr(atom, 7, 7).unwrap_err(),
-            EvalErr::Substring(SubstringError::StartOutOfBounds(a.nil(), 7, 7))
+            EvalErr::Substring(SubstringError::StartOutOfBounds(a.byte_false(), 7, 6))
         );
         assert_eq!(
             a.new_substr(atom, 0, 7).unwrap_err(),
-            EvalErr::Substring(SubstringError::EndOutOfBounds(a.nil(), 0, 7))
+            EvalErr::Substring(SubstringError::EndOutOfBounds(a.byte_false(), 7, 6))
         );
         assert_eq!(
             a.new_substr(atom, u32::MAX, 4).unwrap_err(),
-            EvalErr::Substring(SubstringError::StartOutOfBounds(a.nil(), u32::MAX, 4))
+            EvalErr::Substring(SubstringError::StartOutOfBounds(
+                a.byte_false(),
+                u32::MAX,
+                6
+            ))
         );
         assert_eq!(
             a.new_substr(pair, 0, 0).unwrap_err(),
-            EvalErr::Substring(SubstringError::ExpectedAtomGotPair(a.nil()))
+            EvalErr::Substring(SubstringError::ExpectedAtomGotPair(a.pair()))
         );
     }
 
@@ -1334,19 +1350,31 @@ mod tests {
 
         assert_eq!(
             a.new_substr(atom, 1, 0).unwrap_err(),
-            EvalErr::Substring(SubstringError::StartGreaterThanEnd(a.nil(), 1, 0))
+            EvalErr::Substring(SubstringError::StartGreaterThanEnd(atom, 1, 0))
         );
         assert_eq!(
             a.new_substr(atom, 3, 3).unwrap_err(),
-            EvalErr::Substring(SubstringError::StartOutOfBounds(a.nil(), 3, 3))
+            EvalErr::Substring(SubstringError::StartOutOfBounds(
+                NodePtr::new(ObjectType::SmallAtom, 24960),
+                3,
+                2
+            ))
         );
         assert_eq!(
             a.new_substr(atom, 0, 3).unwrap_err(),
-            EvalErr::Substring(SubstringError::EndOutOfBounds(a.nil(), 0, 3))
+            EvalErr::Substring(SubstringError::EndOutOfBounds(
+                NodePtr::new(ObjectType::SmallAtom, 24960),
+                3,
+                2
+            ))
         );
         assert_eq!(
             a.new_substr(atom, u32::MAX, 2).unwrap_err(),
-            EvalErr::Substring(SubstringError::StartOutOfBounds(a.nil(), u32::MAX, 2))
+            EvalErr::Substring(SubstringError::StartOutOfBounds(
+                NodePtr::new(ObjectType::SmallAtom, 24960),
+                u32::MAX,
+                2
+            ))
         );
     }
 
@@ -1391,15 +1419,15 @@ mod tests {
 
         assert_eq!(
             a.new_concat(11, &[cat, cat]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(a.nil(), 11)),
+            EvalErr::Concat(ConcatError::InvalidNewSize(a.byte_true(), 11)),
         );
         assert_eq!(
             a.new_concat(13, &[cat, cat]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(a.nil(), 13)),
+            EvalErr::Concat(ConcatError::InvalidNewSize(a.byte_true(), 13)),
         );
         assert_eq!(
             a.new_concat(12, &[atom3, pair]).unwrap_err(),
-            EvalErr::Concat(ConcatError::ExpectedAtomGotPair(a.nil()))
+            EvalErr::Concat(ConcatError::ExpectedAtomGotPair(NodePtr(0)))
         );
 
         assert_eq!(
@@ -1440,15 +1468,15 @@ mod tests {
 
         assert_eq!(
             a.new_concat(11, &[cat, cat]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(a.nil(), 11)),
+            EvalErr::Concat(ConcatError::InvalidNewSize(a.byte_true(), 11)),
         );
         assert_eq!(
             a.new_concat(13, &[cat, cat]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(a.nil(), 13)),
+            EvalErr::Concat(ConcatError::InvalidNewSize(a.byte_true(), 13)),
         );
         assert_eq!(
             a.new_concat(12, &[atom1, pair]).unwrap_err(),
-            EvalErr::Concat(ConcatError::ExpectedAtomGotPair(a.nil()))
+            EvalErr::Concat(ConcatError::ExpectedAtomGotPair(a.pair()))
         );
 
         assert_eq!(
@@ -1560,16 +1588,56 @@ mod tests {
     type TestFun = fn(&Allocator, NodePtr) -> EvalErr;
 
     #[rstest]
-    #[case(test_g1, 0, "atom is not G1 size, 48 bytes")]
-    #[case(test_g1, 3, "atom is not G1 size, 48 bytes")]
-    #[case(test_g1, 47, "atom is not G1 size, 48 bytes")]
-    #[case(test_g1, 49, "atom is not G1 size, 48 bytes")]
-    #[case(test_g1, 48, "atom is not a G1 point")]
-    #[case(test_g2, 0, "atom is not G2 size, 96 bytes")]
-    #[case(test_g2, 3, "atom is not G2 size, 96 bytes")]
-    #[case(test_g2, 95, "atom is not G2 size, 96 bytes")]
-    #[case(test_g2, 97, "atom is not G2 size, 96 bytes")]
-    #[case(test_g2, 96, "atom is not a G2 point")]
+    #[case(
+        test_g1,
+        0,
+        "G1 Error: atom is not G1 size (48 bytes), NodePtr(SmallAtom, 0)"
+    )]
+    #[case(
+        test_g1,
+        3,
+        "G1 Error: atom is not G1 size (48 bytes), NodePtr(Bytes, 0)"
+    )]
+    #[case(
+        test_g1,
+        47,
+        "G1 Error: atom is not G1 size (48 bytes), NodePtr(Bytes, 0)"
+    )]
+    #[case(
+        test_g1,
+        49,
+        "G1 Error: atom is not G1 size (48 bytes), NodePtr(Bytes, 0)"
+    )]
+    #[case(
+        test_g1,
+        48,
+        "G1 Error: atom is not a valid G1 point, NodePtr(Bytes, 0)"
+    )]
+    #[case(
+        test_g2,
+        0,
+        "G2 Error: atom is not G2 size (96 bytes), NodePtr(SmallAtom, 0)"
+    )]
+    #[case(
+        test_g2,
+        3,
+        "G2 Error: atom is not G2 size (96 bytes), NodePtr(Bytes, 0)"
+    )]
+    #[case(
+        test_g2,
+        95,
+        "G2 Error: atom is not G2 size (96 bytes), NodePtr(Bytes, 0)"
+    )]
+    #[case(
+        test_g2,
+        97,
+        "G2 Error: atom is not G2 size (96 bytes), NodePtr(Bytes, 0)"
+    )]
+    #[case(
+        test_g2,
+        96,
+        "G2 Error: atom is not a valid G2 point, NodePtr(Bytes, 0)"
+    )]
     fn test_point_size_error(#[case] fun: TestFun, #[case] size: usize, #[case] expected: &str) {
         let mut a = Allocator::new();
         let mut buf = Vec::<u8>::new();
@@ -1580,8 +1648,8 @@ mod tests {
     }
 
     #[rstest]
-    #[case(test_g1, "pair found, expected G1 point")]
-    #[case(test_g2, "pair found, expected G2 point")]
+    #[case(test_g1, "G1 Error: pair found, expected G1 point, NodePtr(Pair, 0)")]
+    #[case(test_g2, "G2 Error: pair found, expected G2 point, NodePtr(Pair, 0)")]
     fn test_point_atom_pair(#[case] fun: TestFun, #[case] expected: &str) {
         let mut a = Allocator::new();
         let n = a.new_pair(a.nil(), a.one()).unwrap();
@@ -1615,11 +1683,11 @@ e28f75bb8f1c7c42c39a8c5529bf0f4e"
         // try interpreting the point as G1
         assert_eq!(
             a.g2(n).unwrap_err(),
-            EvalErr::G2(G2Error::NotG2Size(a.nil()))
+            EvalErr::G2(G2Error::NotG2Size(a.byte_false()))
         );
         assert_eq!(
             a.g2(g1_copy).unwrap_err(),
-            EvalErr::G2(G2Error::NotG2Size(a.nil()))
+            EvalErr::G2(G2Error::NotG2Size(a.byte_true()))
         );
 
         // try interpreting the point as number
@@ -1662,11 +1730,11 @@ c6c886f6b57ec72a6178288c47c33577\
         // try interpreting the point as G1
         assert_eq!(
             a.g1(n).unwrap_err(),
-            EvalErr::G1(G1Error::NotG1Size(a.nil()))
+            EvalErr::G1(G1Error::NotG1Size(a.byte_false()))
         );
         assert_eq!(
             a.g1(g2_copy).unwrap_err(),
-            EvalErr::G1(G1Error::NotG1Size(a.nil()))
+            EvalErr::G1(G1Error::NotG1Size(a.byte_true()))
         );
 
         // try interpreting the point as number
