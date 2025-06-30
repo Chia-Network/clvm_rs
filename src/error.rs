@@ -1,4 +1,4 @@
-use crate::NodePtr;
+use crate::{Allocator, NodePtr, ObjectType};
 use std::io::Error as IoError;
 use thiserror::Error;
 
@@ -284,4 +284,18 @@ pub enum RuntimeError {
 
     #[error("Environment Stack Limit Reached, {0:?}")]
     EnvironmentStackLimitReached(NodePtr),
+}
+
+// Helper Functions for Debugging
+
+pub fn h_byte_false(allocator: &Allocator) -> NodePtr {
+    allocator.mk_node(ObjectType::Bytes, 0)
+}
+
+pub fn h_byte_true(allocator: &Allocator) -> NodePtr {
+    allocator.mk_node(ObjectType::Bytes, 1)
+}
+
+pub fn h_pair(allocator: &Allocator) -> NodePtr {
+    allocator.mk_node(ObjectType::Pair, 0)
 }

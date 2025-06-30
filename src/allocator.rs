@@ -368,7 +368,7 @@ impl Allocator {
 
     #[inline(always)]
     #[cfg(not(feature = "allocator-debug"))]
-    fn mk_node(&self, t: ObjectType, idx: usize) -> NodePtr {
+    pub(crate) fn mk_node(&self, t: ObjectType, idx: usize) -> NodePtr {
         NodePtr::new(t, idx)
     }
 
@@ -870,18 +870,6 @@ impl Allocator {
         self.mk_node(ObjectType::SmallAtom, 1)
     }
 
-    pub fn byte_false(&self) -> NodePtr {
-        self.mk_node(ObjectType::Bytes, 0)
-    }
-
-    pub fn byte_true(&self) -> NodePtr {
-        self.mk_node(ObjectType::Bytes, 1)
-    }
-
-    pub fn pair(&self) -> NodePtr {
-        self.mk_node(ObjectType::Pair, 0)
-    }
-
     #[inline]
     fn check_atom_limit(&self) -> CLVMResult<()> {
         if self.atom_vec.len() + self.ghost_atoms == MAX_NUM_ATOMS {
@@ -920,7 +908,7 @@ impl Allocator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::{ConcatError, SubstringError};
+    use crate::error::{h_byte_false, h_byte_true, h_pair, ConcatError, SubstringError};
     use rstest::rstest;
 
     #[test]
@@ -1280,27 +1268,27 @@ mod tests {
 
         assert_eq!(
             a.new_substr(atom, 1, 0).unwrap_err(),
-            EvalErr::Substring(SubstringError::StartGreaterThanEnd(a.byte_false(), 1, 0))
+            EvalErr::Substring(SubstringError::StartGreaterThanEnd(h_byte_false(&a), 1, 0))
         );
         assert_eq!(
             a.new_substr(atom, 7, 7).unwrap_err(),
-            EvalErr::Substring(SubstringError::StartOutOfBounds(a.byte_false(), 7, 6))
+            EvalErr::Substring(SubstringError::StartOutOfBounds(h_byte_false(&a), 7, 6))
         );
         assert_eq!(
             a.new_substr(atom, 0, 7).unwrap_err(),
-            EvalErr::Substring(SubstringError::EndOutOfBounds(a.byte_false(), 7, 6))
+            EvalErr::Substring(SubstringError::EndOutOfBounds(h_byte_false(&a), 7, 6))
         );
         assert_eq!(
             a.new_substr(atom, u32::MAX, 4).unwrap_err(),
             EvalErr::Substring(SubstringError::StartOutOfBounds(
-                a.byte_false(),
+                h_byte_false(&a),
                 u32::MAX,
                 6
             ))
         );
         assert_eq!(
             a.new_substr(pair, 0, 0).unwrap_err(),
-            EvalErr::Substring(SubstringError::ExpectedAtomGotPair(a.pair()))
+            EvalErr::Substring(SubstringError::ExpectedAtomGotPair(h_pair(&a)))
         );
     }
 
@@ -1392,11 +1380,11 @@ mod tests {
 
         assert_eq!(
             a.new_concat(11, &[cat, cat]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(a.byte_true(), 11)),
+            EvalErr::Concat(ConcatError::InvalidNewSize(h_byte_true(&a), 11)),
         );
         assert_eq!(
             a.new_concat(13, &[cat, cat]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(a.byte_true(), 13)),
+            EvalErr::Concat(ConcatError::InvalidNewSize(h_byte_true(&a), 13)),
         );
         assert_eq!(
             a.new_concat(12, &[atom3, pair]).unwrap_err(),
@@ -1441,15 +1429,15 @@ mod tests {
 
         assert_eq!(
             a.new_concat(11, &[cat, cat]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(a.byte_true(), 11)),
+            EvalErr::Concat(ConcatError::InvalidNewSize(h_byte_true(&a), 11)),
         );
         assert_eq!(
             a.new_concat(13, &[cat, cat]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(a.byte_true(), 13)),
+            EvalErr::Concat(ConcatError::InvalidNewSize(h_byte_true(&a), 13)),
         );
         assert_eq!(
             a.new_concat(12, &[atom1, pair]).unwrap_err(),
-            EvalErr::Concat(ConcatError::ExpectedAtomGotPair(a.pair()))
+            EvalErr::Concat(ConcatError::ExpectedAtomGotPair(h_pair(&a)))
         );
 
         assert_eq!(
@@ -1656,11 +1644,11 @@ e28f75bb8f1c7c42c39a8c5529bf0f4e"
         // try interpreting the point as G1
         assert_eq!(
             a.g2(n).unwrap_err(),
-            EvalErr::G2(G2Error::NotG2Size(a.byte_false()))
+            EvalErr::G2(G2Error::NotG2Size(h_byte_false(&a)))
         );
         assert_eq!(
             a.g2(g1_copy).unwrap_err(),
-            EvalErr::G2(G2Error::NotG2Size(a.byte_true()))
+            EvalErr::G2(G2Error::NotG2Size(h_byte_true(&a)))
         );
 
         // try interpreting the point as number
@@ -1703,11 +1691,11 @@ c6c886f6b57ec72a6178288c47c33577\
         // try interpreting the point as G1
         assert_eq!(
             a.g1(n).unwrap_err(),
-            EvalErr::G1(G1Error::NotG1Size(a.byte_false()))
+            EvalErr::G1(G1Error::NotG1Size(h_byte_false(&a)))
         );
         assert_eq!(
             a.g1(g2_copy).unwrap_err(),
-            EvalErr::G1(G1Error::NotG1Size(a.byte_true()))
+            EvalErr::G1(G1Error::NotG1Size(h_byte_true(&a)))
         );
 
         // try interpreting the point as number

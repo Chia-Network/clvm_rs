@@ -687,18 +687,21 @@ fn test_shift(
     op(a, args, 10000000 as Cost)
 }
 
+#[cfg(test)]
+use crate::error::{h_byte_false, h_byte_true};
+
 #[test]
 fn test_op_ash() {
     let mut a = Allocator::new();
 
     assert_eq!(
         test_shift(op_ash, &mut a, &[1], &[0x80, 0, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(a.byte_false())
+        EvalErr::ShiftTooLarge(h_byte_false(&a))
     );
 
     assert_eq!(
         test_shift(op_ash, &mut a, &[1], &[0x80, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(a.byte_true())
+        EvalErr::ShiftTooLarge(h_byte_true(&a))
     );
 
     let node = test_shift(op_ash, &mut a, &[1], &[0x80, 0]).unwrap().1;
@@ -748,12 +751,12 @@ fn test_op_lsh() {
 
     assert_eq!(
         test_shift(op_lsh, &mut a, &[1], &[0x80, 0, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(a.byte_false())
+        EvalErr::ShiftTooLarge(h_byte_false(&a))
     );
 
     assert_eq!(
         test_shift(op_lsh, &mut a, &[1], &[0x80, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(a.byte_true())
+        EvalErr::ShiftTooLarge(h_byte_true(&a))
     );
 
     let node = test_shift(op_lsh, &mut a, &[1], &[0x80, 0]).unwrap().1;
