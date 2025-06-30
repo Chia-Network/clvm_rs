@@ -107,16 +107,6 @@ struct RunProgramContext<'a, D> {
     posteval_stack: Vec<Box<PostEval>>,
 }
 
-fn augment_cost_errors(r: CLVMResult<Cost>, max_cost: NodePtr) -> CLVMResult<Cost> {
-    r.map_err(|e| {
-        if e != EvalErr::CostExceeded(max_cost) {
-            e
-        } else {
-            EvalErr::CostExceeded(max_cost)
-        }
-    })
-}
-
 impl<'a, D: Dialect> RunProgramContext<'a, D> {
     #[cfg(feature = "counters")]
     #[inline(always)]
@@ -485,13 +475,10 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 None => break,
             };
             cost += match op {
-                Operation::Apply => augment_cost_errors(
-                    self.apply_op(cost, effective_max_cost - cost),
-                    max_cost_ptr,
-                )?,
+                Operation::Apply => self.apply_op(cost, effective_max_cost - cost)?,
                 Operation::ExitGuard => self.exit_guard(cost)?,
                 Operation::Cons => self.cons_op()?,
-                Operation::SwapEval => augment_cost_errors(self.swap_eval_op(), max_cost_ptr)?,
+                Operation::SwapEval => self.swap_eval_op()?,
                 #[cfg(feature = "pre-eval")]
                 Operation::PostEval => {
                     let f = self.posteval_stack.pop().unwrap();
