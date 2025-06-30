@@ -111,10 +111,7 @@ pub fn i32_atom(a: &Allocator, args: NodePtr, op_name: &str) -> CLVMResult<i32> 
     match a.node(args) {
         NodeVisitor::Buffer(buf) => match i32_from_u8(buf) {
             Some(v) => Ok(v),
-            _ => Err(OperatorError::RequiresInt32ArgsNoLZ(
-                args,
-                op_name.to_string(),
-            ))?,
+            _ => Err(OperatorError::RequiresInt32Args(args, op_name.to_string()))?,
         },
         NodeVisitor::U32(val) => Ok(val as i32),
         NodeVisitor::Pair(_, _) => {
@@ -669,14 +666,14 @@ mod tests {
         let r = i32_atom(&a, a2, "test").unwrap_err();
         assert_eq!(
             r,
-            EvalErr::Operator(OperatorError::RequiresInt32ArgsNoLZ(a2, "test".to_string()))
+            EvalErr::Operator(OperatorError::RequiresInt32Args(a2, "test".to_string()))
         );
 
         let a3 = a.new_number((-0xffffffff_i64).into()).unwrap();
         let r = i32_atom(&a, a3, "test").unwrap_err();
         assert_eq!(
             r,
-            EvalErr::Operator(OperatorError::RequiresInt32ArgsNoLZ(a3, "test".to_string()))
+            EvalErr::Operator(OperatorError::RequiresInt32Args(a3, "test".to_string()))
         );
     }
 }

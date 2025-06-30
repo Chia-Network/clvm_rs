@@ -112,9 +112,6 @@ pub enum EvalErr {
 
     #[error("Secp256r1 Verify Error: {0}")]
     Secp256r1Verify(#[from] Secp256r1verifyError),
-
-    #[error("Custom Error: {1} ,{0:?}")]
-    CustomError(NodePtr, String),
 }
 
 impl PartialEq<Self> for EvalErr {
@@ -140,11 +137,8 @@ pub enum OperatorError {
     #[error("{1} Requires Positive Int Argument, {0:?}")]
     RequiresPositiveIntArgument(NodePtr, String),
 
-    #[error("{1} Requires Int32 args, {0:?}")]
-    RequiresInt32Args(NodePtr, String),
-
     #[error("{1} Requires Int32 args (with no leading zeros), {0:?}")]
-    RequiresInt32ArgsNoLZ(NodePtr, String),
+    RequiresInt32Args(NodePtr, String),
 
     #[error("{1} Requires {2} arguments, {0:?}")]
     RequiresArgs(NodePtr, String, u32),
