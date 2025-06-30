@@ -803,13 +803,10 @@ impl Allocator {
         };
 
         let atom = self.atom_vec[idx as usize];
-        if atom.end - atom.start != 96 {
-            return Err(G2Error::NotG2Size(node))?;
-        }
 
         let array: &[u8; 96] = &self.u8_vec[atom.start as usize..atom.end as usize]
             .try_into()
-            .expect("atom size is not 96 bytes"); // TODO: Review this.
+            .map_err(|_| G2Error::NotG2Size(node))?;
 
         G2Element::from_bytes(array).map_err(|_| EvalErr::G2(G2Error::NotValidG2Point(node)))
     }
