@@ -1,4 +1,4 @@
-use crate::error::{CLVMResult, ConcatError, EvalErr, G1Error, G2Error, SubstringError};
+use crate::error::{ConcatError, EvalErr, G1Error, G2Error, Result, SubstringError};
 use crate::number::{number_from_u8, Number};
 use chia_bls::{G1Element, G2Element};
 use std::borrow::Borrow;
@@ -421,7 +421,7 @@ impl Allocator {
             .push((self.atom_vec.len(), self.pair_vec.len()));
     }
 
-    pub fn new_atom(&mut self, v: &[u8]) -> CLVMResult<NodePtr> {
+    pub fn new_atom(&mut self, v: &[u8]) -> Result<NodePtr> {
         let start = self.u8_vec.len() as u32;
         if (self.heap_limit - start as usize - self.ghost_heap) < v.len() {
             return Err(EvalErr::OutOfMemory);
@@ -439,14 +439,14 @@ impl Allocator {
         }
     }
 
-    pub fn new_small_number(&mut self, v: u32) -> CLVMResult<NodePtr> {
+    pub fn new_small_number(&mut self, v: u32) -> Result<NodePtr> {
         debug_assert!(v <= NODE_PTR_IDX_MASK);
         self.check_atom_limit()?;
         self.ghost_atoms += 1;
         Ok(self.mk_node(ObjectType::SmallAtom, v as usize))
     }
 
-    pub fn new_number(&mut self, v: Number) -> CLVMResult<NodePtr> {
+    pub fn new_number(&mut self, v: Number) -> Result<NodePtr> {
         use num_traits::ToPrimitive;
         if let Some(val) = v.to_u32() {
             if val <= NODE_PTR_IDX_MASK {
@@ -466,15 +466,15 @@ impl Allocator {
         self.new_atom(slice)
     }
 
-    pub fn new_g1(&mut self, g1: G1Element) -> CLVMResult<NodePtr> {
+    pub fn new_g1(&mut self, g1: G1Element) -> Result<NodePtr> {
         self.new_atom(&g1.to_bytes())
     }
 
-    pub fn new_g2(&mut self, g2: G2Element) -> CLVMResult<NodePtr> {
+    pub fn new_g2(&mut self, g2: G2Element) -> Result<NodePtr> {
         self.new_atom(&g2.to_bytes())
     }
 
-    pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> CLVMResult<NodePtr> {
+    pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr> {
         #[cfg(feature = "allocator-debug")]
         {
             self.validate_node(first);
@@ -491,7 +491,7 @@ impl Allocator {
     // this code is used when we are simulating pairs with a vec locally
     // in the deserialize_br code
     // we must maintain parity with the old deserialize_br code so need to track the skipped pairs
-    pub fn add_ghost_pair(&mut self, amount: usize) -> CLVMResult<()> {
+    pub fn add_ghost_pair(&mut self, amount: usize) -> Result<()> {
         if MAX_NUM_PAIRS - self.ghost_pairs - self.pair_vec.len() < amount {
             return Err(EvalErr::TooManyPairs);
         }
@@ -500,20 +500,20 @@ impl Allocator {
     }
 
     // this code is used when we actually create the pairs that were previously skipped ghost pairs
-    pub fn remove_ghost_pair(&mut self, amount: usize) -> CLVMResult<()> {
+    pub fn remove_ghost_pair(&mut self, amount: usize) -> Result<()> {
         // currently let this panic with overflow if we go below 0 to debug if/where it happens
         debug_assert!(self.ghost_pairs >= amount);
         self.ghost_pairs -= amount;
         Ok(())
     }
 
-    pub fn new_substr(&mut self, node: NodePtr, start: u32, end: u32) -> CLVMResult<NodePtr> {
+    pub fn new_substr(&mut self, node: NodePtr, start: u32, end: u32) -> Result<NodePtr> {
         #[cfg(feature = "allocator-debug")]
         self.validate_node(node);
 
         self.check_atom_limit()?;
 
-        fn bounds_check(node: NodePtr, start: u32, end: u32, len: u32) -> CLVMResult<()> {
+        fn bounds_check(node: NodePtr, start: u32, end: u32, len: u32) -> Result<()> {
             if start > len {
                 Err(SubstringError::StartOutOfBounds(node, start, len))?;
             }
@@ -564,7 +564,7 @@ impl Allocator {
         }
     }
 
-    pub fn new_concat(&mut self, new_size: usize, nodes: &[NodePtr]) -> CLVMResult<NodePtr> {
+    pub fn new_concat(&mut self, new_size: usize, nodes: &[NodePtr]) -> Result<NodePtr> {
         #[cfg(feature = "allocator-debug")]
         {
             for n in nodes {
@@ -764,7 +764,7 @@ impl Allocator {
         }
     }
 
-    pub fn g1(&self, node: NodePtr) -> CLVMResult<G1Element> {
+    pub fn g1(&self, node: NodePtr) -> Result<G1Element> {
         #[cfg(feature = "allocator-debug")]
         self.validate_node(node);
 
@@ -788,7 +788,7 @@ impl Allocator {
         G1Element::from_bytes(array).map_err(|_| EvalErr::G1(G1Error::NotValidG1Point(node)))
     }
 
-    pub fn g2(&self, node: NodePtr) -> CLVMResult<G2Element> {
+    pub fn g2(&self, node: NodePtr) -> Result<G2Element> {
         #[cfg(feature = "allocator-debug")]
         self.validate_node(node);
 
@@ -868,7 +868,7 @@ impl Allocator {
     }
 
     #[inline]
-    fn check_atom_limit(&self) -> CLVMResult<()> {
+    fn check_atom_limit(&self) -> Result<()> {
         if self.atom_vec.len() + self.ghost_atoms == MAX_NUM_ATOMS {
             Err(EvalErr::TooManyAtoms)
         } else {

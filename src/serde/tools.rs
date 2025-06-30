@@ -1,4 +1,4 @@
-use crate::error::{CLVMResult, EvalErr};
+use crate::error::{EvalErr, Result};
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use super::parse_atom::{decode_size, decode_size_with_offset};
@@ -7,7 +7,7 @@ const MAX_SINGLE_BYTE: u8 = 0x7f;
 const BACK_REFERENCE: u8 = 0xfe;
 const CONS_BOX_MARKER: u8 = 0xff;
 
-pub fn serialized_length_from_bytes_trusted(b: &[u8]) -> CLVMResult<u64> {
+pub fn serialized_length_from_bytes_trusted(b: &[u8]) -> Result<u64> {
     let mut f = Cursor::new(b);
     let mut ops_counter = 1;
     let mut b = [0; 1];
@@ -68,7 +68,7 @@ enum ParseOp {
 }
 
 // computes the tree-hash of a CLVM structure in serialized form
-pub fn tree_hash_from_stream(f: &mut Cursor<&[u8]>) -> CLVMResult<[u8; 32]> {
+pub fn tree_hash_from_stream(f: &mut Cursor<&[u8]>) -> Result<[u8; 32]> {
     let mut values: Vec<[u8; 32]> = Vec::new();
     let mut ops = vec![ParseOp::SExp];
 
@@ -109,7 +109,7 @@ pub fn tree_hash_from_stream(f: &mut Cursor<&[u8]>) -> CLVMResult<[u8; 32]> {
 /// validate that a buffer is a valid CLVM serialization, and return the length
 /// of the CLVM object. This may fail if the serialization contains an invalid
 /// back-reference or if the buffer is truncated.
-pub fn serialized_length_from_bytes(b: &[u8]) -> CLVMResult<u64> {
+pub fn serialized_length_from_bytes(b: &[u8]) -> Result<u64> {
     use crate::serde::parse_atom::parse_path;
     use crate::traverse_path::traverse_path;
     use crate::{allocator::SExp, Allocator};

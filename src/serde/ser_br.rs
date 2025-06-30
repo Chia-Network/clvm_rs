@@ -7,7 +7,7 @@ use super::object_cache::{serialized_length, treehash, ObjectCache};
 use super::read_cache_lookup::ReadCacheLookup;
 use super::write_atom::write_atom;
 use crate::allocator::{Allocator, NodePtr, SExp};
-use crate::error::CLVMResult;
+use crate::error::Result;
 use crate::serde::ser::LimitedWriter;
 
 const BACK_REFERENCE: u8 = 0xfe;
@@ -23,7 +23,7 @@ pub fn node_to_stream_backrefs<W: io::Write>(
     allocator: &Allocator,
     node: NodePtr,
     f: &mut W,
-) -> CLVMResult<()> {
+) -> Result<()> {
     let mut read_op_stack: Vec<ReadOp> = vec![ReadOp::Parse];
     let mut write_stack: Vec<NodePtr> = vec![node];
 
@@ -72,11 +72,7 @@ pub fn node_to_stream_backrefs<W: io::Write>(
     Ok(())
 }
 
-pub fn node_to_bytes_backrefs_limit(
-    a: &Allocator,
-    node: NodePtr,
-    limit: usize,
-) -> CLVMResult<Vec<u8>> {
+pub fn node_to_bytes_backrefs_limit(a: &Allocator, node: NodePtr, limit: usize) -> Result<Vec<u8>> {
     let buffer = Cursor::new(Vec::new());
     let mut writer = LimitedWriter::new(buffer, limit);
     node_to_stream_backrefs(a, node, &mut writer)?;
@@ -84,7 +80,7 @@ pub fn node_to_bytes_backrefs_limit(
     Ok(vec)
 }
 
-pub fn node_to_bytes_backrefs(a: &Allocator, node: NodePtr) -> CLVMResult<Vec<u8>> {
+pub fn node_to_bytes_backrefs(a: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
     let mut buffer = Cursor::new(Vec::new());
     node_to_stream_backrefs(a, node, &mut buffer)?;
     let vec = buffer.into_inner();

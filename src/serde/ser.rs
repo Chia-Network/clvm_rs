@@ -5,7 +5,7 @@ use std::io::Write;
 
 use super::write_atom::write_atom;
 use crate::allocator::{len_for_value, Allocator, NodePtr, NodeVisitor};
-use crate::error::CLVMResult;
+use crate::error::Result;
 
 const CONS_BOX_MARKER: u8 = 0xff;
 
@@ -38,7 +38,7 @@ impl<W: Write> Write for LimitedWriter<W> {
     }
 }
 /// serialize a node
-pub fn node_to_stream<W: Write>(a: &Allocator, node: NodePtr, f: &mut W) -> CLVMResult<()> {
+pub fn node_to_stream<W: Write>(a: &Allocator, node: NodePtr, f: &mut W) -> Result<()> {
     let mut values: Vec<NodePtr> = vec![node];
     while let Some(v) = values.pop() {
         match a.node(v) {
@@ -58,7 +58,7 @@ pub fn node_to_stream<W: Write>(a: &Allocator, node: NodePtr, f: &mut W) -> CLVM
     Ok(())
 }
 
-pub fn node_to_bytes_limit(a: &Allocator, node: NodePtr, limit: usize) -> CLVMResult<Vec<u8>> {
+pub fn node_to_bytes_limit(a: &Allocator, node: NodePtr, limit: usize) -> Result<Vec<u8>> {
     let buffer = Cursor::new(Vec::new());
     let mut writer = LimitedWriter::new(buffer, limit);
     node_to_stream(a, node, &mut writer)?;
@@ -66,7 +66,7 @@ pub fn node_to_bytes_limit(a: &Allocator, node: NodePtr, limit: usize) -> CLVMRe
     Ok(vec)
 }
 
-pub fn node_to_bytes(a: &Allocator, node: NodePtr) -> CLVMResult<Vec<u8>> {
+pub fn node_to_bytes(a: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
     node_to_bytes_limit(a, node, 2000000)
 }
 

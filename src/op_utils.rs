@@ -1,7 +1,7 @@
 use crate::allocator::{Allocator, Atom, NodePtr, NodeVisitor, SExp};
 use crate::cost::Cost;
 
-use crate::error::{CLVMResult, EvalErr, OperatorError};
+use crate::error::{EvalErr, OperatorError, Result};
 use crate::number::Number;
 use crate::reduction::{Reduction, Response};
 use lazy_static::lazy_static;
@@ -11,11 +11,7 @@ use num_integer::Integer;
 // We ascribe some additional cost per byte for operations that allocate new atoms
 pub const MALLOC_COST_PER_BYTE: Cost = 10;
 
-pub fn get_args<const N: usize>(
-    a: &Allocator,
-    args: NodePtr,
-    name: &str,
-) -> CLVMResult<[NodePtr; N]> {
+pub fn get_args<const N: usize>(a: &Allocator, args: NodePtr, name: &str) -> Result<[NodePtr; N]> {
     match_args::<N>(a, args).ok_or_else(|| {
         EvalErr::Operator(OperatorError::TakesExactlyArgs(
             args,
@@ -46,18 +42,14 @@ pub fn match_args<const N: usize>(a: &Allocator, args: NodePtr) -> Option<[NodeP
     }
 }
 
-pub fn atom_len(a: &Allocator, args: NodePtr, op_name: &str) -> CLVMResult<usize> {
+pub fn atom_len(a: &Allocator, args: NodePtr, op_name: &str) -> Result<usize> {
     match a.sexp(args) {
         SExp::Atom => Ok(a.atom_len(args)),
         _ => Err(OperatorError::RequiresAtom(args, op_name.to_string()))?,
     }
 }
 
-pub fn uint_atom<const SIZE: usize>(
-    a: &Allocator,
-    args: NodePtr,
-    op_name: &str,
-) -> CLVMResult<u64> {
+pub fn uint_atom<const SIZE: usize>(a: &Allocator, args: NodePtr, op_name: &str) -> Result<u64> {
     match a.node(args) {
         NodeVisitor::Buffer(bytes) => {
             if bytes.is_empty() {
@@ -100,14 +92,14 @@ pub fn uint_atom<const SIZE: usize>(
     }
 }
 
-pub fn atom<'a>(a: &'a Allocator, n: NodePtr, op_name: &str) -> CLVMResult<Atom<'a>> {
+pub fn atom<'a>(a: &'a Allocator, n: NodePtr, op_name: &str) -> Result<Atom<'a>> {
     if n.is_pair() {
         Err(OperatorError::UsedOnList(n, op_name.to_string()))?;
     }
     Ok(a.atom(n))
 }
 
-pub fn i32_atom(a: &Allocator, args: NodePtr, op_name: &str) -> CLVMResult<i32> {
+pub fn i32_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<i32> {
     match a.node(args) {
         NodeVisitor::Buffer(buf) => match i32_from_u8(buf) {
             Some(v) => Ok(v),
@@ -190,7 +182,7 @@ pub fn get_varargs<const N: usize>(
     a: &Allocator,
     args: NodePtr,
     name: &str,
-) -> CLVMResult<([NodePtr; N], usize)> {
+) -> Result<([NodePtr; N], usize)> {
     let mut next = args;
     let mut counter = 0;
     let mut ret = [NodePtr::NIL; N];
@@ -218,21 +210,21 @@ pub fn nilp(a: &Allocator, n: NodePtr) -> bool {
     }
 }
 
-pub fn first(a: &Allocator, n: NodePtr) -> CLVMResult<NodePtr> {
+pub fn first(a: &Allocator, n: NodePtr) -> Result<NodePtr> {
     match a.sexp(n) {
         SExp::Pair(first, _) => Ok(first),
         _ => Err(EvalErr::FirstOfNonCons(n)),
     }
 }
 
-pub fn rest(a: &Allocator, n: NodePtr) -> CLVMResult<NodePtr> {
+pub fn rest(a: &Allocator, n: NodePtr) -> Result<NodePtr> {
     match a.sexp(n) {
         SExp::Pair(_, rest) => Ok(rest),
         _ => Err(EvalErr::RestOfNonCons(n)),
     }
 }
 
-pub fn int_atom(a: &Allocator, args: NodePtr, op_name: &str) -> CLVMResult<(Number, usize)> {
+pub fn int_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<(Number, usize)> {
     match a.sexp(args) {
         SExp::Atom => Ok((a.number(args), a.atom_len(args))),
         _ => Err(OperatorError::RequiresIntArgument(

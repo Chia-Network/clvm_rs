@@ -2,7 +2,7 @@ use crate::{Allocator, NodePtr, ObjectType};
 use std::io::Error as IoError;
 use thiserror::Error;
 
-pub type CLVMResult<T> = Result<T, EvalErr>;
+pub type Result<T> = std::result::Result<T, EvalErr>;
 #[derive(Debug, Error)]
 pub enum EvalErr {
     #[error("IO Error: {0}")]

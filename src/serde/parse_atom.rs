@@ -1,7 +1,7 @@
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use crate::allocator::{Allocator, NodePtr};
-use crate::error::{CLVMResult, EvalErr};
+use crate::error::{EvalErr, Result};
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 
@@ -9,7 +9,7 @@ const MAX_SINGLE_BYTE: u8 = 0x7f;
 /// of the atom and the full length of the atom.
 /// Atoms whose value fit in 7 bits don't have a length prefix, so those should
 /// be handled specially and never passed to this function.
-pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> CLVMResult<(u8, u64)> {
+pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> Result<(u8, u64)> {
     debug_assert!((initial_b & 0x80) != 0);
     if (initial_b & 0x80) == 0 {
         return Err(EvalErr::InternalError);
@@ -43,13 +43,13 @@ pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> CLVMResult<
     Ok((atom_start_offset as u8, atom_size))
 }
 
-pub fn decode_size<R: Read>(f: &mut R, initial_b: u8) -> CLVMResult<u64> {
+pub fn decode_size<R: Read>(f: &mut R, initial_b: u8) -> Result<u64> {
     decode_size_with_offset(f, initial_b).map(|v| v.1)
 }
 
 /// parse an atom from the stream and return a pointer to it
 /// the first byte has already been read
-fn parse_atom_ptr<'a>(f: &'a mut Cursor<&[u8]>, first_byte: u8) -> CLVMResult<&'a [u8]> {
+fn parse_atom_ptr<'a>(f: &'a mut Cursor<&[u8]>, first_byte: u8) -> Result<&'a [u8]> {
     let blob = if first_byte <= MAX_SINGLE_BYTE {
         let pos = f.position() as usize;
         &f.get_ref()[pos - 1..pos]
@@ -73,7 +73,7 @@ pub fn parse_atom(
     allocator: &mut Allocator,
     first_byte: u8,
     f: &mut Cursor<&[u8]>,
-) -> CLVMResult<NodePtr> {
+) -> Result<NodePtr> {
     if first_byte == 0x01 {
         Ok(allocator.one())
     } else if first_byte == 0x80 {
@@ -85,7 +85,7 @@ pub fn parse_atom(
 }
 
 /// parse an atom from the stream and return a pointer to it
-pub fn parse_path<'a>(f: &'a mut Cursor<&[u8]>) -> CLVMResult<&'a [u8]> {
+pub fn parse_path<'a>(f: &'a mut Cursor<&[u8]>) -> Result<&'a [u8]> {
     let mut buf1: [u8; 1] = [0];
     f.read_exact(&mut buf1)?;
     parse_atom_ptr(f, buf1[0])

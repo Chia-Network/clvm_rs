@@ -3,7 +3,7 @@ use crate::allocator::{Allocator, Checkpoint, NodePtr, NodeVisitor, SExp};
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 
-use crate::error::{CLVMResult, EvalErr, RuntimeError};
+use crate::error::{EvalErr, Result, RuntimeError};
 use crate::op_utils::{first, get_args, uint_atom};
 use crate::reduction::{Reduction, Response};
 
@@ -21,8 +21,7 @@ const OP_COST: Cost = 1;
 const STACK_SIZE_LIMIT: usize = 20000000;
 
 #[cfg(feature = "pre-eval")]
-pub type PreEval =
-    Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> CLVMResult<Option<Box<PostEval>>>>;
+pub type PreEval = Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<PostEval>>>>;
 
 #[cfg(feature = "pre-eval")]
 pub type PostEval = dyn Fn(&mut Allocator, Option<NodePtr>);
@@ -141,7 +140,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     #[inline(always)]
     fn account_op_push(&mut self) {}
 
-    pub fn pop(&mut self) -> CLVMResult<NodePtr> {
+    pub fn pop(&mut self) -> Result<NodePtr> {
         let v: Option<NodePtr> = self.val_stack.pop();
         match v {
             None => {
@@ -151,7 +150,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             Some(k) => Ok(k),
         }
     }
-    pub fn push(&mut self, node: NodePtr) -> CLVMResult<()> {
+    pub fn push(&mut self, node: NodePtr) -> Result<()> {
         if self.val_stack.len() == STACK_SIZE_LIMIT {
             return Err(RuntimeError::ValueStackLimitReached(node))?;
         }
@@ -160,7 +159,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         Ok(())
     }
 
-    pub fn push_env(&mut self, env: NodePtr) -> CLVMResult<()> {
+    pub fn push_env(&mut self, env: NodePtr) -> Result<()> {
         if self.env_stack.len() == STACK_SIZE_LIMIT {
             return Err(RuntimeError::EnvironmentStackLimitReached(env))?;
         }
@@ -206,7 +205,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    fn cons_op(&mut self) -> CLVMResult<Cost> {
+    fn cons_op(&mut self) -> Result<Cost> {
         /* Join the top two operands. */
         let v1 = self.pop()?;
         let v2 = self.pop()?;
@@ -220,7 +219,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         operator_node: NodePtr,
         operand_list: NodePtr,
         env: NodePtr,
-    ) -> CLVMResult<Cost> {
+    ) -> Result<Cost> {
         // special case check for quote
         if self.allocator.small_number(operator_node) == Some(self.dialect.quote_kw()) {
             self.push(operand_list)?;
@@ -258,7 +257,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    fn eval_pair(&mut self, program: NodePtr, env: NodePtr) -> CLVMResult<Cost> {
+    fn eval_pair(&mut self, program: NodePtr, env: NodePtr) -> Result<Cost> {
         #[cfg(feature = "pre-eval")]
         if let Some(pre_eval) = &self.pre_eval {
             if let Some(post_eval) = pre_eval(self.allocator, program, env)? {
@@ -302,7 +301,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    fn swap_eval_op(&mut self) -> CLVMResult<Cost> {
+    fn swap_eval_op(&mut self) -> Result<Cost> {
         let v2 = self.pop()?;
         let program: NodePtr = self.pop()?;
         let env: NodePtr = *self
@@ -318,10 +317,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         self.eval_pair(program, env)
     }
 
-    fn parse_softfork_arguments(
-        &self,
-        args: NodePtr,
-    ) -> CLVMResult<(OperatorSet, NodePtr, NodePtr)> {
+    fn parse_softfork_arguments(&self, args: NodePtr) -> Result<(OperatorSet, NodePtr, NodePtr)> {
         let [_cost, extension, program, env] = get_args::<4>(self.allocator, args, "softfork")?;
 
         let extension =
@@ -334,7 +330,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    fn apply_op(&mut self, current_cost: Cost, max_cost: Cost) -> CLVMResult<Cost> {
+    fn apply_op(&mut self, current_cost: Cost, max_cost: Cost) -> Result<Cost> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
         if self.env_stack.pop().is_none() {
@@ -407,7 +403,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    fn exit_guard(&mut self, current_cost: Cost) -> CLVMResult<Cost> {
+    fn exit_guard(&mut self, current_cost: Cost) -> Result<Cost> {
         // this is called when we are done executing a softfork program.
         // This is when we have to validate the cost
         let guard = self

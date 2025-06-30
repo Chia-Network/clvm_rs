@@ -1,4 +1,4 @@
-use crate::error::{CLVMResult, EvalErr};
+use crate::error::{EvalErr, Result};
 use std::io;
 
 /// all atoms serialize their contents verbatim. All expect those one-byte atoms
@@ -9,7 +9,7 @@ fn write_atom_encoding_prefix_with_size<W: io::Write>(
     f: &mut W,
     atom_0: u8,
     size: u64,
-) -> CLVMResult<()> {
+) -> Result<()> {
     if size == 0 {
         f.write_all(&[0x80]).map_err(EvalErr::SerializationError)
     } else if size == 1 && atom_0 < 0x80 {
@@ -50,7 +50,7 @@ fn write_atom_encoding_prefix_with_size<W: io::Write>(
 }
 
 /// serialize an atom
-pub fn write_atom<W: io::Write>(f: &mut W, atom: &[u8]) -> CLVMResult<()> {
+pub fn write_atom<W: io::Write>(f: &mut W, atom: &[u8]) -> Result<()> {
     let u8_0 = if !atom.is_empty() { atom[0] } else { 0 };
     write_atom_encoding_prefix_with_size(f, u8_0, atom.len() as u64)?;
     f.write_all(atom).map_err(EvalErr::SerializationError)
