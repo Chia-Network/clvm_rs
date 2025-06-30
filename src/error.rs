@@ -26,8 +26,8 @@ pub enum EvalErr {
     #[error("clvm raise, {0:?}")]
     Raise(NodePtr),
 
-    #[error("Out of Memory: {0:?}")]
-    OutOfMemory(NodePtr),
+    #[error("Out of Memory")]
+    OutOfMemory,
 
     #[error("Cost Exceeded {0:?}")]
     CostExceeded(NodePtr),
@@ -35,11 +35,11 @@ pub enum EvalErr {
     #[error("Cost Must be greater than zero: {0:?}")]
     CostBelowZero(NodePtr),
 
-    #[error("Too Many Pairs: {0:?}")]
-    TooManyPairs(NodePtr),
+    #[error("Too Many Pairs")]
+    TooManyPairs,
 
-    #[error("Too Many Atoms {0:?}")]
-    TooManyAtoms(NodePtr),
+    #[error("Too Many Atoms")]
+    TooManyAtoms,
 
     #[error("Path Into Atom {0:?}")]
     PathIntoAtom(NodePtr),
@@ -80,8 +80,8 @@ pub enum EvalErr {
     #[error("Unknown Softfork Extension: {0:?}")]
     UnknownSoftforkExtension(NodePtr),
 
-    #[error("Softfork specified cost mismatch: {0:?}")]
-    SoftforkSpecifiedCostMismatch(NodePtr),
+    #[error("Softfork specified cost mismatch")]
+    SoftforkSpecifiedCostMismatch,
 
     // Grouped errors
     #[error("Substring: {0}")]

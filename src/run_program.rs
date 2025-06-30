@@ -432,7 +432,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 current_cost - guard.start_cost,
                 guard.expected_cost - guard.start_cost
             );
-            return Err(EvalErr::SoftforkSpecifiedCostMismatch(self.allocator.nil()));
+            return Err(EvalErr::SoftforkSpecifiedCostMismatch);
         }
 
         // restore the allocator to the state when we entered the softfork guard

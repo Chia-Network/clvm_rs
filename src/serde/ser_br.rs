@@ -112,7 +112,7 @@ mod tests {
         assert_eq!(node_to_bytes_backrefs_limit(&a, l3, 15).unwrap(), expected);
         assert_eq!(
             node_to_bytes_backrefs_limit(&a, l3, 14).unwrap_err(),
-            EvalErr::OutOfMemory(a.nil())
+            EvalErr::OutOfMemory
         );
     }
 }

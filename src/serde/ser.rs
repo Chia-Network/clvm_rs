@@ -104,7 +104,7 @@ mod tests {
             let mut writer = LimitedWriter::new(buffer, 54);
             assert_eq!(
                 node_to_stream(&a, l3, &mut writer).unwrap_err(),
-                EvalErr::OutOfMemory(a.nil())
+                EvalErr::OutOfMemory
             );
         }
     }

@@ -424,7 +424,7 @@ impl Allocator {
     pub fn new_atom(&mut self, v: &[u8]) -> CLVMResult<NodePtr> {
         let start = self.u8_vec.len() as u32;
         if (self.heap_limit - start as usize - self.ghost_heap) < v.len() {
-            return Err(EvalErr::OutOfMemory(self.nil()));
+            return Err(EvalErr::OutOfMemory);
         }
         let idx = self.atom_vec.len();
         self.check_atom_limit()?;
@@ -482,7 +482,7 @@ impl Allocator {
         }
         let idx = self.pair_vec.len();
         if idx >= MAX_NUM_PAIRS - self.ghost_pairs {
-            return Err(EvalErr::TooManyPairs(self.nil()));
+            return Err(EvalErr::TooManyPairs);
         }
         self.pair_vec.push(IntPair { first, rest });
         Ok(self.mk_node(ObjectType::Pair, idx))
@@ -493,7 +493,7 @@ impl Allocator {
     // we must maintain parity with the old deserialize_br code so need to track the skipped pairs
     pub fn add_ghost_pair(&mut self, amount: usize) -> CLVMResult<()> {
         if MAX_NUM_PAIRS - self.ghost_pairs - self.pair_vec.len() < amount {
-            return Err(EvalErr::TooManyPairs(self.nil()));
+            return Err(EvalErr::TooManyPairs);
         }
         self.ghost_pairs += amount;
         Ok(())
@@ -575,7 +575,7 @@ impl Allocator {
         self.check_atom_limit()?;
         let start = self.u8_vec.len();
         if self.heap_limit - start - self.ghost_heap < new_size {
-            return Err(EvalErr::OutOfMemory(self.nil()));
+            return Err(EvalErr::OutOfMemory);
         }
 
         if nodes.is_empty() {
@@ -885,7 +885,7 @@ impl Allocator {
     #[inline]
     fn check_atom_limit(&self) -> CLVMResult<()> {
         if self.atom_vec.len() + self.ghost_atoms == MAX_NUM_ATOMS {
-            Err(EvalErr::TooManyAtoms(self.nil()))
+            Err(EvalErr::TooManyAtoms)
         } else {
             Ok(())
         }
@@ -1177,10 +1177,7 @@ mod tests {
     fn test_allocate_heap_limit() {
         let mut a = Allocator::new_limited(6);
         // we can't allocate 6 bytes
-        assert_eq!(
-            a.new_atom(b"foobar").unwrap_err(),
-            EvalErr::OutOfMemory(a.nil())
-        );
+        assert_eq!(a.new_atom(b"foobar").unwrap_err(), EvalErr::OutOfMemory);
         // but 5 is OK
         let _atom = a.new_atom(b"fooba").unwrap();
     }
@@ -1193,10 +1190,7 @@ mod tests {
             // exhaust the number of atoms allowed to be allocated
             let _ = a.new_atom(b"foo").unwrap();
         }
-        assert_eq!(
-            a.new_atom(b"foobar").unwrap_err(),
-            EvalErr::TooManyAtoms(a.nil())
-        );
+        assert_eq!(a.new_atom(b"foobar").unwrap_err(), EvalErr::TooManyAtoms);
         assert_eq!(a.u8_vec.len(), 0);
         assert_eq!(a.ghost_atoms, MAX_NUM_ATOMS);
     }
@@ -1209,10 +1203,7 @@ mod tests {
             // exhaust the number of atoms allowed to be allocated
             let _ = a.new_atom(b"foo").unwrap();
         }
-        assert_eq!(
-            a.new_small_number(3).unwrap_err(),
-            EvalErr::TooManyAtoms(a.nil())
-        );
+        assert_eq!(a.new_small_number(3).unwrap_err(), EvalErr::TooManyAtoms);
         assert_eq!(a.u8_vec.len(), 0);
         assert_eq!(a.ghost_atoms, MAX_NUM_ATOMS);
     }
@@ -1226,10 +1217,7 @@ mod tests {
             let _ = a.new_atom(b"foo").unwrap();
         }
         let atom = a.new_atom(b"foo").unwrap();
-        assert_eq!(
-            a.new_substr(atom, 1, 2).unwrap_err(),
-            EvalErr::TooManyAtoms(a.nil())
-        );
+        assert_eq!(a.new_substr(atom, 1, 2).unwrap_err(), EvalErr::TooManyAtoms);
         assert_eq!(a.u8_vec.len(), 0);
         assert_eq!(a.ghost_atoms, MAX_NUM_ATOMS);
     }
@@ -1243,10 +1231,7 @@ mod tests {
             let _ = a.new_atom(b"foo").unwrap();
         }
         let atom = a.new_atom(b"foo").unwrap();
-        assert_eq!(
-            a.new_concat(3, &[atom]).unwrap_err(),
-            EvalErr::TooManyAtoms(a.nil())
-        );
+        assert_eq!(a.new_concat(3, &[atom]).unwrap_err(), EvalErr::TooManyAtoms);
         assert_eq!(a.u8_vec.len(), 0);
         assert_eq!(a.ghost_atoms, MAX_NUM_ATOMS);
     }
@@ -1262,14 +1247,8 @@ mod tests {
             let _ = a.new_pair(atom, atom).unwrap();
         }
 
-        assert_eq!(
-            a.new_pair(atom, atom).unwrap_err(),
-            EvalErr::TooManyPairs(a.nil())
-        );
-        assert_eq!(
-            a.add_ghost_pair(1).unwrap_err(),
-            EvalErr::TooManyPairs(a.nil())
-        );
+        assert_eq!(a.new_pair(atom, atom).unwrap_err(), EvalErr::TooManyPairs);
+        assert_eq!(a.add_ghost_pair(1).unwrap_err(), EvalErr::TooManyPairs);
     }
 
     #[test]
@@ -1280,14 +1259,8 @@ mod tests {
         let _pair1 = a.new_pair(atom, atom).unwrap();
         a.add_ghost_pair(MAX_NUM_PAIRS - 1).unwrap();
 
-        assert_eq!(
-            a.new_pair(atom, atom).unwrap_err(),
-            EvalErr::TooManyPairs(a.nil())
-        );
-        assert_eq!(
-            a.add_ghost_pair(1).unwrap_err(),
-            EvalErr::TooManyPairs(a.nil())
-        );
+        assert_eq!(a.new_pair(atom, atom).unwrap_err(), EvalErr::TooManyPairs);
+        assert_eq!(a.add_ghost_pair(1).unwrap_err(), EvalErr::TooManyPairs);
     }
 
     #[test]
@@ -1516,7 +1489,7 @@ mod tests {
         assert_eq!(
             a.new_concat(6, &[atom1, atom2, atom3, atom4, atom5, atom6])
                 .unwrap_err(),
-            EvalErr::OutOfMemory(a.nil())
+            EvalErr::OutOfMemory
         );
         let cat = a.new_concat(2, &[atom1, atom2]).unwrap();
         assert_eq!(a.atom(cat).as_ref(), b"fo");
