@@ -1,4 +1,5 @@
-use std::io::{Error, Read, Write};
+use std::io;
+use std::io::{Read, Write};
 
 use super::parse_atom::decode_size_with_offset;
 use super::utils::{copy_exactly, skip_bytes};
@@ -11,11 +12,11 @@ const CONS_BOX_MARKER: u8 = 0xff;
 struct ShaWrapper(Sha256);
 
 impl Write for ShaWrapper {
-    fn write(&mut self, blob: &[u8]) -> std::result::Result<usize, Error> {
+    fn write(&mut self, blob: &[u8]) -> io::Result<usize> {
         self.0.update(blob);
         Ok(blob.len())
     }
-    fn flush(&mut self) -> std::result::Result<(), Error> {
+    fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
 }
