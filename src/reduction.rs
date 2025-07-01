@@ -1,8 +1,8 @@
 use crate::allocator::NodePtr;
 use crate::cost::Cost;
-use crate::error::EvalErr;
+use crate::error::Result;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Reduction(pub Cost, pub NodePtr);
 
-pub type Response = Result<Reduction, EvalErr>;
+pub type Response = Result<Reduction>;

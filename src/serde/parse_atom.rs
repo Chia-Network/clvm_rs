@@ -165,7 +165,7 @@ mod tests {
             decode_size_with_offset(&mut stream, 0x7f)
                 .unwrap_err()
                 .to_string(),
-            "internal error"
+            "Internal Error: Error Initializing Encoding"
         );
     }
 

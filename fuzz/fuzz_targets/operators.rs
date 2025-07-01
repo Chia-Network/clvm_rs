@@ -86,10 +86,9 @@ fuzz_target!(|data: &[u8]| {
         for max_cost in [11000000, 1100000, 110000, 10, 1, 0] {
             allocator.restore_checkpoint(&allocator_checkpoint);
             match op(&mut allocator, args, max_cost) {
-                Err(EvalErr(n, msg)) => {
-                    assert!(!msg.contains("internal error"));
-                    // make sure n is a valid node in the allocator
-                    allocator.sexp(n);
+                // ALl Operator Types
+                Err(EvalErr::Operator(op_error)) => {
+                    assert!(!op_error.to_string().contains("Operator Error"));
                 }
                 Ok(n) => {
                     // make sure n is a valid node in the allocator
@@ -101,6 +100,9 @@ fuzz_target!(|data: &[u8]| {
                     // if the cost of allocating the return value is what makes
                     // is cross the max_cost limit, the operator still succeeds
                     // assert!(n.0 <= max_cost + 5000);
+                }
+                _ => {
+                    panic!("Unexpected Error: {:?}", op);
                 }
             }
         }
