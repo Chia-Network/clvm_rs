@@ -13,7 +13,7 @@ pub const MALLOC_COST_PER_BYTE: Cost = 10;
 
 pub fn get_args<const N: usize>(a: &Allocator, args: NodePtr, name: &str) -> Result<[NodePtr; N]> {
     match_args::<N>(a, args).ok_or_else(|| {
-        EvalErr::Operator(OperatorError::TakesExactlyArgs(
+        EvalErr::from(OperatorError::TakesExactlyArgs(
             args,
             name.to_string(),
             N as u32,
@@ -258,7 +258,7 @@ mod tests {
         let r = get_args::<3>(&a, args4, "test").unwrap_err();
         assert_eq!(
             r,
-            EvalErr::Operator(OperatorError::TakesExactlyArgs(
+            EvalErr::from(OperatorError::TakesExactlyArgs(
                 args4,
                 "test".to_string(),
                 3
@@ -268,7 +268,7 @@ mod tests {
         let r = get_args::<5>(&a, args4, "test").unwrap_err();
         assert_eq!(
             r,
-            EvalErr::Operator(OperatorError::TakesExactlyArgs(
+            EvalErr::from(OperatorError::TakesExactlyArgs(
                 args4,
                 "test".to_string(),
                 5
@@ -278,7 +278,7 @@ mod tests {
         let r = get_args::<4>(&a, args3, "test").unwrap_err();
         assert_eq!(
             r,
-            EvalErr::Operator(OperatorError::TakesExactlyArgs(
+            EvalErr::from(OperatorError::TakesExactlyArgs(
                 args3,
                 "test".to_string(),
                 4
@@ -288,7 +288,7 @@ mod tests {
         let r = get_args::<4>(&a, args2, "test").unwrap_err();
         assert_eq!(
             r,
-            EvalErr::Operator(OperatorError::TakesExactlyArgs(
+            EvalErr::from(OperatorError::TakesExactlyArgs(
                 args2,
                 "test".to_string(),
                 4
@@ -298,7 +298,7 @@ mod tests {
         let r = get_args::<1>(&a, args2, "test").unwrap_err();
         assert_eq!(
             r,
-            EvalErr::Operator(OperatorError::TakesExactlyArgs(
+            EvalErr::from(OperatorError::TakesExactlyArgs(
                 args2,
                 "test".to_string(),
                 1
@@ -344,7 +344,7 @@ mod tests {
         let r = get_varargs::<3>(&a, args4, "test").unwrap_err();
         assert_eq!(
             r,
-            EvalErr::Operator(OperatorError::TakesNoMoreThanArgs(
+            EvalErr::from(OperatorError::TakesNoMoreThanArgs(
                 args4,
                 "test".to_string(),
                 3
@@ -354,7 +354,7 @@ mod tests {
         let r = get_varargs::<1>(&a, args4, "test").unwrap_err();
         assert_eq!(
             r,
-            EvalErr::Operator(OperatorError::TakesNoMoreThanArgs(
+            EvalErr::from(OperatorError::TakesNoMoreThanArgs(
                 args4,
                 "test".to_string(),
                 1
@@ -425,7 +425,7 @@ mod tests {
         let r = int_atom(&a, pair, "test").unwrap_err();
         assert_eq!(
             r,
-            EvalErr::Operator(OperatorError::RequiresIntArgument(pair, "test".to_string()))
+            EvalErr::from(OperatorError::RequiresIntArgument(pair, "test".to_string()))
         );
     }
 
@@ -440,7 +440,7 @@ mod tests {
         let r = atom_len(&a, pair, "test").unwrap_err();
         assert_eq!(
             r,
-            EvalErr::Operator(OperatorError::RequiresAtom(pair, "test".to_string()))
+            EvalErr::from(OperatorError::RequiresAtom(pair, "test".to_string()))
         );
 
         assert_eq!(atom_len(&a, a0, "test").unwrap(), 1);
@@ -481,7 +481,7 @@ mod tests {
         let n = a.new_atom(buf).unwrap();
         assert_eq!(
             uint_atom::<4>(&a, n, "test"),
-            Err(EvalErr::Operator(expected(n, "test".to_string())))
+            Err(EvalErr::from(expected(n, "test".to_string())))
         );
     }
 
@@ -493,7 +493,7 @@ mod tests {
         let p = a.new_pair(n, n).unwrap();
         assert_eq!(
             uint_atom::<4>(&a, p, "test"),
-            Err(EvalErr::Operator(OperatorError::RequiresIntArgument(
+            Err(EvalErr::from(OperatorError::RequiresIntArgument(
                 p,
                 "test".to_string()
             )))
@@ -539,7 +539,7 @@ mod tests {
         let n = a.new_atom(buf).unwrap();
         assert_eq!(
             uint_atom::<8>(&a, n, "test"),
-            Err(EvalErr::Operator(expected(n, "test".to_string())))
+            Err(EvalErr::from(expected(n, "test".to_string())))
         );
     }
 
@@ -551,7 +551,7 @@ mod tests {
         let p = a.new_pair(n, n).unwrap();
         assert_eq!(
             uint_atom::<8>(&a, p, "test"),
-            Err(EvalErr::Operator(OperatorError::RequiresIntArgument(
+            Err(EvalErr::from(OperatorError::RequiresIntArgument(
                 p,
                 "test".to_string()
             )))
@@ -648,7 +648,7 @@ mod tests {
         let r = i32_atom(&a, pair, "test").unwrap_err();
         assert_eq!(
             r,
-            EvalErr::Operator(OperatorError::RequiresInt32Args(pair, "test".to_string()))
+            EvalErr::from(OperatorError::RequiresInt32Args(pair, "test".to_string()))
         );
 
         assert_eq!(i32_atom(&a, a0, "test").unwrap(), 42);
@@ -658,14 +658,14 @@ mod tests {
         let r = i32_atom(&a, a2, "test").unwrap_err();
         assert_eq!(
             r,
-            EvalErr::Operator(OperatorError::RequiresInt32Args(a2, "test".to_string()))
+            EvalErr::from(OperatorError::RequiresInt32Args(a2, "test".to_string()))
         );
 
         let a3 = a.new_number((-0xffffffff_i64).into()).unwrap();
         let r = i32_atom(&a, a3, "test").unwrap_err();
         assert_eq!(
             r,
-            EvalErr::Operator(OperatorError::RequiresInt32Args(a3, "test".to_string()))
+            EvalErr::from(OperatorError::RequiresInt32Args(a3, "test".to_string()))
         );
     }
 }

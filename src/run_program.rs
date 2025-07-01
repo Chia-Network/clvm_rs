@@ -3,7 +3,7 @@ use crate::allocator::{Allocator, Checkpoint, NodePtr, NodeVisitor, SExp};
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 
-use crate::error::{EvalErr, Result};
+use crate::error::{EvalErr, OperatorError, Result};
 use crate::op_utils::{first, get_args, uint_atom};
 use crate::reduction::{Reduction, Response};
 
@@ -270,7 +270,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 NodeVisitor::Buffer(buf) => traverse_path(self.allocator, buf, env)?,
                 NodeVisitor::U32(val) => traverse_path_fast(self.allocator, val, env)?,
                 NodeVisitor::Pair(_, _) => {
-                    return Err(EvalErr::ExpectedAtomGotPair(program));
+                    return Err(OperatorError::ExpectedAtomGotPair(program))?;
                 }
             };
             self.push(r.1)?;

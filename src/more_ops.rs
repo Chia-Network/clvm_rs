@@ -8,7 +8,7 @@ use std::ops::BitXorAssign;
 use crate::allocator::{len_for_value, Allocator, NodePtr, NodeVisitor, SExp};
 use crate::cost::{check_cost, Cost};
 
-use crate::error::{CoinIDError, ConcatError, EvalErr, OperatorError, SubstringError};
+use crate::error::{CoinIDError, EvalErr, OperatorError};
 use crate::number::Number;
 use crate::op_utils::{
     atom, atom_len, get_args, get_varargs, i32_atom, int_atom, match_args, mod_group_order,
@@ -592,7 +592,7 @@ pub fn op_strlen(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
 pub fn op_substr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let ([a0, start, end], argc) = get_varargs::<3>(a, input, "substr")?;
     if !(2..=3).contains(&argc) {
-        Err(SubstringError::InvalidArgs2or3(input, argc as u32))?;
+        Err(OperatorError::InvalidArgs2or3(input, argc as u32))?;
     }
     let size = atom_len(a, a0, "substr")?;
     let start = i32_atom(a, start, "substr")?;
@@ -603,7 +603,7 @@ pub fn op_substr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
         size as i32
     };
     if end < 0 || start < 0 || end as usize > size || end < start {
-        Err(SubstringError::InvalidIndices(input))?
+        Err(OperatorError::InvalidIndices(input))?
     } else {
         let r = a.new_substr(a0, start as u32, end as u32)?;
         let cost: Cost = 1;
@@ -620,7 +620,7 @@ pub fn op_concat(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
         cost += CONCAT_COST_PER_ARG;
         check_cost(cost + total_size as Cost * CONCAT_COST_PER_BYTE, max_cost)?;
         let len = match a.sexp(arg) {
-            SExp::Pair(_, _) => return Err(ConcatError::ConcatOnList(arg))?,
+            SExp::Pair(_, _) => return Err(OperatorError::ConcatOnList(arg))?,
             SExp::Atom => a.atom_len(arg),
         };
         if len > 0 {
@@ -670,6 +670,9 @@ fn test_shift(
 #[cfg(test)]
 use crate::error::{h_byte_false, h_byte_true};
 
+#[cfg(test)]
+use crate::ObjectType;
+
 #[test]
 fn test_op_ash() {
     let mut a = Allocator::new();
@@ -689,12 +692,12 @@ fn test_op_ash() {
 
     assert_eq!(
         test_shift(op_ash, &mut a, &[1], &[0x7f, 0, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(a.nil())
+        EvalErr::ShiftTooLarge(a.mk_node(ObjectType::Bytes, 3))
     );
 
     assert_eq!(
         test_shift(op_ash, &mut a, &[1], &[0x7f, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(a.nil())
+        EvalErr::ShiftTooLarge(a.mk_node(ObjectType::SmallAtom, 8323072))
     );
 
     let node = test_shift(op_ash, &mut a, &[1], &[0x7f, 0]).unwrap().1;
@@ -744,12 +747,12 @@ fn test_op_lsh() {
 
     assert_eq!(
         test_shift(op_lsh, &mut a, &[1], &[0x7f, 0, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(a.nil())
+        EvalErr::ShiftTooLarge(a.mk_node(ObjectType::Bytes, 3))
     );
 
     assert_eq!(
         test_shift(op_lsh, &mut a, &[1], &[0x7f, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(a.nil())
+        EvalErr::ShiftTooLarge(a.mk_node(ObjectType::SmallAtom, 8323072))
     );
 
     let node = test_shift(op_lsh, &mut a, &[1], &[0x7f, 0]).unwrap().1;
@@ -886,25 +889,31 @@ pub fn op_coinid(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
 
     let parent_coin = atom(a, parent_coin, "coinid")?;
     if parent_coin.as_ref().len() != 32 {
-        Err(CoinIDError::ParentCoinIdNot32Bytes(input))?;
+        Err(OperatorError::from(CoinIDError::ParentCoinIdNot32Bytes(
+            input,
+        )))?;
     }
     let puzzle_hash = atom(a, puzzle_hash, "coinid")?;
     if puzzle_hash.as_ref().len() != 32 {
-        Err(CoinIDError::PuzzleHashNot32Bytes(input))?;
+        Err(OperatorError::from(CoinIDError::PuzzleHashNot32Bytes(
+            input,
+        )))?;
     }
     let amount_atom = atom(a, amount, "coinid")?;
     let amount = amount_atom.as_ref();
     if !amount.is_empty() {
         if (amount[0] & 0x80) != 0 {
-            Err(CoinIDError::AmountNegative(input))?;
+            Err(OperatorError::from(CoinIDError::AmountNegative(input)))?;
         }
         if amount == [0_u8] || (amount.len() > 1 && amount[0] == 0 && (amount[1] & 0x80) == 0) {
-            Err(CoinIDError::AmountLeadingZeroes(input))?;
+            Err(OperatorError::from(CoinIDError::AmountLeadingZeroes(input)))?;
         }
         // the only valid coin value that's 9 bytes is when a leading zero is
         // required to not have the value interpreted as negative
         if amount.len() > 9 || (amount.len() == 9 && amount[0] != 0) {
-            Err(CoinIDError::AmountExceedsMaxCoinAmount(input))?;
+            Err(OperatorError::from(
+                CoinIDError::AmountExceedsMaxCoinAmount(input),
+            ))?;
         }
     }
 

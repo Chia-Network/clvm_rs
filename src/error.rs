@@ -30,9 +30,6 @@ pub enum EvalErr {
     #[error("Path Into Atom {0:?}")]
     PathIntoAtom(NodePtr),
 
-    #[error("Expected Atom, got Pair: {0:?}")]
-    ExpectedAtomGotPair(NodePtr),
-
     #[error("in ((X)...) syntax X must be lone atom")]
     InPairMustBeLoneAtom(NodePtr),
 
@@ -76,31 +73,11 @@ pub enum EvalErr {
     EnvironmentStackLimitReached(NodePtr),
 
     // Grouped errors
-    #[error("Substring: {0}")]
-    Substring(#[from] SubstringError),
-
-    #[error("Concat: {0}")]
-    Concat(#[from] ConcatError),
-
-    #[error("G1 Error: {0}")]
-    G1(#[from] G1Error),
-    #[error("G2 Error: {0}")]
-    G2(#[from] G2Error),
-
-    #[error("BLS Error: {0}")]
-    BLS(#[from] BLSError),
-
-    #[error("Coin ID Error: {0}")]
-    CoinID(#[from] CoinIDError),
-
     #[error("Operator Error: {0}")]
     Operator(#[from] OperatorError),
 
-    #[error("Secp256k1 Verify Error: {0}")]
-    Secp256k1Verify(#[from] Secp256k1verifyError),
-
-    #[error("Secp256r1 Verify Error: {0}")]
-    Secp256r1Verify(#[from] Secp256r1verifyError),
+    #[error("Allocator Error: {0}")]
+    Allocator(#[from] AllocatorError),
 }
 
 impl PartialEq<Self> for EvalErr {
@@ -108,7 +85,7 @@ impl PartialEq<Self> for EvalErr {
         self.to_string() == other.to_string()
     }
 }
-
+// Operator Errors
 #[derive(Debug, Error)]
 pub enum OperatorError {
     #[error("Reserved operator: {0:?}")]
@@ -143,73 +120,48 @@ pub enum OperatorError {
 
     #[error("{1} takes exactly {2} argument(s), {0:?}")]
     TakesExactlyArgs(NodePtr, String, u32),
-}
 
-#[derive(Debug, Error)]
-pub enum SubstringError {
-    #[error("Substring Start Index Out of Bounds: {1} > {2}, {0:?}")]
-    StartOutOfBounds(NodePtr, u32, u32),
-
-    #[error("Substring End Index Out of Bounds: {1} > {2}, {0:?}")]
-    EndOutOfBounds(NodePtr, u32, u32),
-
-    #[error("Substring Start Index Greater Than End Index: {2} < {1}, {0:?}")]
-    StartGreaterThanEnd(NodePtr, u32, u32),
-
-    #[error("Substring takes exactly 1 or 2 arguments, got {1}, {0:?}")]
-    InvalidArgs1or2(NodePtr, u32),
+    #[error("Expected Atom, got Pair: {0:?}")]
+    ExpectedAtomGotPair(NodePtr),
 
     #[error("Substring takes exactly 2 or 3 arguments, got {1}, {0:?}")]
     InvalidArgs2or3(NodePtr, u32),
 
-    #[error("Substring Expected atom, got pair: {0:?}")]
-    ExpectedAtomGotPair(NodePtr),
-
     #[error("Invalid Indices for Substring: {0:?}")]
     InvalidIndices(NodePtr),
-}
-
-#[derive(Debug, Error)]
-pub enum ConcatError {
-    #[error("Concat Expected atom, got pair, {0:?}")]
-    ExpectedAtomGotPair(NodePtr),
-
-    #[error("concat passed invalid new_size: {1}, {0:?}")]
-    InvalidNewSize(NodePtr, u32),
 
     #[error("concat on list, {0:?}")]
     ConcatOnList(NodePtr),
-}
 
-#[derive(Debug, Error)]
-pub enum G1Error {
-    #[error("atom is not G1 size (48 bytes), {0:?}")]
-    NotG1Size(NodePtr),
     #[error("atom is not a valid G1 point, {0:?}")]
     NotValidG1Point(NodePtr),
-    #[error("pair found, expected G1 point, {0:?}")]
-    ExpectedG1Point(NodePtr),
+
     #[error("G1_map takes exactly 1 or 2 arguments, got {1}, {0:?}")]
     G1MapInvalidArgs(NodePtr, u32),
-}
-#[derive(Debug, Error)]
-pub enum G2Error {
-    #[error("atom is not G2 size (96 bytes), {0:?}")]
-    NotG2Size(NodePtr),
+
     #[error("atom is not a valid G2 point, {0:?}")]
     NotValidG2Point(NodePtr),
-    #[error("pair found, expected G2 point, {0:?}")]
-    ExpectedG2Point(NodePtr),
+
     #[error("G2_map takes exactly 1 or 2 arguments, got {1}, {0:?}")]
     G2MapInvalidArgs(NodePtr, u32),
-}
 
-#[derive(Debug, Error)]
-pub enum BLSError {
+    #[error("atom is not G2 size (96 bytes), {0:?}")]
+    NotG2Size(NodePtr),
+
     #[error("bls_pairing_identity failed, {0:?}")]
     BLSPairingIdentityFailed(NodePtr),
+
     #[error("bls_verify failed, {0:?}")]
     BLSVerifyFailed(NodePtr),
+
+    #[error("CoinID Error: {0:?}")]
+    CoinID(#[from] CoinIDError),
+
+    #[error("Secp256k1 Verify Error: {0}")]
+    Secp256k1Verify(#[from] Secp256k1verifyError),
+
+    #[error("Secp256r1 Verify Error: {0}")]
+    Secp256r1Verify(#[from] Secp256r1verifyError),
 }
 
 #[derive(Debug, Error)]
@@ -252,6 +204,43 @@ pub enum CoinIDError {
 
     #[error("Invalid Amount: Amount exceeds max coin amount, {0:?}")]
     AmountExceedsMaxCoinAmount(NodePtr),
+}
+
+// Allocator Errors
+#[derive(Debug, Error)]
+pub enum AllocatorError {
+    #[error("Expected Atom, got Pair: {0:?}")]
+    ExpectedAtomGotPair(NodePtr),
+
+    #[error("Substring Start Index Out of Bounds: {1} > {2}, {0:?}")]
+    StartOutOfBounds(NodePtr, u32, u32),
+
+    #[error("Substring End Index Out of Bounds: {1} > {2}, {0:?}")]
+    EndOutOfBounds(NodePtr, u32, u32),
+
+    #[error("Substring Start Index Greater Than End Index: {2} < {1}, {0:?}")]
+    StartGreaterThanEnd(NodePtr, u32, u32),
+
+    #[error("concat passed invalid new_size: {1}, {0:?}")]
+    InvalidNewSize(NodePtr, u32),
+
+    #[error("atom is not G1 size (48 bytes), {0:?}")]
+    NotG1Size(NodePtr),
+
+    #[error("pair found, expected G1 point, {0:?}")]
+    ExpectedG1Point(NodePtr),
+
+    #[error("atom is not a valid G1 point, {0:?}")]
+    NotValidG1Point(NodePtr),
+
+    #[error("atom is not G2 size (96 bytes), {0:?}")]
+    NotG2Size(NodePtr),
+
+    #[error("pair found, expected G2 point, {0:?}")]
+    ExpectedG2Point(NodePtr),
+
+    #[error("atom is not a valid G2 point, {0:?}")]
+    NotValidG2Point(NodePtr),
 }
 
 // Helper Functions for Debugging

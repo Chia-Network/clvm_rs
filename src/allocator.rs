@@ -1,4 +1,4 @@
-use crate::error::{ConcatError, EvalErr, G1Error, G2Error, Result, SubstringError};
+use crate::error::{AllocatorError, EvalErr, Result};
 use crate::number::{number_from_u8, Number};
 use chia_bls::{G1Element, G2Element};
 use std::borrow::Borrow;
@@ -515,19 +515,19 @@ impl Allocator {
 
         fn bounds_check(node: NodePtr, start: u32, end: u32, len: u32) -> Result<()> {
             if start > len {
-                Err(SubstringError::StartOutOfBounds(node, start, len))?;
+                Err(AllocatorError::StartOutOfBounds(node, start, len))?;
             }
             if end > len {
-                Err(SubstringError::EndOutOfBounds(node, end, len))?;
+                Err(AllocatorError::EndOutOfBounds(node, end, len))?;
             }
             if end < start {
-                Err(SubstringError::StartGreaterThanEnd(node, start, end))?;
+                Err(AllocatorError::StartGreaterThanEnd(node, start, end))?;
             }
             Ok(())
         }
 
         match node.object_type() {
-            ObjectType::Pair => Err(SubstringError::ExpectedAtomGotPair(node))?,
+            ObjectType::Pair => Err(AllocatorError::ExpectedAtomGotPair(node))?,
             ObjectType::Bytes => {
                 let atom = self.atom_vec[node.index() as usize];
                 let atom_len = atom.end - atom.start;
@@ -580,7 +580,7 @@ impl Allocator {
 
         if nodes.is_empty() {
             if 0 != new_size {
-                return Err(ConcatError::InvalidNewSize(self.nil(), new_size as u32))?;
+                return Err(AllocatorError::InvalidNewSize(self.nil(), new_size as u32))?;
             }
             // pretend that we created a new atom and allocated new_size bytes on the heap
             self.ghost_atoms += 1;
@@ -589,7 +589,7 @@ impl Allocator {
 
         if nodes.len() == 1 {
             if self.atom_len(nodes[0]) != new_size {
-                return Err(ConcatError::InvalidNewSize(self.nil(), new_size as u32))?;
+                return Err(AllocatorError::InvalidNewSize(self.nil(), new_size as u32))?;
             }
             // pretend that we created a new atom and allocated new_size bytes on the heap
             self.ghost_heap += new_size;
@@ -604,13 +604,13 @@ impl Allocator {
             match node.object_type() {
                 ObjectType::Pair => {
                     self.u8_vec.truncate(start);
-                    return Err(ConcatError::ExpectedAtomGotPair(*node))?;
+                    return Err(AllocatorError::ExpectedAtomGotPair(*node))?;
                 }
                 ObjectType::Bytes => {
                     let term = self.atom_vec[node.index() as usize];
                     if counter + term.len() > new_size {
                         self.u8_vec.truncate(start);
-                        return Err(ConcatError::InvalidNewSize(*node, new_size as u32))?;
+                        return Err(AllocatorError::InvalidNewSize(*node, new_size as u32))?;
                     }
                     self.u8_vec
                         .extend_from_within(term.start as usize..term.end as usize);
@@ -628,7 +628,7 @@ impl Allocator {
         }
         if counter != new_size {
             self.u8_vec.truncate(start);
-            return Err(ConcatError::InvalidNewSize(self.nil(), new_size as u32))?;
+            return Err(AllocatorError::InvalidNewSize(self.nil(), new_size as u32))?;
         }
         let end = self.u8_vec.len() as u32;
         let idx = self.atom_vec.len();
@@ -771,21 +771,22 @@ impl Allocator {
         let idx = match node.object_type() {
             ObjectType::Bytes => node.index(),
             ObjectType::SmallAtom => {
-                return Err(G1Error::NotG1Size(node))?;
+                return Err(AllocatorError::NotG1Size(node))?;
             }
             ObjectType::Pair => {
-                return Err(G1Error::ExpectedG1Point(node))?;
+                return Err(AllocatorError::ExpectedG1Point(node))?;
             }
         };
         let atom = self.atom_vec[idx as usize];
         if atom.end - atom.start != 48 {
-            return Err(G1Error::NotG1Size(node))?;
+            return Err(AllocatorError::NotG1Size(node))?;
         }
 
         let array: &[u8; 48] = &self.u8_vec[atom.start as usize..atom.end as usize]
             .try_into()
-            .expect("atom size is not 48 bytes"); // TODO: Review this.
-        G1Element::from_bytes(array).map_err(|_| EvalErr::G1(G1Error::NotValidG1Point(node)))
+            .map_err(|_| AllocatorError::NotG1Size(node))?;
+        G1Element::from_bytes(array)
+            .map_err(|_| EvalErr::from(AllocatorError::NotValidG1Point(node)))
     }
 
     pub fn g2(&self, node: NodePtr) -> Result<G2Element> {
@@ -795,10 +796,10 @@ impl Allocator {
         let idx = match node.object_type() {
             ObjectType::Bytes => node.index(),
             ObjectType::SmallAtom => {
-                return Err(G2Error::NotG2Size(node))?;
+                return Err(AllocatorError::NotG2Size(node))?;
             }
             ObjectType::Pair => {
-                return Err(G2Error::ExpectedG2Point(node))?;
+                return Err(AllocatorError::ExpectedG2Point(node))?;
             }
         };
 
@@ -806,9 +807,10 @@ impl Allocator {
 
         let array: &[u8; 96] = &self.u8_vec[atom.start as usize..atom.end as usize]
             .try_into()
-            .map_err(|_| G2Error::NotG2Size(node))?;
+            .map_err(|_| AllocatorError::NotG2Size(node))?;
 
-        G2Element::from_bytes(array).map_err(|_| EvalErr::G2(G2Error::NotValidG2Point(node)))
+        G2Element::from_bytes(array)
+            .map_err(|_| EvalErr::from(AllocatorError::NotValidG2Point(node)))
     }
 
     pub fn node(&self, node: NodePtr) -> NodeVisitor {
@@ -905,7 +907,7 @@ impl Allocator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::{h_byte_false, h_byte_true, h_pair, ConcatError, SubstringError};
+    use crate::error::{h_byte_false, h_byte_true, h_pair, AllocatorError};
     use rstest::rstest;
 
     #[test]
@@ -1265,19 +1267,19 @@ mod tests {
 
         assert_eq!(
             a.new_substr(atom, 1, 0).unwrap_err(),
-            EvalErr::Substring(SubstringError::StartGreaterThanEnd(h_byte_false(&a), 1, 0))
+            EvalErr::from(AllocatorError::StartGreaterThanEnd(h_byte_false(&a), 1, 0))
         );
         assert_eq!(
             a.new_substr(atom, 7, 7).unwrap_err(),
-            EvalErr::Substring(SubstringError::StartOutOfBounds(h_byte_false(&a), 7, 6))
+            EvalErr::from(AllocatorError::StartOutOfBounds(h_byte_false(&a), 7, 6))
         );
         assert_eq!(
             a.new_substr(atom, 0, 7).unwrap_err(),
-            EvalErr::Substring(SubstringError::EndOutOfBounds(h_byte_false(&a), 7, 6))
+            EvalErr::from(AllocatorError::EndOutOfBounds(h_byte_false(&a), 7, 6))
         );
         assert_eq!(
             a.new_substr(atom, u32::MAX, 4).unwrap_err(),
-            EvalErr::Substring(SubstringError::StartOutOfBounds(
+            EvalErr::from(AllocatorError::StartOutOfBounds(
                 h_byte_false(&a),
                 u32::MAX,
                 6
@@ -1285,7 +1287,7 @@ mod tests {
         );
         assert_eq!(
             a.new_substr(pair, 0, 0).unwrap_err(),
-            EvalErr::Substring(SubstringError::ExpectedAtomGotPair(h_pair(&a)))
+            EvalErr::from(AllocatorError::ExpectedAtomGotPair(h_pair(&a)))
         );
     }
 
@@ -1308,11 +1310,11 @@ mod tests {
 
         assert_eq!(
             a.new_substr(atom, 1, 0).unwrap_err(),
-            EvalErr::Substring(SubstringError::StartGreaterThanEnd(atom, 1, 0))
+            EvalErr::from(AllocatorError::StartGreaterThanEnd(atom, 1, 0))
         );
         assert_eq!(
             a.new_substr(atom, 3, 3).unwrap_err(),
-            EvalErr::Substring(SubstringError::StartOutOfBounds(
+            EvalErr::from(AllocatorError::StartOutOfBounds(
                 NodePtr::new(ObjectType::SmallAtom, 24960),
                 3,
                 2
@@ -1320,7 +1322,7 @@ mod tests {
         );
         assert_eq!(
             a.new_substr(atom, 0, 3).unwrap_err(),
-            EvalErr::Substring(SubstringError::EndOutOfBounds(
+            EvalErr::from(AllocatorError::EndOutOfBounds(
                 NodePtr::new(ObjectType::SmallAtom, 24960),
                 3,
                 2
@@ -1328,7 +1330,7 @@ mod tests {
         );
         assert_eq!(
             a.new_substr(atom, u32::MAX, 2).unwrap_err(),
-            EvalErr::Substring(SubstringError::StartOutOfBounds(
+            EvalErr::from(AllocatorError::StartOutOfBounds(
                 NodePtr::new(ObjectType::SmallAtom, 24960),
                 u32::MAX,
                 2
@@ -1377,34 +1379,34 @@ mod tests {
 
         assert_eq!(
             a.new_concat(11, &[cat, cat]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(h_byte_true(&a), 11)),
+            EvalErr::from(AllocatorError::InvalidNewSize(h_byte_true(&a), 11)),
         );
         assert_eq!(
             a.new_concat(13, &[cat, cat]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(h_byte_true(&a), 13)),
+            EvalErr::from(AllocatorError::InvalidNewSize(h_byte_true(&a), 13)),
         );
         assert_eq!(
             a.new_concat(12, &[atom3, pair]).unwrap_err(),
-            EvalErr::Concat(ConcatError::ExpectedAtomGotPair(NodePtr(0)))
+            EvalErr::from(AllocatorError::ExpectedAtomGotPair(NodePtr(0)))
         );
 
         assert_eq!(
             a.new_concat(4, &[atom1, atom2, atom3]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(a.nil(), 4)),
+            EvalErr::from(AllocatorError::InvalidNewSize(a.nil(), 4)),
         );
 
         assert_eq!(
             a.new_concat(2, &[atom1, atom2, atom3]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(a.nil(), 2)),
+            EvalErr::from(AllocatorError::InvalidNewSize(a.nil(), 2)),
         );
 
         assert_eq!(
             a.new_concat(2, &[atom3]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(a.nil(), 2)),
+            EvalErr::from(AllocatorError::InvalidNewSize(a.nil(), 2)),
         );
         assert_eq!(
             a.new_concat(1, &[]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(a.nil(), 1)),
+            EvalErr::from(AllocatorError::InvalidNewSize(a.nil(), 1)),
         );
 
         assert_eq!(a.new_concat(0, &[]).unwrap(), NodePtr::NIL);
@@ -1426,25 +1428,25 @@ mod tests {
 
         assert_eq!(
             a.new_concat(11, &[cat, cat]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(h_byte_true(&a), 11)),
+            EvalErr::from(AllocatorError::InvalidNewSize(h_byte_true(&a), 11)),
         );
         assert_eq!(
             a.new_concat(13, &[cat, cat]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(h_byte_true(&a), 13)),
+            EvalErr::from(AllocatorError::InvalidNewSize(h_byte_true(&a), 13)),
         );
         assert_eq!(
             a.new_concat(12, &[atom1, pair]).unwrap_err(),
-            EvalErr::Concat(ConcatError::ExpectedAtomGotPair(h_pair(&a)))
+            EvalErr::from(AllocatorError::ExpectedAtomGotPair(h_pair(&a)))
         );
 
         assert_eq!(
             a.new_concat(4, &[atom1, atom2]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(a.nil(), 4)),
+            EvalErr::from(AllocatorError::InvalidNewSize(a.nil(), 4)),
         );
 
         assert_eq!(
             a.new_concat(2, &[atom1, atom2]).unwrap_err(),
-            EvalErr::Concat(ConcatError::InvalidNewSize(a.nil(), 2)),
+            EvalErr::from(AllocatorError::InvalidNewSize(a.nil(), 2)),
         );
     }
 
@@ -1549,52 +1551,52 @@ mod tests {
     #[case(
         test_g1,
         0,
-        "G1 Error: atom is not G1 size (48 bytes), NodePtr(SmallAtom, 0)"
+        "Allocator Error: atom is not G1 size (48 bytes), NodePtr(SmallAtom, 0)"
     )]
     #[case(
         test_g1,
         3,
-        "G1 Error: atom is not G1 size (48 bytes), NodePtr(Bytes, 0)"
+        "Allocator Error: atom is not G1 size (48 bytes), NodePtr(Bytes, 0)"
     )]
     #[case(
         test_g1,
         47,
-        "G1 Error: atom is not G1 size (48 bytes), NodePtr(Bytes, 0)"
+        "Allocator Error: atom is not G1 size (48 bytes), NodePtr(Bytes, 0)"
     )]
     #[case(
         test_g1,
         49,
-        "G1 Error: atom is not G1 size (48 bytes), NodePtr(Bytes, 0)"
+        "Allocator Error: atom is not G1 size (48 bytes), NodePtr(Bytes, 0)"
     )]
     #[case(
         test_g1,
         48,
-        "G1 Error: atom is not a valid G1 point, NodePtr(Bytes, 0)"
+        "Allocator Error: atom is not a valid G1 point, NodePtr(Bytes, 0)"
     )]
     #[case(
         test_g2,
         0,
-        "G2 Error: atom is not G2 size (96 bytes), NodePtr(SmallAtom, 0)"
+        "Allocator Error: atom is not G2 size (96 bytes), NodePtr(SmallAtom, 0)"
     )]
     #[case(
         test_g2,
         3,
-        "G2 Error: atom is not G2 size (96 bytes), NodePtr(Bytes, 0)"
+        "Allocator Error: atom is not G2 size (96 bytes), NodePtr(Bytes, 0)"
     )]
     #[case(
         test_g2,
         95,
-        "G2 Error: atom is not G2 size (96 bytes), NodePtr(Bytes, 0)"
+        "Allocator Error: atom is not G2 size (96 bytes), NodePtr(Bytes, 0)"
     )]
     #[case(
         test_g2,
         97,
-        "G2 Error: atom is not G2 size (96 bytes), NodePtr(Bytes, 0)"
+        "Allocator Error: atom is not G2 size (96 bytes), NodePtr(Bytes, 0)"
     )]
     #[case(
         test_g2,
         96,
-        "G2 Error: atom is not a valid G2 point, NodePtr(Bytes, 0)"
+        "Allocator Error: atom is not a valid G2 point, NodePtr(Bytes, 0)"
     )]
     fn test_point_size_error(#[case] fun: TestFun, #[case] size: usize, #[case] expected: &str) {
         let mut a = Allocator::new();
@@ -1606,8 +1608,14 @@ mod tests {
     }
 
     #[rstest]
-    #[case(test_g1, "G1 Error: pair found, expected G1 point, NodePtr(Pair, 0)")]
-    #[case(test_g2, "G2 Error: pair found, expected G2 point, NodePtr(Pair, 0)")]
+    #[case(
+        test_g1,
+        "Allocator Error: pair found, expected G1 point, NodePtr(Pair, 0)"
+    )]
+    #[case(
+        test_g2,
+        "Allocator Error: pair found, expected G2 point, NodePtr(Pair, 0)"
+    )]
     fn test_point_atom_pair(#[case] fun: TestFun, #[case] expected: &str) {
         let mut a = Allocator::new();
         let n = a.new_pair(a.nil(), a.one()).unwrap();
@@ -1641,11 +1649,11 @@ e28f75bb8f1c7c42c39a8c5529bf0f4e"
         // try interpreting the point as G1
         assert_eq!(
             a.g2(n).unwrap_err(),
-            EvalErr::G2(G2Error::NotG2Size(h_byte_false(&a)))
+            EvalErr::from(AllocatorError::NotG2Size(h_byte_false(&a)))
         );
         assert_eq!(
             a.g2(g1_copy).unwrap_err(),
-            EvalErr::G2(G2Error::NotG2Size(h_byte_true(&a)))
+            EvalErr::from(AllocatorError::NotG2Size(h_byte_true(&a)))
         );
 
         // try interpreting the point as number
@@ -1688,11 +1696,11 @@ c6c886f6b57ec72a6178288c47c33577\
         // try interpreting the point as G1
         assert_eq!(
             a.g1(n).unwrap_err(),
-            EvalErr::G1(G1Error::NotG1Size(h_byte_false(&a)))
+            EvalErr::from(AllocatorError::NotG1Size(h_byte_false(&a)))
         );
         assert_eq!(
             a.g1(g2_copy).unwrap_err(),
-            EvalErr::G1(G1Error::NotG1Size(h_byte_true(&a)))
+            EvalErr::from(AllocatorError::NotG1Size(h_byte_true(&a)))
         );
 
         // try interpreting the point as number

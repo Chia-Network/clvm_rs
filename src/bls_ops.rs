@@ -1,7 +1,7 @@
 use crate::allocator::{Allocator, Atom, NodePtr};
 use crate::cost::{check_cost, Cost};
 
-use crate::error::{BLSError, EvalErr, G1Error, G2Error};
+use crate::error::OperatorError;
 use crate::op_utils::{
     atom, first, get_args, get_varargs, int_atom, mod_group_order, new_atom_and_cost, nilp, rest,
     MALLOC_COST_PER_BYTE,
@@ -100,9 +100,9 @@ pub fn op_bls_g1_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
     let _g1 = G1Element::from_bytes(
         blob.as_ref()
             .try_into()
-            .map_err(|_| G1Error::NotValidG1Point(point))?,
+            .map_err(|_| OperatorError::NotValidG1Point(point))?,
     )
-    .map_err(|_| G1Error::NotValidG1Point(point))?;
+    .map_err(|_| OperatorError::NotValidG1Point(point))?;
 
     if (blob.as_ref()[0] & 0xe0) == 0xc0 {
         // This is compressed infinity. negating it is a no-op
@@ -191,9 +191,9 @@ pub fn op_bls_g2_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
     let _g2 = G2Element::from_bytes(
         blob.as_ref()
             .try_into()
-            .map_err(|_| G2Error::NotG2Size(point))?,
+            .map_err(|_| OperatorError::NotG2Size(point))?,
     )
-    .map_err(|_| G2Error::NotValidG2Point(point))?;
+    .map_err(|_| OperatorError::NotValidG2Point(point))?;
 
     if (blob[0] & 0xe0) == 0xc0 {
         // This is compressed infinity. negating it is a no-op
@@ -213,7 +213,7 @@ pub fn op_bls_g2_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
 pub fn op_bls_map_to_g1(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let ([msg, dst], argc) = get_varargs::<2>(a, input, "g1_map")?;
     if !(1..=2).contains(&argc) {
-        return Err(EvalErr::G1(G1Error::G1MapInvalidArgs(input, argc as u32)));
+        Err(OperatorError::G1MapInvalidArgs(input, argc as u32))?;
     }
     let mut cost: Cost = BLS_MAP_TO_G1_BASE_COST;
     check_cost(cost, max_cost)?;
@@ -241,7 +241,7 @@ pub fn op_bls_map_to_g1(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Re
 pub fn op_bls_map_to_g2(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let ([msg, dst], argc) = get_varargs::<2>(a, input, "g2_map")?;
     if !(1..=2).contains(&argc) {
-        Err(G2Error::G2MapInvalidArgs(input, argc as u32))?;
+        Err(OperatorError::G2MapInvalidArgs(input, argc as u32))?;
     }
     let mut cost: Cost = BLS_MAP_TO_G2_BASE_COST;
     check_cost(cost, max_cost)?;
@@ -287,7 +287,7 @@ pub fn op_bls_pairing_identity(a: &mut Allocator, input: NodePtr, max_cost: Cost
     }
 
     if !aggregate_pairing(items) {
-        Err(BLSError::BLSPairingIdentityFailed(input))?
+        Err(OperatorError::BLSPairingIdentityFailed(input))?
     } else {
         Ok(Reduction(cost, a.nil()))
     }
@@ -325,7 +325,7 @@ pub fn op_bls_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respo
     }
 
     if !aggregate_verify(&signature, items) {
-        Err(BLSError::BLSVerifyFailed(input))?
+        Err(OperatorError::BLSVerifyFailed(input))?
     } else {
         Ok(Reduction(cost, a.nil()))
     }
