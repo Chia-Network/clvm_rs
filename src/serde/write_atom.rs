@@ -54,7 +54,7 @@ fn write_atom_encoding_prefix_with_size<W: io::Write>(
 pub fn write_atom<W: io::Write>(f: &mut W, atom: &[u8]) -> Result<()> {
     let u8_0 = if !atom.is_empty() { atom[0] } else { 0 };
     write_atom_encoding_prefix_with_size(f, u8_0, atom.len() as u64)?;
-    f.write_all(atom).map_err(|_| EvalErr::SerializationError)
+    f.write_all(atom).map_err(|_| EvalErr::OutOfMemory)
 }
 
 #[cfg(test)]

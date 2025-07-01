@@ -9,6 +9,7 @@ pub enum EvalErr {
 
     #[error("Encoding / Decoding Error")]
     SerializationError,
+
     #[error("clvm raise, {0:?}")]
     Raise(NodePtr),
 
@@ -18,7 +19,7 @@ pub enum EvalErr {
     #[error("Cost Exceeded")]
     CostExceeded,
 
-    #[error("Cost Must be greater than zero")]
+    #[error("Cost must be greater than zero.")]
     CostBelowZero,
 
     #[error("Too Many Pairs")]
@@ -27,8 +28,8 @@ pub enum EvalErr {
     #[error("Too Many Atoms")]
     TooManyAtoms,
 
-    #[error("Path Into Atom {0:?}")]
-    PathIntoAtom(NodePtr),
+    #[error("Path Into Atom")]
+    PathIntoAtom,
 
     #[error("in ((X)...) syntax X must be lone atom")]
     InPairMustBeLoneAtom(NodePtr),
@@ -106,6 +107,9 @@ pub enum OperatorError {
     #[error("{1} Requires Int32 args (with no leading zeros), {0:?}")]
     RequiresInt32Args(NodePtr, String),
 
+    #[error("{1} Requires Int64 args (with no leading zeros), {0:?}")]
+    RequiresInt64Args(NodePtr, String),
+
     #[error("{1} Requires {2} arguments, {0:?}")]
     RequiresArgs(NodePtr, String, u32),
 
@@ -168,10 +172,13 @@ pub enum OperatorError {
 pub enum Secp256k1verifyError {
     #[error("failed, {0:?}")]
     Failed(NodePtr),
+
     #[error("pubkey is not valid, {0:?}")]
     PubkeyNotValid(NodePtr),
+
     #[error("message digest is not 32 bytes, {0:?}")]
     MessageDigestNot32Bytes(NodePtr),
+
     #[error("signature is not valid, {0:?}")]
     SignatureNotValid(NodePtr),
 }
@@ -180,10 +187,13 @@ pub enum Secp256k1verifyError {
 pub enum Secp256r1verifyError {
     #[error("failed, {0:?}")]
     Failed(NodePtr),
+
     #[error("pubkey is not valid, {0:?}")]
     PubkeyNotValid(NodePtr),
+
     #[error("message digest is not 32 bytes, {0:?}")]
     MessageDigestNot32Bytes(NodePtr),
+
     #[error("signature is not valid, {0:?}")]
     SignatureNotValid(NodePtr),
 }

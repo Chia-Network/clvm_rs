@@ -56,7 +56,7 @@ pub fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) ->
         let is_bit_set: bool = (node_index[byte_idx] & bitmask) != 0;
         match allocator.sexp(arg_list) {
             SExp::Atom => {
-                return Err(EvalErr::PathIntoAtom(arg_list));
+                return Err(EvalErr::PathIntoAtom);
             }
             SExp::Pair(left, right) => {
                 arg_list = if is_bit_set { right } else { left };
@@ -90,7 +90,7 @@ pub fn traverse_path_fast(allocator: &Allocator, mut node_index: u32, args: Node
     let mut num_bits = 0;
     while node_index != 1 {
         let SExp::Pair(left, right) = allocator.sexp(arg_list) else {
-            return Err(EvalErr::PathIntoAtom(arg_list));
+            return Err(EvalErr::PathIntoAtom);
         };
 
         let is_bit_set: bool = (node_index & 0x01) != 0;
@@ -188,23 +188,23 @@ mod tests {
         // errors
         assert_eq!(
             traverse_path(&a, &[0b1011], list).unwrap_err(),
-            EvalErr::PathIntoAtom(nul)
+            EvalErr::PathIntoAtom
         );
         assert_eq!(
             traverse_path(&a, &[0b1101], list).unwrap_err(),
-            EvalErr::PathIntoAtom(n1)
+            EvalErr::PathIntoAtom
         );
         assert_eq!(
             traverse_path(&a, &[0b1001], list).unwrap_err(),
-            EvalErr::PathIntoAtom(n1)
+            EvalErr::PathIntoAtom
         );
         assert_eq!(
             traverse_path(&a, &[0b1010], list).unwrap_err(),
-            EvalErr::PathIntoAtom(n2)
+            EvalErr::PathIntoAtom
         );
         assert_eq!(
             traverse_path(&a, &[0b1110], list).unwrap_err(),
-            EvalErr::PathIntoAtom(n2)
+            EvalErr::PathIntoAtom
         );
     }
 
@@ -246,23 +246,23 @@ mod tests {
         // errors
         assert_eq!(
             traverse_path_fast(&a, 0b1011, list).unwrap_err(),
-            EvalErr::PathIntoAtom(nul)
+            EvalErr::PathIntoAtom
         );
         assert_eq!(
             traverse_path_fast(&a, 0b1101, list).unwrap_err(),
-            EvalErr::PathIntoAtom(n1)
+            EvalErr::PathIntoAtom
         );
         assert_eq!(
             traverse_path_fast(&a, 0b1001, list).unwrap_err(),
-            EvalErr::PathIntoAtom(n1)
+            EvalErr::PathIntoAtom
         );
         assert_eq!(
             traverse_path_fast(&a, 0b1010, list).unwrap_err(),
-            EvalErr::PathIntoAtom(n2)
+            EvalErr::PathIntoAtom
         );
         assert_eq!(
             traverse_path_fast(&a, 0b1110, list).unwrap_err(),
-            EvalErr::PathIntoAtom(n2)
+            EvalErr::PathIntoAtom
         );
     }
 }

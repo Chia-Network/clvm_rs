@@ -123,7 +123,7 @@ def _op_read_sexp(
 ):
     blob = f.read(1)
     if len(blob) == 0:
-        raise ValueError("bad encoding")
+        raise ValueError("Encoding / Decoding Error")
     b = blob[0]
     if b == CONS_BOX_MARKER:
         op_stack.append(_op_cons)
@@ -172,12 +172,12 @@ def _atom_from_stream(f: BinaryIO, b: int, new_atom_f: NEW_ATOM_F) -> CLVMStorag
     if bit_count > 1:
         blob = f.read(bit_count - 1)
         if len(blob) != bit_count - 1:
-            raise ValueError("bad encoding")
+            raise ValueError("Encoding / Decoding Error")
         size_blob += blob
     size = int.from_bytes(size_blob, "big")
     if size >= 0x400000000:
         raise ValueError("blob too large")
     blob = f.read(size)
     if len(blob) != size:
-        raise ValueError("bad encoding")
+        raise ValueError("Encoding / Decoding Error")
     return new_atom_f(blob)

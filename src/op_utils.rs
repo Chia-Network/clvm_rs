@@ -70,11 +70,14 @@ pub fn uint_atom<const SIZE: usize>(a: &Allocator, args: NodePtr, op_name: &str)
             }
 
             if buf.len() > SIZE {
-                return Err(OperatorError::RequiresArgs(
-                    args,
-                    op_name.to_string(),
-                    (SIZE * 8) as u32,
-                ))?;
+                if SIZE == 4 {
+                    return Err(OperatorError::RequiresInt32Args(args, op_name.to_string()))?;
+                } else if SIZE == 8 {
+                    return Err(OperatorError::RequiresInt64Args(args, op_name.to_string()))?;
+                } else {
+                    // this should never happen, as we only call this function with SIZE = 4 or 8
+                    unreachable!();
+                }
             }
 
             let mut ret = 0;
@@ -529,7 +532,7 @@ mod tests {
     #[case(&[0xff], OperatorError::RequiresPositiveIntArgument)]
     #[case(&[0x80], OperatorError::RequiresPositiveIntArgument)]
     #[case(&[0x80,0,0,0], OperatorError::RequiresPositiveIntArgument)]
-    #[case(&[1,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff], OperatorError::RequiresIntArgument)]
+    #[case(&[1,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff], OperatorError::RequiresInt64Args)]
     fn test_uint_atom_8_failure(
         #[case] buf: &[u8],
         #[case] expected: fn(NodePtr, String) -> OperatorError,
