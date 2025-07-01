@@ -14,7 +14,7 @@ const SECP256K1_VERIFY_COST: Cost = 1300000;
 // expects: pubkey msg sig
 pub fn op_secp256r1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let cost = SECP256R1_VERIFY_COST;
-    check_cost(a, cost, max_cost)?;
+    check_cost(cost, max_cost)?;
 
     let [pubkey, msg, sig] = get_args::<3>(a, input, "secp256r1_verify")?;
 
@@ -47,7 +47,7 @@ pub fn op_secp256r1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) ->
 // expects: pubkey msg sig
 pub fn op_secp256k1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let cost = SECP256K1_VERIFY_COST;
-    check_cost(a, cost, max_cost)?;
+    check_cost(cost, max_cost)?;
 
     let [pubkey, msg, sig] = get_args::<3>(a, input, "secp256k1_verify")?;
 

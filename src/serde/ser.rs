@@ -5,7 +5,7 @@ use std::io::Write;
 
 use super::write_atom::write_atom;
 use crate::allocator::{len_for_value, Allocator, NodePtr, NodeVisitor};
-use crate::error::Result;
+use crate::error::{EvalErr, Result};
 
 const CONS_BOX_MARKER: u8 = 0xff;
 
@@ -49,7 +49,8 @@ pub fn node_to_stream<W: Write>(a: &Allocator, node: NodePtr, f: &mut W) -> Resu
                 write_atom(f, &buf[4 - len..])?
             }
             NodeVisitor::Pair(left, right) => {
-                f.write_all(&[CONS_BOX_MARKER])?;
+                f.write_all(&[CONS_BOX_MARKER])
+                    .map_err(|_| EvalErr::SerializationError)?;
                 values.push(right);
                 values.push(left);
             }

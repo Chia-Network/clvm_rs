@@ -1,5 +1,4 @@
-use crate::error::Result;
-use std::io;
+use crate::error::{EvalErr, Result};
 use std::io::{copy, sink, Read, Write};
 
 pub fn copy_exactly<R: Read, W: ?Sized + Write>(
@@ -9,12 +8,9 @@ pub fn copy_exactly<R: Read, W: ?Sized + Write>(
 ) -> Result<()> {
     let mut reader = reader.by_ref().take(expected_size);
 
-    let count = copy(&mut reader, writer)?;
+    let count = copy(&mut reader, writer).map_err(|_| EvalErr::SerializationError)?;
     if count < expected_size {
-        Err(io::Error::new(
-            io::ErrorKind::UnexpectedEof,
-            "copy terminated early",
-        ))?
+        Err(EvalErr::InternalError("copy terminated early".to_string()))?
     } else {
         Ok(())
     }

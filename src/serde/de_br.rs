@@ -30,7 +30,8 @@ pub fn node_from_stream_backrefs(
     while let Some(op) = ops.pop() {
         match op {
             ParseOp::SExp => {
-                f.read_exact(&mut b)?;
+                f.read_exact(&mut b)
+                    .map_err(|_| EvalErr::SerializationError)?;
                 if b[0] == CONS_BOX_MARKER {
                     ops.push(ParseOp::Cons);
                     ops.push(ParseOp::SExp);
@@ -74,7 +75,8 @@ fn node_from_stream_backrefs_old(
     while let Some(op) = ops.pop() {
         match op {
             ParseOp::SExp => {
-                f.read_exact(&mut b)?;
+                f.read_exact(&mut b)
+                    .map_err(|_| EvalErr::SerializationError)?;
                 if b[0] == CONS_BOX_MARKER {
                     ops.push(ParseOp::Cons);
                     ops.push(ParseOp::SExp);
@@ -155,7 +157,7 @@ pub fn traverse_path_with_vec(
         if parsing_sexp {
             match allocator.sexp(sexp_to_parse) {
                 SExp::Atom => {
-                    return Err(EvalErr::InvalidBackRef(sexp_to_parse));
+                    return Err(EvalErr::SerializationError);
                 }
                 SExp::Pair(left, right) => {
                     sexp_to_parse = if is_bit_set { right } else { left };

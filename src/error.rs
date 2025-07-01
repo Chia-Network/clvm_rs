@@ -1,39 +1,25 @@
 use crate::{Allocator, NodePtr, ObjectType};
-use std::io::Error as IoError;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, EvalErr>;
 #[derive(Debug, Error)]
 pub enum EvalErr {
-    #[error("IO Error: {0}")]
-    IoError(#[from] IoError),
+    #[error("Internal Error: {0}")]
+    InternalError(String),
 
-    #[error("Serialization Error: {0}")]
-    SerializationError(IoError),
-
-    #[error("Internal Error")]
-    InternalError,
-
-    #[error("Bad Encoding")]
-    BadEncoding,
-
-    #[error("Invalid Data: Atom too big")]
-    InvalidDataAtomTooBig,
-
-    #[error("Invalid BackRef during deserialization: {0:?}")]
-    InvalidBackRef(NodePtr),
-
+    #[error("Encoding / Decoding Error")]
+    SerializationError,
     #[error("clvm raise, {0:?}")]
     Raise(NodePtr),
 
     #[error("Out of Memory")]
     OutOfMemory,
 
-    #[error("Cost Exceeded {0:?}")]
-    CostExceeded(NodePtr),
+    #[error("Cost Exceeded")]
+    CostExceeded,
 
-    #[error("Cost Must be greater than zero: {0:?}")]
-    CostBelowZero(NodePtr),
+    #[error("Cost Must be greater than zero")]
+    CostBelowZero,
 
     #[error("Too Many Pairs")]
     TooManyPairs,
@@ -50,8 +36,8 @@ pub enum EvalErr {
     #[error("in ((X)...) syntax X must be lone atom")]
     InPairMustBeLoneAtom(NodePtr),
 
-    #[error("Bad Operand List: {0:?}")]
-    BadOperandList(NodePtr),
+    #[error("Invalid Nil Terminator: {0:?}")]
+    InvalidNilTerminator(NodePtr),
 
     #[error("First of non-cons: {0:?}")]
     FirstOfNonCons(NodePtr),
@@ -83,6 +69,12 @@ pub enum EvalErr {
     #[error("Softfork specified cost mismatch")]
     SoftforkSpecifiedCostMismatch,
 
+    #[error("Value Stack Limit Reached, {0:?}")]
+    ValueStackLimitReached(NodePtr),
+
+    #[error("Environment Stack Limit Reached, {0:?}")]
+    EnvironmentStackLimitReached(NodePtr),
+
     // Grouped errors
     #[error("Substring: {0}")]
     Substring(#[from] SubstringError),
@@ -104,9 +96,6 @@ pub enum EvalErr {
     #[error("Operator Error: {0}")]
     Operator(#[from] OperatorError),
 
-    #[error("Runtime Error: {0}")]
-    Runtime(#[from] RuntimeError),
-
     #[error("Secp256k1 Verify Error: {0}")]
     Secp256k1Verify(#[from] Secp256k1verifyError),
 
@@ -120,7 +109,7 @@ impl PartialEq<Self> for EvalErr {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Error)]
+#[derive(Debug, Error)]
 pub enum OperatorError {
     #[error("Reserved operator: {0:?}")]
     Reserved(NodePtr),
@@ -156,7 +145,7 @@ pub enum OperatorError {
     TakesExactlyArgs(NodePtr, String, u32),
 }
 
-#[derive(Debug, PartialEq, Error)]
+#[derive(Debug, Error)]
 pub enum SubstringError {
     #[error("Substring Start Index Out of Bounds: {1} > {2}, {0:?}")]
     StartOutOfBounds(NodePtr, u32, u32),
@@ -180,7 +169,7 @@ pub enum SubstringError {
     InvalidIndices(NodePtr),
 }
 
-#[derive(Debug, PartialEq, Error)]
+#[derive(Debug, Error)]
 pub enum ConcatError {
     #[error("Concat Expected atom, got pair, {0:?}")]
     ExpectedAtomGotPair(NodePtr),
@@ -192,7 +181,7 @@ pub enum ConcatError {
     ConcatOnList(NodePtr),
 }
 
-#[derive(Debug, PartialEq, Error)]
+#[derive(Debug, Error)]
 pub enum G1Error {
     #[error("atom is not G1 size (48 bytes), {0:?}")]
     NotG1Size(NodePtr),
@@ -203,7 +192,7 @@ pub enum G1Error {
     #[error("G1_map takes exactly 1 or 2 arguments, got {1}, {0:?}")]
     G1MapInvalidArgs(NodePtr, u32),
 }
-#[derive(Debug, PartialEq, Error)]
+#[derive(Debug, Error)]
 pub enum G2Error {
     #[error("atom is not G2 size (96 bytes), {0:?}")]
     NotG2Size(NodePtr),
@@ -215,7 +204,7 @@ pub enum G2Error {
     G2MapInvalidArgs(NodePtr, u32),
 }
 
-#[derive(Debug, PartialEq, Error)]
+#[derive(Debug, Error)]
 pub enum BLSError {
     #[error("bls_pairing_identity failed, {0:?}")]
     BLSPairingIdentityFailed(NodePtr),
@@ -223,7 +212,7 @@ pub enum BLSError {
     BLSVerifyFailed(NodePtr),
 }
 
-#[derive(Debug, PartialEq, Error)]
+#[derive(Debug, Error)]
 pub enum Secp256k1verifyError {
     #[error("failed, {0:?}")]
     Failed(NodePtr),
@@ -235,7 +224,7 @@ pub enum Secp256k1verifyError {
     SignatureNotValid(NodePtr),
 }
 
-#[derive(Debug, PartialEq, Error)]
+#[derive(Debug, Error)]
 pub enum Secp256r1verifyError {
     #[error("failed, {0:?}")]
     Failed(NodePtr),
@@ -247,7 +236,7 @@ pub enum Secp256r1verifyError {
     SignatureNotValid(NodePtr),
 }
 
-#[derive(Debug, PartialEq, Error)]
+#[derive(Debug, Error)]
 pub enum CoinIDError {
     #[error("Invalid Parent Coin ID, not 32 bytes, {0:?}")]
     ParentCoinIdNot32Bytes(NodePtr),
@@ -263,21 +252,6 @@ pub enum CoinIDError {
 
     #[error("Invalid Amount: Amount exceeds max coin amount, {0:?}")]
     AmountExceedsMaxCoinAmount(NodePtr),
-}
-
-#[derive(Debug, PartialEq, Error)]
-pub enum RuntimeError {
-    #[error("Value Stack Empty, {0:?}")]
-    ValueStackEmpty(NodePtr),
-
-    #[error("Value Stack Limit Reached, {0:?}")]
-    ValueStackLimitReached(NodePtr),
-
-    #[error("Environment Stack Empty, {0:?}")]
-    EnvironmentStackEmpty(NodePtr),
-
-    #[error("Environment Stack Limit Reached, {0:?}")]
-    EnvironmentStackLimitReached(NodePtr),
 }
 
 // Helper Functions for Debugging

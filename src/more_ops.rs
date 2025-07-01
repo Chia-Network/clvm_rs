@@ -214,11 +214,7 @@ pub fn op_unknown(
                 cost += ARITH_COST_PER_ARG;
                 let len = atom_len(allocator, arg, "unknown op")?;
                 byte_count += len as u64;
-                check_cost(
-                    allocator,
-                    cost + (byte_count as Cost * ARITH_COST_PER_BYTE),
-                    max_cost,
-                )?;
+                check_cost(cost + (byte_count as Cost * ARITH_COST_PER_BYTE), max_cost)?;
             }
             cost + (byte_count * ARITH_COST_PER_BYTE)
         }
@@ -239,7 +235,7 @@ pub fn op_unknown(
                 cost += (l0 + l1) * MUL_LINEAR_COST_PER_BYTE;
                 cost += (l0 * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
                 l0 += l1;
-                check_cost(allocator, cost, max_cost)?;
+                check_cost(cost, max_cost)?;
             }
             cost
         }
@@ -251,11 +247,7 @@ pub fn op_unknown(
                 cost += CONCAT_COST_PER_ARG;
                 let len = atom_len(allocator, arg, "unknown op")?;
                 total_size += len as u64;
-                check_cost(
-                    allocator,
-                    cost + total_size as Cost * CONCAT_COST_PER_BYTE,
-                    max_cost,
-                )?;
+                check_cost(cost + total_size as Cost * CONCAT_COST_PER_BYTE, max_cost)?;
             }
             cost + total_size * CONCAT_COST_PER_BYTE
         }
@@ -264,7 +256,7 @@ pub fn op_unknown(
 
     assert!(cost > 0);
 
-    check_cost(allocator, cost, max_cost)?;
+    check_cost(cost, max_cost)?;
     cost *= cost_multiplier + 1;
     if cost > u32::MAX as u64 {
         Err(OperatorError::Invalid(o))?
@@ -403,11 +395,7 @@ pub fn op_sha256(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += SHA256_COST_PER_ARG;
-        check_cost(
-            a,
-            cost + byte_count as Cost * SHA256_COST_PER_BYTE,
-            max_cost,
-        )?;
+        check_cost(cost + byte_count as Cost * SHA256_COST_PER_BYTE, max_cost)?;
         let blob = atom(a, arg, "sha256")?;
         byte_count += blob.as_ref().len();
         hasher.update(blob);
@@ -423,11 +411,7 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += ARITH_COST_PER_ARG;
-        check_cost(
-            a,
-            cost + (byte_count as Cost * ARITH_COST_PER_BYTE),
-            max_cost,
-        )?;
+        check_cost(cost + (byte_count as Cost * ARITH_COST_PER_BYTE), max_cost)?;
 
         match a.node(arg) {
             NodeVisitor::Buffer(buf) => {
@@ -457,7 +441,7 @@ pub fn op_subtract(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += ARITH_COST_PER_ARG;
-        check_cost(a, cost + byte_count as Cost * ARITH_COST_PER_BYTE, max_cost)?;
+        check_cost(cost + byte_count as Cost * ARITH_COST_PER_BYTE, max_cost)?;
         if is_first {
             let (v, len) = int_atom(a, arg, "-")?;
             byte_count = len;
@@ -492,7 +476,7 @@ pub fn op_multiply(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
     let mut l0: usize = 0;
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
-        check_cost(a, cost, max_cost)?;
+        check_cost(cost, max_cost)?;
         if first_iter {
             (total, l0) = int_atom(a, arg, "*")?;
             first_iter = false;
@@ -634,11 +618,7 @@ pub fn op_concat(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += CONCAT_COST_PER_ARG;
-        check_cost(
-            a,
-            cost + total_size as Cost * CONCAT_COST_PER_BYTE,
-            max_cost,
-        )?;
+        check_cost(cost + total_size as Cost * CONCAT_COST_PER_BYTE, max_cost)?;
         let len = match a.sexp(arg) {
             SExp::Pair(_, _) => return Err(ConcatError::ConcatOnList(arg))?,
             SExp::Atom => a.atom_len(arg),
@@ -652,7 +632,7 @@ pub fn op_concat(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
 
     cost += total_size as Cost * CONCAT_COST_PER_BYTE;
     cost += total_size as Cost * MALLOC_COST_PER_BYTE;
-    check_cost(a, cost, max_cost)?;
+    check_cost(cost, max_cost)?;
     let new_atom = a.new_concat(total_size, &terms)?;
     Ok(Reduction(cost, new_atom))
 }
@@ -797,7 +777,7 @@ fn binop_reduction(
         op_f(&mut total, &n0);
         arg_size += len;
         cost += LOG_COST_PER_ARG;
-        check_cost(a, cost + (arg_size as Cost * LOG_COST_PER_BYTE), max_cost)?;
+        check_cost(cost + (arg_size as Cost * LOG_COST_PER_BYTE), max_cost)?;
     }
     cost += arg_size as Cost * LOG_COST_PER_BYTE;
     let total = a.new_number(total)?;
@@ -853,7 +833,7 @@ pub fn op_any(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += BOOL_COST_PER_ARG;
-        check_cost(a, cost, max_cost)?;
+        check_cost(cost, max_cost)?;
         is_any = is_any || !nilp(a, arg);
     }
     Ok(Reduction(cost, if is_any { a.one() } else { a.nil() }))
@@ -865,7 +845,7 @@ pub fn op_all(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += BOOL_COST_PER_ARG;
-        check_cost(a, cost, max_cost)?;
+        check_cost(cost, max_cost)?;
         is_all = is_all && !nilp(a, arg);
     }
     Ok(Reduction(cost, if is_all { a.one() } else { a.nil() }))
@@ -892,7 +872,7 @@ pub fn op_point_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Re
         input = rest;
         let point = a.g1(arg)?;
         cost += POINT_ADD_COST_PER_ARG;
-        check_cost(a, cost, max_cost)?;
+        check_cost(cost, max_cost)?;
         total += &point;
     }
     Ok(Reduction(
@@ -949,10 +929,10 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
     cost += bsize as Cost * MODPOW_COST_PER_BYTE_BASE_VALUE;
     let (exponent, esize) = int_atom(a, exponent, "modpow")?;
     cost += (esize * esize) as Cost * MODPOW_COST_PER_BYTE_EXPONENT;
-    check_cost(a, cost, max_cost)?;
+    check_cost(cost, max_cost)?;
     let (modulus, msize) = int_atom(a, modulus, "modpow")?;
     cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
-    check_cost(a, cost, max_cost)?;
+    check_cost(cost, max_cost)?;
 
     if exponent.sign() == Sign::Minus {
         return Err(EvalErr::ModPowNegativeExponent(input));

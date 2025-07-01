@@ -11,22 +11,23 @@ fn write_atom_encoding_prefix_with_size<W: io::Write>(
     size: u64,
 ) -> Result<()> {
     if size == 0 {
-        f.write_all(&[0x80]).map_err(EvalErr::SerializationError)
+        f.write_all(&[0x80])
+            .map_err(|_| EvalErr::SerializationError)
     } else if size == 1 && atom_0 < 0x80 {
         Ok(())
     } else if size < 0x40 {
         f.write_all(&[0x80 | (size as u8)])
-            .map_err(EvalErr::SerializationError)
+            .map_err(|_| EvalErr::SerializationError)
     } else if size < 0x2000 {
         f.write_all(&[0xc0 | (size >> 8) as u8, size as u8])
-            .map_err(EvalErr::SerializationError)
+            .map_err(|_| EvalErr::SerializationError)
     } else if size < 0x10_0000 {
         f.write_all(&[
             (0xe0 | (size >> 16)) as u8,
             ((size >> 8) & 0xff) as u8,
             ((size) & 0xff) as u8,
         ])
-        .map_err(EvalErr::SerializationError)
+        .map_err(|_| EvalErr::SerializationError)
     } else if size < 0x800_0000 {
         f.write_all(&[
             (0xf0 | (size >> 24)) as u8,
@@ -34,7 +35,7 @@ fn write_atom_encoding_prefix_with_size<W: io::Write>(
             ((size >> 8) & 0xff) as u8,
             ((size) & 0xff) as u8,
         ])
-        .map_err(EvalErr::SerializationError)
+        .map_err(|_| EvalErr::SerializationError)
     } else if size < 0x4_0000_0000 {
         f.write_all(&[
             (0xf8 | (size >> 32)) as u8,
@@ -43,9 +44,9 @@ fn write_atom_encoding_prefix_with_size<W: io::Write>(
             ((size >> 8) & 0xff) as u8,
             ((size) & 0xff) as u8,
         ])
-        .map_err(EvalErr::SerializationError)
+        .map_err(|_| EvalErr::SerializationError)
     } else {
-        Err(EvalErr::InvalidDataAtomTooBig)
+        Err(EvalErr::SerializationError)?
     }
 }
 
@@ -53,7 +54,7 @@ fn write_atom_encoding_prefix_with_size<W: io::Write>(
 pub fn write_atom<W: io::Write>(f: &mut W, atom: &[u8]) -> Result<()> {
     let u8_0 = if !atom.is_empty() { atom[0] } else { 0 };
     write_atom_encoding_prefix_with_size(f, u8_0, atom.len() as u64)?;
-    f.write_all(atom).map_err(EvalErr::SerializationError)
+    f.write_all(atom).map_err(|_| EvalErr::SerializationError)
 }
 
 #[cfg(test)]

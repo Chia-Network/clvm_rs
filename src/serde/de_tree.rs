@@ -2,7 +2,7 @@ use std::io::{Error, Read, Write};
 
 use super::parse_atom::decode_size_with_offset;
 use super::utils::{copy_exactly, skip_bytes};
-use crate::error::Result;
+use crate::error::{EvalErr, Result};
 use chia_sha2::Sha256;
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
@@ -124,7 +124,8 @@ pub fn parse_triples<R: Read>(
         match op {
             ParseOpRef::ParseObj => {
                 let mut b: [u8; 1] = [0];
-                f.read_exact(&mut b)?;
+                f.read_exact(&mut b)
+                    .map_err(|_| EvalErr::SerializationError)?;
                 let start = cursor;
                 cursor += 1;
                 let b = b[0];

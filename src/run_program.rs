@@ -3,7 +3,7 @@ use crate::allocator::{Allocator, Checkpoint, NodePtr, NodeVisitor, SExp};
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 
-use crate::error::{EvalErr, Result, RuntimeError};
+use crate::error::{EvalErr, Result};
 use crate::op_utils::{first, get_args, uint_atom};
 use crate::reduction::{Reduction, Response};
 
@@ -143,16 +143,13 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     pub fn pop(&mut self) -> Result<NodePtr> {
         let v: Option<NodePtr> = self.val_stack.pop();
         match v {
-            None => {
-                let node: NodePtr = self.allocator.nil();
-                Err(RuntimeError::ValueStackEmpty(node))?
-            }
+            None => Err(EvalErr::InternalError("Value Stack Empty".to_string()))?,
             Some(k) => Ok(k),
         }
     }
     pub fn push(&mut self, node: NodePtr) -> Result<()> {
         if self.val_stack.len() == STACK_SIZE_LIMIT {
-            return Err(RuntimeError::ValueStackLimitReached(node))?;
+            return Err(EvalErr::ValueStackLimitReached(node));
         }
         self.val_stack.push(node);
         self.account_val_push();
@@ -161,7 +158,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
     pub fn push_env(&mut self, env: NodePtr) -> Result<()> {
         if self.env_stack.len() == STACK_SIZE_LIMIT {
-            return Err(RuntimeError::EnvironmentStackLimitReached(env))?;
+            return Err(EvalErr::EnvironmentStackLimitReached(env));
         }
         self.env_stack.push(env);
         self.account_env_push();
@@ -249,7 +246,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             }
             // ensure a correct nil terminator
             if self.allocator.atom_len(operands) != 0 {
-                Err(EvalErr::BadOperandList(operand_list))
+                Err(EvalErr::InvalidNilTerminator(operand_list))
             } else {
                 self.push(self.allocator.nil())?;
                 Ok(OP_COST)
@@ -304,10 +301,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     fn swap_eval_op(&mut self) -> Result<Cost> {
         let v2 = self.pop()?;
         let program: NodePtr = self.pop()?;
-        let env: NodePtr = *self
-            .env_stack
-            .last()
-            .ok_or(RuntimeError::EnvironmentStackEmpty(program))?;
+        let env: NodePtr = *self.env_stack.last().ok_or(EvalErr::InternalError(
+            "Environment Stack Empty".to_string(),
+        ))?;
         self.push(v2)?;
 
         // on the way back, build a list from the values
@@ -334,7 +330,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
         if self.env_stack.pop().is_none() {
-            return Err(RuntimeError::EnvironmentStackEmpty(operator))?;
+            return Err(EvalErr::InternalError(
+                "Environment Stack Empty".to_string(),
+            ))?;
         }
         let op_atom = self.allocator.small_number(operator);
 
@@ -348,10 +346,10 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 "softfork",
             )?;
             if expected_cost > max_cost {
-                return Err(EvalErr::CostExceeded(operand_list));
+                return Err(EvalErr::CostExceeded);
             }
             if expected_cost == 0 {
-                return Err(EvalErr::CostBelowZero(operand_list));
+                return Err(EvalErr::CostBelowZero);
             }
 
             // we can't blindly propagate errors here, since we handle errors
@@ -445,8 +443,6 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         // max_cost is always in effect, and necessary to prevent wrap-around of
         // the cost integer.
         let max_cost = if max_cost == 0 { Cost::MAX } else { max_cost };
-        let max_cost_ptr = self.allocator.new_number(max_cost.into())?;
-
         let mut cost: Cost = 0;
 
         cost += self.eval_pair(program, env)?;
@@ -463,7 +459,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             };
 
             if cost > effective_max_cost {
-                return Err(EvalErr::CostExceeded(max_cost_ptr));
+                return Err(EvalErr::CostExceeded);
             }
             let top = self.op_stack.pop();
             let op = match top {
@@ -1309,10 +1305,7 @@ mod tests {
                 // ensure it fails with the correct error
                 let expected_cost_exceeded =
                     run_program(&mut allocator, &dialect, program, args, t.cost - 1).unwrap_err();
-                assert_eq!(
-                    expected_cost_exceeded,
-                    EvalErr::CostExceeded(allocator.nil())
-                );
+                assert_eq!(expected_cost_exceeded, EvalErr::CostExceeded);
             }
             Err(err) => {
                 println!("FAILED: {}", err);
