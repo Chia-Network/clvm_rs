@@ -1767,11 +1767,11 @@ c6c886f6b57ec72a6178288c47c33577\
         assert_eq!(num, v);
     }
 
-    fn check_g1_fail(a: &Allocator, n: NodePtr, bytes: &[u8]) {
+    fn check_g1_fail(_a: &Allocator, _n: NodePtr, bytes: &[u8]) {
         assert!(<[u8; 48]>::try_from(bytes).is_err());
     }
 
-    fn check_g2_fail(a: &Allocator, n: NodePtr, bytes: &[u8]) {
+    fn check_g2_fail(_a: &Allocator, _n: NodePtr, bytes: &[u8]) {
         assert!(<[u8; 96]>::try_from(bytes).is_err());
     }
 

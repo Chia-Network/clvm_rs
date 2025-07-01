@@ -237,7 +237,7 @@ mod tests {
         let result = op(&mut a, args, 10000000000 as Cost);
         match result {
             Err(e) => {
-                println!("Error: {}", e.to_string());
+                println!("Error: {}", e);
                 assert_eq!(expected, "FAIL");
             }
             Ok(Reduction(cost, ret_value)) => {
