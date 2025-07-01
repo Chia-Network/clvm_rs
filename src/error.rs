@@ -61,8 +61,8 @@ pub enum EvalErr {
     #[error("Shift too large: {0:?}")]
     ShiftTooLarge(NodePtr),
 
-    #[error("Unknown Softfork Extension: {0:?}")]
-    UnknownSoftforkExtension(NodePtr),
+    #[error("Unknown Softfork Extension")]
+    UnknownSoftforkExtension,
 
     #[error("Softfork specified cost mismatch")]
     SoftforkSpecifiedCostMismatch,

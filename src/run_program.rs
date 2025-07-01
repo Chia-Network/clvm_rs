@@ -320,7 +320,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             self.dialect
                 .softfork_extension(uint_atom::<4>(self.allocator, extension, "softfork")? as u32);
         if extension == OperatorSet::Default {
-            Err(EvalErr::UnknownSoftforkExtension(args))
+            Err(EvalErr::UnknownSoftforkExtension)
         } else {
             Ok((extension, program, env))
         }
@@ -997,7 +997,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Unknown Softfork Extension: NodePtr(Pair, 13)",
+            err: "Unknown Softfork Extension",
         },
 
         // this is a valid invocation, but we don't implement any extensions (yet)
@@ -1015,7 +1015,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Unknown Softfork Extension: NodePtr(Pair, 13)",
+            err: "Unknown Softfork Extension",
         },
 
         // we don't allow negative "extension" parameters
@@ -1152,7 +1152,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 10000,
-            err: "Unknown Softfork Extension: NodePtr(Pair, 13)",
+            err: "Unknown Softfork Extension",
         },
 
         // coinid is also available under softfork extension 1
@@ -1449,7 +1449,7 @@ mod tests {
             // mempool mode but ignored in consensus mode
             (0, 1) => {
                 if mempool {
-                    "Unknown Softfork Extension: NodePtr(Pair, 32)"
+                    "Unknown Softfork Extension"
                 } else {
                     ""
                 }
