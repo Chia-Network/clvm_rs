@@ -11,13 +11,14 @@ use clvmr::bls_ops::{
 };
 use clvmr::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use clvmr::cost::Cost;
+use clvmr::error::EvalErr;
 use clvmr::keccak256_ops::op_keccak256;
 use clvmr::more_ops::{
     op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
     op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not,
     op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
 };
-use clvmr::reduction::{EvalErr, Response};
+use clvmr::reduction::Response;
 use clvmr::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
 
 type Opf = fn(&mut Allocator, NodePtr, Cost) -> Response;
@@ -85,10 +86,9 @@ fuzz_target!(|data: &[u8]| {
         for max_cost in [11000000, 1100000, 110000, 10, 1, 0] {
             allocator.restore_checkpoint(&allocator_checkpoint);
             match op(&mut allocator, args, max_cost) {
-                Err(EvalErr(n, msg)) => {
-                    assert!(!msg.contains("internal error"));
-                    // make sure n is a valid node in the allocator
-                    allocator.sexp(n);
+                // ALl Operator Types
+                Err(EvalErr::Operator(op_error)) => {
+                    assert!(!op_error.to_string().contains("Operator Error"));
                 }
                 Ok(n) => {
                     // make sure n is a valid node in the allocator
@@ -100,6 +100,9 @@ fuzz_target!(|data: &[u8]| {
                     // if the cost of allocating the return value is what makes
                     // is cross the max_cost limit, the operator still succeeds
                     // assert!(n.0 <= max_cost + 5000);
+                }
+                _ => {
+                    panic!("Unexpected Error: {op:?}");
                 }
             }
         }

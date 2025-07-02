@@ -67,7 +67,7 @@ def deserialize_as_tuples(
         blob: bytes, cursor: int, obj_list: List[Triple], op_stack: List[DeserOp]
     ) -> int:
         if cursor >= len(blob):
-            raise ValueError("bad encoding")
+            raise ValueError("Encoding / Decoding Error")
 
         if blob[cursor] == CONS_BOX_MARKER:
             index = len(obj_list)

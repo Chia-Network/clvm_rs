@@ -7,6 +7,7 @@ use super::object_cache::{serialized_length, treehash, ObjectCache};
 use super::read_cache_lookup::ReadCacheLookup;
 use super::write_atom::write_atom;
 use crate::allocator::{Allocator, NodePtr, SExp};
+use crate::error::{EvalErr, Result};
 use crate::serde::ser::LimitedWriter;
 
 const BACK_REFERENCE: u8 = 0xfe;
@@ -22,7 +23,7 @@ pub fn node_to_stream_backrefs<W: io::Write>(
     allocator: &Allocator,
     node: NodePtr,
     f: &mut W,
-) -> io::Result<()> {
+) -> Result<()> {
     let mut read_op_stack: Vec<ReadOp> = vec![ReadOp::Parse];
     let mut write_stack: Vec<NodePtr> = vec![node];
 
@@ -43,13 +44,15 @@ pub fn node_to_stream_backrefs<W: io::Write>(
             .expect("can't get treehash");
         match read_cache_lookup.find_path(node_tree_hash, node_serialized_length) {
             Some(path) => {
-                f.write_all(&[BACK_REFERENCE])?;
+                f.write_all(&[BACK_REFERENCE])
+                    .map_err(|_| EvalErr::SerializationError)?;
                 write_atom(f, &path)?;
                 read_cache_lookup.push(*node_tree_hash);
             }
             None => match allocator.sexp(node_to_write) {
                 SExp::Pair(left, right) => {
-                    f.write_all(&[CONS_BOX_MARKER])?;
+                    f.write_all(&[CONS_BOX_MARKER])
+                        .map_err(|_| EvalErr::SerializationError)?;
                     write_stack.push(right);
                     write_stack.push(left);
                     read_op_stack.push(ReadOp::Cons);
@@ -71,11 +74,7 @@ pub fn node_to_stream_backrefs<W: io::Write>(
     Ok(())
 }
 
-pub fn node_to_bytes_backrefs_limit(
-    a: &Allocator,
-    node: NodePtr,
-    limit: usize,
-) -> io::Result<Vec<u8>> {
+pub fn node_to_bytes_backrefs_limit(a: &Allocator, node: NodePtr, limit: usize) -> Result<Vec<u8>> {
     let buffer = Cursor::new(Vec::new());
     let mut writer = LimitedWriter::new(buffer, limit);
     node_to_stream_backrefs(a, node, &mut writer)?;
@@ -83,7 +82,7 @@ pub fn node_to_bytes_backrefs_limit(
     Ok(vec)
 }
 
-pub fn node_to_bytes_backrefs(a: &Allocator, node: NodePtr) -> io::Result<Vec<u8>> {
+pub fn node_to_bytes_backrefs(a: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
     let mut buffer = Cursor::new(Vec::new());
     node_to_stream_backrefs(a, node, &mut buffer)?;
     let vec = buffer.into_inner();
@@ -93,6 +92,7 @@ pub fn node_to_bytes_backrefs(a: &Allocator, node: NodePtr) -> io::Result<Vec<u8
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::EvalErr;
     use crate::serde::node_to_bytes_backrefs;
 
     #[test]
@@ -109,8 +109,8 @@ mod tests {
         assert_eq!(node_to_bytes_backrefs(&a, l3).unwrap(), expected);
         assert_eq!(node_to_bytes_backrefs_limit(&a, l3, 15).unwrap(), expected);
         assert_eq!(
-            node_to_bytes_backrefs_limit(&a, l3, 14).unwrap_err().kind(),
-            io::ErrorKind::OutOfMemory
+            node_to_bytes_backrefs_limit(&a, l3, 14).unwrap_err(),
+            EvalErr::OutOfMemory
         );
     }
 }

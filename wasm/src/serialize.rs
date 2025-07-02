@@ -10,7 +10,7 @@ use clvmr::Allocator;
 
 #[wasm_bindgen]
 pub fn serialized_length(program: &[u8]) -> Result<u64, String> {
-    serialized_length_from_bytes(program).map_err(|x| x.to_string())
+    serialized_length_from_bytes(program).map_err(|x| x.combined_str())
 }
 
 #[wasm_bindgen]

@@ -1,6 +1,7 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::Cost;
-use crate::reduction::{EvalErr, Reduction, Response};
+use crate::error::EvalErr;
+use crate::reduction::{Reduction, Response};
 
 // lowered from measured 147 per bit. It doesn't seem to take this long in
 // practice
@@ -55,7 +56,7 @@ pub fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) ->
         let is_bit_set: bool = (node_index[byte_idx] & bitmask) != 0;
         match allocator.sexp(arg_list) {
             SExp::Atom => {
-                return Err(EvalErr(arg_list, "path into atom".into()));
+                return Err(EvalErr::PathIntoAtom);
             }
             SExp::Pair(left, right) => {
                 arg_list = if is_bit_set { right } else { left };
@@ -89,7 +90,7 @@ pub fn traverse_path_fast(allocator: &Allocator, mut node_index: u32, args: Node
     let mut num_bits = 0;
     while node_index != 1 {
         let SExp::Pair(left, right) = allocator.sexp(arg_list) else {
-            return Err(EvalErr(arg_list, "path into atom".into()));
+            return Err(EvalErr::PathIntoAtom);
         };
 
         let is_bit_set: bool = (node_index & 0x01) != 0;
@@ -187,23 +188,23 @@ mod tests {
         // errors
         assert_eq!(
             traverse_path(&a, &[0b1011], list).unwrap_err(),
-            EvalErr(nul, "path into atom".to_string())
+            EvalErr::PathIntoAtom
         );
         assert_eq!(
             traverse_path(&a, &[0b1101], list).unwrap_err(),
-            EvalErr(n1, "path into atom".to_string())
+            EvalErr::PathIntoAtom
         );
         assert_eq!(
             traverse_path(&a, &[0b1001], list).unwrap_err(),
-            EvalErr(n1, "path into atom".to_string())
+            EvalErr::PathIntoAtom
         );
         assert_eq!(
             traverse_path(&a, &[0b1010], list).unwrap_err(),
-            EvalErr(n2, "path into atom".to_string())
+            EvalErr::PathIntoAtom
         );
         assert_eq!(
             traverse_path(&a, &[0b1110], list).unwrap_err(),
-            EvalErr(n2, "path into atom".to_string())
+            EvalErr::PathIntoAtom
         );
     }
 
@@ -245,23 +246,23 @@ mod tests {
         // errors
         assert_eq!(
             traverse_path_fast(&a, 0b1011, list).unwrap_err(),
-            EvalErr(nul, "path into atom".to_string())
+            EvalErr::PathIntoAtom
         );
         assert_eq!(
             traverse_path_fast(&a, 0b1101, list).unwrap_err(),
-            EvalErr(n1, "path into atom".to_string())
+            EvalErr::PathIntoAtom
         );
         assert_eq!(
             traverse_path_fast(&a, 0b1001, list).unwrap_err(),
-            EvalErr(n1, "path into atom".to_string())
+            EvalErr::PathIntoAtom
         );
         assert_eq!(
             traverse_path_fast(&a, 0b1010, list).unwrap_err(),
-            EvalErr(n2, "path into atom".to_string())
+            EvalErr::PathIntoAtom
         );
         assert_eq!(
             traverse_path_fast(&a, 0b1110, list).unwrap_err(),
-            EvalErr(n2, "path into atom".to_string())
+            EvalErr::PathIntoAtom
         );
     }
 }

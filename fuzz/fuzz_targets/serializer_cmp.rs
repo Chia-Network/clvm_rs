@@ -4,12 +4,12 @@ mod make_tree;
 mod node_eq;
 
 use clvmr::allocator::{Allocator, NodePtr, SExp};
+use clvmr::error::{EvalErr, Result};
 use clvmr::serde::node_from_bytes_backrefs;
 use clvmr::serde::write_atom::write_atom;
 use clvmr::serde::ReadCacheLookup;
 use clvmr::serde::TreeCache;
 use clvmr::serde::{serialized_length, treehash, ObjectCache};
-use std::io;
 use std::io::Cursor;
 use std::io::Write;
 
@@ -28,7 +28,7 @@ enum ReadOp {
 
 // make sure back-references returned by ReadCacheLookup are smaller than the
 // node they reference and compare ReadCacheLookup and ObjectCache against TreeCache
-pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> io::Result<Vec<u8>> {
+pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
     let mut f = Cursor::new(Vec::new());
 
     let mut read_op_stack: Vec<ReadOp> = vec![ReadOp::Parse];
@@ -93,7 +93,8 @@ pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> io::Resu
         }
         match result1 {
             Some(path) => {
-                f.write_all(&[BACK_REFERENCE])?;
+                f.write_all(&[BACK_REFERENCE])
+                    .map_err(|_| clvmr::error::EvalErr::SerializationError)?;
                 write_atom(&mut f, &path)?;
                 read_cache_lookup.push(*node_tree_hash);
                 tree_cache.push(node_to_write);
@@ -102,7 +103,8 @@ pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> io::Resu
                     // the node we're referencing
                     use std::io::Write;
                     let mut temp = Cursor::new(Vec::<u8>::new());
-                    temp.write_all(&[BACK_REFERENCE])?;
+                    temp.write_all(&[BACK_REFERENCE])
+                        .map_err(|_| EvalErr::SerializationError)?;
                     write_atom(&mut temp, &path)?;
                     let temp = temp.into_inner();
                     assert!(temp.len() <= node_serialized_length as usize);
@@ -110,7 +112,8 @@ pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> io::Resu
             }
             None => match allocator.sexp(node_to_write) {
                 SExp::Pair(left, right) => {
-                    f.write_all(&[CONS_BOX_MARKER])?;
+                    f.write_all(&[CONS_BOX_MARKER])
+                        .map_err(|_| EvalErr::SerializationError)?;
                     write_stack.push(right);
                     write_stack.push(left);
                     read_op_stack.push(ReadOp::Cons(node_to_write));

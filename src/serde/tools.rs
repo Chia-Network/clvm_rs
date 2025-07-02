@@ -1,20 +1,20 @@
-use std::io;
+use crate::error::{EvalErr, Result};
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
-use super::errors::bad_encoding;
 use super::parse_atom::{decode_size, decode_size_with_offset};
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const BACK_REFERENCE: u8 = 0xfe;
 const CONS_BOX_MARKER: u8 = 0xff;
 
-pub fn serialized_length_from_bytes_trusted(b: &[u8]) -> io::Result<u64> {
+pub fn serialized_length_from_bytes_trusted(b: &[u8]) -> Result<u64> {
     let mut f = Cursor::new(b);
     let mut ops_counter = 1;
     let mut b = [0; 1];
     while ops_counter > 0 {
         ops_counter -= 1;
-        f.read_exact(&mut b)?;
+        f.read_exact(&mut b)
+            .map_err(|_| EvalErr::SerializationError)?;
         if b[0] == CONS_BOX_MARKER {
             // we expect to parse two more items from the stream
             // the left and right sub tree
@@ -23,12 +23,14 @@ pub fn serialized_length_from_bytes_trusted(b: &[u8]) -> io::Result<u64> {
             // This is a back-ref. We don't actually need to resolve it, just
             // parse the path and move on
             let mut first_byte = [0; 1];
-            f.read_exact(&mut first_byte)?;
+            f.read_exact(&mut first_byte)
+                .map_err(|_| EvalErr::SerializationError)?;
             if first_byte[0] > MAX_SINGLE_BYTE {
                 let path_size = decode_size(&mut f, first_byte[0])?;
-                f.seek(SeekFrom::Current(path_size as i64))?;
+                f.seek(SeekFrom::Current(path_size as i64))
+                    .map_err(|_| EvalErr::SerializationError)?;
                 if (f.get_ref().len() as u64) < f.position() {
-                    return Err(bad_encoding());
+                    return Err(EvalErr::SerializationError);
                 }
             }
         } else if b[0] == 0x80 || b[0] <= MAX_SINGLE_BYTE {
@@ -36,9 +38,10 @@ pub fn serialized_length_from_bytes_trusted(b: &[u8]) -> io::Result<u64> {
             // or the special case of NIL
         } else {
             let blob_size = decode_size(&mut f, b[0])?;
-            f.seek(SeekFrom::Current(blob_size as i64))?;
+            f.seek(SeekFrom::Current(blob_size as i64))
+                .map_err(|_| EvalErr::SerializationError)?;
             if (f.get_ref().len() as u64) < f.position() {
-                return Err(bad_encoding());
+                return Err(EvalErr::SerializationError);
             }
         }
     }
@@ -69,7 +72,7 @@ enum ParseOp {
 }
 
 // computes the tree-hash of a CLVM structure in serialized form
-pub fn tree_hash_from_stream(f: &mut Cursor<&[u8]>) -> io::Result<[u8; 32]> {
+pub fn tree_hash_from_stream(f: &mut Cursor<&[u8]>) -> Result<[u8; 32]> {
     let mut values: Vec<[u8; 32]> = Vec::new();
     let mut ops = vec![ParseOp::SExp];
 
@@ -77,7 +80,8 @@ pub fn tree_hash_from_stream(f: &mut Cursor<&[u8]>) -> io::Result<[u8; 32]> {
     while let Some(op) = ops.pop() {
         match op {
             ParseOp::SExp => {
-                f.read_exact(&mut b)?;
+                f.read_exact(&mut b)
+                    .map_err(|_| EvalErr::SerializationError)?;
                 if b[0] == CONS_BOX_MARKER {
                     ops.push(ParseOp::Cons);
                     ops.push(ParseOp::SExp);
@@ -90,7 +94,7 @@ pub fn tree_hash_from_stream(f: &mut Cursor<&[u8]>) -> io::Result<[u8; 32]> {
                     let blob_size = decode_size(f, b[0])?;
                     let blob = &f.get_ref()[f.position() as usize..];
                     if (blob.len() as u64) < blob_size {
-                        return Err(bad_encoding());
+                        return Err(EvalErr::SerializationError);
                     }
                     f.set_position(f.position() + blob_size);
                     values.push(hash_atom(&blob[..blob_size as usize]));
@@ -110,7 +114,7 @@ pub fn tree_hash_from_stream(f: &mut Cursor<&[u8]>) -> io::Result<[u8; 32]> {
 /// validate that a buffer is a valid CLVM serialization, and return the length
 /// of the CLVM object. This may fail if the serialization contains an invalid
 /// back-reference or if the buffer is truncated.
-pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
+pub fn serialized_length_from_bytes(b: &[u8]) -> Result<u64> {
     use crate::serde::parse_atom::parse_path;
     use crate::traverse_path::traverse_path;
     use crate::{allocator::SExp, Allocator};
@@ -128,7 +132,8 @@ pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
     while let Some(op) = ops.pop() {
         match op {
             ParseOp::SExp => {
-                f.read_exact(&mut b)?;
+                f.read_exact(&mut b)
+                    .map_err(|_| EvalErr::SerializationError)?;
                 if b[0] == CONS_BOX_MARKER {
                     ops.push(ParseOp::Cons);
                     ops.push(ParseOp::SExp);
@@ -143,9 +148,10 @@ pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
                     values = allocator.new_pair(nil, values)?;
                 } else {
                     let blob_size = decode_size(&mut f, b[0])?;
-                    f.seek(SeekFrom::Current(blob_size as i64))?;
+                    f.seek(SeekFrom::Current(blob_size as i64))
+                        .map_err(|_| EvalErr::SerializationError)?;
                     if (f.get_ref().len() as u64) < f.position() {
-                        return Err(bad_encoding());
+                        return Err(EvalErr::SerializationError);
                     }
                     values = allocator.new_pair(nil, values)?;
                 }
@@ -153,11 +159,11 @@ pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
             ParseOp::Cons => {
                 // cons
                 let SExp::Pair(v1, v2) = allocator.sexp(values) else {
-                    return Err(bad_encoding());
+                    return Err(EvalErr::SerializationError);
                 };
 
                 let SExp::Pair(v3, v4) = allocator.sexp(v2) else {
-                    return Err(bad_encoding());
+                    return Err(EvalErr::SerializationError);
                 };
 
                 let new_root = allocator.new_pair(v3, v1)?;
@@ -167,7 +173,7 @@ pub fn serialized_length_from_bytes(b: &[u8]) -> io::Result<u64> {
     }
     match allocator.sexp(values) {
         SExp::Pair(_, _) => Ok(f.position()),
-        _ => Err(bad_encoding()),
+        _ => Err(EvalErr::SerializationError)?,
     }
 }
 
@@ -187,7 +193,7 @@ fn is_canonical_atom(f: &mut Cursor<&[u8]>, first_byte: u8) -> bool {
         4 => 1 << (4 + 8 + 8),
         5 => 1 << (4 + 8 + 8 + 8),
         6 => 1 << (4 + 8 + 8 + 8 + 8),
-        _ => panic!("unexpected atom length prefix {}", prefix_len),
+        _ => panic!("unexpected atom length prefix {prefix_len}"),
     };
     if f.seek(SeekFrom::Current(atom_len as i64)).is_err() {
         return false;
@@ -230,6 +236,7 @@ pub fn is_canonical_serialization(b: &[u8]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::EvalErr;
     use crate::serde::node_from_bytes_backrefs;
     use crate::Allocator;
     use hex::FromHex;
@@ -286,15 +293,15 @@ mod tests {
     fn test_tree_hash_overlong() {
         let mut cursor = Cursor::<&[u8]>::new(&[0x8f, 0xff]);
         let e = tree_hash_from_stream(&mut cursor).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
+        assert_eq!(e, EvalErr::SerializationError);
 
         let mut cursor = Cursor::<&[u8]>::new(&[0b11001111, 0xff]);
         let e = tree_hash_from_stream(&mut cursor).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
+        assert_eq!(e, EvalErr::SerializationError);
 
         let mut cursor = Cursor::<&[u8]>::new(&[0b11001111, 0xff, 0, 0]);
         let e = tree_hash_from_stream(&mut cursor).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
+        assert_eq!(e, EvalErr::SerializationError);
     }
 
     // these test cases were produced by:
@@ -368,16 +375,13 @@ mod tests {
         );
 
         let e = serialized_length_from_bytes_trusted(&[0x8f, 0xff]).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
+        assert_eq!(e, EvalErr::SerializationError);
 
         let e = serialized_length_from_bytes_trusted(&[0b11001111, 0xff]).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
+        assert_eq!(e, EvalErr::SerializationError);
 
         let e = serialized_length_from_bytes_trusted(&[0b11001111, 0xff, 0, 0]).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
+        assert_eq!(e, EvalErr::SerializationError);
 
         assert_eq!(
             serialized_length_from_bytes_trusted(&[
@@ -390,7 +394,6 @@ mod tests {
 
     #[test]
     fn test_serialized_length_from_bytes() {
-        use std::io::ErrorKind;
         assert_eq!(
             serialized_length_from_bytes(&[0x7f, 0x00, 0x00, 0x00]).unwrap(),
             1
@@ -411,20 +414,16 @@ mod tests {
         // this is an invalid back-ref
         let e =
             serialized_length_from_bytes(&[0xff, 0x01, 0xff, 0xfe, 0x10, 0x80, 0x00]).unwrap_err();
-        assert_eq!(e.kind(), ErrorKind::Other);
-        assert_eq!(e.to_string(), "path into atom");
+        assert_eq!(e.combined_str(), "Path Into Atom".to_string());
 
         let e = serialized_length_from_bytes(&[0x8f, 0xff]).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
+        assert_eq!(e, EvalErr::SerializationError);
 
         let e = serialized_length_from_bytes(&[0b11001111, 0xff]).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
+        assert_eq!(e, EvalErr::SerializationError);
 
         let e = serialized_length_from_bytes(&[0b11001111, 0xff, 0, 0]).unwrap_err();
-        assert_eq!(e.kind(), bad_encoding().kind());
-        assert_eq!(e.to_string(), "bad encoding");
+        assert_eq!(e, EvalErr::SerializationError);
 
         assert_eq!(
             serialized_length_from_bytes(&[0x8f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])

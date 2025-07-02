@@ -129,6 +129,6 @@ test_case("Test serialized_length", function () {
   try {
     wasm.serialized_length(bytesFromHex("abcdef0123"));
   } catch (e) {
-    expect_equal(e, "bad encoding");
+    expect_equal(e, "Encoding / Decoding Error");
   }
 });
