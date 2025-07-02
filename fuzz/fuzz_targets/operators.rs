@@ -102,7 +102,7 @@ fuzz_target!(|data: &[u8]| {
                     // assert!(n.0 <= max_cost + 5000);
                 }
                 _ => {
-                    panic!("Unexpected Error: {:?}", op);
+                    panic!("Unexpected Error: {op:?}");
                 }
             }
         }
