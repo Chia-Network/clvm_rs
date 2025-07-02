@@ -1308,7 +1308,7 @@ mod tests {
                 assert_eq!(expected_cost_exceeded, EvalErr::CostExceeded);
             }
             Err(err) => {
-                println!("FAILED: {}", err);
+                println!("FAILED: {err}");
                 assert_eq!(err.combined_str(), t.err);
                 assert!(expected_result.is_none());
             }

@@ -229,7 +229,7 @@ mod tests {
 
     fn check_parse_tree(h: &str, expected: Vec<ParsedTriple>, expected_sha_tree_hex: &str) {
         let b = Vec::from_hex(h).unwrap();
-        println!("{:?}", b);
+        println!("{b:?}");
         let mut f = Cursor::new(b);
         let (p, tree_hash) = parse_triples(&mut f, false).unwrap();
         assert_eq!(p, expected);

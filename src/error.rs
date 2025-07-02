@@ -106,7 +106,7 @@ impl EvalErr {
     pub fn combined_str(&self) -> String {
         // This is a convenience function to get the combined string representation of the error
         match self.node() {
-            Some(node) => format!("{}: {:?}", self, node),
+            Some(node) => format!("{self}: {node:?}"),
             None => self.to_string(),
         }
     }

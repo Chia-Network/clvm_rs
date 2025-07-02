@@ -374,7 +374,7 @@ impl Allocator {
 
     #[inline(always)]
     #[cfg(feature = "allocator-debug")]
-    fn mk_node(&self, t: ObjectType, idx: usize) -> NodePtr {
+    pub(crate) fn mk_node(&self, t: ObjectType, idx: usize) -> NodePtr {
         NodePtr::new_debug(
             t,
             idx,
@@ -1387,7 +1387,7 @@ mod tests {
         );
         assert_eq!(
             a.new_concat(12, &[atom3, pair]).unwrap_err(),
-            EvalErr::from(AllocatorError::ExpectedAtomGotPair(NodePtr(0)))
+            EvalErr::from(AllocatorError::ExpectedAtomGotPair(h_pair(&a)))
         );
 
         assert_eq!(
@@ -2162,7 +2162,7 @@ c6c886f6b57ec72a6178288c47c33577\
 
         // 0 is encoded as an empty string
         let num = number_from_u8(bytes);
-        assert_eq!(format!("{}", num), text);
+        assert_eq!(format!("{num}",), text);
         let ptr = a.new_number(num).unwrap();
         assert_eq!(a.atom(ptr).as_ref(), buf);
     }

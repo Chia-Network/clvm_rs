@@ -107,7 +107,7 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
             "secp256r1_verify" => a.new_atom(&[0x1c, 0x3a, 0x8f, 0x00]).unwrap(),
             "keccak256" => a.new_atom(&[62]).unwrap(),
             _ => {
-                panic!("atom not supported \"{}\"", v);
+                panic!("atom not supported \"{v}\"");
             }
         }
     }
@@ -237,7 +237,7 @@ mod tests {
         let result = op(&mut a, args, 10000000000 as Cost);
         match result {
             Err(e) => {
-                println!("Error: {}", e);
+                println!("Error: {e}");
                 assert_eq!(expected, "FAIL");
             }
             Ok(Reduction(cost, ret_value)) => {
@@ -392,6 +392,9 @@ mod tests {
     }
 
     #[cfg(feature = "pre-eval")]
+    use crate::error::Result;
+
+    #[cfg(feature = "pre-eval")]
     const COST_LIMIT: u64 = 1000000000;
 
     #[cfg(feature = "pre-eval")]
@@ -405,7 +408,7 @@ mod tests {
     type Callback = Box<dyn Fn(&mut Allocator, Option<NodePtr>)>;
 
     #[cfg(feature = "pre-eval")]
-    type PreEvalF = Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> CLVMResult<Option<Callback>>>;
+    type PreEvalF = Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Callback>>>;
 
     // Ensure pre_eval_f and post_eval_f are working as expected.
     #[cfg(feature = "pre-eval")]
