@@ -144,7 +144,7 @@ mod tests {
         assert_eq!(
             decode_size_with_offset(&mut stream, first_b)
                 .unwrap_err()
-                .to_string(),
+                .combined_str(),
             expect
         );
     }
@@ -164,7 +164,7 @@ mod tests {
         assert_eq!(
             decode_size_with_offset(&mut stream, 0x7f)
                 .unwrap_err()
-                .to_string(),
+                .combined_str(),
             "Internal Error: Error Initializing Encoding"
         );
     }
@@ -223,6 +223,6 @@ mod tests {
         let mut allocator = Allocator::new();
         let ret = parse_atom(&mut allocator, first, &mut cursor);
         let err = ret.unwrap_err();
-        assert_eq!(err.to_string(), "Encoding / Decoding Error".to_string());
+        assert_eq!(err.combined_str(), "Encoding / Decoding Error".to_string());
     }
 }

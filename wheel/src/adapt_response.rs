@@ -4,6 +4,7 @@ use crate::lazy_node::LazyNode;
 use clvmr::allocator::Allocator;
 use clvmr::reduction::Response;
 
+use clvmr::error::EvalErr;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
@@ -19,8 +20,9 @@ pub fn adapt_response(
             Ok((reduction.0, val))
         }
         Err(eval_err) => {
-            let sexp = LazyNode::new(Rc::new(allocator), eval_err.0).to_object(py);
-            let msg = eval_err.1.to_object(py);
+            let sexp =
+                LazyNode::new(Rc::new(allocator), EvalErr::node_ptr(&eval_err)).to_object(py);
+            let msg = eval_err.to_string().to_object(py);
             let tuple = PyTuple::new_bound(py, [msg, sexp]);
             let value_error: PyErr = PyValueError::new_err(tuple.to_object(py));
             Err(value_error)

@@ -414,7 +414,7 @@ mod tests {
         // this is an invalid back-ref
         let e =
             serialized_length_from_bytes(&[0xff, 0x01, 0xff, 0xfe, 0x10, 0x80, 0x00]).unwrap_err();
-        assert_eq!(e.to_string(), "Path Into Atom".to_string());
+        assert_eq!(e.combined_str(), "Path Into Atom".to_string());
 
         let e = serialized_length_from_bytes(&[0x8f, 0xff]).unwrap_err();
         assert_eq!(e, EvalErr::SerializationError);

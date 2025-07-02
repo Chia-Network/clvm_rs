@@ -88,6 +88,7 @@ hex = { workspace = true }
 sha1 = { workspace = true }
 bumpalo = { workspace = true }
 thiserror = "1.0.69"
+pyo3 = "0.22.6"
 
 [dev-dependencies]
 rstest = { workspace = true }

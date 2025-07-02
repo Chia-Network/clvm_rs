@@ -343,6 +343,7 @@ dependencies = [
  "num-integer",
  "num-traits",
  "p256",
+ "pyo3",
  "rand",
  "rstest",
  "sha1",

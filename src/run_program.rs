@@ -674,7 +674,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "Operator Error: apply takes exactly 2 argument(s), NodePtr(Pair, 9)",
+            err: "Operator Error: apply takes exactly 2 argument(s): NodePtr(Pair, 9)",
         },
         RunProgramTest {
             prg: "(a (q 0x00ffffffffffffffffffff00) (q ()))",
@@ -690,7 +690,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "Operator Error: apply takes exactly 2 argument(s), NodePtr(Pair, 3)",
+            err: "Operator Error: apply takes exactly 2 argument(s): NodePtr(Pair, 3)",
         },
         RunProgramTest {
             prg: "(a (q . 1) (q . (100 200)))",
@@ -714,7 +714,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "Operator Error: in the ((X)...) syntax, the inner list takes exactly 1 argument(s), NodePtr(Pair, 8)",
+            err: "Operator Error: in the ((X)...) syntax, the inner list takes exactly 1 argument(s): NodePtr(Pair, 8)",
         },
         RunProgramTest {
             prg: "((#c) (q . 3) (q . 4))",
@@ -938,7 +938,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Operator Error: softfork takes exactly 4 argument(s), NodePtr(Pair, 3)",
+            err: "Operator Error: softfork takes exactly 4 argument(s): NodePtr(Pair, 3)",
         },
         RunProgramTest {
             prg: "(softfork (q . 959) (q . 9))",
@@ -954,7 +954,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Operator Error: softfork takes exactly 4 argument(s), NodePtr(Pair, 6)",
+            err: "Operator Error: softfork takes exactly 4 argument(s): NodePtr(Pair, 6)",
         },
         RunProgramTest {
             prg: "(softfork (q . 939) (q . 9) (q x))",
@@ -970,7 +970,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Operator Error: softfork takes exactly 4 argument(s), NodePtr(Pair, 10)",
+            err: "Operator Error: softfork takes exactly 4 argument(s): NodePtr(Pair, 10)",
         },
         // this is a valid invocation, but we don't implement any extensions (yet)
         // so the extension specifier 0 is still unknown
@@ -1033,7 +1033,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Operator Error: softfork Requires Positive Int Argument, NodePtr(Bytes, 0)",
+            err: "Operator Error: softfork Requires Positive Int Argument: NodePtr(Bytes, 0)",
         },
 
         // we don't allow "extension" parameters > u32::MAX
@@ -1051,7 +1051,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Operator Error: softfork Requires Int32 args (with no leading zeros), NodePtr(Bytes, 0)",
+            err: "Operator Error: softfork Requires Int32 args (with no leading zeros): NodePtr(Bytes, 0)",
         },
 
         // we don't allow pairs as extension specifier
@@ -1069,7 +1069,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Operator Error: Requires Int Argument: softfork, NodePtr(Pair, 3)",
+            err: "Operator Error: Requires Int Argument: softfork: NodePtr(Pair, 3)",
         },
 
         // the cost value is checked in consensus mode as well
@@ -1105,7 +1105,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 1000,
-            err: "Operator Error: softfork Requires Positive Int Argument, NodePtr(Bytes, 0)",
+            err: "Operator Error: softfork Requires Positive Int Argument: NodePtr(Bytes, 0)",
         },
         RunProgramTest {
             prg: "(softfork (q 1 2 3))",
@@ -1113,7 +1113,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 1000,
-            err: "Operator Error: Requires Int Argument: softfork, NodePtr(Pair, 2)",
+            err: "Operator Error: Requires Int Argument: softfork: NodePtr(Pair, 2)",
         },
 
         // test mismatching cost
@@ -1181,7 +1181,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 1215,
-            err: "clvm raise, NodePtr(SmallAtom, 0)",
+            err: "clvm raise: NodePtr(SmallAtom, 0)",
         },
 
         // === HARD FORK ===
@@ -1207,7 +1207,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 1513,
-            err: "clvm raise, NodePtr(SmallAtom, 0)",
+            err: "clvm raise: NodePtr(SmallAtom, 0)",
         },
         // also test the opposite. This program is the same as above but it raises
         // if the coin ID is a mismatch
@@ -1236,7 +1236,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 861,
-            err: "Operator Error: CoinID Error: AmountLeadingZeroes(NodePtr(Pair, 9))",
+            err: "Operator Error: CoinID Error: NodePtr(Pair, 9)",
         },
 
         // secp261k1
@@ -1256,7 +1256,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "Operator Error: Secp256k1 Verify Error: failed, NodePtr(Pair, 9)",
+            err: "Operator Error: Secp256k1 Verify Error: failed: NodePtr(Pair, 9)",
         },
 
         // secp261r1
@@ -1276,7 +1276,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "Operator Error: Secp256r1 Verify Error: failed, NodePtr(Pair, 9)",
+            err: "Operator Error: Secp256r1 Verify Error: failed: NodePtr(Pair, 9)",
         },
     ];
 
@@ -1309,7 +1309,7 @@ mod tests {
             }
             Err(err) => {
                 println!("FAILED: {}", err);
-                assert_eq!(err.to_string(), t.err);
+                assert_eq!(err.combined_str(), t.err);
                 assert!(expected_result.is_none());
             }
         }
@@ -1340,7 +1340,7 @@ mod tests {
     #[case::coinid(
         "(i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bd)) (q . 0) (q x))",
         (1432, 0, 0),
-        "clvm raise, NodePtr(SmallAtom, 0)")
+        "clvm raise: NodePtr(SmallAtom, 0)")
     ]
     // also test the opposite. This program is the same as above but it raises
     // if the coin ID is a mismatch
@@ -1358,7 +1358,7 @@ mod tests {
     #[case::modpow(
         "(i (= (modpow (q . 12345) (q . 6789) (q . 44444444444)) (q . 13456191582)) (q . 0) (q x))",
         (18241, 0, 0),
-        "clvm raise, NodePtr(SmallAtom, 0)"
+        "clvm raise: NodePtr(SmallAtom, 0)"
     )]
     // mod
     #[case::modulus(
@@ -1369,7 +1369,7 @@ mod tests {
     #[case::modulus(
         "(i (= (% (q . 80001) (q . 73)) (q . 67)) (q . 0) (q x))",
         (1564, 0, 0),
-        "clvm raise, NodePtr(SmallAtom, 0)"
+        "clvm raise: NodePtr(SmallAtom, 0)"
     )]
     // g1_multiply
     #[case::g1_mul(
@@ -1380,17 +1380,17 @@ mod tests {
     #[case::g1_mul(
         "(i (= (g1_multiply  (q . 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb) (q . 2)) (q . 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4f)) (q . 0) (q x))",
         (706634, 0, 0),
-        "clvm raise, NodePtr(SmallAtom, 0)"
+        "clvm raise: NodePtr(SmallAtom, 0)"
     )]
     #[case::g1_neg(
         "(i (= (g1_negate (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))",
         (706634, 0, 0),
-        "clvm raise, NodePtr(SmallAtom, 0)"
+        "clvm raise: NodePtr(SmallAtom, 0)"
     )]
     #[case::g1_neg(
         "(i (= (g1_negate (q . 0xb2f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))",
         (706634, 0, 0),
-        "Operator Error: atom is not a valid G1 point, NodePtr(Bytes, 0)"
+        "Operator Error: atom is not a valid G1 point: NodePtr(Bytes, 0)"
     )]
     #[case::g2_add(
         "(i (= (g2_add (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))",
@@ -1400,7 +1400,7 @@ mod tests {
     #[case::g2_add(
         "(i (= (g2_add (q . 0x93e12b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))",
         (3981700, 0, 0),
-        "Allocator Error: atom is not a valid G2 point, NodePtr(Bytes, 0)"
+        "Allocator Error: atom is not a valid G2 point: NodePtr(Bytes, 0)"
     )]
     #[case::keccak(
         "(i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x))",
@@ -1410,7 +1410,7 @@ mod tests {
     #[case::keccak(
         "(i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873f)) (q . 0) (q x))",
         (1134, 1, ENABLE_KECCAK_OPS_OUTSIDE_GUARD),
-        "clvm raise, NodePtr(SmallAtom, 0)"
+        "clvm raise: NodePtr(SmallAtom, 0)"
     )]
     fn test_softfork(
         #[case] prg: &'static str,
@@ -1461,9 +1461,9 @@ mod tests {
             // raise an exception.
             (1, 0) => {
                 if mempool {
-                    "Operator Error: Unimplemented Operator NodePtr(SmallAtom, 62)"
+                    "Operator Error: Unimplemented Operator: NodePtr(SmallAtom, 62)"
                 } else {
-                    "clvm raise, NodePtr(SmallAtom, 0)"
+                    "clvm raise: NodePtr(SmallAtom, 0)"
                 }
             }
             // the extension we're running has been activated, and we're running an
@@ -1508,9 +1508,9 @@ mod tests {
             err: if hard_fork_flag == 0 {
                 err
             } else if mempool {
-                "Operator Error: Unimplemented Operator NodePtr(SmallAtom, 62)"
+                "Operator Error: Unimplemented Operator: NodePtr(SmallAtom, 62)"
             } else {
-                "clvm raise, NodePtr(SmallAtom, 0)"
+                "clvm raise: NodePtr(SmallAtom, 0)"
             },
         };
         run_test_case(&t);
