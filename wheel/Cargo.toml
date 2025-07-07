@@ -15,7 +15,7 @@ crate-type = ["cdylib"]
 path = "src/lib.rs"
 
 [dependencies]
-clvmr = { workspace = true }
+clvmr = { workspace = true, features = ["python"] }
 pyo3 = { workspace = true, features = ["abi3-py38", "extension-module"] }
 
 [features]
