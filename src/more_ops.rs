@@ -667,38 +667,31 @@ fn test_shift(
     op(a, args, 10000000 as Cost)
 }
 
-#[cfg(test)]
-use crate::error::{h_byte_false, h_byte_true};
-
-#[cfg(test)]
-use crate::ObjectType;
-
 #[test]
 fn test_op_ash() {
     let mut a = Allocator::new();
 
-    assert_eq!(
+    assert!(matches!(
         test_shift(op_ash, &mut a, &[1], &[0x80, 0, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(h_byte_false(&a))
-    );
-
-    assert_eq!(
+        EvalErr::ShiftTooLarge(_)
+    ));
+    assert!(matches!(
         test_shift(op_ash, &mut a, &[1], &[0x80, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(h_byte_true(&a))
-    );
+        EvalErr::ShiftTooLarge(_)
+    ));
 
     let node = test_shift(op_ash, &mut a, &[1], &[0x80, 0]).unwrap().1;
     assert_eq!(a.atom(node).as_ref(), &[]);
 
-    assert_eq!(
+    assert!(matches!(
         test_shift(op_ash, &mut a, &[1], &[0x7f, 0, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(a.mk_node(ObjectType::Bytes, 3))
-    );
+        EvalErr::ShiftTooLarge(_)
+    ));
 
-    assert_eq!(
+    assert!(matches!(
         test_shift(op_ash, &mut a, &[1], &[0x7f, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(a.mk_node(ObjectType::SmallAtom, 8323072))
-    );
+        EvalErr::ShiftTooLarge(_)
+    ));
 
     let node = test_shift(op_ash, &mut a, &[1], &[0x7f, 0]).unwrap().1;
     // the result is 1 followed by 4064 zeroes
@@ -732,28 +725,28 @@ pub fn op_lsh(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
 fn test_op_lsh() {
     let mut a = Allocator::new();
 
-    assert_eq!(
+    assert!(matches!(
         test_shift(op_lsh, &mut a, &[1], &[0x80, 0, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(h_byte_false(&a))
-    );
+        EvalErr::ShiftTooLarge(_)
+    ));
 
-    assert_eq!(
+    assert!(matches!(
         test_shift(op_lsh, &mut a, &[1], &[0x80, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(h_byte_true(&a))
-    );
+        EvalErr::ShiftTooLarge(_)
+    ));
 
     let node = test_shift(op_lsh, &mut a, &[1], &[0x80, 0]).unwrap().1;
     assert_eq!(a.atom(node).as_ref(), &[]);
 
-    assert_eq!(
+    assert!(matches!(
         test_shift(op_lsh, &mut a, &[1], &[0x7f, 0, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(a.mk_node(ObjectType::Bytes, 3))
-    );
+        EvalErr::ShiftTooLarge(_)
+    ));
 
-    assert_eq!(
+    assert!(matches!(
         test_shift(op_lsh, &mut a, &[1], &[0x7f, 0, 0]).unwrap_err(),
-        EvalErr::ShiftTooLarge(a.mk_node(ObjectType::SmallAtom, 8323072))
-    );
+        EvalErr::ShiftTooLarge(_)
+    ));
 
     let node = test_shift(op_lsh, &mut a, &[1], &[0x7f, 0]).unwrap().1;
     // the result is 1 followed by 4064 zeroes

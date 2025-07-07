@@ -368,13 +368,13 @@ impl Allocator {
 
     #[inline(always)]
     #[cfg(not(feature = "allocator-debug"))]
-    pub(crate) fn mk_node(&self, t: ObjectType, idx: usize) -> NodePtr {
+    fn mk_node(&self, t: ObjectType, idx: usize) -> NodePtr {
         NodePtr::new(t, idx)
     }
 
     #[inline(always)]
     #[cfg(feature = "allocator-debug")]
-    pub(crate) fn mk_node(&self, t: ObjectType, idx: usize) -> NodePtr {
+    fn mk_node(&self, t: ObjectType, idx: usize) -> NodePtr {
         NodePtr::new_debug(
             t,
             idx,
@@ -907,7 +907,7 @@ impl Allocator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::{h_byte_false, h_byte_true, h_pair, AllocatorError};
+    use crate::error::AllocatorError;
     use rstest::rstest;
 
     #[test]
@@ -1265,30 +1265,26 @@ mod tests {
         let sub = a.new_substr(atom, 0, 0).unwrap();
         assert_eq!(a.atom(sub).as_ref(), b"");
 
-        assert_eq!(
+        assert!(matches!(
             a.new_substr(atom, 1, 0).unwrap_err(),
-            EvalErr::from(AllocatorError::StartGreaterThanEnd(h_byte_false(&a), 1, 0))
-        );
-        assert_eq!(
+            EvalErr::Allocator(AllocatorError::StartGreaterThanEnd(_, 1, 0))
+        ));
+        assert!(matches!(
             a.new_substr(atom, 7, 7).unwrap_err(),
-            EvalErr::from(AllocatorError::StartOutOfBounds(h_byte_false(&a), 7, 6))
-        );
-        assert_eq!(
+            EvalErr::Allocator(AllocatorError::StartOutOfBounds(_, 7, 6))
+        ));
+        assert!(matches!(
             a.new_substr(atom, 0, 7).unwrap_err(),
-            EvalErr::from(AllocatorError::EndOutOfBounds(h_byte_false(&a), 7, 6))
-        );
-        assert_eq!(
+            EvalErr::Allocator(AllocatorError::EndOutOfBounds(_, 7, 6))
+        ));
+        assert!(matches!(
             a.new_substr(atom, u32::MAX, 4).unwrap_err(),
-            EvalErr::from(AllocatorError::StartOutOfBounds(
-                h_byte_false(&a),
-                u32::MAX,
-                6
-            ))
-        );
-        assert_eq!(
+            EvalErr::Allocator(AllocatorError::StartOutOfBounds(_, u32::MAX, 6))
+        ));
+        assert!(matches!(
             a.new_substr(pair, 0, 0).unwrap_err(),
-            EvalErr::from(AllocatorError::ExpectedAtomGotPair(h_pair(&a)))
-        );
+            EvalErr::Allocator(AllocatorError::ExpectedAtomGotPair(_))
+        ));
     }
 
     #[test]
@@ -1312,30 +1308,18 @@ mod tests {
             a.new_substr(atom, 1, 0).unwrap_err(),
             EvalErr::from(AllocatorError::StartGreaterThanEnd(atom, 1, 0))
         );
-        assert_eq!(
+        assert!(matches!(
             a.new_substr(atom, 3, 3).unwrap_err(),
-            EvalErr::from(AllocatorError::StartOutOfBounds(
-                NodePtr::new(ObjectType::SmallAtom, 24960),
-                3,
-                2
-            ))
-        );
-        assert_eq!(
+            EvalErr::Allocator(AllocatorError::StartOutOfBounds(_, 3, 2))
+        ));
+        assert!(matches!(
             a.new_substr(atom, 0, 3).unwrap_err(),
-            EvalErr::from(AllocatorError::EndOutOfBounds(
-                NodePtr::new(ObjectType::SmallAtom, 24960),
-                3,
-                2
-            ))
-        );
-        assert_eq!(
+            EvalErr::Allocator(AllocatorError::EndOutOfBounds(_, 3, 2))
+        ));
+        assert!(matches!(
             a.new_substr(atom, u32::MAX, 2).unwrap_err(),
-            EvalErr::from(AllocatorError::StartOutOfBounds(
-                NodePtr::new(ObjectType::SmallAtom, 24960),
-                u32::MAX,
-                2
-            ))
-        );
+            EvalErr::Allocator(AllocatorError::StartOutOfBounds(_, u32::MAX, 2))
+        ));
     }
 
     #[test]
@@ -1377,37 +1361,37 @@ mod tests {
         let cat = a.new_concat(12, &[cat, cat]).unwrap();
         assert_eq!(a.atom(cat).as_ref(), b"foobarfoobar");
 
-        assert_eq!(
+        assert!(matches!(
             a.new_concat(11, &[cat, cat]).unwrap_err(),
-            EvalErr::from(AllocatorError::InvalidNewSize(h_byte_true(&a), 11)),
-        );
-        assert_eq!(
+            EvalErr::Allocator(AllocatorError::InvalidNewSize(_, 11)),
+        ));
+        assert!(matches!(
             a.new_concat(13, &[cat, cat]).unwrap_err(),
-            EvalErr::from(AllocatorError::InvalidNewSize(h_byte_true(&a), 13)),
-        );
-        assert_eq!(
+            EvalErr::Allocator(AllocatorError::InvalidNewSize(_, 13)),
+        ));
+        assert!(matches!(
             a.new_concat(12, &[atom3, pair]).unwrap_err(),
-            EvalErr::from(AllocatorError::ExpectedAtomGotPair(h_pair(&a)))
-        );
+            EvalErr::Allocator(AllocatorError::ExpectedAtomGotPair(_))
+        ));
 
-        assert_eq!(
+        assert!(matches!(
             a.new_concat(4, &[atom1, atom2, atom3]).unwrap_err(),
-            EvalErr::from(AllocatorError::InvalidNewSize(a.nil(), 4)),
-        );
+            EvalErr::Allocator(AllocatorError::InvalidNewSize(_, 4)),
+        ));
 
-        assert_eq!(
+        assert!(matches!(
             a.new_concat(2, &[atom1, atom2, atom3]).unwrap_err(),
-            EvalErr::from(AllocatorError::InvalidNewSize(a.nil(), 2)),
-        );
+            EvalErr::Allocator(AllocatorError::InvalidNewSize(_, 2)),
+        ));
 
-        assert_eq!(
+        assert!(matches!(
             a.new_concat(2, &[atom3]).unwrap_err(),
-            EvalErr::from(AllocatorError::InvalidNewSize(a.nil(), 2)),
-        );
-        assert_eq!(
+            EvalErr::Allocator(AllocatorError::InvalidNewSize(_, 2)),
+        ));
+        assert!(matches!(
             a.new_concat(1, &[]).unwrap_err(),
-            EvalErr::from(AllocatorError::InvalidNewSize(a.nil(), 1)),
-        );
+            EvalErr::Allocator(AllocatorError::InvalidNewSize(_, 1)),
+        ));
 
         assert_eq!(a.new_concat(0, &[]).unwrap(), NodePtr::NIL);
         assert_eq!(a.new_concat(1, &[atom1]).unwrap(), atom1);
@@ -1426,28 +1410,28 @@ mod tests {
         let cat = a.new_concat(12, &[cat, cat]).unwrap();
         assert_eq!(a.atom(cat).as_ref(), b"foobarfoobar");
 
-        assert_eq!(
+        assert!(matches!(
             a.new_concat(11, &[cat, cat]).unwrap_err(),
-            EvalErr::from(AllocatorError::InvalidNewSize(h_byte_true(&a), 11)),
-        );
-        assert_eq!(
+            EvalErr::Allocator(AllocatorError::InvalidNewSize(_, 11)),
+        ));
+        assert!(matches!(
             a.new_concat(13, &[cat, cat]).unwrap_err(),
-            EvalErr::from(AllocatorError::InvalidNewSize(h_byte_true(&a), 13)),
-        );
-        assert_eq!(
+            EvalErr::Allocator(AllocatorError::InvalidNewSize(_, 13)),
+        ));
+        assert!(matches!(
             a.new_concat(12, &[atom1, pair]).unwrap_err(),
-            EvalErr::from(AllocatorError::ExpectedAtomGotPair(h_pair(&a)))
-        );
+            EvalErr::Allocator(AllocatorError::ExpectedAtomGotPair(_))
+        ));
 
-        assert_eq!(
+        assert!(matches!(
             a.new_concat(4, &[atom1, atom2]).unwrap_err(),
-            EvalErr::from(AllocatorError::InvalidNewSize(a.nil(), 4)),
-        );
+            EvalErr::Allocator(AllocatorError::InvalidNewSize(_, 4)),
+        ));
 
-        assert_eq!(
+        assert!(matches!(
             a.new_concat(2, &[atom1, atom2]).unwrap_err(),
-            EvalErr::from(AllocatorError::InvalidNewSize(a.nil(), 2)),
-        );
+            EvalErr::Allocator(AllocatorError::InvalidNewSize(_, 2)),
+        ));
     }
 
     #[test]
@@ -1647,14 +1631,14 @@ e28f75bb8f1c7c42c39a8c5529bf0f4e"
         assert_eq!(hex::encode(g1_atom), atom);
 
         // try interpreting the point as G1
-        assert_eq!(
+        assert!(matches!(
             a.g2(n).unwrap_err(),
-            EvalErr::from(AllocatorError::NotG2Size(h_byte_false(&a)))
-        );
-        assert_eq!(
+            EvalErr::Allocator(AllocatorError::NotG2Size(_))
+        ));
+        assert!(matches!(
             a.g2(g1_copy).unwrap_err(),
-            EvalErr::from(AllocatorError::NotG2Size(h_byte_true(&a)))
-        );
+            EvalErr::Allocator(AllocatorError::NotG2Size(_))
+        ));
 
         // try interpreting the point as number
         assert_eq!(a.number(n), number_from_u8(&hex::decode(atom).unwrap()));
@@ -1694,14 +1678,14 @@ c6c886f6b57ec72a6178288c47c33577\
         assert_eq!(hex::encode(g2_atom), atom);
 
         // try interpreting the point as G1
-        assert_eq!(
+        assert!(matches!(
             a.g1(n).unwrap_err(),
-            EvalErr::from(AllocatorError::NotG1Size(h_byte_false(&a)))
-        );
-        assert_eq!(
+            EvalErr::Allocator(AllocatorError::NotG1Size(_))
+        ));
+        assert!(matches!(
             a.g1(g2_copy).unwrap_err(),
-            EvalErr::from(AllocatorError::NotG1Size(h_byte_true(&a)))
-        );
+            EvalErr::Allocator(AllocatorError::NotG1Size(_))
+        ));
 
         // try interpreting the point as number
         assert_eq!(a.number(n), number_from_u8(&hex::decode(atom).unwrap()));

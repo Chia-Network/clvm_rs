@@ -1,4 +1,4 @@
-use crate::{Allocator, NodePtr, ObjectType};
+use crate::NodePtr;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, EvalErr>;
@@ -381,18 +381,4 @@ impl AllocatorError {
             AllocatorError::NotValidG2Point(node) => Some(*node),
         }
     }
-}
-
-// Helper Functions for Debugging
-
-pub fn h_byte_false(allocator: &Allocator) -> NodePtr {
-    allocator.mk_node(ObjectType::Bytes, 0)
-}
-
-pub fn h_byte_true(allocator: &Allocator) -> NodePtr {
-    allocator.mk_node(ObjectType::Bytes, 1)
-}
-
-pub fn h_pair(allocator: &Allocator) -> NodePtr {
-    allocator.mk_node(ObjectType::Pair, 0)
 }
