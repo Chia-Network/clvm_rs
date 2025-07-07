@@ -81,6 +81,11 @@ pub enum EvalErr {
     #[error("Allocator Error: {0}")]
     Allocator(#[from] AllocatorError),
 }
+impl From<std::io::Error> for EvalErr {
+    fn from(_: std::io::Error) -> Self {
+        EvalErr::SerializationError
+    }
+}
 
 impl EvalErr {
     fn node(&self) -> Option<NodePtr> {

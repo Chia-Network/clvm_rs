@@ -21,6 +21,6 @@ pub fn node_from_bytes(b: &[u8], flag: u32) -> Result<LazyNode, String> {
     } else {
         _node_from_bytes
     };
-    let node = deserializer(&mut allocator, b).map_err(|e| e.to_string())?;
+    let node = deserializer(&mut allocator, b).map_err(|e| e.combined_str())?;
     Ok(LazyNode::new(Rc::new(allocator), node))
 }

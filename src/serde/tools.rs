@@ -13,8 +13,7 @@ pub fn serialized_length_from_bytes_trusted(b: &[u8]) -> Result<u64> {
     let mut b = [0; 1];
     while ops_counter > 0 {
         ops_counter -= 1;
-        f.read_exact(&mut b)
-            .map_err(|_| EvalErr::SerializationError)?;
+        f.read_exact(&mut b)?;
         if b[0] == CONS_BOX_MARKER {
             // we expect to parse two more items from the stream
             // the left and right sub tree
@@ -23,12 +22,10 @@ pub fn serialized_length_from_bytes_trusted(b: &[u8]) -> Result<u64> {
             // This is a back-ref. We don't actually need to resolve it, just
             // parse the path and move on
             let mut first_byte = [0; 1];
-            f.read_exact(&mut first_byte)
-                .map_err(|_| EvalErr::SerializationError)?;
+            f.read_exact(&mut first_byte)?;
             if first_byte[0] > MAX_SINGLE_BYTE {
                 let path_size = decode_size(&mut f, first_byte[0])?;
-                f.seek(SeekFrom::Current(path_size as i64))
-                    .map_err(|_| EvalErr::SerializationError)?;
+                f.seek(SeekFrom::Current(path_size as i64))?;
                 if (f.get_ref().len() as u64) < f.position() {
                     return Err(EvalErr::SerializationError);
                 }
@@ -38,8 +35,7 @@ pub fn serialized_length_from_bytes_trusted(b: &[u8]) -> Result<u64> {
             // or the special case of NIL
         } else {
             let blob_size = decode_size(&mut f, b[0])?;
-            f.seek(SeekFrom::Current(blob_size as i64))
-                .map_err(|_| EvalErr::SerializationError)?;
+            f.seek(SeekFrom::Current(blob_size as i64))?;
             if (f.get_ref().len() as u64) < f.position() {
                 return Err(EvalErr::SerializationError);
             }
@@ -80,8 +76,7 @@ pub fn tree_hash_from_stream(f: &mut Cursor<&[u8]>) -> Result<[u8; 32]> {
     while let Some(op) = ops.pop() {
         match op {
             ParseOp::SExp => {
-                f.read_exact(&mut b)
-                    .map_err(|_| EvalErr::SerializationError)?;
+                f.read_exact(&mut b)?;
                 if b[0] == CONS_BOX_MARKER {
                     ops.push(ParseOp::Cons);
                     ops.push(ParseOp::SExp);
@@ -132,8 +127,7 @@ pub fn serialized_length_from_bytes(b: &[u8]) -> Result<u64> {
     while let Some(op) = ops.pop() {
         match op {
             ParseOp::SExp => {
-                f.read_exact(&mut b)
-                    .map_err(|_| EvalErr::SerializationError)?;
+                f.read_exact(&mut b)?;
                 if b[0] == CONS_BOX_MARKER {
                     ops.push(ParseOp::Cons);
                     ops.push(ParseOp::SExp);
@@ -148,8 +142,7 @@ pub fn serialized_length_from_bytes(b: &[u8]) -> Result<u64> {
                     values = allocator.new_pair(nil, values)?;
                 } else {
                     let blob_size = decode_size(&mut f, b[0])?;
-                    f.seek(SeekFrom::Current(blob_size as i64))
-                        .map_err(|_| EvalErr::SerializationError)?;
+                    f.seek(SeekFrom::Current(blob_size as i64))?;
                     if (f.get_ref().len() as u64) < f.position() {
                         return Err(EvalErr::SerializationError);
                     }

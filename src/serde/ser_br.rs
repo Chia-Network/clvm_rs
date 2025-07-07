@@ -7,7 +7,7 @@ use super::object_cache::{serialized_length, treehash, ObjectCache};
 use super::read_cache_lookup::ReadCacheLookup;
 use super::write_atom::write_atom;
 use crate::allocator::{Allocator, NodePtr, SExp};
-use crate::error::{EvalErr, Result};
+use crate::error::Result;
 use crate::serde::ser::LimitedWriter;
 
 const BACK_REFERENCE: u8 = 0xfe;
@@ -44,15 +44,13 @@ pub fn node_to_stream_backrefs<W: io::Write>(
             .expect("can't get treehash");
         match read_cache_lookup.find_path(node_tree_hash, node_serialized_length) {
             Some(path) => {
-                f.write_all(&[BACK_REFERENCE])
-                    .map_err(|_| EvalErr::SerializationError)?;
+                f.write_all(&[BACK_REFERENCE])?;
                 write_atom(f, &path)?;
                 read_cache_lookup.push(*node_tree_hash);
             }
             None => match allocator.sexp(node_to_write) {
                 SExp::Pair(left, right) => {
-                    f.write_all(&[CONS_BOX_MARKER])
-                        .map_err(|_| EvalErr::SerializationError)?;
+                    f.write_all(&[CONS_BOX_MARKER])?;
                     write_stack.push(right);
                     write_stack.push(left);
                     read_op_stack.push(ReadOp::Cons);

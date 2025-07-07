@@ -8,7 +8,7 @@ pub fn copy_exactly<R: Read, W: ?Sized + Write>(
 ) -> Result<()> {
     let mut reader = reader.by_ref().take(expected_size);
 
-    let count = copy(&mut reader, writer).map_err(|_| EvalErr::SerializationError)?;
+    let count = copy(&mut reader, writer)?;
     if count < expected_size {
         Err(EvalErr::InternalError("copy terminated early".to_string()))?
     } else {

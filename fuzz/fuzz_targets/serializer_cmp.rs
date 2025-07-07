@@ -4,7 +4,7 @@ mod make_tree;
 mod node_eq;
 
 use clvmr::allocator::{Allocator, NodePtr, SExp};
-use clvmr::error::{EvalErr, Result};
+use clvmr::error::Result;
 use clvmr::serde::node_from_bytes_backrefs;
 use clvmr::serde::write_atom::write_atom;
 use clvmr::serde::ReadCacheLookup;
@@ -93,8 +93,7 @@ pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> Result<V
         }
         match result1 {
             Some(path) => {
-                f.write_all(&[BACK_REFERENCE])
-                    .map_err(|_| clvmr::error::EvalErr::SerializationError)?;
+                f.write_all(&[BACK_REFERENCE])?;
                 write_atom(&mut f, &path)?;
                 read_cache_lookup.push(*node_tree_hash);
                 tree_cache.push(node_to_write);
@@ -103,8 +102,7 @@ pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> Result<V
                     // the node we're referencing
                     use std::io::Write;
                     let mut temp = Cursor::new(Vec::<u8>::new());
-                    temp.write_all(&[BACK_REFERENCE])
-                        .map_err(|_| EvalErr::SerializationError)?;
+                    temp.write_all(&[BACK_REFERENCE])?;
                     write_atom(&mut temp, &path)?;
                     let temp = temp.into_inner();
                     assert!(temp.len() <= node_serialized_length as usize);
@@ -112,8 +110,7 @@ pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> Result<V
             }
             None => match allocator.sexp(node_to_write) {
                 SExp::Pair(left, right) => {
-                    f.write_all(&[CONS_BOX_MARKER])
-                        .map_err(|_| EvalErr::SerializationError)?;
+                    f.write_all(&[CONS_BOX_MARKER])?;
                     write_stack.push(right);
                     write_stack.push(left);
                     read_op_stack.push(ReadOp::Cons(node_to_write));

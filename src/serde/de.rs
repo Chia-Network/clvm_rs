@@ -2,7 +2,7 @@ use std::io::{Cursor, Read};
 
 use super::parse_atom::parse_atom;
 use crate::allocator::{Allocator, NodePtr};
-use crate::error::{EvalErr, Result};
+use crate::error::Result;
 
 const CONS_BOX_MARKER: u8 = 0xff;
 
@@ -21,8 +21,7 @@ pub fn node_from_stream(allocator: &mut Allocator, f: &mut Cursor<&[u8]>) -> Res
     while let Some(op) = ops.pop() {
         match op {
             ParseOp::SExp => {
-                f.read_exact(&mut b)
-                    .map_err(|_| EvalErr::SerializationError)?;
+                f.read_exact(&mut b)?;
                 if b[0] == CONS_BOX_MARKER {
                     ops.push(ParseOp::Cons);
                     ops.push(ParseOp::SExp);

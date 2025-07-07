@@ -4,7 +4,7 @@ use std::io::{Cursor, Write};
 
 use super::write_atom::write_atom;
 use crate::allocator::{Allocator, NodePtr, SExp};
-use crate::error::{EvalErr, Result};
+use crate::error::Result;
 use crate::serde::{TreeCache, TreeCacheCheckpoint};
 
 const BACK_REFERENCE: u8 = 0xfe;
@@ -74,17 +74,13 @@ impl Serializer {
 
             match self.tree_cache.find_path(node_to_write) {
                 Some(path) => {
-                    self.output
-                        .write_all(&[BACK_REFERENCE])
-                        .map_err(|_| EvalErr::SerializationError)?;
+                    self.output.write_all(&[BACK_REFERENCE])?;
                     write_atom(&mut self.output, &path)?;
                     self.tree_cache.push(node_to_write);
                 }
                 None => match a.sexp(node_to_write) {
                     SExp::Pair(left, right) => {
-                        self.output
-                            .write_all(&[CONS_BOX_MARKER])
-                            .map_err(|_| EvalErr::SerializationError)?;
+                        self.output.write_all(&[CONS_BOX_MARKER])?;
                         self.write_stack.push(right);
                         self.write_stack.push(left);
                         self.read_op_stack.push(ReadOp::Cons(node_to_write));

@@ -28,8 +28,7 @@ pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> Result<(u8,
     size_blob[0] = b;
     if atom_start_offset > 1 {
         let remaining_buffer = &mut size_blob[1..];
-        f.read_exact(remaining_buffer)
-            .map_err(|_| EvalErr::SerializationError)?;
+        f.read_exact(remaining_buffer)?;
     }
     // need to convert size_blob to an int
     let mut atom_size: u64 = 0;
@@ -62,8 +61,7 @@ fn parse_atom_ptr<'a>(f: &'a mut Cursor<&[u8]>, first_byte: u8) -> Result<&'a [u
         if f.get_ref().len() < pos + blob_size as usize {
             return Err(EvalErr::SerializationError);
         }
-        f.seek(SeekFrom::Current(blob_size as i64))
-            .map_err(|_| EvalErr::SerializationError)?;
+        f.seek(SeekFrom::Current(blob_size as i64))?;
         &f.get_ref()[pos..(pos + blob_size as usize)]
     };
     Ok(blob)
@@ -91,8 +89,7 @@ pub fn parse_atom(
 /// parse an atom from the stream and return a pointer to it
 pub fn parse_path<'a>(f: &'a mut Cursor<&[u8]>) -> Result<&'a [u8]> {
     let mut buf1: [u8; 1] = [0];
-    f.read_exact(&mut buf1)
-        .map_err(|_| EvalErr::SerializationError)?;
+    f.read_exact(&mut buf1)?;
     parse_atom_ptr(f, buf1[0])
 }
 

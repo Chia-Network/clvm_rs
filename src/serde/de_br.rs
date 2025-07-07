@@ -30,8 +30,7 @@ pub fn node_from_stream_backrefs(
     while let Some(op) = ops.pop() {
         match op {
             ParseOp::SExp => {
-                f.read_exact(&mut b)
-                    .map_err(|_| EvalErr::SerializationError)?;
+                f.read_exact(&mut b)?;
                 if b[0] == CONS_BOX_MARKER {
                     ops.push(ParseOp::Cons);
                     ops.push(ParseOp::SExp);
@@ -75,8 +74,7 @@ fn node_from_stream_backrefs_old(
     while let Some(op) = ops.pop() {
         match op {
             ParseOp::SExp => {
-                f.read_exact(&mut b)
-                    .map_err(|_| EvalErr::SerializationError)?;
+                f.read_exact(&mut b)?;
                 if b[0] == CONS_BOX_MARKER {
                     ops.push(ParseOp::Cons);
                     ops.push(ParseOp::SExp);
