@@ -126,6 +126,7 @@ impl PartialEq<Self> for EvalErr {
         self.combined_str() == other.combined_str()
     }
 }
+#[cfg(feature = "python")]
 impl From<EvalErr> for pyo3::PyErr {
     fn from(err: EvalErr) -> Self {
         // Rarely Used in python bindings.

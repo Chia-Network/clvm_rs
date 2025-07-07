@@ -34,6 +34,9 @@ allocator-debug = []
 # with OpenSSL when enabled
 openssl = ["chia-sha2/openssl"]
 
+# Python bindings
+python = ["pyo3"]
+
 [profile.release]
 lto = "thin"
 
@@ -88,7 +91,7 @@ hex = { workspace = true }
 sha1 = { workspace = true }
 bumpalo = { workspace = true }
 thiserror = "1.0.69"
-pyo3 = "0.22.6"
+pyo3 = { workspace = true, optional = true }
 
 [dev-dependencies]
 rstest = { workspace = true }
