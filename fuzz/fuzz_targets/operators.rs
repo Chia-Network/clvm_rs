@@ -102,9 +102,6 @@ fuzz_target!(|data: &[u8]| {
                     // is cross the max_cost limit, the operator still succeeds
                     // assert!(n.0 <= max_cost + 5000);
                 }
-                _ => {
-                    panic!("Unexpected Error: {op:?}");
-                }
             }
         }
     }
