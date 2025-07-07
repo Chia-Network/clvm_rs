@@ -86,9 +86,10 @@ fuzz_target!(|data: &[u8]| {
         for max_cost in [11000000, 1100000, 110000, 10, 1, 0] {
             allocator.restore_checkpoint(&allocator_checkpoint);
             match op(&mut allocator, args, max_cost) {
-                // ALl Operator Types
-                Err(EvalErr::Operator(op_error)) => {
-                    assert!(!op_error.to_string().contains("Operator Error"));
+                Err(eval_err) => {
+                    // get the node for this type of error
+                    let n = EvalErr::node_ptr(&eval_err);
+                    allocator.sexp(n);
                 }
                 Ok(n) => {
                     // make sure n is a valid node in the allocator
