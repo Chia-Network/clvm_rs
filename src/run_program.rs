@@ -1079,7 +1079,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 1000,
-            err: "Cost Exceeded",
+            err: "cost exceeded",
         },
         // the cost parameter is mandatory
         RunProgramTest {
@@ -1132,7 +1132,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 241,
-            err: "Cost Exceeded",
+            err: "cost exceeded",
         },
         // the cost specified on the softfork must match exactly the cost of
         // executing the program

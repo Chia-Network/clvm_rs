@@ -14,13 +14,13 @@ pub enum EvalErr {
     #[error("Out of Memory")]
     OutOfMemory,
 
-    #[error("Cost Exceeded")]
+    #[error("cost exceeded")]
     CostExceeded,
 
     #[error("Cost must be greater than zero.")]
     CostBelowZero,
 
-    #[error("Too Many Pairs")]
+    #[error("too many pairs")]
     TooManyPairs,
 
     #[error("Too Many Atoms")]
@@ -124,13 +124,6 @@ impl EvalErr {
 impl PartialEq<Self> for EvalErr {
     fn eq(&self, other: &Self) -> bool {
         self.combined_str() == other.combined_str()
-    }
-}
-#[cfg(feature = "python")]
-impl From<EvalErr> for pyo3::PyErr {
-    fn from(err: EvalErr) -> Self {
-        // Rarely Used in python bindings.
-        pyo3::exceptions::PyValueError::new_err(err.to_string())
     }
 }
 
