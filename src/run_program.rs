@@ -143,7 +143,10 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     pub fn pop(&mut self) -> Result<NodePtr> {
         let v: Option<NodePtr> = self.val_stack.pop();
         match v {
-            None => Err(EvalErr::InternalError("Value Stack Empty".to_string()))?,
+            None => Err(EvalErr::InternalError(
+                NodePtr::NIL,
+                "Value Stack Empty".to_string(),
+            ))?,
             Some(k) => Ok(k),
         }
     }
@@ -302,6 +305,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let v2 = self.pop()?;
         let program: NodePtr = self.pop()?;
         let env: NodePtr = *self.env_stack.last().ok_or(EvalErr::InternalError(
+            program,
             "Environment Stack Empty".to_string(),
         ))?;
         self.push(v2)?;
@@ -331,6 +335,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let operator = self.pop()?;
         if self.env_stack.pop().is_none() {
             return Err(EvalErr::InternalError(
+                operator,
                 "Environment Stack Empty".to_string(),
             ))?;
         }
@@ -918,7 +923,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "Path Into Atom",
+            err: "path into atom",
         },
 
         // ## SOFTFORK

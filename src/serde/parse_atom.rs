@@ -13,6 +13,7 @@ pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> Result<(u8,
     debug_assert!((initial_b & 0x80) != 0);
     if (initial_b & 0x80) == 0 {
         return Err(EvalErr::InternalError(
+            NodePtr::NIL,
             "Error Initializing Encoding".to_string(),
         ));
     }

@@ -86,9 +86,13 @@ fuzz_target!(|data: &[u8]| {
         for max_cost in [11000000, 1100000, 110000, 10, 1, 0] {
             allocator.restore_checkpoint(&allocator_checkpoint);
             match op(&mut allocator, args, max_cost) {
+                Err(EvalErr::InternalError(_, str)) => {
+                    // This should never happen, fail the test if it does
+                    panic!("Internal error in operator: {str}");
+                }
                 Err(eval_err) => {
                     // get the node for this type of error
-                    let n = EvalErr::node_ptr(&eval_err);
+                    let n = eval_err.node_ptr();
                     allocator.sexp(n);
                 }
                 Ok(n) => {

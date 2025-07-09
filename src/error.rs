@@ -5,8 +5,8 @@ pub type Result<T> = std::result::Result<T, EvalErr>;
 
 #[derive(Debug, Error)]
 pub enum EvalErr {
-    #[error("Internal Error: {0}")]
-    InternalError(String),
+    #[error("Internal Error: {1}")]
+    InternalError(NodePtr, String),
 
     #[error("bad decoding")]
     SerializationError,
@@ -26,7 +26,7 @@ pub enum EvalErr {
     #[error("Too Many Atoms")]
     TooManyAtoms,
 
-    #[error("Path Into Atom")]
+    #[error("path into atom")]
     PathIntoAtom,
 
     #[error("Unknown Softfork Extension")]
@@ -103,6 +103,7 @@ impl EvalErr {
             EvalErr::ShiftTooLarge(node) => Some(*node),
             EvalErr::ValueStackLimitReached(node) => Some(*node),
             EvalErr::EnvironmentStackLimitReached(node) => Some(*node),
+            EvalErr::InternalError(node, _) => Some(*node),
             EvalErr::Operator(op) => OperatorError::node(op),
             EvalErr::Allocator(alloc) => AllocatorError::node(alloc),
             _ => None,

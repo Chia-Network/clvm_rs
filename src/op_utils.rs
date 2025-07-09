@@ -259,6 +259,7 @@ mod tests {
         assert_eq!(get_args::<4>(&a, args4, "test").unwrap(), [a0, a1, a2, a3]);
 
         let r = get_args::<3>(&a, args4, "test").unwrap_err();
+        assert_eq!(r.node_ptr(), args4);
         assert_eq!(
             r,
             EvalErr::from(OperatorError::TakesExactlyArgs(
@@ -269,6 +270,7 @@ mod tests {
         );
 
         let r = get_args::<5>(&a, args4, "test").unwrap_err();
+        assert_eq!(r.node_ptr(), args4);
         assert_eq!(
             r,
             EvalErr::from(OperatorError::TakesExactlyArgs(
@@ -279,6 +281,7 @@ mod tests {
         );
 
         let r = get_args::<4>(&a, args3, "test").unwrap_err();
+        assert_eq!(r.node_ptr(), args3);
         assert_eq!(
             r,
             EvalErr::from(OperatorError::TakesExactlyArgs(
@@ -289,6 +292,7 @@ mod tests {
         );
 
         let r = get_args::<4>(&a, args2, "test").unwrap_err();
+        assert_eq!(r.node_ptr(), args2);
         assert_eq!(
             r,
             EvalErr::from(OperatorError::TakesExactlyArgs(
@@ -299,6 +303,7 @@ mod tests {
         );
 
         let r = get_args::<1>(&a, args2, "test").unwrap_err();
+        assert_eq!(r.node_ptr(), args2);
         assert_eq!(
             r,
             EvalErr::from(OperatorError::TakesExactlyArgs(
@@ -345,6 +350,7 @@ mod tests {
         );
 
         let r = get_varargs::<3>(&a, args4, "test").unwrap_err();
+        assert_eq!(r.node_ptr(), args4);
         assert_eq!(
             r,
             EvalErr::from(OperatorError::TakesNoMoreThanArgs(
@@ -355,6 +361,7 @@ mod tests {
         );
 
         let r = get_varargs::<1>(&a, args4, "test").unwrap_err();
+        assert_eq!(r.node_ptr(), args4);
         assert_eq!(
             r,
             EvalErr::from(OperatorError::TakesNoMoreThanArgs(
@@ -391,6 +398,7 @@ mod tests {
         assert_eq!(first(&a, pair).unwrap(), a0);
 
         let r = first(&a, a0).unwrap_err();
+        assert_eq!(r.node_ptr(), a0);
         assert_eq!(r, EvalErr::FirstOfNonCons(a0));
     }
 
@@ -403,6 +411,7 @@ mod tests {
         assert_eq!(rest(&a, pair).unwrap(), a1);
 
         let r = rest(&a, a0).unwrap_err();
+        assert_eq!(r.node_ptr(), a0);
         assert_eq!(r, EvalErr::RestOfNonCons(a0));
     }
 
@@ -426,6 +435,7 @@ mod tests {
         let a1 = a.new_number(1337.into()).unwrap();
         let pair = a.new_pair(a0, a1).unwrap();
         let r = int_atom(&a, pair, "test").unwrap_err();
+        assert_eq!(r.node_ptr(), pair);
         assert_eq!(
             r,
             EvalErr::from(OperatorError::RequiresIntArgument(pair, "test".to_string()))
@@ -441,6 +451,7 @@ mod tests {
         let pair = a.new_pair(a0, a1).unwrap();
 
         let r = atom_len(&a, pair, "test").unwrap_err();
+        assert_eq!(r.node_ptr(), pair);
         assert_eq!(
             r,
             EvalErr::from(OperatorError::RequiresAtom(pair, "test".to_string()))
@@ -649,6 +660,7 @@ mod tests {
         let pair = a.new_pair(a0, a1).unwrap();
 
         let r = i32_atom(&a, pair, "test").unwrap_err();
+        assert_eq!(r.node_ptr(), pair);
         assert_eq!(
             r,
             EvalErr::from(OperatorError::RequiresInt32Args(pair, "test".to_string()))
@@ -659,6 +671,7 @@ mod tests {
 
         let a2 = a.new_number(0x100000000_i64.into()).unwrap();
         let r = i32_atom(&a, a2, "test").unwrap_err();
+        assert_eq!(r.node_ptr(), a2);
         assert_eq!(
             r,
             EvalErr::from(OperatorError::RequiresInt32Args(a2, "test".to_string()))
@@ -666,6 +679,7 @@ mod tests {
 
         let a3 = a.new_number((-0xffffffff_i64).into()).unwrap();
         let r = i32_atom(&a, a3, "test").unwrap_err();
+        assert_eq!(r.node_ptr(), a3);
         assert_eq!(
             r,
             EvalErr::from(OperatorError::RequiresInt32Args(a3, "test".to_string()))
