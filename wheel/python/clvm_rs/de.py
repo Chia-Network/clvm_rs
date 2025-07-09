@@ -11,10 +11,8 @@ try:
 except ImportError:
     deserialize_as_tree = None
 
-
 MAX_SINGLE_BYTE = 0x7F
 CONS_BOX_MARKER = 0xFF
-
 
 # ATOM: serialize_offset, serialize_end, atom_offset
 # PAIR: serialize_offset, serialize_end, right_index
@@ -24,7 +22,7 @@ DeserOp = Callable[[bytes, int, List[Triple], List], int]
 
 
 def deserialize_as_tuples(
-    blob: bytes, cursor: int, calculate_tree_hash: bool
+        blob: bytes, cursor: int, calculate_tree_hash: bool
 ) -> Tuple[List[Tuple[int, int, int]], Optional[List[bytes]]]:
     if deserialize_as_tree:
         try:
@@ -34,11 +32,11 @@ def deserialize_as_tuples(
         return tree, hashes
 
     def save_cursor(
-        index: int,
-        blob: bytes,
-        cursor: int,
-        obj_list: List[Triple],
-        op_stack: List[DeserOp],
+            index: int,
+            blob: bytes,
+            cursor: int,
+            obj_list: List[Triple],
+            op_stack: List[DeserOp],
     ) -> int:
         blob_index = obj_list[index][0]
         assert blob[blob_index] == 0xFF
@@ -53,21 +51,21 @@ def deserialize_as_tuples(
         return cursor
 
     def save_index(
-        index: int,
-        blob: bytes,
-        cursor: int,
-        obj_list: List[Triple],
-        op_stack: List[DeserOp],
+            index: int,
+            blob: bytes,
+            cursor: int,
+            obj_list: List[Triple],
+            op_stack: List[DeserOp],
     ) -> int:
         e = obj_list[index]
         obj_list[index] = (e[0], e[1], len(obj_list))
         return cursor
 
     def parse_obj(
-        blob: bytes, cursor: int, obj_list: List[Triple], op_stack: List[DeserOp]
+            blob: bytes, cursor: int, obj_list: List[Triple], op_stack: List[DeserOp]
     ) -> int:
         if cursor >= len(blob):
-            raise ValueError("Encoding / Decoding Error")
+            raise ValueError("bad decoding")
 
         if blob[cursor] == CONS_BOX_MARKER:
             index = len(obj_list)

@@ -3,7 +3,7 @@ const wasm = require("../pkg/clvm_wasm.js");
 function expect_equal(challenge, expected) {
   if (challenge !== expected) {
     throw new Error(
-      `Assertion Error: Expected "${expected}" but actual value was "${challenge}"`,
+      `Assertion Error: Expected "${expected}" but actual value was "${challenge}"`
     );
   }
 }
@@ -30,6 +30,7 @@ function numsToByteStr(numArray) {
 }
 
 let current_test_number = 0;
+
 function test_case(testTitle, test) {
   const testNo = ++current_test_number;
   console.log(`Case#${testNo} ${testTitle}`);
@@ -45,7 +46,7 @@ function test_case(testTitle, test) {
 
 // ----------------------------------------------------- //
 
-test_case("Test '(q . 127)' '()'", function () {
+test_case("Test '(q . 127)' '()'", function() {
   // (q . 127)
   const prog = bytesFromHex("ff017f");
   // ()
@@ -57,7 +58,7 @@ test_case("Test '(q . 127)' '()'", function () {
   expect_equal(sexp.atom.toString(), "127");
 });
 
-test_case("Test '(+ 1 (q . 3))' '2'", function () {
+test_case("Test '(+ 1 (q . 3))' '2'", function() {
   // (+ 1 (q . 3))
   const prog = bytesFromHex("ff10ff01ffff010380");
   // 2
@@ -69,7 +70,7 @@ test_case("Test '(+ 1 (q . 3))' '2'", function () {
   expect_equal(sexp.atom.toString(), "5");
 });
 
-test_case("Test '(+ 7 (q . 3))' '(() . (() . 2))'", function () {
+test_case("Test '(+ 7 (q . 3))' '(() . (() . 2))'", function() {
   // (+ 7 (q . 3))
   const prog = bytesFromHex("ff10ff07ffff010380");
   // (() . (() . 2))
@@ -81,7 +82,7 @@ test_case("Test '(+ 7 (q . 3))' '(() . (() . 2))'", function () {
   expect_equal(sexp.atom.toString(), "5");
 });
 
-test_case("Test max_cost too low", function () {
+test_case("Test max_cost too low", function() {
   // (q . 127)
   const prog = bytesFromHex("ff017f");
   // ()
@@ -89,12 +90,12 @@ test_case("Test max_cost too low", function () {
   // MaxCost too low
   const max_cost = BigInt("1");
   const flag = 0;
-  expect_throw(function () {
+  expect_throw(function() {
     wasm.run_chia_program(prog, arg, max_cost, flag);
   });
 });
 
-test_case("Test divmod", function () {
+test_case("Test divmod", function() {
   // (divmod (q . 5) (q . -3))
   const prog = bytesFromHex("ff14ffff0105ffff0181fd80");
   // ()
@@ -107,7 +108,7 @@ test_case("Test divmod", function () {
   expect_equal(sexp.pair[1].atom.toString(), numsToByteStr([-1]));
 });
 
-test_case("Test negative div", function () {
+test_case("Test negative div", function() {
   // (/ (q . 5) (q . -3))
   const prog = bytesFromHex("ff13ffff0105ffff0181fd80");
   // ()
@@ -119,16 +120,16 @@ test_case("Test negative div", function () {
   expect_equal(sexp.atom.toString(), "254");
 });
 
-test_case("Test serialized_length", function () {
+test_case("Test serialized_length", function() {
   // (q . 127)
   const prog = bytesFromHex("ff017f");
   expect_equal(wasm.serialized_length(prog), BigInt("3"));
-  expect_throw(function () {
+  expect_throw(function() {
     wasm.serialized_length(bytesFromHex("abcdef0123"));
   });
   try {
     wasm.serialized_length(bytesFromHex("abcdef0123"));
   } catch (e) {
-    expect_equal(e, "Encoding / Decoding Error");
+    expect_equal(e, "bad decoding");
   }
 });

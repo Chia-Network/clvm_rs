@@ -8,7 +8,7 @@ pub enum EvalErr {
     #[error("Internal Error: {0}")]
     InternalError(String),
 
-    #[error("Encoding / Decoding Error")]
+    #[error("bad decoding")]
     SerializationError,
 
     #[error("Out of Memory")]
