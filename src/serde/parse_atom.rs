@@ -142,7 +142,7 @@ mod tests {
         assert_eq!(
             decode_size_with_offset(&mut stream, first_b)
                 .unwrap_err()
-                .combined_str(),
+                .to_string(),
             expect
         );
     }
@@ -221,6 +221,6 @@ mod tests {
         let mut allocator = Allocator::new();
         let ret = parse_atom(&mut allocator, first, &mut cursor);
         let err = ret.unwrap_err();
-        assert_eq!(err.combined_str(), "bad decoding".to_string());
+        assert_eq!(err.to_string(), "bad decoding".to_string());
     }
 }
