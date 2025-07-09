@@ -443,6 +443,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         // max_cost is always in effect, and necessary to prevent wrap-around of
         // the cost integer.
         let max_cost = if max_cost == 0 { Cost::MAX } else { max_cost };
+        self.allocator.add_ghost_atom(1)?;
         let mut cost: Cost = 0;
 
         cost += self.eval_pair(program, env)?;
@@ -1546,7 +1547,7 @@ mod tests {
         assert_eq!(counters.env_stack_usage, 1005);
         assert_eq!(counters.op_stack_usage, 3014);
         assert_eq!(counters.atom_count, 998);
-        assert_eq!(counters.small_atom_count, 1041);
+        assert_eq!(counters.small_atom_count, 1042);
         assert_eq!(counters.pair_count, 22077);
         assert_eq!(counters.heap_size, 769963);
 

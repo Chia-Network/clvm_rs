@@ -507,6 +507,13 @@ impl Allocator {
         Ok(())
     }
 
+    pub fn add_ghost_atom(&mut self, amount: usize) -> Result<()> {
+        if MAX_NUM_ATOMS - self.ghost_atoms - self.atom_vec.len() < amount {
+            return Err(EvalErr::TooManyAtoms);
+        }
+        self.ghost_atoms += amount;
+        Ok(())
+    }
     pub fn new_substr(&mut self, node: NodePtr, start: u32, end: u32) -> Result<NodePtr> {
         #[cfg(feature = "allocator-debug")]
         self.validate_node(node);
