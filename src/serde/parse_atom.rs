@@ -162,7 +162,7 @@ mod tests {
         assert_eq!(
             decode_size_with_offset(&mut stream, 0x7f)
                 .unwrap_err()
-                .combined_str(),
+                .to_string(),
             "Internal Error: Error Initializing Encoding"
         );
     }
