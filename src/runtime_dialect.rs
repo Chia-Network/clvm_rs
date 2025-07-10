@@ -2,7 +2,7 @@ use crate::allocator::{Allocator, NodePtr};
 use crate::chia_dialect::NO_UNKNOWN_OPS;
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
-use crate::error::OperatorError;
+use crate::error::EvalErr;
 
 use crate::f_table::{f_lookup_for_hashmap, FLookup};
 use crate::more_ops::op_unknown;
@@ -52,7 +52,7 @@ impl Dialect for RuntimeDialect {
             }
         }
         if (self.flags & NO_UNKNOWN_OPS) != 0 {
-            Err(OperatorError::Unimplemented(o))?
+            Err(EvalErr::Unimplemented(o))?
         } else {
             op_unknown(allocator, o, argument_list, max_cost)
         }

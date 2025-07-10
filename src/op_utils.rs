@@ -1,7 +1,7 @@
 use crate::allocator::{Allocator, Atom, NodePtr, NodeVisitor, SExp};
 use crate::cost::Cost;
 
-use crate::error::{EvalErr, OperatorError, Result};
+use crate::error::{EvalErr, Result};
 use crate::number::Number;
 use crate::reduction::{Reduction, Response};
 use lazy_static::lazy_static;
@@ -13,11 +13,11 @@ pub const MALLOC_COST_PER_BYTE: Cost = 10;
 
 pub fn get_args<const N: usize>(a: &Allocator, args: NodePtr, name: &str) -> Result<[NodePtr; N]> {
     match_args::<N>(a, args).ok_or_else(|| {
-        EvalErr::from(OperatorError::TakesExactlyArgs(
+        EvalErr::TakesExactlyArgs(
             args,
             name.to_string(),
             N as u32,
-        ))
+        )
     })
 }
 
@@ -45,7 +45,7 @@ pub fn match_args<const N: usize>(a: &Allocator, args: NodePtr) -> Option<[NodeP
 pub fn atom_len(a: &Allocator, args: NodePtr, op_name: &str) -> Result<usize> {
     match a.sexp(args) {
         SExp::Atom => Ok(a.atom_len(args)),
-        _ => Err(OperatorError::RequiresAtom(args, op_name.to_string()))?,
+        _ => Err(EvalErr::RequiresAtom(args, op_name.to_string()))?,
     }
 }
 
@@ -57,7 +57,7 @@ pub fn uint_atom<const SIZE: usize>(a: &Allocator, args: NodePtr, op_name: &str)
             }
 
             if (bytes[0] & 0x80) != 0 {
-                return Err(OperatorError::RequiresPositiveIntArgument(
+                return Err(EvalErr::RequiresPositiveIntArgument(
                     args,
                     op_name.to_string(),
                 ))?;
@@ -71,9 +71,9 @@ pub fn uint_atom<const SIZE: usize>(a: &Allocator, args: NodePtr, op_name: &str)
 
             if buf.len() > SIZE {
                 if SIZE == 4 {
-                    return Err(OperatorError::RequiresInt32Args(args, op_name.to_string()))?;
+                    return Err(EvalErr::RequiresInt32Args(args, op_name.to_string()))?;
                 } else if SIZE == 8 {
-                    return Err(OperatorError::RequiresInt64Args(args, op_name.to_string()))?;
+                    return Err(EvalErr::RequiresInt64Args(args, op_name.to_string()))?;
                 } else {
                     // this should never happen, as we only call this function with SIZE = 4 or 8
                     unreachable!();
@@ -88,7 +88,7 @@ pub fn uint_atom<const SIZE: usize>(a: &Allocator, args: NodePtr, op_name: &str)
             Ok(ret)
         }
         NodeVisitor::U32(val) => Ok(val as u64),
-        NodeVisitor::Pair(_, _) => Err(OperatorError::RequiresIntArgument(
+        NodeVisitor::Pair(_, _) => Err(EvalErr::RequiresIntArgument(
             args,
             op_name.to_string(),
         ))?,
@@ -97,7 +97,7 @@ pub fn uint_atom<const SIZE: usize>(a: &Allocator, args: NodePtr, op_name: &str)
 
 pub fn atom<'a>(a: &'a Allocator, n: NodePtr, op_name: &str) -> Result<Atom<'a>> {
     if n.is_pair() {
-        Err(OperatorError::UsedOnList(n, op_name.to_string()))?;
+        Err(EvalErr::UsedOnList(n, op_name.to_string()))?;
     }
     Ok(a.atom(n))
 }
@@ -106,11 +106,11 @@ pub fn i32_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<i32> {
     match a.node(args) {
         NodeVisitor::Buffer(buf) => match i32_from_u8(buf) {
             Some(v) => Ok(v),
-            _ => Err(OperatorError::RequiresInt32Args(args, op_name.to_string()))?,
+            _ => Err(EvalErr::RequiresInt32Args(args, op_name.to_string()))?,
         },
         NodeVisitor::U32(val) => Ok(val as i32),
         NodeVisitor::Pair(_, _) => {
-            Err(OperatorError::RequiresInt32Args(args, op_name.to_string()))?
+            Err(EvalErr::RequiresInt32Args(args, op_name.to_string()))?
         }
     }
 }
@@ -193,7 +193,7 @@ pub fn get_varargs<const N: usize>(
     while let Some((first, rest)) = a.next(next) {
         next = rest;
         if counter == N {
-            Err(OperatorError::TakesNoMoreThanArgs(
+            Err(EvalErr::TakesNoMoreThanArgs(
                 args,
                 name.to_string(),
                 N as u32,
@@ -230,7 +230,7 @@ pub fn rest(a: &Allocator, n: NodePtr) -> Result<NodePtr> {
 pub fn int_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<(Number, usize)> {
     match a.sexp(args) {
         SExp::Atom => Ok((a.number(args), a.atom_len(args))),
-        _ => Err(OperatorError::RequiresIntArgument(
+        _ => Err(EvalErr::RequiresIntArgument(
             args,
             op_name.to_string(),
         ))?,
@@ -262,55 +262,55 @@ mod tests {
         assert_eq!(r.node_ptr(), args4);
         assert_eq!(
             r,
-            EvalErr::from(OperatorError::TakesExactlyArgs(
+            EvalErr::TakesExactlyArgs(
                 args4,
                 "test".to_string(),
                 3
-            ))
+            )
         );
 
         let r = get_args::<5>(&a, args4, "test").unwrap_err();
         assert_eq!(r.node_ptr(), args4);
         assert_eq!(
             r,
-            EvalErr::from(OperatorError::TakesExactlyArgs(
+            EvalErr::TakesExactlyArgs(
                 args4,
                 "test".to_string(),
                 5
-            ))
+            )
         );
 
         let r = get_args::<4>(&a, args3, "test").unwrap_err();
         assert_eq!(r.node_ptr(), args3);
         assert_eq!(
             r,
-            EvalErr::from(OperatorError::TakesExactlyArgs(
+            EvalErr::TakesExactlyArgs(
                 args3,
                 "test".to_string(),
                 4
-            ))
+            )
         );
 
         let r = get_args::<4>(&a, args2, "test").unwrap_err();
         assert_eq!(r.node_ptr(), args2);
         assert_eq!(
             r,
-            EvalErr::from(OperatorError::TakesExactlyArgs(
+            EvalErr::TakesExactlyArgs(
                 args2,
                 "test".to_string(),
                 4
-            ))
+            )
         );
 
         let r = get_args::<1>(&a, args2, "test").unwrap_err();
         assert_eq!(r.node_ptr(), args2);
         assert_eq!(
             r,
-            EvalErr::from(OperatorError::TakesExactlyArgs(
+            EvalErr::TakesExactlyArgs(
                 args2,
                 "test".to_string(),
                 1
-            ))
+            )
         );
     }
 
@@ -353,22 +353,22 @@ mod tests {
         assert_eq!(r.node_ptr(), args4);
         assert_eq!(
             r,
-            EvalErr::from(OperatorError::TakesNoMoreThanArgs(
+            EvalErr::TakesNoMoreThanArgs(
                 args4,
                 "test".to_string(),
                 3
-            ))
+            )
         );
 
         let r = get_varargs::<1>(&a, args4, "test").unwrap_err();
         assert_eq!(r.node_ptr(), args4);
         assert_eq!(
             r,
-            EvalErr::from(OperatorError::TakesNoMoreThanArgs(
+            EvalErr::TakesNoMoreThanArgs(
                 args4,
                 "test".to_string(),
                 1
-            ))
+            )
         );
     }
 
@@ -438,7 +438,7 @@ mod tests {
         assert_eq!(r.node_ptr(), pair);
         assert_eq!(
             r,
-            EvalErr::from(OperatorError::RequiresIntArgument(pair, "test".to_string()))
+            EvalErr::RequiresIntArgument(pair, "test".to_string())
         );
     }
 
@@ -454,7 +454,7 @@ mod tests {
         assert_eq!(r.node_ptr(), pair);
         assert_eq!(
             r,
-            EvalErr::from(OperatorError::RequiresAtom(pair, "test".to_string()))
+            EvalErr::RequiresAtom(pair, "test".to_string())
         );
 
         assert_eq!(atom_len(&a, a0, "test").unwrap(), 1);
@@ -481,21 +481,21 @@ mod tests {
 
     // u32, 4 bytes
     #[rstest]
-    #[case(&[0xff,0xff,0xff,0xff], OperatorError::RequiresPositiveIntArgument)]
-    #[case(&[0xff], OperatorError::RequiresPositiveIntArgument)]
-    #[case(&[0x80], OperatorError::RequiresPositiveIntArgument)]
-    #[case(&[0x80,0,0,0], OperatorError::RequiresPositiveIntArgument)]
-    #[case(&[1, 0xff,0xff,0xff,0xff], OperatorError::RequiresInt32Args)]
+    #[case(&[0xff,0xff,0xff,0xff], EvalErr::RequiresPositiveIntArgument)]
+    #[case(&[0xff], EvalErr::RequiresPositiveIntArgument)]
+    #[case(&[0x80], EvalErr::RequiresPositiveIntArgument)]
+    #[case(&[0x80,0,0,0], EvalErr::RequiresPositiveIntArgument)]
+    #[case(&[1, 0xff,0xff,0xff,0xff], EvalErr::RequiresInt32Args)]
     fn test_uint_atom_4_failure(
         #[case] buf: &[u8],
-        #[case] expected: fn(NodePtr, String) -> OperatorError,
+        #[case] expected: fn(NodePtr, String) -> EvalErr,
     ) {
         use crate::allocator::Allocator;
         let mut a = Allocator::new();
         let n = a.new_atom(buf).unwrap();
         assert_eq!(
             uint_atom::<4>(&a, n, "test"),
-            Err(EvalErr::from(expected(n, "test".to_string())))
+            Err(expected(n, "test".to_string()))
         );
     }
 
@@ -507,10 +507,10 @@ mod tests {
         let p = a.new_pair(n, n).unwrap();
         assert_eq!(
             uint_atom::<4>(&a, p, "test"),
-            Err(EvalErr::from(OperatorError::RequiresIntArgument(
+            Err(EvalErr::RequiresIntArgument(
                 p,
                 "test".to_string()
-            )))
+            ))
         );
     }
 
@@ -538,22 +538,22 @@ mod tests {
 
     // u64, 8 bytes
     #[rstest]
-    #[case(&[0xff,0xff,0xff,0xff],OperatorError::RequiresPositiveIntArgument)]
-    #[case(&[0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff], OperatorError::RequiresPositiveIntArgument)]
-    #[case(&[0xff], OperatorError::RequiresPositiveIntArgument)]
-    #[case(&[0x80], OperatorError::RequiresPositiveIntArgument)]
-    #[case(&[0x80,0,0,0], OperatorError::RequiresPositiveIntArgument)]
-    #[case(&[1,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff], OperatorError::RequiresInt64Args)]
+    #[case(&[0xff,0xff,0xff,0xff],EvalErr::RequiresPositiveIntArgument)]
+    #[case(&[0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff], EvalErr::RequiresPositiveIntArgument)]
+    #[case(&[0xff], EvalErr::RequiresPositiveIntArgument)]
+    #[case(&[0x80], EvalErr::RequiresPositiveIntArgument)]
+    #[case(&[0x80,0,0,0], EvalErr::RequiresPositiveIntArgument)]
+    #[case(&[1,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff], EvalErr::RequiresInt64Args)]
     fn test_uint_atom_8_failure(
         #[case] buf: &[u8],
-        #[case] expected: fn(NodePtr, String) -> OperatorError,
+        #[case] expected: fn(NodePtr, String) -> EvalErr,
     ) {
         use crate::allocator::Allocator;
         let mut a = Allocator::new();
         let n = a.new_atom(buf).unwrap();
         assert_eq!(
             uint_atom::<8>(&a, n, "test"),
-            Err(EvalErr::from(expected(n, "test".to_string())))
+            Err(expected(n, "test".to_string()))
         );
     }
 
@@ -565,10 +565,10 @@ mod tests {
         let p = a.new_pair(n, n).unwrap();
         assert_eq!(
             uint_atom::<8>(&a, p, "test"),
-            Err(EvalErr::from(OperatorError::RequiresIntArgument(
+            Err(EvalErr::RequiresIntArgument(
                 p,
                 "test".to_string()
-            )))
+            ))
         );
     }
 
@@ -663,7 +663,7 @@ mod tests {
         assert_eq!(r.node_ptr(), pair);
         assert_eq!(
             r,
-            EvalErr::from(OperatorError::RequiresInt32Args(pair, "test".to_string()))
+            EvalErr::RequiresInt32Args(pair, "test".to_string())
         );
 
         assert_eq!(i32_atom(&a, a0, "test").unwrap(), 42);
@@ -674,7 +674,7 @@ mod tests {
         assert_eq!(r.node_ptr(), a2);
         assert_eq!(
             r,
-            EvalErr::from(OperatorError::RequiresInt32Args(a2, "test".to_string()))
+            EvalErr::RequiresInt32Args(a2, "test".to_string())
         );
 
         let a3 = a.new_number((-0xffffffff_i64).into()).unwrap();
@@ -682,7 +682,7 @@ mod tests {
         assert_eq!(r.node_ptr(), a3);
         assert_eq!(
             r,
-            EvalErr::from(OperatorError::RequiresInt32Args(a3, "test".to_string()))
+            EvalErr::RequiresInt32Args(a3, "test".to_string())
         );
     }
 }

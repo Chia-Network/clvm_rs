@@ -76,11 +76,115 @@ pub enum EvalErr {
 
     #[error("Environment Stack Limit Reached")]
     EnvironmentStackLimitReached(NodePtr),
+    
+    #[error("Operator Error: Reserved operator")]
+    Reserved(NodePtr),
 
-    // Grouped errors
-    #[error("Operator Error: {0}")]
-    Operator(#[from] OperatorError),
+    #[error("Operator Error: Invalid Operator")]
+    Invalid(NodePtr),
 
+    #[error("Operator Error: Unimplemented Operator")]
+    Unimplemented(NodePtr),
+
+    #[error("Operator Error: Requires Int Argument: {1}")]
+    RequiresIntArgument(NodePtr, String),
+
+    #[error("Operator Error: {1} Requires Positive Int Argument")]
+    RequiresPositiveIntArgument(NodePtr, String),
+
+    #[error("Operator Error: {1} Requires Int32 args (with no leading zeros)")]
+    RequiresInt32Args(NodePtr, String),
+
+    #[error("Operator Error: {1} Requires Int64 args (with no leading zeros)")]
+    RequiresInt64Args(NodePtr, String),
+
+    #[error("Operator Error: {1} Requires {2} arguments")]
+    RequiresArgs(NodePtr, String, u32),
+
+    #[error("Operator Error: {1} takes no more then {2} arguments")]
+    TakesNoMoreThanArgs(NodePtr, String, u32),
+
+    #[error("Operator Error: {1} requires an atom")]
+    RequiresAtom(NodePtr, String),
+
+    #[error("Operator Error: {1} used on list")]
+    UsedOnList(NodePtr, String),
+
+    #[error("Operator Error: {1} takes exactly {2} argument(s)")]
+    TakesExactlyArgs(NodePtr, String, u32),
+
+    #[error("Operator Error: Expected Atom, got Pair")]
+    ExpectedAtomGotPair(NodePtr),
+
+    #[error("Operator Error: Substring takes exactly 2 or 3 arguments, got {1}")]
+    InvalidArgs2or3(NodePtr, u32),
+
+    #[error("Operator Error: Invalid Indices for Substring")]
+    InvalidIndices(NodePtr),
+
+    #[error("Operator Error: concat on list")]
+    ConcatOnList(NodePtr),
+
+    #[error("Operator Error: atom is not a valid G1 point")]
+    NotValidG1Point(NodePtr),
+
+    #[error("Operator Error: G1_map takes exactly 1 or 2 arguments, got {1}")]
+    G1MapInvalidArgs(NodePtr, u32),
+
+    #[error("Operator Error: atom is not a valid G2 point")]
+    NotValidG2Point(NodePtr),
+
+    #[error("Operator Error: G2_map takes exactly 1 or 2 arguments, got {1}")]
+    G2MapInvalidArgs(NodePtr, u32),
+
+    #[error("Operator Error: atom is not G2 size (96 bytes)")]
+    NotG2Size(NodePtr),
+
+    #[error("Operator Error: bls_pairing_identity failed")]
+    BLSPairingIdentityFailed(NodePtr),
+
+    #[error("Operator Error: bls_verify failed")]
+    BLSVerifyFailed(NodePtr),
+
+    #[error("Operator Error: Secp256k1 Verify Error: failed")]
+    Secp256k1Failed(NodePtr),
+
+    #[error("Operator Error: Secp256k1 Verify Error: pubkey is not valid")]
+    Secp256k1PubkeyNotValid(NodePtr),
+
+    #[error("Operator Error: Secp256k1 Verify Error: message digest is not 32 bytes")]
+    Secp256k1MessageDigestNot32Bytes(NodePtr),
+
+    #[error("Operator Error: Secp256k1 Verify Error: signature is not valid")]
+    Secp256k1SignatureNotValid(NodePtr),
+
+    #[error("Operator Error: Secp256r1 Verify Error: failed")]
+    Secp256r1Failed(NodePtr),
+
+    #[error("Operator Error: Secp256r1 Verify Error: pubkey is not valid")]
+    Secp256r1PubkeyNotValid(NodePtr),
+
+    #[error("Operator Error: Secp256r1 Verify Error: message digest is not 32 bytes")]
+    Secp256r1MessageDigestNot32Bytes(NodePtr),
+
+    #[error("Operator Error: Secp256r1 Verify Error: signature is not valid")]
+    Secp256r1SignatureNotValid(NodePtr),
+
+    #[error("Operator Error: CoinID Error: Invalid Parent Coin ID, not 32 bytes")]
+    CoinIDParentCoinIdNot32Bytes(NodePtr),
+
+    #[error("Operator Error: CoinID Error: Invalid Puzzle Hash, not 32 bytes")]
+    CoinIDPuzzleHashNot32Bytes(NodePtr),
+
+    #[error("Operator Error: CoinID Error: Invalid Amount: Amount is Negative")]
+    CoinIDAmountNegative(NodePtr),
+
+    #[error("Operator Error: CoinID Error: Invalid Amount: Amount has leading zeroes")]
+    CoinIDAmountLeadingZeroes(NodePtr),
+
+    #[error("Operator Error: CoinID Error: Invalid Amount: Amount exceeds max coin amount")]
+    CoinIDAmountExceedsMaxCoinAmount(NodePtr),
+    
     #[error("Allocator Error: {0}")]
     Allocator(#[from] AllocatorErr),
 }
@@ -107,7 +211,42 @@ impl EvalErr {
             EvalErr::ValueStackLimitReached(node) => Some(*node),
             EvalErr::EnvironmentStackLimitReached(node) => Some(*node),
             EvalErr::InternalError(node, _) => Some(*node),
-            EvalErr::Operator(op) => OperatorError::node(op),
+            EvalErr::Reserved(node) => Some(*node),
+            EvalErr::Invalid(node) => Some(*node),
+            EvalErr::Unimplemented(node) => Some(*node),
+            EvalErr::RequiresIntArgument(node, _) => Some(*node),
+            EvalErr::RequiresPositiveIntArgument(node, _) => Some(*node),
+            EvalErr::RequiresInt32Args(node, _) => Some(*node),
+            EvalErr::RequiresInt64Args(node, _) => Some(*node),
+            EvalErr::RequiresArgs(node, _, _) => Some(*node),
+            EvalErr::TakesNoMoreThanArgs(node, _, _) => Some(*node),
+            EvalErr::RequiresAtom(node, _) => Some(*node),
+            EvalErr::UsedOnList(node, _) => Some(*node),
+            EvalErr::TakesExactlyArgs(node, _, _) => Some(*node),
+            EvalErr::ExpectedAtomGotPair(node) => Some(*node),
+            EvalErr::InvalidArgs2or3(node, _) => Some(*node),
+            EvalErr::InvalidIndices(node) => Some(*node),
+            EvalErr::ConcatOnList(node) => Some(*node),
+            EvalErr::NotValidG1Point(node) => Some(*node),
+            EvalErr::G1MapInvalidArgs(node, _) => Some(*node),
+            EvalErr::NotValidG2Point(node) => Some(*node),
+            EvalErr::G2MapInvalidArgs(node, _) => Some(*node),
+            EvalErr::NotG2Size(node) => Some(*node),
+            EvalErr::BLSPairingIdentityFailed(node) => Some(*node),
+            EvalErr::BLSVerifyFailed(node) => Some(*node),
+            EvalErr::Secp256k1Failed(node) => Some(*node),
+            EvalErr::Secp256k1PubkeyNotValid(node) => Some(*node),
+            EvalErr::Secp256k1MessageDigestNot32Bytes(node) => Some(*node),
+            EvalErr::Secp256k1SignatureNotValid(node) => Some(*node),
+            EvalErr::Secp256r1Failed(node) => Some(*node),
+            EvalErr::Secp256r1PubkeyNotValid(node) => Some(*node),
+            EvalErr::Secp256r1MessageDigestNot32Bytes(node) => Some(*node),
+            EvalErr::Secp256r1SignatureNotValid(node) => Some(*node),
+            EvalErr::CoinIDPuzzleHashNot32Bytes(node) => Some(*node),
+            EvalErr::CoinIDAmountNegative(node) => Some(*node),
+            EvalErr::CoinIDAmountLeadingZeroes(node) => Some(*node),
+            EvalErr::CoinIDAmountExceedsMaxCoinAmount(node) => Some(*node),
+            EvalErr::CoinIDParentCoinIdNot32Bytes(node) => Some(*node),
             EvalErr::Allocator(alloc) => AllocatorErr::node(alloc),
             _ => None,
         }
@@ -130,165 +269,6 @@ impl PartialEq<Self> for EvalErr {
         self.combined_str() == other.combined_str()
     }
 }
-
-// Operator Errors
-#[derive(Debug, Error)]
-pub enum OperatorError {
-    #[error("Reserved operator")]
-    Reserved(NodePtr),
-
-    #[error("Invalid Operator")]
-    Invalid(NodePtr),
-
-    #[error("Unimplemented Operator")]
-    Unimplemented(NodePtr),
-
-    #[error("Requires Int Argument: {1}")]
-    RequiresIntArgument(NodePtr, String),
-
-    #[error("{1} Requires Positive Int Argument")]
-    RequiresPositiveIntArgument(NodePtr, String),
-
-    #[error("{1} Requires Int32 args (with no leading zeros)")]
-    RequiresInt32Args(NodePtr, String),
-
-    #[error("{1} Requires Int64 args (with no leading zeros)")]
-    RequiresInt64Args(NodePtr, String),
-
-    #[error("{1} Requires {2} arguments")]
-    RequiresArgs(NodePtr, String, u32),
-
-    #[error("{1} takes no more then {2} arguments")]
-    TakesNoMoreThanArgs(NodePtr, String, u32),
-
-    #[error("{1} requires an atom")]
-    RequiresAtom(NodePtr, String),
-
-    #[error("{1} used on list")]
-    UsedOnList(NodePtr, String),
-
-    #[error("{1} takes exactly {2} argument(s)")]
-    TakesExactlyArgs(NodePtr, String, u32),
-
-    #[error("Expected Atom, got Pair")]
-    ExpectedAtomGotPair(NodePtr),
-
-    #[error("Substring takes exactly 2 or 3 arguments, got {1}")]
-    InvalidArgs2or3(NodePtr, u32),
-
-    #[error("Invalid Indices for Substring")]
-    InvalidIndices(NodePtr),
-
-    #[error("concat on list")]
-    ConcatOnList(NodePtr),
-
-    #[error("atom is not a valid G1 point")]
-    NotValidG1Point(NodePtr),
-
-    #[error("G1_map takes exactly 1 or 2 arguments, got {1}")]
-    G1MapInvalidArgs(NodePtr, u32),
-
-    #[error("atom is not a valid G2 point")]
-    NotValidG2Point(NodePtr),
-
-    #[error("G2_map takes exactly 1 or 2 arguments, got {1}")]
-    G2MapInvalidArgs(NodePtr, u32),
-
-    #[error("atom is not G2 size (96 bytes)")]
-    NotG2Size(NodePtr),
-
-    #[error("bls_pairing_identity failed")]
-    BLSPairingIdentityFailed(NodePtr),
-
-    #[error("bls_verify failed")]
-    BLSVerifyFailed(NodePtr),
-
-    #[error("Secp256k1 Verify Error: failed")]
-    Secp256k1Failed(NodePtr),
-
-    #[error("Secp256k1 Verify Error: pubkey is not valid")]
-    Secp256k1PubkeyNotValid(NodePtr),
-
-    #[error("Secp256k1 Verify Error: message digest is not 32 bytes")]
-    Secp256k1MessageDigestNot32Bytes(NodePtr),
-
-    #[error("Secp256k1 Verify Error: signature is not valid")]
-    Secp256k1SignatureNotValid(NodePtr),
-
-    #[error("Secp256r1 Verify Error: failed")]
-    Secp256r1Failed(NodePtr),
-
-    #[error("Secp256r1 Verify Error: pubkey is not valid")]
-    Secp256r1PubkeyNotValid(NodePtr),
-
-    #[error("Secp256r1 Verify Error: message digest is not 32 bytes")]
-    Secp256r1MessageDigestNot32Bytes(NodePtr),
-
-    #[error("Secp256r1 Verify Error: signature is not valid")]
-    Secp256r1SignatureNotValid(NodePtr),
-
-    #[error("CoinID Error: Invalid Parent Coin ID, not 32 bytes")]
-    CoinIDParentCoinIdNot32Bytes(NodePtr),
-
-    #[error("CoinID Error: Invalid Puzzle Hash, not 32 bytes")]
-    CoinIDPuzzleHashNot32Bytes(NodePtr),
-
-    #[error("CoinID Error: Invalid Amount: Amount is Negative")]
-    CoinIDAmountNegative(NodePtr),
-
-    #[error("CoinID Error: Invalid Amount: Amount has leading zeroes")]
-    CoinIDAmountLeadingZeroes(NodePtr),
-
-    #[error("CoinID Error: Invalid Amount: Amount exceeds max coin amount")]
-    CoinIDAmountExceedsMaxCoinAmount(NodePtr),
-
-}
-
-impl OperatorError {
-    pub fn node(&self) -> Option<NodePtr> {
-        // All OperatorErrors have a NodePtr as a first argument
-        match self {
-            OperatorError::Reserved(node) => Some(*node),
-            OperatorError::Invalid(node) => Some(*node),
-            OperatorError::Unimplemented(node) => Some(*node),
-            OperatorError::RequiresIntArgument(node, _) => Some(*node),
-            OperatorError::RequiresPositiveIntArgument(node, _) => Some(*node),
-            OperatorError::RequiresInt32Args(node, _) => Some(*node),
-            OperatorError::RequiresInt64Args(node, _) => Some(*node),
-            OperatorError::RequiresArgs(node, _, _) => Some(*node),
-            OperatorError::TakesNoMoreThanArgs(node, _, _) => Some(*node),
-            OperatorError::RequiresAtom(node, _) => Some(*node),
-            OperatorError::UsedOnList(node, _) => Some(*node),
-            OperatorError::TakesExactlyArgs(node, _, _) => Some(*node),
-            OperatorError::ExpectedAtomGotPair(node) => Some(*node),
-            OperatorError::InvalidArgs2or3(node, _) => Some(*node),
-            OperatorError::InvalidIndices(node) => Some(*node),
-            OperatorError::ConcatOnList(node) => Some(*node),
-            OperatorError::NotValidG1Point(node) => Some(*node),
-            OperatorError::G1MapInvalidArgs(node, _) => Some(*node),
-            OperatorError::NotValidG2Point(node) => Some(*node),
-            OperatorError::G2MapInvalidArgs(node, _) => Some(*node),
-            OperatorError::NotG2Size(node) => Some(*node),
-            OperatorError::BLSPairingIdentityFailed(node) => Some(*node),
-            OperatorError::BLSVerifyFailed(node) => Some(*node),
-            OperatorError::Secp256k1Failed(node) => Some(*node),
-            OperatorError::Secp256k1PubkeyNotValid(node) => Some(*node),
-            OperatorError::Secp256k1MessageDigestNot32Bytes(node) => Some(*node),
-            OperatorError::Secp256k1SignatureNotValid(node) => Some(*node),
-            OperatorError::Secp256r1Failed(node) => Some(*node),
-            OperatorError::Secp256r1PubkeyNotValid(node) => Some(*node),
-            OperatorError::Secp256r1MessageDigestNot32Bytes(node) => Some(*node),
-            OperatorError::Secp256r1SignatureNotValid(node) => Some(*node),
-            OperatorError::CoinIDPuzzleHashNot32Bytes(node) => Some(*node),
-            OperatorError::CoinIDAmountNegative(node) => Some(*node),
-            OperatorError::CoinIDAmountLeadingZeroes(node) => Some(*node),
-            OperatorError::CoinIDAmountExceedsMaxCoinAmount(node) => Some(*node),
-            OperatorError::CoinIDParentCoinIdNot32Bytes(node) => Some(*node),
-        }
-    }
-}
-
-// Allocator Errors
 #[derive(Debug, Error)]
 pub enum AllocatorErr {
     #[error("Expected Atom, got Pair")]
