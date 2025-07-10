@@ -200,14 +200,45 @@ pub enum OperatorError {
     #[error("bls_verify failed")]
     BLSVerifyFailed(NodePtr),
 
-    #[error("CoinID Error")]
-    CoinID(#[from] CoinIDError),
+    #[error("Secp256k1 Verify Error: failed")]
+    Secp256k1Failed(NodePtr),
 
-    #[error("Secp256k1 Verify Error: {0}")]
-    Secp256k1Verify(#[from] Secp256k1verifyError),
+    #[error("Secp256k1 Verify Error: pubkey is not valid")]
+    Secp256k1PubkeyNotValid(NodePtr),
 
-    #[error("Secp256r1 Verify Error: {0}")]
-    Secp256r1Verify(#[from] Secp256r1verifyError),
+    #[error("Secp256k1 Verify Error: message digest is not 32 bytes")]
+    Secp256k1MessageDigestNot32Bytes(NodePtr),
+
+    #[error("Secp256k1 Verify Error: signature is not valid")]
+    Secp256k1SignatureNotValid(NodePtr),
+
+    #[error("Secp256r1 Verify Error: failed")]
+    Secp256r1Failed(NodePtr),
+
+    #[error("Secp256r1 Verify Error: pubkey is not valid")]
+    Secp256r1PubkeyNotValid(NodePtr),
+
+    #[error("Secp256r1 Verify Error: message digest is not 32 bytes")]
+    Secp256r1MessageDigestNot32Bytes(NodePtr),
+
+    #[error("Secp256r1 Verify Error: signature is not valid")]
+    Secp256r1SignatureNotValid(NodePtr),
+
+    #[error("CoinID Error: Invalid Parent Coin ID, not 32 bytes")]
+    CoinIDParentCoinIdNot32Bytes(NodePtr),
+
+    #[error("CoinID Error: Invalid Puzzle Hash, not 32 bytes")]
+    CoinIDPuzzleHashNot32Bytes(NodePtr),
+
+    #[error("CoinID Error: Invalid Amount: Amount is Negative")]
+    CoinIDAmountNegative(NodePtr),
+
+    #[error("CoinID Error: Invalid Amount: Amount has leading zeroes")]
+    CoinIDAmountLeadingZeroes(NodePtr),
+
+    #[error("CoinID Error: Invalid Amount: Amount exceeds max coin amount")]
+    CoinIDAmountExceedsMaxCoinAmount(NodePtr),
+
 }
 
 impl OperatorError {
@@ -237,88 +268,19 @@ impl OperatorError {
             OperatorError::NotG2Size(node) => Some(*node),
             OperatorError::BLSPairingIdentityFailed(node) => Some(*node),
             OperatorError::BLSVerifyFailed(node) => Some(*node),
-            OperatorError::CoinID(coin_id_error) => CoinIDError::node(coin_id_error),
-            OperatorError::Secp256k1Verify(secp_error) => Secp256k1verifyError::node(secp_error),
-            OperatorError::Secp256r1Verify(secp_error) => Secp256r1verifyError::node(secp_error),
-        }
-    }
-}
-
-#[derive(Debug, Error)]
-pub enum Secp256k1verifyError {
-    #[error("failed")]
-    Failed(NodePtr),
-
-    #[error("pubkey is not valid")]
-    PubkeyNotValid(NodePtr),
-
-    #[error("message digest is not 32 bytes")]
-    MessageDigestNot32Bytes(NodePtr),
-
-    #[error("signature is not valid")]
-    SignatureNotValid(NodePtr),
-}
-impl Secp256k1verifyError {
-    pub fn node(&self) -> Option<NodePtr> {
-        match self {
-            Secp256k1verifyError::Failed(node) => Some(*node),
-            Secp256k1verifyError::PubkeyNotValid(node) => Some(*node),
-            Secp256k1verifyError::MessageDigestNot32Bytes(node) => Some(*node),
-            Secp256k1verifyError::SignatureNotValid(node) => Some(*node),
-        }
-    }
-}
-
-#[derive(Debug, Error)]
-pub enum Secp256r1verifyError {
-    #[error("failed")]
-    Failed(NodePtr),
-
-    #[error("pubkey is not valid")]
-    PubkeyNotValid(NodePtr),
-
-    #[error("message digest is not 32 bytes")]
-    MessageDigestNot32Bytes(NodePtr),
-
-    #[error("signature is not valid")]
-    SignatureNotValid(NodePtr),
-}
-impl Secp256r1verifyError {
-    pub fn node(&self) -> Option<NodePtr> {
-        match self {
-            Secp256r1verifyError::Failed(node) => Some(*node),
-            Secp256r1verifyError::PubkeyNotValid(node) => Some(*node),
-            Secp256r1verifyError::MessageDigestNot32Bytes(node) => Some(*node),
-            Secp256r1verifyError::SignatureNotValid(node) => Some(*node),
-        }
-    }
-}
-
-#[derive(Debug, Error)]
-pub enum CoinIDError {
-    #[error("Invalid Parent Coin ID, not 32 bytes")]
-    ParentCoinIdNot32Bytes(NodePtr),
-
-    #[error("Invalid Puzzle Hash, not 32 bytes")]
-    PuzzleHashNot32Bytes(NodePtr),
-
-    #[error("Invalid Amount: Amount is Negative")]
-    AmountNegative(NodePtr),
-
-    #[error("Invalid Amount: Amount has leading zeroes")]
-    AmountLeadingZeroes(NodePtr),
-
-    #[error("Invalid Amount: Amount exceeds max coin amount")]
-    AmountExceedsMaxCoinAmount(NodePtr),
-}
-impl CoinIDError {
-    pub fn node(&self) -> Option<NodePtr> {
-        match self {
-            CoinIDError::ParentCoinIdNot32Bytes(node) => Some(*node),
-            CoinIDError::PuzzleHashNot32Bytes(node) => Some(*node),
-            CoinIDError::AmountNegative(node) => Some(*node),
-            CoinIDError::AmountLeadingZeroes(node) => Some(*node),
-            CoinIDError::AmountExceedsMaxCoinAmount(node) => Some(*node),
+            OperatorError::Secp256k1Failed(node) => Some(*node),
+            OperatorError::Secp256k1PubkeyNotValid(node) => Some(*node),
+            OperatorError::Secp256k1MessageDigestNot32Bytes(node) => Some(*node),
+            OperatorError::Secp256k1SignatureNotValid(node) => Some(*node),
+            OperatorError::Secp256r1Failed(node) => Some(*node),
+            OperatorError::Secp256r1PubkeyNotValid(node) => Some(*node),
+            OperatorError::Secp256r1MessageDigestNot32Bytes(node) => Some(*node),
+            OperatorError::Secp256r1SignatureNotValid(node) => Some(*node),
+            OperatorError::CoinIDPuzzleHashNot32Bytes(node) => Some(*node),
+            OperatorError::CoinIDAmountNegative(node) => Some(*node),
+            OperatorError::CoinIDAmountLeadingZeroes(node) => Some(*node),
+            OperatorError::CoinIDAmountExceedsMaxCoinAmount(node) => Some(*node),
+            OperatorError::CoinIDParentCoinIdNot32Bytes(node) => Some(*node),
         }
     }
 }

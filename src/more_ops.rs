@@ -8,7 +8,7 @@ use std::ops::BitXorAssign;
 use crate::allocator::{len_for_value, Allocator, NodePtr, NodeVisitor, SExp};
 use crate::cost::{check_cost, Cost};
 
-use crate::error::{CoinIDError, EvalErr, OperatorError};
+use crate::error::{EvalErr, OperatorError};
 use crate::number::Number;
 use crate::op_utils::{
     atom, atom_len, get_args, get_varargs, i32_atom, int_atom, match_args, mod_group_order,
@@ -882,31 +882,30 @@ pub fn op_coinid(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
 
     let parent_coin = atom(a, parent_coin, "coinid")?;
     if parent_coin.as_ref().len() != 32 {
-        Err(OperatorError::from(CoinIDError::ParentCoinIdNot32Bytes(
+        Err(OperatorError::CoinIDParentCoinIdNot32Bytes(
             input,
-        )))?;
+        ))?;
     }
     let puzzle_hash = atom(a, puzzle_hash, "coinid")?;
     if puzzle_hash.as_ref().len() != 32 {
-        Err(OperatorError::from(CoinIDError::PuzzleHashNot32Bytes(
+        Err(OperatorError::CoinIDPuzzleHashNot32Bytes(
             input,
-        )))?;
+        ))?;
     }
     let amount_atom = atom(a, amount, "coinid")?;
     let amount = amount_atom.as_ref();
     if !amount.is_empty() {
         if (amount[0] & 0x80) != 0 {
-            Err(OperatorError::from(CoinIDError::AmountNegative(input)))?;
+            Err(OperatorError::CoinIDAmountNegative(input))?;
         }
         if amount == [0_u8] || (amount.len() > 1 && amount[0] == 0 && (amount[1] & 0x80) == 0) {
-            Err(OperatorError::from(CoinIDError::AmountLeadingZeroes(input)))?;
+            Err(OperatorError::CoinIDAmountLeadingZeroes(input))?;
         }
         // the only valid coin value that's 9 bytes is when a leading zero is
         // required to not have the value interpreted as negative
         if amount.len() > 9 || (amount.len() == 9 && amount[0] != 0) {
-            Err(OperatorError::from(
-                CoinIDError::AmountExceedsMaxCoinAmount(input),
-            ))?;
+            Err(OperatorError::CoinIDAmountExceedsMaxCoinAmount(input),
+            )?;
         }
     }
 
