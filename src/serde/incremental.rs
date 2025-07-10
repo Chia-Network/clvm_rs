@@ -1,10 +1,10 @@
 // Serialization with "back-references" of an incrementally built CLVM structure
 
-use std::io;
 use std::io::{Cursor, Write};
 
 use super::write_atom::write_atom;
 use crate::allocator::{Allocator, NodePtr, SExp};
+use crate::error::Result;
 use crate::serde::{TreeCache, TreeCacheCheckpoint};
 
 const BACK_REFERENCE: u8 = 0xfe;
@@ -48,7 +48,7 @@ impl Serializer {
     /// beginning if this is the first call. Returns true when we're done
     /// serializing. i.e. no sentinel token was encountered. Once this function
     /// returns true, it may not be called again.
-    pub fn add(&mut self, a: &Allocator, node: NodePtr) -> io::Result<(bool, UndoState)> {
+    pub fn add(&mut self, a: &Allocator, node: NodePtr) -> Result<(bool, UndoState)> {
         // once we're done serializing (i.e. there was no sentinel in the last
         // call to add()), we can't resume
         assert!(!self.read_op_stack.is_empty());

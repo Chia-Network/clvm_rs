@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
-import subprocess
 import glob
-import time
-import sys
 import platform
-from colorama import init, Fore, Style
-from run import run_clvm
+import subprocess
+import sys
+import time
 from os.path import isfile, splitext, basename
+
+from colorama import init, Fore, Style
+
+from run import run_clvm
 
 init()
 ret = 0
@@ -55,7 +57,6 @@ for fn in glob.glob("programs/large-atom-*.hex.invalid"):
         print(Fore.RED + "FAILED: expected parse failure" + Style.RESET_ALL)
     except Exception as e:
         print(Fore.GREEN + f"OK: expected: {e}" + Style.RESET_ALL)
-
 
 for fn in glob.glob("programs/*.clvm"):
     hexname = fn[:-4] + "hex"

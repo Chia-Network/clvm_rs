@@ -295,9 +295,7 @@ struct Args {
 fn maybe_open(plot: bool, op: &str, name: &str) -> Box<dyn Write> {
     if plot {
         create_dir_all("measurements").expect("failed to create directory");
-        Box::new(
-            File::create(format!("measurements/{}-{}", op, name)).expect("failed to open file"),
-        )
+        Box::new(File::create(format!("measurements/{op}-{name}")).expect("failed to open file"))
     } else {
         Box::new(sink())
     }

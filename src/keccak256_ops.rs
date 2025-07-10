@@ -19,7 +19,6 @@ pub fn op_keccak256(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Re
         input = rest;
         cost += KECCAK256_COST_PER_ARG;
         check_cost(
-            a,
             cost + byte_count as Cost * KECCAK256_COST_PER_BYTE,
             max_cost,
         )?;

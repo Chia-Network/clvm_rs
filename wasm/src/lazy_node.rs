@@ -41,25 +41,25 @@ impl LazyNode {
 
     #[wasm_bindgen]
     pub fn to_bytes_with_backref(&self) -> Result<Vec<u8>, String> {
-        node_to_bytes_backrefs(&self.allocator, self.node).map_err(|e| e.to_string())
+        node_to_bytes_backrefs(&self.allocator, self.node).map_err(|e| e.combined_str())
     }
 
     #[wasm_bindgen]
     pub fn to_bytes(&self, limit: usize) -> Result<Vec<u8>, String> {
-        node_to_bytes_limit(&self.allocator, self.node, limit).map_err(|e| e.to_string())
+        node_to_bytes_limit(&self.allocator, self.node, limit).map_err(|e| e.combined_str())
     }
 
     #[wasm_bindgen]
     pub fn from_bytes_with_backref(b: &[u8]) -> Result<LazyNode, String> {
         let mut allocator = Allocator::new();
-        let node = node_from_bytes_backrefs(&mut allocator, b).map_err(|e| e.to_string())?;
+        let node = node_from_bytes_backrefs(&mut allocator, b).map_err(|e| e.combined_str())?;
         Ok(LazyNode::new(Rc::new(allocator), node))
     }
 
     #[wasm_bindgen]
     pub fn from_bytes(b: &[u8]) -> Result<LazyNode, String> {
         let mut allocator = Allocator::new();
-        let node = node_from_bytes(&mut allocator, b).map_err(|e| e.to_string())?;
+        let node = node_from_bytes(&mut allocator, b).map_err(|e| e.combined_str())?;
         Ok(LazyNode::new(Rc::new(allocator), node))
     }
 }

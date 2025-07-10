@@ -1,9 +1,8 @@
-use std::io;
 use std::io::{Cursor, Read};
 
-use crate::allocator::{Allocator, NodePtr};
-
 use super::parse_atom::parse_atom;
+use crate::allocator::{Allocator, NodePtr};
+use crate::error::Result;
 
 const CONS_BOX_MARKER: u8 = 0xff;
 
@@ -14,7 +13,7 @@ enum ParseOp {
 }
 
 /// deserialize a clvm node from a `std::io::Cursor`
-pub fn node_from_stream(allocator: &mut Allocator, f: &mut Cursor<&[u8]>) -> io::Result<NodePtr> {
+pub fn node_from_stream(allocator: &mut Allocator, f: &mut Cursor<&[u8]>) -> Result<NodePtr> {
     let mut values: Vec<NodePtr> = Vec::new();
     let mut ops = vec![ParseOp::SExp];
 
@@ -42,7 +41,7 @@ pub fn node_from_stream(allocator: &mut Allocator, f: &mut Cursor<&[u8]>) -> io:
     Ok(values.pop().unwrap())
 }
 
-pub fn node_from_bytes(allocator: &mut Allocator, b: &[u8]) -> io::Result<NodePtr> {
+pub fn node_from_bytes(allocator: &mut Allocator, b: &[u8]) -> Result<NodePtr> {
     let mut buffer = Cursor::new(b);
     node_from_stream(allocator, &mut buffer)
 }
