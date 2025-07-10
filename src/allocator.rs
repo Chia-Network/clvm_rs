@@ -1596,16 +1596,56 @@ mod tests {
     type TestFun = fn(&Allocator, NodePtr) -> EvalErr;
 
     #[rstest]
-    #[case(test_g1, 0, "Allocator Error: atom is not G1 size (48 bytes)")]
-    #[case(test_g1, 3, "Allocator Error: atom is not G1 size (48 bytes)")]
-    #[case(test_g1, 47, "Allocator Error: atom is not G1 size (48 bytes)")]
-    #[case(test_g1, 49, "Allocator Error: atom is not G1 size (48 bytes)")]
-    #[case(test_g1, 48, "Allocator Error: atom is not a valid G1 point")]
-    #[case(test_g2, 0, "Allocator Error: atom is not G2 size (96 bytes)")]
-    #[case(test_g2, 3, "Allocator Error: atom is not G2 size (96 bytes)")]
-    #[case(test_g2, 95, "Allocator Error: atom is not G2 size (96 bytes)")]
-    #[case(test_g2, 97, "Allocator Error: atom is not G2 size (96 bytes)")]
-    #[case(test_g2, 96, "Allocator Error: atom is not a valid G2 point")]
+    #[case(
+        test_g1,
+        0,
+        "Allocator Error: InvalidArg: atom is not G1 size (48 bytes)"
+    )]
+    #[case(
+        test_g1,
+        3,
+        "Allocator Error: InvalidArg: atom is not G1 size (48 bytes)"
+    )]
+    #[case(
+        test_g1,
+        47,
+        "Allocator Error: InvalidArg: atom is not G1 size (48 bytes)"
+    )]
+    #[case(
+        test_g1,
+        49,
+        "Allocator Error: InvalidArg: atom is not G1 size (48 bytes)"
+    )]
+    #[case(
+        test_g1,
+        48,
+        "Allocator Error: InvalidArg: atom is not a valid G1 point"
+    )]
+    #[case(
+        test_g2,
+        0,
+        "Allocator Error: InvalidArg: atom is not G2 size (96 bytes)"
+    )]
+    #[case(
+        test_g2,
+        3,
+        "Allocator Error: InvalidArg: atom is not G2 size (96 bytes)"
+    )]
+    #[case(
+        test_g2,
+        95,
+        "Allocator Error: InvalidArg: atom is not G2 size (96 bytes)"
+    )]
+    #[case(
+        test_g2,
+        97,
+        "Allocator Error: InvalidArg: atom is not G2 size (96 bytes)"
+    )]
+    #[case(
+        test_g2,
+        96,
+        "Allocator Error: InvalidArg: atom is not a valid G2 point"
+    )]
     fn test_point_size_error(#[case] fun: TestFun, #[case] size: usize, #[case] expected: &str) {
         let mut a = Allocator::new();
         let mut buf = Vec::<u8>::new();
@@ -1617,8 +1657,8 @@ mod tests {
     }
 
     #[rstest]
-    #[case(test_g1, "Allocator Error: pair found, expected G1 point")]
-    #[case(test_g2, "Allocator Error: pair found, expected G2 point")]
+    #[case(test_g1, "Allocator Error: InvalidArg: pair found, expected G1 point")]
+    #[case(test_g2, "Allocator Error: InvalidArg: pair found, expected G2 point")]
     fn test_point_atom_pair(#[case] fun: TestFun, #[case] expected: &str) {
         let mut a = Allocator::new();
         let n = a.new_pair(a.nil(), a.one()).unwrap();

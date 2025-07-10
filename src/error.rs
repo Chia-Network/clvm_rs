@@ -38,6 +38,9 @@ pub enum EvalErr {
     #[error("clvm raise")]
     Raise(NodePtr),
 
+    #[error("InvalidArg: {1}")]
+    InvalidArg(NodePtr, String),
+
     #[error("in ((X)...) syntax X must be lone atom")]
     InPairMustBeLoneAtom(NodePtr),
 
