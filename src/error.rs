@@ -329,29 +329,9 @@ pub enum AllocatorError {
     #[error("Expected Atom, got Pair")]
     ExpectedAtomGotPair(NodePtr),
 
-    #[error("InvalidArg:")]
+    #[error("InvalidArg: {1}")]
     InvalidArg(NodePtr, String),
 
-    #[error("concat passed invalid new_size: {1}")]
-    InvalidNewSize(NodePtr, u32),
-
-    #[error("atom is not G1 size (48 bytes)")]
-    NotG1Size(NodePtr),
-
-    #[error("pair found, expected G1 point")]
-    ExpectedG1Point(NodePtr),
-
-    #[error("atom is not a valid G1 point")]
-    NotValidG1Point(NodePtr),
-
-    #[error("atom is not G2 size (96 bytes)")]
-    NotG2Size(NodePtr),
-
-    #[error("pair found, expected G2 point")]
-    ExpectedG2Point(NodePtr),
-
-    #[error("atom is not a valid G2 point")]
-    NotValidG2Point(NodePtr),
 }
 
 impl AllocatorError {
@@ -359,13 +339,6 @@ impl AllocatorError {
         match self {
             AllocatorError::InvalidArg(node, _) => Some(*node),
             AllocatorError::ExpectedAtomGotPair(node) => Some(*node),
-            AllocatorError::InvalidNewSize(node, _) => Some(*node),
-            AllocatorError::NotG1Size(node) => Some(*node),
-            AllocatorError::ExpectedG1Point(node) => Some(*node),
-            AllocatorError::NotValidG1Point(node) => Some(*node),
-            AllocatorError::NotG2Size(node) => Some(*node),
-            AllocatorError::ExpectedG2Point(node) => Some(*node),
-            AllocatorError::NotValidG2Point(node) => Some(*node),
         }
     }
 }
