@@ -1262,7 +1262,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "Operator Error: Secp256k1 Verify Error: failed",
+            err: "Operator Error: Secp256 Verify Error: failed",
         },
 
         // secp261r1
@@ -1282,7 +1282,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "Operator Error: Secp256r1 Verify Error: failed",
+            err: "Operator Error: Secp256 Verify Error: failed",
         },
     ];
 

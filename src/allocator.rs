@@ -805,22 +805,37 @@ impl Allocator {
         let idx = match node.object_type() {
             ObjectType::Bytes => node.index(),
             ObjectType::SmallAtom => {
-                return Err(AllocatorErr::InvalidArg(node, "atom is not G1 size (48 bytes)".to_string()))?;
+                return Err(AllocatorErr::InvalidArg(
+                    node,
+                    "atom is not G1 size (48 bytes)".to_string(),
+                ))?;
             }
             ObjectType::Pair => {
-                return Err(AllocatorErr::InvalidArg(node, "pair found, expected G1 point".to_string()))?;
+                return Err(AllocatorErr::InvalidArg(
+                    node,
+                    "pair found, expected G1 point".to_string(),
+                ))?;
             }
         };
         let atom = self.atom_vec[idx as usize];
         if atom.end - atom.start != 48 {
-            return Err(AllocatorErr::InvalidArg(node, "atom is not G1 size (48 bytes)".to_string()))?;
+            return Err(AllocatorErr::InvalidArg(
+                node,
+                "atom is not G1 size (48 bytes)".to_string(),
+            ))?;
         }
 
         let array: &[u8; 48] = &self.u8_vec[atom.start as usize..atom.end as usize]
             .try_into()
-            .map_err(|_| AllocatorErr::InvalidArg(node, "atom is not G1 size (48 bytes)".to_string()))?;
-        G1Element::from_bytes(array)
-            .map_err(|_| EvalErr::from(AllocatorErr::InvalidArg(node, "atom is not a valid G1 point".to_string())))
+            .map_err(|_| {
+                AllocatorErr::InvalidArg(node, "atom is not G1 size (48 bytes)".to_string())
+            })?;
+        G1Element::from_bytes(array).map_err(|_| {
+            EvalErr::from(AllocatorErr::InvalidArg(
+                node,
+                "atom is not a valid G1 point".to_string(),
+            ))
+        })
     }
 
     pub fn g2(&self, node: NodePtr) -> Result<G2Element> {
@@ -830,10 +845,16 @@ impl Allocator {
         let idx = match node.object_type() {
             ObjectType::Bytes => node.index(),
             ObjectType::SmallAtom => {
-                return Err(AllocatorErr::InvalidArg(node, "atom is not G2 size (96 bytes)".to_string()))?;
+                return Err(AllocatorErr::InvalidArg(
+                    node,
+                    "atom is not G2 size (96 bytes)".to_string(),
+                ))?;
             }
             ObjectType::Pair => {
-                return Err(AllocatorErr::InvalidArg(node, "pair found, expected G2 point".to_string()))?;
+                return Err(AllocatorErr::InvalidArg(
+                    node,
+                    "pair found, expected G2 point".to_string(),
+                ))?;
             }
         };
 
@@ -841,10 +862,16 @@ impl Allocator {
 
         let array: &[u8; 96] = &self.u8_vec[atom.start as usize..atom.end as usize]
             .try_into()
-            .map_err(|_| AllocatorErr::InvalidArg(node, "atom is not G2 size (96 bytes)".to_string()))?;
+            .map_err(|_| {
+                AllocatorErr::InvalidArg(node, "atom is not G2 size (96 bytes)".to_string())
+            })?;
 
-        G2Element::from_bytes(array)
-            .map_err(|_| EvalErr::from(AllocatorErr::InvalidArg(node, "atom is not a valid G2 point".to_string())))
+        G2Element::from_bytes(array).map_err(|_| {
+            EvalErr::from(AllocatorErr::InvalidArg(
+                node,
+                "atom is not a valid G2 point".to_string(),
+            ))
+        })
     }
 
     pub fn node(&self, node: NodePtr) -> NodeVisitor {

@@ -76,7 +76,7 @@ pub enum EvalErr {
 
     #[error("Environment Stack Limit Reached")]
     EnvironmentStackLimitReached(NodePtr),
-    
+
     #[error("Operator Error: Reserved operator")]
     Reserved(NodePtr),
 
@@ -146,29 +146,17 @@ pub enum EvalErr {
     #[error("Operator Error: bls_verify failed")]
     BLSVerifyFailed(NodePtr),
 
-    #[error("Operator Error: Secp256k1 Verify Error: failed")]
-    Secp256k1Failed(NodePtr),
+    #[error("Operator Error: Secp256 Verify Error: failed")]
+    Secp256Failed(NodePtr),
 
-    #[error("Operator Error: Secp256k1 Verify Error: pubkey is not valid")]
-    Secp256k1PubkeyNotValid(NodePtr),
+    #[error("Operator Error: Secp256 Verify Error: pubkey is not valid")]
+    Secp256PubkeyNotValid(NodePtr),
 
-    #[error("Operator Error: Secp256k1 Verify Error: message digest is not 32 bytes")]
-    Secp256k1MessageDigestNot32Bytes(NodePtr),
+    #[error("Operator Error: Secp256 Verify Error: message digest is not 32 bytes")]
+    Secp256MessageDigestNot32Bytes(NodePtr),
 
-    #[error("Operator Error: Secp256k1 Verify Error: signature is not valid")]
-    Secp256k1SignatureNotValid(NodePtr),
-
-    #[error("Operator Error: Secp256r1 Verify Error: failed")]
-    Secp256r1Failed(NodePtr),
-
-    #[error("Operator Error: Secp256r1 Verify Error: pubkey is not valid")]
-    Secp256r1PubkeyNotValid(NodePtr),
-
-    #[error("Operator Error: Secp256r1 Verify Error: message digest is not 32 bytes")]
-    Secp256r1MessageDigestNot32Bytes(NodePtr),
-
-    #[error("Operator Error: Secp256r1 Verify Error: signature is not valid")]
-    Secp256r1SignatureNotValid(NodePtr),
+    #[error("Operator Error: Secp256 Verify Error: signature is not valid")]
+    Secp256SignatureNotValid(NodePtr),
 
     #[error("Operator Error: CoinID Error: Invalid Parent Coin ID, not 32 bytes")]
     CoinIDParentCoinIdNot32Bytes(NodePtr),
@@ -184,7 +172,7 @@ pub enum EvalErr {
 
     #[error("Operator Error: CoinID Error: Invalid Amount: Amount exceeds max coin amount")]
     CoinIDAmountExceedsMaxCoinAmount(NodePtr),
-    
+
     #[error("Allocator Error: {0}")]
     Allocator(#[from] AllocatorErr),
 }
@@ -234,14 +222,10 @@ impl EvalErr {
             EvalErr::NotG2Size(node) => Some(*node),
             EvalErr::BLSPairingIdentityFailed(node) => Some(*node),
             EvalErr::BLSVerifyFailed(node) => Some(*node),
-            EvalErr::Secp256k1Failed(node) => Some(*node),
-            EvalErr::Secp256k1PubkeyNotValid(node) => Some(*node),
-            EvalErr::Secp256k1MessageDigestNot32Bytes(node) => Some(*node),
-            EvalErr::Secp256k1SignatureNotValid(node) => Some(*node),
-            EvalErr::Secp256r1Failed(node) => Some(*node),
-            EvalErr::Secp256r1PubkeyNotValid(node) => Some(*node),
-            EvalErr::Secp256r1MessageDigestNot32Bytes(node) => Some(*node),
-            EvalErr::Secp256r1SignatureNotValid(node) => Some(*node),
+            EvalErr::Secp256Failed(node) => Some(*node),
+            EvalErr::Secp256PubkeyNotValid(node) => Some(*node),
+            EvalErr::Secp256MessageDigestNot32Bytes(node) => Some(*node),
+            EvalErr::Secp256SignatureNotValid(node) => Some(*node),
             EvalErr::CoinIDPuzzleHashNot32Bytes(node) => Some(*node),
             EvalErr::CoinIDAmountNegative(node) => Some(*node),
             EvalErr::CoinIDAmountLeadingZeroes(node) => Some(*node),
@@ -276,7 +260,6 @@ pub enum AllocatorErr {
 
     #[error("InvalidArg: {1}")]
     InvalidArg(NodePtr, String),
-
 }
 
 impl AllocatorErr {
