@@ -82,7 +82,7 @@ pub enum EvalErr {
     Operator(#[from] OperatorError),
 
     #[error("Allocator Error: {0}")]
-    Allocator(#[from] AllocatorError),
+    Allocator(#[from] AllocatorErr),
 }
 impl From<std::io::Error> for EvalErr {
     fn from(_: std::io::Error) -> Self {
@@ -108,7 +108,7 @@ impl EvalErr {
             EvalErr::EnvironmentStackLimitReached(node) => Some(*node),
             EvalErr::InternalError(node, _) => Some(*node),
             EvalErr::Operator(op) => OperatorError::node(op),
-            EvalErr::Allocator(alloc) => AllocatorError::node(alloc),
+            EvalErr::Allocator(alloc) => AllocatorErr::node(alloc),
             _ => None,
         }
     }
@@ -290,7 +290,7 @@ impl OperatorError {
 
 // Allocator Errors
 #[derive(Debug, Error)]
-pub enum AllocatorError {
+pub enum AllocatorErr {
     #[error("Expected Atom, got Pair")]
     ExpectedAtomGotPair(NodePtr),
 
@@ -299,11 +299,11 @@ pub enum AllocatorError {
 
 }
 
-impl AllocatorError {
+impl AllocatorErr {
     pub fn node(&self) -> Option<NodePtr> {
         match self {
-            AllocatorError::InvalidArg(node, _) => Some(*node),
-            AllocatorError::ExpectedAtomGotPair(node) => Some(*node),
+            AllocatorErr::InvalidArg(node, _) => Some(*node),
+            AllocatorErr::ExpectedAtomGotPair(node) => Some(*node),
         }
     }
 }

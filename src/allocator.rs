@@ -1,4 +1,4 @@
-use crate::error::{AllocatorError, EvalErr, Result};
+use crate::error::{AllocatorErr, EvalErr, Result};
 use crate::number::{number_from_u8, Number};
 use chia_bls::{G1Element, G2Element};
 use std::borrow::Borrow;
@@ -522,19 +522,19 @@ impl Allocator {
 
         fn bounds_check(node: NodePtr, start: u32, end: u32, len: u32) -> Result<()> {
             if start > len {
-                Err(AllocatorError::InvalidArg(
+                Err(AllocatorErr::InvalidArg(
                     node,
                     format!("Substring Start Index Out of Bounds: {start} > {len}"),
                 ))?;
             }
             if end > len {
-                Err(AllocatorError::InvalidArg(
+                Err(AllocatorErr::InvalidArg(
                     node,
                     format!("Substring End Index Out of Bounds: {end} > {len}"),
                 ))?;
             }
             if end < start {
-                Err(AllocatorError::InvalidArg(
+                Err(AllocatorErr::InvalidArg(
                     node,
                     format!("Substring Start Index Greater Than End Index: {end} < {start}"),
                 ))?;
@@ -805,22 +805,22 @@ impl Allocator {
         let idx = match node.object_type() {
             ObjectType::Bytes => node.index(),
             ObjectType::SmallAtom => {
-                return Err(AllocatorError::InvalidArg(node, "atom is not G1 size (48 bytes)".to_string()))?;
+                return Err(AllocatorErr::InvalidArg(node, "atom is not G1 size (48 bytes)".to_string()))?;
             }
             ObjectType::Pair => {
-                return Err(AllocatorError::InvalidArg(node, "pair found, expected G1 point".to_string()))?;
+                return Err(AllocatorErr::InvalidArg(node, "pair found, expected G1 point".to_string()))?;
             }
         };
         let atom = self.atom_vec[idx as usize];
         if atom.end - atom.start != 48 {
-            return Err(AllocatorError::InvalidArg(node, "atom is not G1 size (48 bytes)".to_string()))?;
+            return Err(AllocatorErr::InvalidArg(node, "atom is not G1 size (48 bytes)".to_string()))?;
         }
 
         let array: &[u8; 48] = &self.u8_vec[atom.start as usize..atom.end as usize]
             .try_into()
-            .map_err(|_| AllocatorError::InvalidArg(node, "atom is not G1 size (48 bytes)".to_string()))?;
+            .map_err(|_| AllocatorErr::InvalidArg(node, "atom is not G1 size (48 bytes)".to_string()))?;
         G1Element::from_bytes(array)
-            .map_err(|_| EvalErr::from(AllocatorError::InvalidArg(node, "atom is not a valid G1 point".to_string())))
+            .map_err(|_| EvalErr::from(AllocatorErr::InvalidArg(node, "atom is not a valid G1 point".to_string())))
     }
 
     pub fn g2(&self, node: NodePtr) -> Result<G2Element> {
@@ -830,10 +830,10 @@ impl Allocator {
         let idx = match node.object_type() {
             ObjectType::Bytes => node.index(),
             ObjectType::SmallAtom => {
-                return Err(AllocatorError::InvalidArg(node, "atom is not G2 size (96 bytes)".to_string()))?;
+                return Err(AllocatorErr::InvalidArg(node, "atom is not G2 size (96 bytes)".to_string()))?;
             }
             ObjectType::Pair => {
-                return Err(AllocatorError::InvalidArg(node, "pair found, expected G2 point".to_string()))?;
+                return Err(AllocatorErr::InvalidArg(node, "pair found, expected G2 point".to_string()))?;
             }
         };
 
@@ -841,10 +841,10 @@ impl Allocator {
 
         let array: &[u8; 96] = &self.u8_vec[atom.start as usize..atom.end as usize]
             .try_into()
-            .map_err(|_| AllocatorError::InvalidArg(node, "atom is not G2 size (96 bytes)".to_string()))?;
+            .map_err(|_| AllocatorErr::InvalidArg(node, "atom is not G2 size (96 bytes)".to_string()))?;
 
         G2Element::from_bytes(array)
-            .map_err(|_| EvalErr::from(AllocatorError::InvalidArg(node, "atom is not a valid G2 point".to_string())))
+            .map_err(|_| EvalErr::from(AllocatorErr::InvalidArg(node, "atom is not a valid G2 point".to_string())))
     }
 
     pub fn node(&self, node: NodePtr) -> NodeVisitor {
@@ -941,7 +941,7 @@ impl Allocator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::AllocatorError;
+    use crate::error::AllocatorErr;
     use rstest::rstest;
 
     #[test]
@@ -1301,28 +1301,28 @@ mod tests {
 
         assert!(matches!(
             a.new_substr(atom, 1, 0).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::InvalidArg(
+            EvalErr::Allocator(AllocatorErr::InvalidArg(
                 _,
                 ref msg
             )) if *msg == format!("Substring Start Index Greater Than End Index: {1} < {0}", 1, 0)
         ));
         assert!(matches!(
             a.new_substr(atom, 7, 7).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::InvalidArg(
+            EvalErr::Allocator(AllocatorErr::InvalidArg(
                 _,
                 ref msg
             )) if *msg == format!("Substring Start Index Out of Bounds: {0} > {1}", 7, 6)
         ));
         assert!(matches!(
             a.new_substr(atom, 0, 7).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::InvalidArg(
+            EvalErr::Allocator(AllocatorErr::InvalidArg(
                 _,
                 ref msg
             )) if *msg == format!("Substring End Index Out of Bounds: {0} > {1}", 7, 6)
         ));
         assert!(matches!(
             a.new_substr(atom, u32::MAX, 4).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::InvalidArg(
+            EvalErr::Allocator(AllocatorErr::InvalidArg(
                 _,
                 ref msg
             )) if *msg == format!("Substring Start Index Out of Bounds: {0} > {1}", u32::MAX, 6)
@@ -1352,7 +1352,7 @@ mod tests {
 
         assert_eq!(
             a.new_substr(atom, 1, 0).unwrap_err(),
-            EvalErr::from(AllocatorError::InvalidArg(
+            EvalErr::from(AllocatorErr::InvalidArg(
                 atom,
                 format!(
                     "Substring Start Index Greater Than End Index: {1} < {0}",
@@ -1362,14 +1362,14 @@ mod tests {
         );
         assert!(matches!(
             a.new_substr(atom, 3, 3).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::InvalidArg(
+            EvalErr::Allocator(AllocatorErr::InvalidArg(
                 _,
             ref msg)) if *msg == format!("Substring Start Index Out of Bounds: {0} > {1}", 3,2 )
 
         ));
         assert!(matches!(
             a.new_substr(atom, 0, 3).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::InvalidArg(
+            EvalErr::Allocator(AllocatorErr::InvalidArg(
                 _,
                 ref msg )) if *msg == format!("Substring End Index Out of Bounds: {1} > {0}", 2,3)
 
@@ -1377,7 +1377,7 @@ mod tests {
         println!("{}", a.new_substr(atom, u32::MAX, 2).unwrap_err());
         assert!(matches!(
             a.new_substr(atom, u32::MAX, 2).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::InvalidArg(_, ref msg)) if *msg ==  format!(
+            EvalErr::Allocator(AllocatorErr::InvalidArg(_, ref msg)) if *msg ==  format!(
                     "Substring Start Index Out of Bounds: {0} > {1}",
                     u32::MAX,
                     2
@@ -1693,11 +1693,11 @@ e28f75bb8f1c7c42c39a8c5529bf0f4e"
         // try interpreting the point as G1
         assert!(matches!(
             a.g2(n).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::InvalidArg(_, msg)) if msg == "atom is not G2 size (96 bytes)"
+            EvalErr::Allocator(AllocatorErr::InvalidArg(_, msg)) if msg == "atom is not G2 size (96 bytes)"
         ));
         assert!(matches!(
             a.g2(g1_copy).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::InvalidArg(_, msg)) if msg == "atom is not G2 size (96 bytes)"
+            EvalErr::Allocator(AllocatorErr::InvalidArg(_, msg)) if msg == "atom is not G2 size (96 bytes)"
         ));
 
         // try interpreting the point as number
@@ -1740,11 +1740,11 @@ c6c886f6b57ec72a6178288c47c33577\
         // try interpreting the point as G1
         assert!(matches!(
             a.g1(n).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::InvalidArg(_, msg)) if msg == "atom is not G1 size (48 bytes)"
+            EvalErr::Allocator(AllocatorErr::InvalidArg(_, msg)) if msg == "atom is not G1 size (48 bytes)"
         ));
         assert!(matches!(
             a.g1(g2_copy).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::InvalidArg(_, msg)) if msg == "atom is not G1 size (48 bytes)"
+            EvalErr::Allocator(AllocatorErr::InvalidArg(_, msg)) if msg == "atom is not G1 size (48 bytes)"
         ));
 
         // try interpreting the point as number
