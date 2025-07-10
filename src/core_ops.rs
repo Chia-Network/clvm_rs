@@ -67,7 +67,7 @@ fn ensure_atom(a: &Allocator, n: NodePtr, op: &str) -> Result<()> {
     if let SExp::Atom = a.sexp(n) {
         Ok(())
     } else {
-        Err(EvalErr::UsedOnList(n, op.to_string()))?
+        Err(EvalErr::InvalidArg(n, format!("{op} used on list")))?
     }
 }
 

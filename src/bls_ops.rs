@@ -100,9 +100,9 @@ pub fn op_bls_g1_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
     let _g1 = G1Element::from_bytes(
         blob.as_ref()
             .try_into()
-            .map_err(|_| EvalErr::NotValidG1Point(point))?,
+            .map_err(|_| EvalErr::InvalidArg(point, "atom is not a valid G1 point".to_string()))?,
     )
-    .map_err(|_| EvalErr::NotValidG1Point(point))?;
+    .map_err(|_| EvalErr::InvalidArg(point, "atom is not a valid G1 point".to_string()))?;
 
     if (blob.as_ref()[0] & 0xe0) == 0xc0 {
         // This is compressed infinity. negating it is a no-op
@@ -188,12 +188,11 @@ pub fn op_bls_g2_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
     let blob = blob_atom.as_ref();
 
     // this is here to validate the point
-    let _g2 = G2Element::from_bytes(
-        blob.as_ref()
-            .try_into()
-            .map_err(|_| EvalErr::NotG2Size(point))?,
-    )
-    .map_err(|_| EvalErr::NotValidG2Point(point))?;
+    let _g2 =
+        G2Element::from_bytes(blob.as_ref().try_into().map_err(|_| {
+            EvalErr::InvalidArg(point, "atom is not G2 size (96 bytes)".to_string())
+        })?)
+        .map_err(|_| EvalErr::InvalidArg(point, "atom is not a valid G2 point".to_string()))?;
 
     if (blob[0] & 0xe0) == 0xc0 {
         // This is compressed infinity. negating it is a no-op
@@ -213,7 +212,10 @@ pub fn op_bls_g2_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
 pub fn op_bls_map_to_g1(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let ([msg, dst], argc) = get_varargs::<2>(a, input, "g1_map")?;
     if !(1..=2).contains(&argc) {
-        Err(EvalErr::G1MapInvalidArgs(input, argc as u32))?;
+        Err(EvalErr::InvalidArg(
+            input,
+            format!("G1_map takes exactly 1 or 2 arguments, got {argc}"),
+        ))?;
     }
     let mut cost: Cost = BLS_MAP_TO_G1_BASE_COST;
     check_cost(cost, max_cost)?;
@@ -241,7 +243,10 @@ pub fn op_bls_map_to_g1(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Re
 pub fn op_bls_map_to_g2(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let ([msg, dst], argc) = get_varargs::<2>(a, input, "g2_map")?;
     if !(1..=2).contains(&argc) {
-        Err(EvalErr::G2MapInvalidArgs(input, argc as u32))?;
+        Err(EvalErr::InvalidArg(
+            input,
+            format!("G2_map takes exactly 1 or 2 arguments, got {argc}"),
+        ))?;
     }
     let mut cost: Cost = BLS_MAP_TO_G2_BASE_COST;
     check_cost(cost, max_cost)?;
@@ -287,7 +292,10 @@ pub fn op_bls_pairing_identity(a: &mut Allocator, input: NodePtr, max_cost: Cost
     }
 
     if !aggregate_pairing(items) {
-        Err(EvalErr::BLSPairingIdentityFailed(input))?
+        Err(EvalErr::InvalidArg(
+            input,
+            "bls_pairing_identity failed".to_string(),
+        ))?
     } else {
         Ok(Reduction(cost, a.nil()))
     }
@@ -325,7 +333,7 @@ pub fn op_bls_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respo
     }
 
     if !aggregate_verify(&signature, items) {
-        Err(EvalErr::BLSVerifyFailed(input))?
+        Err(EvalErr::InvalidArg(input, "bls_verify failed".to_string()))?
     } else {
         Ok(Reduction(cost, a.nil()))
     }

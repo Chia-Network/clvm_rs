@@ -424,7 +424,10 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
                 byte_count += len_for_value(val);
             }
             NodeVisitor::Pair(_, _) => {
-                Err(EvalErr::RequiresIntArgument(arg, "+".to_string()))?;
+                Err(EvalErr::InvalidArg(
+                    arg,
+                    "Requires Int Argument: +".to_string(),
+                ))?;
             }
         }
     }
@@ -458,7 +461,10 @@ pub fn op_subtract(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
                     byte_count += len_for_value(val);
                 }
                 NodeVisitor::Pair(_, _) => {
-                    Err(EvalErr::RequiresIntArgument(arg, "-".to_string()))?;
+                    Err(EvalErr::InvalidArg(
+                        arg,
+                        "Requires Int Argument: -".to_string(),
+                    ))?;
                 }
             }
         };
@@ -494,7 +500,10 @@ pub fn op_multiply(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
                 len_for_value(val)
             }
             NodeVisitor::Pair(_, _) => {
-                return Err(EvalErr::RequiresIntArgument(arg, "*".to_string()))?;
+                return Err(EvalErr::InvalidArg(
+                    arg,
+                    "Requires Int Argument: *".to_string(),
+                ))?;
             }
         };
 
@@ -592,7 +601,10 @@ pub fn op_strlen(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
 pub fn op_substr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let ([a0, start, end], argc) = get_varargs::<3>(a, input, "substr")?;
     if !(2..=3).contains(&argc) {
-        Err(EvalErr::InvalidArgs2or3(input, argc as u32))?;
+        Err(EvalErr::InvalidArg(
+            input,
+            format!("Substring takes exactly 2 or 3 arguments, got {argc}"),
+        ))?;
     }
     let size = atom_len(a, a0, "substr")?;
     let start = i32_atom(a, start, "substr")?;
@@ -603,7 +615,10 @@ pub fn op_substr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
         size as i32
     };
     if end < 0 || start < 0 || end as usize > size || end < start {
-        Err(EvalErr::InvalidIndices(input))?
+        Err(EvalErr::InvalidArg(
+            input,
+            "Invalid Indices for Substring".to_string(),
+        ))?
     } else {
         let r = a.new_substr(a0, start as u32, end as u32)?;
         let cost: Cost = 1;
@@ -620,7 +635,9 @@ pub fn op_concat(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
         cost += CONCAT_COST_PER_ARG;
         check_cost(cost + total_size as Cost * CONCAT_COST_PER_BYTE, max_cost)?;
         let len = match a.sexp(arg) {
-            SExp::Pair(_, _) => return Err(EvalErr::ConcatOnList(arg))?,
+            SExp::Pair(_, _) => {
+                return Err(EvalErr::InvalidArg(arg, "concat on list".to_string()))?
+            }
             SExp::Atom => a.atom_len(arg),
         };
         if len > 0 {
@@ -931,7 +948,10 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
     check_cost(cost, max_cost)?;
 
     if exponent.sign() == Sign::Minus {
-        return Err(EvalErr::ModPowNegativeExponent(input));
+        return Err(EvalErr::InvalidArg(
+            input,
+            "ModPow with Negative Exponent".to_string(),
+        ));
     }
 
     if modulus.sign() == Sign::NoSign {
