@@ -522,13 +522,22 @@ impl Allocator {
 
         fn bounds_check(node: NodePtr, start: u32, end: u32, len: u32) -> Result<()> {
             if start > len {
-                Err(AllocatorError::StartOutOfBounds(node, start, len))?;
+                Err(AllocatorError::InvalidArg(
+                    node,
+                    format!("Substring Start Index Out of Bounds: {start} > {len}"),
+                ))?;
             }
             if end > len {
-                Err(AllocatorError::EndOutOfBounds(node, end, len))?;
+                Err(AllocatorError::InvalidArg(
+                    node,
+                    format!("Substring End Index Out of Bounds: {end} > {len}"),
+                ))?;
             }
             if end < start {
-                Err(AllocatorError::StartGreaterThanEnd(node, start, end))?;
+                Err(AllocatorError::InvalidArg(
+                    node,
+                    format!("Substring Start Index Greater Than End Index: {end} < {start}"),
+                ))?;
             }
             Ok(())
         }
@@ -1292,19 +1301,31 @@ mod tests {
 
         assert!(matches!(
             a.new_substr(atom, 1, 0).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::StartGreaterThanEnd(_, 1, 0))
+            EvalErr::Allocator(AllocatorError::InvalidArg(
+                _,
+                ref msg
+            )) if *msg == format!("Substring Start Index Greater Than End Index: {1} < {0}", 1, 0)
         ));
         assert!(matches!(
             a.new_substr(atom, 7, 7).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::StartOutOfBounds(_, 7, 6))
+            EvalErr::Allocator(AllocatorError::InvalidArg(
+                _,
+                ref msg
+            )) if *msg == format!("Substring Start Index Out of Bounds: {0} > {1}", 7, 6)
         ));
         assert!(matches!(
             a.new_substr(atom, 0, 7).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::EndOutOfBounds(_, 7, 6))
+            EvalErr::Allocator(AllocatorError::InvalidArg(
+                _,
+                ref msg
+            )) if *msg == format!("Substring End Index Out of Bounds: {0} > {1}", 7, 6)
         ));
         assert!(matches!(
             a.new_substr(atom, u32::MAX, 4).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::StartOutOfBounds(_, u32::MAX, 6))
+            EvalErr::Allocator(AllocatorError::InvalidArg(
+                _,
+                ref msg
+            )) if *msg == format!("Substring Start Index Greater Than End Index: {} < {}", u32::MAX, 6)
         ));
         assert!(matches!(
             a.new_substr(pair, 0, 0).unwrap_err(),
@@ -1331,19 +1352,35 @@ mod tests {
 
         assert_eq!(
             a.new_substr(atom, 1, 0).unwrap_err(),
-            EvalErr::from(AllocatorError::StartGreaterThanEnd(atom, 1, 0))
+            EvalErr::from(AllocatorError::InvalidArg(
+                atom,
+                format!(
+                    "Substring Start Index Greater Than End Index: {1} < {0}",
+                    1, 0
+                )
+            ))
         );
         assert!(matches!(
             a.new_substr(atom, 3, 3).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::StartOutOfBounds(_, 3, 2))
+            EvalErr::Allocator(AllocatorError::InvalidArg(
+                _,
+            ref msg)) if *msg == format!("Substring Start Index Out of Bounds: {0} > {1}", 3,2 )
+
         ));
         assert!(matches!(
             a.new_substr(atom, 0, 3).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::EndOutOfBounds(_, 3, 2))
+            EvalErr::Allocator(AllocatorError::InvalidArg(
+                _,
+                ref msg )) if *msg == format!("Substring End Index Out of Bounds: {1} > {0}", 2,3)
+
         ));
         assert!(matches!(
             a.new_substr(atom, u32::MAX, 2).unwrap_err(),
-            EvalErr::Allocator(AllocatorError::StartOutOfBounds(_, u32::MAX, 2))
+            EvalErr::Allocator(AllocatorError::InvalidArg(_, ref msg)) if *msg ==  format!(
+                    "Substring Start Index Greater Than End Index: {1} < {0}",
+                    u32::MAX,
+                    2
+                )
         ));
     }
 

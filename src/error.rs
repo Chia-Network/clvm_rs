@@ -329,14 +329,8 @@ pub enum AllocatorError {
     #[error("Expected Atom, got Pair")]
     ExpectedAtomGotPair(NodePtr),
 
-    #[error("Substring Start Index Out of Bounds: {1} > {2}")]
-    StartOutOfBounds(NodePtr, u32, u32),
-
-    #[error("Substring End Index Out of Bounds: {1} > {2}")]
-    EndOutOfBounds(NodePtr, u32, u32),
-
-    #[error("Substring Start Index Greater Than End Index: {2} < {1}")]
-    StartGreaterThanEnd(NodePtr, u32, u32),
+    #[error("InvalidArg:")]
+    InvalidArg(NodePtr, String),
 
     #[error("concat passed invalid new_size: {1}")]
     InvalidNewSize(NodePtr, u32),
@@ -363,10 +357,8 @@ pub enum AllocatorError {
 impl AllocatorError {
     pub fn node(&self) -> Option<NodePtr> {
         match self {
+            AllocatorError::InvalidArg(node, _) => Some(*node),
             AllocatorError::ExpectedAtomGotPair(node) => Some(*node),
-            AllocatorError::StartOutOfBounds(node, _, _) => Some(*node),
-            AllocatorError::EndOutOfBounds(node, _, _) => Some(*node),
-            AllocatorError::StartGreaterThanEnd(node, _, _) => Some(*node),
             AllocatorError::InvalidNewSize(node, _) => Some(*node),
             AllocatorError::NotG1Size(node) => Some(*node),
             AllocatorError::ExpectedG1Point(node) => Some(*node),
