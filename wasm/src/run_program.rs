@@ -44,7 +44,7 @@ pub fn run_clvm(program: &[u8], args: &[u8], flag: u32) -> Vec<u8> {
     let r = run_program(&mut allocator, &dialect, program, args, max_cost);
     match r {
         Ok(reduction) => node_to_bytes(&allocator, reduction.1).unwrap(),
-        Err(_eval_err) => format!("{:?}", _eval_err).into(),
+        Err(_eval_err) => format!("{_eval_err:?}").into(),
     }
 }
 
@@ -77,6 +77,6 @@ pub fn run_chia_program(
             tuple.set(1, val);
             Ok(tuple)
         }
-        Err(_eval_err) => Err(format!("{:?}", _eval_err)),
+        Err(_eval_err) => Err(format!("{_eval_err:?}")),
     }
 }

@@ -2112,7 +2112,7 @@ c6c886f6b57ec72a6178288c47c33577\
 
         // 0 is encoded as an empty string
         let num = number_from_u8(bytes);
-        assert_eq!(format!("{}", num), text);
+        assert_eq!(format!("{num}"), text);
         let ptr = a.new_number(num).unwrap();
         assert_eq!(a.atom(ptr).as_ref(), buf);
     }

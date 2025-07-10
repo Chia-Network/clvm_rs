@@ -187,7 +187,7 @@ fn is_canonical_atom(f: &mut Cursor<&[u8]>, first_byte: u8) -> bool {
         4 => 1 << (4 + 8 + 8),
         5 => 1 << (4 + 8 + 8 + 8),
         6 => 1 << (4 + 8 + 8 + 8 + 8),
-        _ => panic!("unexpected atom length prefix {}", prefix_len),
+        _ => panic!("unexpected atom length prefix {prefix_len}"),
     };
     if f.seek(SeekFrom::Current(atom_len as i64)).is_err() {
         return false;
