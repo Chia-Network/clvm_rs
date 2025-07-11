@@ -106,7 +106,7 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
             "secp256r1_verify" => a.new_atom(&[0x1c, 0x3a, 0x8f, 0x00]).unwrap(),
             "keccak256" => a.new_atom(&[62]).unwrap(),
             _ => {
-                panic!("atom not supported \"{}\"", v);
+                panic!("atom not supported \"{v}\"");
             }
         }
     }
