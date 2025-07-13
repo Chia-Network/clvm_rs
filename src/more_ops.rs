@@ -536,7 +536,7 @@ pub fn op_divmod(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
     let (a1, a1_len) = int_atom(a, v1, "divmod")?;
     let cost = DIVMOD_BASE_COST + ((a0_len + a1_len) as Cost) * DIVMOD_COST_PER_BYTE;
     if a1.sign() == Sign::NoSign {
-        Err(EvalErr::DivmodByZero(input))
+        Err(EvalErr::DivisionByZero(input))
     } else {
         let (q, r) = a0.div_mod_floor(&a1);
         let q1 = a.new_number(q)?;
@@ -554,7 +554,7 @@ pub fn op_mod(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let (a1, a1_len) = int_atom(a, v1, "mod")?;
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
     if a1.sign() == Sign::NoSign {
-        Err(EvalErr::ModByZero(input))
+        Err(EvalErr::DivisionByZero(input))
     } else {
         let q = a.new_number(a0.mod_floor(&a1))?;
         let c = a.atom_len(q) as Cost * MALLOC_COST_PER_BYTE;
@@ -899,25 +899,40 @@ pub fn op_coinid(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
 
     let parent_coin = atom(a, parent_coin, "coinid")?;
     if parent_coin.as_ref().len() != 32 {
-        Err(EvalErr::CoinIDParentCoinIdNot32Bytes(input))?;
+        Err(EvalErr::InvalidArg(
+            input,
+            "CoinID Error: Invalid Parent Coin ID, not 32 bytes".to_string(),
+        ))?;
     }
     let puzzle_hash = atom(a, puzzle_hash, "coinid")?;
     if puzzle_hash.as_ref().len() != 32 {
-        Err(EvalErr::CoinIDPuzzleHashNot32Bytes(input))?;
+        Err(EvalErr::InvalidArg(
+            input,
+            "CoinID Error: Invalid Puzzle Hash, not 32 bytes".to_string(),
+        ))?;
     }
     let amount_atom = atom(a, amount, "coinid")?;
     let amount = amount_atom.as_ref();
     if !amount.is_empty() {
         if (amount[0] & 0x80) != 0 {
-            Err(EvalErr::CoinIDAmountNegative(input))?;
+            Err(EvalErr::InvalidArg(
+                input,
+                "CoinID Error: Invalid Amount: Amount is Negative".to_string(),
+            ))?;
         }
         if amount == [0_u8] || (amount.len() > 1 && amount[0] == 0 && (amount[1] & 0x80) == 0) {
-            Err(EvalErr::CoinIDAmountLeadingZeroes(input))?;
+            Err(EvalErr::InvalidArg(
+                input,
+                "CoinID Error: Invalid Amount: Amount has leading zeroes".to_string(),
+            ))?;
         }
         // the only valid coin value that's 9 bytes is when a leading zero is
         // required to not have the value interpreted as negative
         if amount.len() > 9 || (amount.len() == 9 && amount[0] != 0) {
-            Err(EvalErr::CoinIDAmountExceedsMaxCoinAmount(input))?;
+            Err(EvalErr::InvalidArg(
+                input,
+                "CoinID Error: Invalid Amount: Amount exceeds max coin amount".to_string(),
+            ))?;
         }
     }
 
@@ -955,7 +970,7 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
     }
 
     if modulus.sign() == Sign::NoSign {
-        return Err(EvalErr::ModPowZeroModulus(input));
+        return Err(EvalErr::DivisionByZero(input));
     }
 
     let ret = base.modpow(&exponent, &modulus);

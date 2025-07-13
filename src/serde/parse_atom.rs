@@ -126,17 +126,17 @@ mod tests {
     // this is an atom length-prefix 0xffffffffffff, or (2^48 - 1).
     // We don't support atoms this large and we should fail before attempting to
     // allocate this much memory
-    #[case(0b11111110, &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff], "bad decoding")]
+    #[case(0b11111110, &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff], "bad encoding")]
     // this is still too large
-    #[case(0b11111100, &[0x4, 0, 0, 0, 0], "bad decoding")]
+    #[case(0b11111100, &[0x4, 0, 0, 0, 0], "bad encoding")]
     // this ensures a fuzzer-found bug doesn't reoccur
-    #[case(0b11111100, &[0xff, 0xfe], "bad decoding")]
+    #[case(0b11111100, &[0xff, 0xfe], "bad encoding")]
     // the stream is truncated
-    #[case(0b11111100, &[0x4, 0, 0, 0], "bad decoding")]
+    #[case(0b11111100, &[0x4, 0, 0, 0], "bad encoding")]
     // atoms are too large
-    #[case(0b11111101, &[0, 0, 0, 0, 0], "bad decoding")]
-    #[case(0b11111110, &[0x80, 0, 0, 0, 0, 0], "bad decoding")]
-    #[case(0b11111111, &[0x80, 0, 0, 0, 0, 0, 0], "bad decoding")]
+    #[case(0b11111101, &[0, 0, 0, 0, 0], "bad encoding")]
+    #[case(0b11111110, &[0x80, 0, 0, 0, 0, 0], "bad encoding")]
+    #[case(0b11111111, &[0x80, 0, 0, 0, 0, 0, 0], "bad encoding")]
     fn test_decode_size_failure(#[case] first_b: u8, #[case] stream: &[u8], #[case] expect: &str) {
         let mut stream = Cursor::new(stream);
         assert_eq!(
@@ -221,6 +221,6 @@ mod tests {
         let mut allocator = Allocator::new();
         let ret = parse_atom(&mut allocator, first, &mut cursor);
         let err = ret.unwrap_err();
-        assert_eq!(err.to_string(), "bad decoding".to_string());
+        assert_eq!(err.to_string(), "bad encoding".to_string());
     }
 }

@@ -57,7 +57,7 @@ pub fn uint_atom<const SIZE: usize>(a: &Allocator, args: NodePtr, op_name: &str)
             if (bytes[0] & 0x80) != 0 {
                 return Err(EvalErr::InvalidArg(
                     args,
-                    format!("{op_name} Requires Positive Int Argument"),
+                    format!("{op_name} requires positive int arg"),
                 ))?;
             }
 
@@ -68,20 +68,13 @@ pub fn uint_atom<const SIZE: usize>(a: &Allocator, args: NodePtr, op_name: &str)
             }
 
             if buf.len() > SIZE {
-                if SIZE == 4 {
-                    return Err(EvalErr::InvalidArg(
-                        args,
-                        format!("{op_name} Requires Int32 args (with no leading zeros)"),
-                    ))?;
-                } else if SIZE == 8 {
-                    return Err(EvalErr::InvalidArg(
-                        args,
-                        format!("{op_name} Requires Int64 args (with no leading zeros)"),
-                    ))?;
-                } else {
-                    // this should never happen, as we only call this function with SIZE = 4 or 8
-                    unreachable!();
-                }
+                return Err(EvalErr::InvalidArg(
+                    args,
+                    format!(
+                        "{op_name} Requires u{0} arg (with no leading zeros)",
+                        SIZE * 8
+                    ),
+                ))?;
             }
 
             let mut ret = 0;
@@ -460,11 +453,11 @@ mod tests {
 
     // u32, 4 bytes
     #[rstest]
-    #[case(&[0xff,0xff,0xff,0xff], "test Requires Positive Int Argument")]
-    #[case(&[0xff], "test Requires Positive Int Argument")]
-    #[case(&[0x80], "test Requires Positive Int Argument")]
-    #[case(&[0x80,0,0,0], "test Requires Positive Int Argument")]
-    #[case(&[1, 0xff,0xff,0xff,0xff], "test Requires Int32 args (with no leading zeros)")]
+    #[case(&[0xff,0xff,0xff,0xff], "test requires positive int arg")]
+    #[case(&[0xff], "test requires positive int arg")]
+    #[case(&[0x80], "test requires positive int arg")]
+    #[case(&[0x80,0,0,0], "test requires positive int arg")]
+    #[case(&[1, 0xff,0xff,0xff,0xff], "test Requires u32 arg (with no leading zeros)")]
     fn test_uint_atom_4_failure(#[case] buf: &[u8], #[case] expected: &str) {
         use crate::allocator::Allocator;
         let mut a = Allocator::new();
@@ -514,12 +507,12 @@ mod tests {
 
     // u64, 8 bytes
     #[rstest]
-    #[case(&[0xff,0xff,0xff,0xff],"test Requires Positive Int Argument")]
-    #[case(&[0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff], "test Requires Positive Int Argument")]
-    #[case(&[0xff], "test Requires Positive Int Argument")]
-    #[case(&[0x80], "test Requires Positive Int Argument")]
-    #[case(&[0x80,0,0,0], "test Requires Positive Int Argument")]
-    #[case(&[1,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff], "test Requires Int64 args (with no leading zeros)")]
+    #[case(&[0xff,0xff,0xff,0xff],"test requires positive int arg")]
+    #[case(&[0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff], "test requires positive int arg")]
+    #[case(&[0xff], "test requires positive int arg")]
+    #[case(&[0x80], "test requires positive int arg")]
+    #[case(&[0x80,0,0,0], "test requires positive int arg")]
+    #[case(&[1,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff], "test Requires u64 arg (with no leading zeros)")]
     fn test_uint_atom_8_failure(#[case] buf: &[u8], #[case] fmt_string: &str) {
         use crate::allocator::Allocator;
         let mut a = Allocator::new();

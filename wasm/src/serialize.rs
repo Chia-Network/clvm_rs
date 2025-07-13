@@ -10,7 +10,7 @@ use clvmr::Allocator;
 
 #[wasm_bindgen]
 pub fn serialized_length(program: &[u8]) -> Result<u64, String> {
-    serialized_length_from_bytes(program).map_err(|x| x.combined_str())
+    serialized_length_from_bytes(program).map_err(|x| x.to_string())
 }
 
 #[wasm_bindgen]
@@ -21,6 +21,6 @@ pub fn node_from_bytes(b: &[u8], flag: u32) -> Result<LazyNode, String> {
     } else {
         _node_from_bytes
     };
-    let node = deserializer(&mut allocator, b).map_err(|e| e.combined_str())?;
+    let node = deserializer(&mut allocator, b).map_err(|e| e.to_string())?;
     Ok(LazyNode::new(Rc::new(allocator), node))
 }

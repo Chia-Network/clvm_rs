@@ -214,7 +214,7 @@ pub fn op_bls_map_to_g1(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Re
     if !(1..=2).contains(&argc) {
         Err(EvalErr::InvalidArg(
             input,
-            format!("G1_map takes exactly 1 or 2 arguments, got {argc}"),
+            format!("g1_map takes exactly 1 or 2 arguments, got {argc}"),
         ))?;
     }
     let mut cost: Cost = BLS_MAP_TO_G1_BASE_COST;
@@ -245,7 +245,7 @@ pub fn op_bls_map_to_g2(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Re
     if !(1..=2).contains(&argc) {
         Err(EvalErr::InvalidArg(
             input,
-            format!("G2_map takes exactly 1 or 2 arguments, got {argc}"),
+            format!("g2_map takes exactly 1 or 2 arguments, got {argc}"),
         ))?;
     }
     let mut cost: Cost = BLS_MAP_TO_G2_BASE_COST;

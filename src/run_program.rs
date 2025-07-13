@@ -343,7 +343,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             return Err(EvalErr::InternalError(
                 operator,
                 "Environment Stack Empty".to_string(),
-            ))?;
+            ));
         }
         let op_atom = self.allocator.small_number(operator);
 
@@ -427,7 +427,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 current_cost - guard.start_cost,
                 guard.expected_cost - guard.start_cost
             );
-            return Err(EvalErr::SoftforkSpecifiedCostMismatch);
+            return Err(EvalErr::SoftforkCostMismatch);
         }
 
         // restore the allocator to the state when we entered the softfork guard
@@ -454,6 +454,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         // max_cost is always in effect, and necessary to prevent wrap-around of
         // the cost integer.
         let max_cost = if max_cost == 0 { Cost::MAX } else { max_cost };
+        // We would previously allocate an atom to hold the max cost for the program.
+        // Since we don't anymore we need to increment the ghost atom counter to remain
+        // backwards compatible with the atom count limit
         self.allocator.add_ghost_atom(1)?;
         let mut cost: Cost = 0;
 
@@ -678,7 +681,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "Invalid Operator",
+            err: "invalid operator",
         },
         RunProgramTest {
             prg: "(a (q . 0) (q . 1) (q . 2))",
@@ -694,7 +697,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "Invalid Operator",
+            err: "invalid operator",
         },
         RunProgramTest {
             prg: "(a (q . 1))",
@@ -1009,7 +1012,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Unknown Softfork Extension",
+            err: "unknown softfork extension",
         },
 
         // this is a valid invocation, but we don't implement any extensions (yet)
@@ -1027,7 +1030,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Unknown Softfork Extension",
+            err: "unknown softfork extension",
         },
 
         // we don't allow negative "extension" parameters
@@ -1045,7 +1048,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Operator Error: InvalidArg: softfork Requires Positive Int Argument",
+            err: "Operator Error: InvalidArg: softfork requires positive int arg",
         },
 
         // we don't allow "extension" parameters > u32::MAX
@@ -1063,7 +1066,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Operator Error: InvalidArg: softfork Requires Int32 args (with no leading zeros)",
+            err: "Operator Error: InvalidArg: softfork Requires u32 arg (with no leading zeros)",
         },
 
         // we don't allow pairs as extension specifier
@@ -1117,7 +1120,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 1000,
-            err: "Operator Error: InvalidArg: softfork Requires Positive Int Argument",
+            err: "Operator Error: InvalidArg: softfork requires positive int arg",
         },
         RunProgramTest {
             prg: "(softfork (q 1 2 3))",
@@ -1164,7 +1167,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 10000,
-            err: "Unknown Softfork Extension",
+            err: "unknown softfork extension",
         },
 
         // coinid is also available under softfork extension 1
@@ -1248,7 +1251,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 861,
-            err: "CoinID Error: Invalid Amount: Amount has leading zeroes",
+            err: "Operator Error: InvalidArg: CoinID Error: Invalid Amount: Amount has leading zeroes",
         },
 
         // secp261k1
@@ -1452,7 +1455,7 @@ mod tests {
             // running an extension that supports the operator
             (0, 0) => {
                 if mempool {
-                    "Unimplemented Operator"
+                    "unimplemented operator"
                 } else {
                     ""
                 }
@@ -1461,7 +1464,7 @@ mod tests {
             // mempool mode but ignored in consensus mode
             (0, 1) => {
                 if mempool {
-                    "Unknown Softfork Extension"
+                    "unknown softfork extension"
                 } else {
                     ""
                 }
@@ -1473,7 +1476,7 @@ mod tests {
             // raise an exception.
             (1, 0) => {
                 if mempool {
-                    "Unimplemented Operator"
+                    "unimplemented operator"
                 } else {
                     "clvm raise"
                 }
@@ -1520,7 +1523,7 @@ mod tests {
             err: if hard_fork_flag == 0 {
                 err
             } else if mempool {
-                "Unimplemented Operator"
+                "unimplemented operator"
             } else {
                 "clvm raise"
             },

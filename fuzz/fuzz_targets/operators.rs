@@ -87,7 +87,6 @@ fuzz_target!(|data: &[u8]| {
             allocator.restore_checkpoint(&allocator_checkpoint);
             match op(&mut allocator, args, max_cost) {
                 Err(EvalErr::InternalError(_, str)) => {
-                    // This should never happen, fail the test if it does
                     panic!("Internal error in operator: {str}");
                 }
                 Err(eval_err) => {
