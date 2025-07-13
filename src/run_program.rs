@@ -2,7 +2,6 @@ use super::traverse_path::{traverse_path, traverse_path_fast};
 use crate::allocator::{Allocator, Checkpoint, NodePtr, NodeVisitor, SExp};
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
-
 use crate::error::{EvalErr, Result};
 use crate::op_utils::{first, get_args, uint_atom};
 use crate::reduction::{Reduction, Response};
@@ -145,7 +144,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         match v {
             None => Err(EvalErr::InternalError(
                 NodePtr::NIL,
-                "Value Stack Empty".to_string(),
+                "value stack empty".to_string(),
             ))?,
             Some(k) => Ok(k),
         }
@@ -312,7 +311,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let program: NodePtr = self.pop()?;
         let env: NodePtr = *self.env_stack.last().ok_or(EvalErr::InternalError(
             program,
-            "Environment Stack Empty".to_string(),
+            "environment stack empty".to_string(),
         ))?;
         self.push(v2)?;
 
@@ -342,7 +341,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         if self.env_stack.pop().is_none() {
             return Err(EvalErr::InternalError(
                 operator,
-                "Environment Stack Empty".to_string(),
+                "environment stack empty".to_string(),
             ));
         }
         let op_atom = self.allocator.small_number(operator);

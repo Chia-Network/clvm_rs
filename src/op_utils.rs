@@ -71,7 +71,7 @@ pub fn uint_atom<const SIZE: usize>(a: &Allocator, args: NodePtr, op_name: &str)
                 return Err(EvalErr::InvalidOpArg(
                     args,
                     format!(
-                        "{op_name} Requires u{0} arg (with no leading zeros)",
+                        "{op_name} requires u{0} arg (with no leading zeros)",
                         SIZE * 8
                     ),
                 ))?;
@@ -449,7 +449,7 @@ mod tests {
     #[case(&[0xff], "test requires positive int arg")]
     #[case(&[0x80], "test requires positive int arg")]
     #[case(&[0x80,0,0,0], "test requires positive int arg")]
-    #[case(&[1, 0xff,0xff,0xff,0xff], "test Requires u32 arg (with no leading zeros)")]
+    #[case(&[1, 0xff,0xff,0xff,0xff], "test requires u32 arg (with no leading zeros)")]
     fn test_uint_atom_4_failure(#[case] buf: &[u8], #[case] expected: &str) {
         use crate::allocator::Allocator;
         let mut a = Allocator::new();
@@ -504,7 +504,7 @@ mod tests {
     #[case(&[0xff], "test requires positive int arg")]
     #[case(&[0x80], "test requires positive int arg")]
     #[case(&[0x80,0,0,0], "test requires positive int arg")]
-    #[case(&[1,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff], "test Requires u64 arg (with no leading zeros)")]
+    #[case(&[1,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff], "test requires u64 arg (with no leading zeros)")]
     fn test_uint_atom_8_failure(#[case] buf: &[u8], #[case] fmt_string: &str) {
         use crate::allocator::Allocator;
         let mut a = Allocator::new();

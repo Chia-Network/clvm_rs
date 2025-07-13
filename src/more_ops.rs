@@ -7,7 +7,6 @@ use std::ops::BitXorAssign;
 
 use crate::allocator::{len_for_value, Allocator, NodePtr, NodeVisitor, SExp};
 use crate::cost::{check_cost, Cost};
-
 use crate::error::EvalErr;
 use crate::number::Number;
 use crate::op_utils::{

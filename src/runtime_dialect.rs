@@ -3,7 +3,6 @@ use crate::chia_dialect::NO_UNKNOWN_OPS;
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::error::EvalErr;
-
 use crate::f_table::{f_lookup_for_hashmap, FLookup};
 use crate::more_ops::op_unknown;
 use crate::reduction::Response;

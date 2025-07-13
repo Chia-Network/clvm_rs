@@ -1,6 +1,5 @@
 use crate::allocator::{Allocator, Atom, NodePtr};
 use crate::cost::{check_cost, Cost};
-
 use crate::error::EvalErr;
 use crate::op_utils::{
     atom, first, get_args, get_varargs, int_atom, mod_group_order, new_atom_and_cost, nilp, rest,
@@ -97,11 +96,12 @@ pub fn op_bls_g1_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
 
     let blob = atom(a, point, "G1 atom")?;
     // this is here to validate the point
-    let _g1 =
-        G1Element::from_bytes(blob.as_ref().try_into().map_err(|_| {
-            EvalErr::InvalidOpArg(point, "atom is not a valid G1 point".to_string())
-        })?)
-        .map_err(|_| EvalErr::InvalidOpArg(point, "atom is not a valid G1 point".to_string()))?;
+    let _g1 = G1Element::from_bytes(
+        blob.as_ref()
+            .try_into()
+            .map_err(|_| EvalErr::InvalidOpArg(point, "atom is not a G1 point".to_string()))?,
+    )
+    .map_err(|_| EvalErr::InvalidOpArg(point, "atom is not a G1 point".to_string()))?;
 
     if (blob.as_ref()[0] & 0xe0) == 0xc0 {
         // This is compressed infinity. negating it is a no-op
