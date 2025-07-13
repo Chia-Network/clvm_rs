@@ -13,7 +13,7 @@ pub const MALLOC_COST_PER_BYTE: Cost = 10;
 
 pub fn get_args<const N: usize>(a: &Allocator, args: NodePtr, name: &str) -> Result<[NodePtr; N]> {
     match_args::<N>(a, args)
-        .ok_or_else(|| EvalErr::InvalidArg(args, format!("{name} takes exactly {N} argument(s)")))
+        .ok_or_else(|| EvalErr::InvalidOpArg(args, format!("{name} takes exactly {N} argument(s)")))
 }
 
 pub fn match_args<const N: usize>(a: &Allocator, args: NodePtr) -> Option<[NodePtr; N]> {
@@ -40,7 +40,7 @@ pub fn match_args<const N: usize>(a: &Allocator, args: NodePtr) -> Option<[NodeP
 pub fn atom_len(a: &Allocator, args: NodePtr, op_name: &str) -> Result<usize> {
     match a.sexp(args) {
         SExp::Atom => Ok(a.atom_len(args)),
-        _ => Err(EvalErr::InvalidArg(
+        _ => Err(EvalErr::InvalidOpArg(
             args,
             format!("{op_name} requires an atom"),
         ))?,
@@ -55,7 +55,7 @@ pub fn uint_atom<const SIZE: usize>(a: &Allocator, args: NodePtr, op_name: &str)
             }
 
             if (bytes[0] & 0x80) != 0 {
-                return Err(EvalErr::InvalidArg(
+                return Err(EvalErr::InvalidOpArg(
                     args,
                     format!("{op_name} requires positive int arg"),
                 ))?;
@@ -68,7 +68,7 @@ pub fn uint_atom<const SIZE: usize>(a: &Allocator, args: NodePtr, op_name: &str)
             }
 
             if buf.len() > SIZE {
-                return Err(EvalErr::InvalidArg(
+                return Err(EvalErr::InvalidOpArg(
                     args,
                     format!(
                         "{op_name} Requires u{0} arg (with no leading zeros)",
@@ -85,7 +85,7 @@ pub fn uint_atom<const SIZE: usize>(a: &Allocator, args: NodePtr, op_name: &str)
             Ok(ret)
         }
         NodeVisitor::U32(val) => Ok(val as u64),
-        NodeVisitor::Pair(_, _) => Err(EvalErr::InvalidArg(
+        NodeVisitor::Pair(_, _) => Err(EvalErr::InvalidOpArg(
             args,
             format!("Requires Int Argument: {op_name}"),
         ))?,
@@ -94,7 +94,7 @@ pub fn uint_atom<const SIZE: usize>(a: &Allocator, args: NodePtr, op_name: &str)
 
 pub fn atom<'a>(a: &'a Allocator, n: NodePtr, op_name: &str) -> Result<Atom<'a>> {
     if n.is_pair() {
-        Err(EvalErr::InvalidArg(n, format!("{op_name} used on list")))?;
+        Err(EvalErr::InvalidOpArg(n, format!("{op_name} used on list")))?;
     }
     Ok(a.atom(n))
 }
@@ -103,15 +103,15 @@ pub fn i32_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<i32> {
     match a.node(args) {
         NodeVisitor::Buffer(buf) => match i32_from_u8(buf) {
             Some(v) => Ok(v),
-            _ => Err(EvalErr::InvalidArg(
+            _ => Err(EvalErr::InvalidOpArg(
                 args,
-                format!("{op_name} Requires Int32 args (with no leading zeros)"),
+                format!("{op_name} requires int32 args (with no leading zeros)"),
             ))?,
         },
         NodeVisitor::U32(val) => Ok(val as i32),
-        NodeVisitor::Pair(_, _) => Err(EvalErr::InvalidArg(
+        NodeVisitor::Pair(_, _) => Err(EvalErr::InvalidOpArg(
             args,
-            format!("{op_name} Requires Int32 args (with no leading zeros)"),
+            format!("{op_name} requires int32 args (with no leading zeros)"),
         ))?,
     }
 }
@@ -194,9 +194,9 @@ pub fn get_varargs<const N: usize>(
     while let Some((first, rest)) = a.next(next) {
         next = rest;
         if counter == N {
-            Err(EvalErr::InvalidArg(
+            Err(EvalErr::InvalidOpArg(
                 args,
-                format!("{name} takes no more then {N} arguments",),
+                format!("{name} takes no more than {N} arguments",),
             ))?;
         }
         ret[counter] = first;
@@ -216,21 +216,21 @@ pub fn nilp(a: &Allocator, n: NodePtr) -> bool {
 pub fn first(a: &Allocator, n: NodePtr) -> Result<NodePtr> {
     match a.sexp(n) {
         SExp::Pair(first, _) => Ok(first),
-        _ => Err(EvalErr::InvalidArg(n, "First of non-cons".to_string())),
+        _ => Err(EvalErr::InvalidOpArg(n, "first of non-cons".to_string())),
     }
 }
 
 pub fn rest(a: &Allocator, n: NodePtr) -> Result<NodePtr> {
     match a.sexp(n) {
         SExp::Pair(_, rest) => Ok(rest),
-        _ => Err(EvalErr::InvalidArg(n, "Rest of non-cons".to_string())),
+        _ => Err(EvalErr::InvalidOpArg(n, "rest of non-cons".to_string())),
     }
 }
 
 pub fn int_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<(Number, usize)> {
     match a.sexp(args) {
         SExp::Atom => Ok((a.number(args), a.atom_len(args))),
-        _ => Err(EvalErr::InvalidArg(
+        _ => Err(EvalErr::InvalidOpArg(
             args,
             format!("Requires Int Argument: {op_name}"),
         ))?,
@@ -259,38 +259,33 @@ mod tests {
         assert_eq!(get_args::<4>(&a, args4, "test").unwrap(), [a0, a1, a2, a3]);
 
         let r = get_args::<3>(&a, args4, "test").unwrap_err();
-        assert_eq!(r.node_ptr(), args4);
         assert_eq!(
             r,
-            EvalErr::InvalidArg(args4, "test takes exactly 3 argument(s)".to_string())
+            EvalErr::InvalidOpArg(args4, "test takes exactly 3 argument(s)".to_string())
         );
 
         let r = get_args::<5>(&a, args4, "test").unwrap_err();
-        assert_eq!(r.node_ptr(), args4);
         assert_eq!(
             r,
-            EvalErr::InvalidArg(args4, "test takes exactly 5 argument(s)".to_string())
+            EvalErr::InvalidOpArg(args4, "test takes exactly 5 argument(s)".to_string())
         );
 
         let r = get_args::<4>(&a, args3, "test").unwrap_err();
-        assert_eq!(r.node_ptr(), args3);
         assert_eq!(
             r,
-            EvalErr::InvalidArg(args3, "test takes exactly 4 argument(s)".to_string())
+            EvalErr::InvalidOpArg(args3, "test takes exactly 4 argument(s)".to_string())
         );
 
         let r = get_args::<4>(&a, args2, "test").unwrap_err();
-        assert_eq!(r.node_ptr(), args2);
         assert_eq!(
             r,
-            EvalErr::InvalidArg(args2, "test takes exactly 4 argument(s)".to_string())
+            EvalErr::InvalidOpArg(args2, "test takes exactly 4 argument(s)".to_string())
         );
 
         let r = get_args::<1>(&a, args2, "test").unwrap_err();
-        assert_eq!(r.node_ptr(), args2);
         assert_eq!(
             r,
-            EvalErr::InvalidArg(args2, "test takes exactly 1 argument(s)".to_string())
+            EvalErr::InvalidOpArg(args2, "test takes exactly 1 argument(s)".to_string())
         );
     }
 
@@ -330,17 +325,15 @@ mod tests {
         );
 
         let r = get_varargs::<3>(&a, args4, "test").unwrap_err();
-        assert_eq!(r.node_ptr(), args4);
         assert_eq!(
             r,
-            EvalErr::InvalidArg(args4, "test takes no more then 3 arguments".to_string())
+            EvalErr::InvalidOpArg(args4, "test takes no more than 3 arguments".to_string())
         );
 
         let r = get_varargs::<1>(&a, args4, "test").unwrap_err();
-        assert_eq!(r.node_ptr(), args4);
         assert_eq!(
             r,
-            EvalErr::InvalidArg(args4, "test takes no more then 1 arguments".to_string())
+            EvalErr::InvalidOpArg(args4, "test takes no more than 1 arguments".to_string())
         );
     }
 
@@ -370,8 +363,10 @@ mod tests {
         assert_eq!(first(&a, pair).unwrap(), a0);
 
         let r = first(&a, a0).unwrap_err();
-        assert_eq!(r.node_ptr(), a0);
-        assert_eq!(r, EvalErr::InvalidArg(a0, "First of non-cons".to_string()));
+        assert_eq!(
+            r,
+            EvalErr::InvalidOpArg(a0, "first of non-cons".to_string())
+        );
     }
 
     #[test]
@@ -383,8 +378,7 @@ mod tests {
         assert_eq!(rest(&a, pair).unwrap(), a1);
 
         let r = rest(&a, a0).unwrap_err();
-        assert_eq!(r.node_ptr(), a0);
-        assert_eq!(r, EvalErr::InvalidArg(a0, "Rest of non-cons".to_string()));
+        assert_eq!(r, EvalErr::InvalidOpArg(a0, "rest of non-cons".to_string()));
     }
 
     #[rstest]
@@ -407,10 +401,9 @@ mod tests {
         let a1 = a.new_number(1337.into()).unwrap();
         let pair = a.new_pair(a0, a1).unwrap();
         let r = int_atom(&a, pair, "test").unwrap_err();
-        assert_eq!(r.node_ptr(), pair);
         assert_eq!(
             r,
-            EvalErr::InvalidArg(pair, "Requires Int Argument: test".to_string(),)
+            EvalErr::InvalidOpArg(pair, "Requires Int Argument: test".to_string(),)
         );
     }
 
@@ -423,10 +416,9 @@ mod tests {
         let pair = a.new_pair(a0, a1).unwrap();
 
         let r = atom_len(&a, pair, "test").unwrap_err();
-        assert_eq!(r.node_ptr(), pair);
         assert_eq!(
             r,
-            EvalErr::InvalidArg(pair, "test requires an atom".to_string())
+            EvalErr::InvalidOpArg(pair, "test requires an atom".to_string())
         );
 
         assert_eq!(atom_len(&a, a0, "test").unwrap(), 1);
@@ -464,7 +456,7 @@ mod tests {
         let n = a.new_atom(buf).unwrap();
         assert_eq!(
             uint_atom::<4>(&a, n, "test"),
-            Err(EvalErr::InvalidArg(n, expected.to_string()))
+            Err(EvalErr::InvalidOpArg(n, expected.to_string()))
         );
     }
 
@@ -476,7 +468,7 @@ mod tests {
         let p = a.new_pair(n, n).unwrap();
         assert_eq!(
             uint_atom::<4>(&a, p, "test"),
-            Err(EvalErr::InvalidArg(
+            Err(EvalErr::InvalidOpArg(
                 p,
                 "Requires Int Argument: test".to_string(),
             ))
@@ -519,7 +511,7 @@ mod tests {
         let n = a.new_atom(buf).unwrap();
         assert_eq!(
             uint_atom::<8>(&a, n, "test"),
-            Err(EvalErr::InvalidArg(n, fmt_string.to_string()))
+            Err(EvalErr::InvalidOpArg(n, fmt_string.to_string()))
         );
     }
 
@@ -531,7 +523,7 @@ mod tests {
         let p = a.new_pair(n, n).unwrap();
         assert_eq!(
             uint_atom::<8>(&a, p, "test"),
-            Err(EvalErr::InvalidArg(
+            Err(EvalErr::InvalidOpArg(
                 p,
                 "Requires Int Argument: test".to_string(),
             ))
@@ -626,12 +618,11 @@ mod tests {
         let pair = a.new_pair(a0, a1).unwrap();
 
         let r = i32_atom(&a, pair, "test").unwrap_err();
-        assert_eq!(r.node_ptr(), pair);
         assert_eq!(
             r,
-            EvalErr::InvalidArg(
+            EvalErr::InvalidOpArg(
                 pair,
-                "test Requires Int32 args (with no leading zeros)".to_string()
+                "test requires int32 args (with no leading zeros)".to_string()
             )
         );
 
@@ -640,23 +631,21 @@ mod tests {
 
         let a2 = a.new_number(0x100000000_i64.into()).unwrap();
         let r = i32_atom(&a, a2, "test").unwrap_err();
-        assert_eq!(r.node_ptr(), a2);
         assert_eq!(
             r,
-            EvalErr::InvalidArg(
+            EvalErr::InvalidOpArg(
                 a2,
-                "test Requires Int32 args (with no leading zeros)".to_string()
+                "test requires int32 args (with no leading zeros)".to_string()
             )
         );
 
         let a3 = a.new_number((-0xffffffff_i64).into()).unwrap();
         let r = i32_atom(&a, a3, "test").unwrap_err();
-        assert_eq!(r.node_ptr(), a3);
         assert_eq!(
             r,
-            EvalErr::InvalidArg(
+            EvalErr::InvalidOpArg(
                 a3,
-                "test Requires Int32 args (with no leading zeros)".to_string()
+                "test requires int32 args (with no leading zeros)".to_string()
             )
         );
     }

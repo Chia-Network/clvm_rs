@@ -273,9 +273,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 NodeVisitor::Buffer(buf) => traverse_path(self.allocator, buf, env)?,
                 NodeVisitor::U32(val) => traverse_path_fast(self.allocator, val, env)?,
                 NodeVisitor::Pair(_, _) => {
-                    return Err(EvalErr::InvalidArg(
+                    return Err(EvalErr::InvalidOpArg(
                         program,
-                        "Expected Atom, got Pair".to_string(),
+                        "expected atom, got pair".to_string(),
                     ))?;
                 }
             };
@@ -291,7 +291,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                     "in the ((X)...) syntax, the inner list",
                 )?;
                 if let SExp::Pair(_, _) = self.allocator.sexp(inner) {
-                    return Err(EvalErr::InvalidArg(
+                    return Err(EvalErr::InvalidOpArg(
                         program,
                         "in ((X)...) syntax X must be lone atom".to_string(),
                     ));
@@ -689,7 +689,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "Operator Error: InvalidArg: apply takes exactly 2 argument(s)",
+            err: "InvalidOperatorArg: apply takes exactly 2 argument(s)",
         },
         RunProgramTest {
             prg: "(a (q 0x00ffffffffffffffffffff00) (q ()))",
@@ -705,7 +705,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "Operator Error: InvalidArg: apply takes exactly 2 argument(s)",
+            err: "InvalidOperatorArg: apply takes exactly 2 argument(s)",
         },
         RunProgramTest {
             prg: "(a (q . 1) (q . (100 200)))",
@@ -729,7 +729,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "Operator Error: InvalidArg: in the ((X)...) syntax, the inner list takes exactly 1 argument(s)",
+            err: "InvalidOperatorArg: in the ((X)...) syntax, the inner list takes exactly 1 argument(s)",
         },
         RunProgramTest {
             prg: "((#c) (q . 3) (q . 4))",
@@ -953,7 +953,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Operator Error: InvalidArg: softfork takes exactly 4 argument(s)",
+            err: "InvalidOperatorArg: softfork takes exactly 4 argument(s)",
         },
         RunProgramTest {
             prg: "(softfork (q . 959) (q . 9))",
@@ -969,7 +969,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Operator Error: InvalidArg: softfork takes exactly 4 argument(s)",
+            err: "InvalidOperatorArg: softfork takes exactly 4 argument(s)",
         },
         RunProgramTest {
             prg: "(softfork (q . 939) (q . 9) (q x))",
@@ -985,7 +985,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Operator Error: InvalidArg: softfork takes exactly 4 argument(s)",
+            err: "InvalidOperatorArg: softfork takes exactly 4 argument(s)",
         },
         // this is a valid invocation, but we don't implement any extensions (yet)
         // so the extension specifier 0 is still unknown
@@ -1048,7 +1048,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Operator Error: InvalidArg: softfork requires positive int arg",
+            err: "InvalidOperatorArg: softfork requires positive int arg",
         },
 
         // we don't allow "extension" parameters > u32::MAX
@@ -1066,7 +1066,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Operator Error: InvalidArg: softfork Requires u32 arg (with no leading zeros)",
+            err: "InvalidOperatorArg: softfork requires u32 arg (with no leading zeros)",
         },
 
         // we don't allow pairs as extension specifier
@@ -1084,7 +1084,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "Operator Error: InvalidArg: Requires Int Argument: softfork",
+            err: "InvalidOperatorArg: Requires Int Argument: softfork",
         },
 
         // the cost value is checked in consensus mode as well
@@ -1103,7 +1103,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "Operator Error: InvalidArg: First of non-cons",
+            err: "InvalidOperatorArg: first of non-cons",
         },
         RunProgramTest {
             prg: "(softfork (q . 0))",
@@ -1120,7 +1120,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 1000,
-            err: "Operator Error: InvalidArg: softfork requires positive int arg",
+            err: "InvalidOperatorArg: softfork requires positive int arg",
         },
         RunProgramTest {
             prg: "(softfork (q 1 2 3))",
@@ -1128,7 +1128,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 1000,
-            err: "Operator Error: InvalidArg: Requires Int Argument: softfork",
+            err: "InvalidOperatorArg: Requires Int Argument: softfork",
         },
 
         // test mismatching cost
@@ -1157,7 +1157,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 10000,
-            err: "Softfork specified cost mismatch",
+            err: "softfork specified cost mismatch",
         },
 
         // without the flag to enable the keccak extensions, it's an unknown extension
@@ -1251,7 +1251,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 861,
-            err: "Operator Error: InvalidArg: CoinID Error: Invalid Amount: Amount has leading zeroes",
+            err: "InvalidOperatorArg: CoinID Error: Invalid Amount: Amount has leading zeroes",
         },
 
         // secp261k1
@@ -1271,7 +1271,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "Operator Error: InvalidArg: Secp256 Verify Error: failed",
+            err: "Secp256 Verify Error: failed",
         },
 
         // secp261r1
@@ -1291,7 +1291,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "Operator Error: InvalidArg: Secp256 Verify Error: failed",
+            err: "Secp256 Verify Error: failed",
         },
     ];
 
@@ -1405,7 +1405,7 @@ mod tests {
     #[case::g1_neg(
         "(i (= (g1_negate (q . 0xb2f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))",
         (706634, 0, 0),
-        "Operator Error: InvalidArg: atom is not a valid G1 point"
+        "InvalidOperatorArg: atom is not a G1 point"
     )]
     #[case::g2_add(
         "(i (= (g2_add (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))",
@@ -1415,7 +1415,7 @@ mod tests {
     #[case::g2_add(
         "(i (= (g2_add (q . 0x93e12b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))",
         (3981700, 0, 0),
-        "Allocator Error: InvalidArg: atom is not a valid G2 point"
+        "InvalidAllocatorArg: atom is not a G2 point"
     )]
     #[case::keccak(
         "(i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x))",

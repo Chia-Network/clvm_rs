@@ -90,7 +90,7 @@ fuzz_target!(|data: &[u8]| {
                     panic!("Internal error in operator: {str}");
                 }
                 Err(eval_err) => {
-                    // get the node for this type of error
+                    // make sure n is a valid node in the allocator
                     let n = eval_err.node_ptr();
                     allocator.sexp(n);
                 }

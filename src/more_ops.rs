@@ -424,7 +424,7 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
                 byte_count += len_for_value(val);
             }
             NodeVisitor::Pair(_, _) => {
-                Err(EvalErr::InvalidArg(
+                Err(EvalErr::InvalidOpArg(
                     arg,
                     "Requires Int Argument: +".to_string(),
                 ))?;
@@ -461,7 +461,7 @@ pub fn op_subtract(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
                     byte_count += len_for_value(val);
                 }
                 NodeVisitor::Pair(_, _) => {
-                    Err(EvalErr::InvalidArg(
+                    Err(EvalErr::InvalidOpArg(
                         arg,
                         "Requires Int Argument: -".to_string(),
                     ))?;
@@ -500,7 +500,7 @@ pub fn op_multiply(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
                 len_for_value(val)
             }
             NodeVisitor::Pair(_, _) => {
-                return Err(EvalErr::InvalidArg(
+                return Err(EvalErr::InvalidOpArg(
                     arg,
                     "Requires Int Argument: *".to_string(),
                 ))?;
@@ -601,7 +601,7 @@ pub fn op_strlen(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
 pub fn op_substr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let ([a0, start, end], argc) = get_varargs::<3>(a, input, "substr")?;
     if !(2..=3).contains(&argc) {
-        Err(EvalErr::InvalidArg(
+        Err(EvalErr::InvalidOpArg(
             input,
             format!("Substring takes exactly 2 or 3 arguments, got {argc}"),
         ))?;
@@ -615,7 +615,7 @@ pub fn op_substr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
         size as i32
     };
     if end < 0 || start < 0 || end as usize > size || end < start {
-        Err(EvalErr::InvalidArg(
+        Err(EvalErr::InvalidOpArg(
             input,
             "Invalid Indices for Substring".to_string(),
         ))?
@@ -636,7 +636,7 @@ pub fn op_concat(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
         check_cost(cost + total_size as Cost * CONCAT_COST_PER_BYTE, max_cost)?;
         let len = match a.sexp(arg) {
             SExp::Pair(_, _) => {
-                return Err(EvalErr::InvalidArg(arg, "concat on list".to_string()))?
+                return Err(EvalErr::InvalidOpArg(arg, "concat on list".to_string()))?
             }
             SExp::Atom => a.atom_len(arg),
         };
@@ -899,14 +899,14 @@ pub fn op_coinid(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
 
     let parent_coin = atom(a, parent_coin, "coinid")?;
     if parent_coin.as_ref().len() != 32 {
-        Err(EvalErr::InvalidArg(
+        Err(EvalErr::InvalidOpArg(
             input,
             "CoinID Error: Invalid Parent Coin ID, not 32 bytes".to_string(),
         ))?;
     }
     let puzzle_hash = atom(a, puzzle_hash, "coinid")?;
     if puzzle_hash.as_ref().len() != 32 {
-        Err(EvalErr::InvalidArg(
+        Err(EvalErr::InvalidOpArg(
             input,
             "CoinID Error: Invalid Puzzle Hash, not 32 bytes".to_string(),
         ))?;
@@ -915,13 +915,13 @@ pub fn op_coinid(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
     let amount = amount_atom.as_ref();
     if !amount.is_empty() {
         if (amount[0] & 0x80) != 0 {
-            Err(EvalErr::InvalidArg(
+            Err(EvalErr::InvalidOpArg(
                 input,
                 "CoinID Error: Invalid Amount: Amount is Negative".to_string(),
             ))?;
         }
         if amount == [0_u8] || (amount.len() > 1 && amount[0] == 0 && (amount[1] & 0x80) == 0) {
-            Err(EvalErr::InvalidArg(
+            Err(EvalErr::InvalidOpArg(
                 input,
                 "CoinID Error: Invalid Amount: Amount has leading zeroes".to_string(),
             ))?;
@@ -929,7 +929,7 @@ pub fn op_coinid(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
         // the only valid coin value that's 9 bytes is when a leading zero is
         // required to not have the value interpreted as negative
         if amount.len() > 9 || (amount.len() == 9 && amount[0] != 0) {
-            Err(EvalErr::InvalidArg(
+            Err(EvalErr::InvalidOpArg(
                 input,
                 "CoinID Error: Invalid Amount: Amount exceeds max coin amount".to_string(),
             ))?;
@@ -963,7 +963,7 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
     check_cost(cost, max_cost)?;
 
     if exponent.sign() == Sign::Minus {
-        return Err(EvalErr::InvalidArg(
+        return Err(EvalErr::InvalidOpArg(
             input,
             "ModPow with Negative Exponent".to_string(),
         ));

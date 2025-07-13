@@ -8,6 +8,9 @@ pub enum EvalErr {
     #[error("bad encoding")]
     SerializationError,
 
+    #[error("invalid backreference during deserialisation")]
+    SerializationBackreferenceError,
+
     #[error("Out of Memory")]
     OutOfMemory,
 
@@ -26,7 +29,7 @@ pub enum EvalErr {
     #[error("unknown softfork extension")]
     UnknownSoftforkExtension,
 
-    #[error("Softfork specified cost mismatch")]
+    #[error("softfork specified cost mismatch")]
     SoftforkCostMismatch,
 
     #[error("Internal Error: {1}")]
@@ -59,11 +62,20 @@ pub enum EvalErr {
     #[error("unimplemented operator")]
     Unimplemented(NodePtr),
 
-    #[error("Operator Error: InvalidArg: {1}")]
-    InvalidArg(NodePtr, String),
+    #[error("InvalidOperatorArg: {1}")]
+    InvalidOpArg(NodePtr, String),
 
-    #[error("Allocator Error: {0}")]
-    Allocator(#[from] AllocatorErr),
+    #[error("InvalidAllocatorArg: {1}")]
+    InvalidAllocArg(NodePtr, String),
+
+    #[error("bls_pairing_identity failed")]
+    BLSPairingIdentityFailed(NodePtr),
+
+    #[error("bls_verify failed")]
+    BLSVerifyFailed(NodePtr),
+
+    #[error("Secp256 Verify Error: failed")]
+    Secp256Failed(NodePtr),
 }
 impl From<std::io::Error> for EvalErr {
     fn from(_: std::io::Error) -> Self {
@@ -74,18 +86,21 @@ impl From<std::io::Error> for EvalErr {
 impl EvalErr {
     fn node(&self) -> Option<NodePtr> {
         match self {
+            EvalErr::InternalError(node, _) => Some(*node),
             EvalErr::Raise(node) => Some(*node),
             EvalErr::InvalidNilTerminator(node) => Some(*node),
             EvalErr::DivisionByZero(node) => Some(*node),
-            EvalErr::ShiftTooLarge(node) => Some(*node),
             EvalErr::ValueStackLimitReached(node) => Some(*node),
             EvalErr::EnvironmentStackLimitReached(node) => Some(*node),
-            EvalErr::InternalError(node, _) => Some(*node),
+            EvalErr::ShiftTooLarge(node) => Some(*node),
             EvalErr::Reserved(node) => Some(*node),
             EvalErr::Invalid(node) => Some(*node),
             EvalErr::Unimplemented(node) => Some(*node),
-            EvalErr::Allocator(alloc) => AllocatorErr::node(alloc),
-            EvalErr::InvalidArg(node, _) => Some(*node),
+            EvalErr::InvalidOpArg(node, _) => Some(*node),
+            EvalErr::InvalidAllocArg(node, _) => Some(*node),
+            EvalErr::BLSPairingIdentityFailed(node) => Some(*node),
+            EvalErr::BLSVerifyFailed(node) => Some(*node),
+            EvalErr::Secp256Failed(node) => Some(*node),
             _ => None,
         }
     }
@@ -93,19 +108,5 @@ impl EvalErr {
     pub fn node_ptr(&self) -> NodePtr {
         // This is a convenience function to get the node pointer
         self.node().unwrap_or_default()
-    }
-}
-
-#[derive(Debug, Error, PartialEq)]
-pub enum AllocatorErr {
-    #[error("InvalidArg: {1}")]
-    InvalidArg(NodePtr, String),
-}
-
-impl AllocatorErr {
-    pub fn node(&self) -> Option<NodePtr> {
-        match self {
-            AllocatorErr::InvalidArg(node, _) => Some(*node),
-        }
     }
 }

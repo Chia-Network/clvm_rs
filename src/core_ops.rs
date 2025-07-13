@@ -1,6 +1,5 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::cost::Cost;
-
 use crate::error::{EvalErr, Result};
 use crate::op_utils::{first, get_args, nilp, rest};
 use crate::reduction::{Reduction, Response};
@@ -67,7 +66,7 @@ fn ensure_atom(a: &Allocator, n: NodePtr, op: &str) -> Result<()> {
     if let SExp::Atom = a.sexp(n) {
         Ok(())
     } else {
-        Err(EvalErr::InvalidArg(n, format!("{op} used on list")))?
+        Err(EvalErr::InvalidOpArg(n, format!("{op} used on list")))?
     }
 }
 

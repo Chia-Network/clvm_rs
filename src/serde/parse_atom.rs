@@ -1,6 +1,7 @@
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use crate::allocator::{Allocator, NodePtr};
+
 use crate::error::{EvalErr, Result};
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;

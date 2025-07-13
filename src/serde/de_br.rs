@@ -155,7 +155,7 @@ pub fn traverse_path_with_vec(
         if parsing_sexp {
             match allocator.sexp(sexp_to_parse) {
                 SExp::Atom => {
-                    return Err(EvalErr::SerializationError);
+                    return Err(EvalErr::SerializationBackreferenceError);
                 }
                 SExp::Pair(left, right) => {
                     sexp_to_parse = if is_bit_set { right } else { left };
