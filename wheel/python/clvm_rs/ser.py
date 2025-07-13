@@ -19,6 +19,7 @@ from typing import BinaryIO, Callable, Iterator, List
 
 from .clvm_storage import CLVMStorage
 
+
 MAX_SINGLE_BYTE = 0x7F
 CONS_BOX_MARKER = 0xFF
 
@@ -114,15 +115,15 @@ OP_STACK_F = Callable[
 
 
 def _op_read_sexp(
-        op_stack: List[OP_STACK_F],
-        val_stack: List[CLVMStorage],
-        f: BinaryIO,
-        new_pair_f: NEW_PAIR_F,
-        new_atom_f: NEW_ATOM_F,
+    op_stack: List[OP_STACK_F],
+    val_stack: List[CLVMStorage],
+    f: BinaryIO,
+    new_pair_f: NEW_PAIR_F,
+    new_atom_f: NEW_ATOM_F,
 ):
     blob = f.read(1)
     if len(blob) == 0:
-        raise ValueError("bad decoding")
+        raise ValueError("bad encoding")
     b = blob[0]
     if b == CONS_BOX_MARKER:
         op_stack.append(_op_cons)
@@ -133,11 +134,11 @@ def _op_read_sexp(
 
 
 def _op_cons(
-        op_stack: List[OP_STACK_F],
-        val_stack: List[CLVMStorage],
-        f: BinaryIO,
-        new_pair_f: NEW_PAIR_F,
-        new_atom_f: NEW_ATOM_F,
+    op_stack: List[OP_STACK_F],
+    val_stack: List[CLVMStorage],
+    f: BinaryIO,
+    new_pair_f: NEW_PAIR_F,
+    new_atom_f: NEW_ATOM_F,
 ):
     right = val_stack.pop()
     left = val_stack.pop()
@@ -145,7 +146,7 @@ def _op_cons(
 
 
 def sexp_from_stream(
-        f: BinaryIO, new_pair_f: NEW_PAIR_F, new_atom_f: NEW_ATOM_F
+    f: BinaryIO, new_pair_f: NEW_PAIR_F, new_atom_f: NEW_ATOM_F
 ) -> CLVMStorage:
     op_stack: List[OP_STACK_F] = [_op_read_sexp]
     val_stack: List[CLVMStorage] = []
@@ -171,12 +172,12 @@ def _atom_from_stream(f: BinaryIO, b: int, new_atom_f: NEW_ATOM_F) -> CLVMStorag
     if bit_count > 1:
         blob = f.read(bit_count - 1)
         if len(blob) != bit_count - 1:
-            raise ValueError("bad decoding")
+            raise ValueError("bad encoding")
         size_blob += blob
     size = int.from_bytes(size_blob, "big")
     if size >= 0x400000000:
         raise ValueError("blob too large")
     blob = f.read(size)
     if len(blob) != size:
-        raise ValueError("bad decoding")
+        raise ValueError("bad encoding")
     return new_atom_f(blob)

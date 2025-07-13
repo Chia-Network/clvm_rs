@@ -30,7 +30,6 @@ function numsToByteStr(numArray) {
 }
 
 let current_test_number = 0;
-
 function test_case(testTitle, test) {
   const testNo = ++current_test_number;
   console.log(`Case#${testNo} ${testTitle}`);
@@ -130,6 +129,6 @@ test_case("Test serialized_length", function () {
   try {
     wasm.serialized_length(bytesFromHex("abcdef0123"));
   } catch (e) {
-    expect_equal(e, "bad decoding");
+    expect_equal(e, "bad encoding");
   }
 });
