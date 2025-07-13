@@ -21,8 +21,8 @@ const NODE_PTR_IDX_MASK: u32 = (1 << NODE_PTR_IDX_BITS) - 1;
 #[cfg(feature = "allocator-debug")]
 #[derive(Clone, Copy)]
 struct AllocatorReference {
-    fingerprint: u64,
-    version: usize,
+    fingerprint: u32,
+    version: u32,
 }
 
 #[cfg(feature = "allocator-debug")]
@@ -85,8 +85,8 @@ impl NodePtr {
         NodePtr(
             ((object_type as u32) << NODE_PTR_IDX_BITS) | (index as u32),
             AllocatorReference {
-                fingerprint: u64::MAX,
-                version: usize::MAX,
+                fingerprint: u32::MAX,
+                version: u32::MAX,
             },
         )
     }
@@ -245,11 +245,11 @@ pub struct Allocator {
     ghost_heap: usize,
 
     #[cfg(feature = "allocator-debug")]
-    fingerprint: u64,
+    fingerprint: u32,
 
     // the number of atoms and pairs at different versions
     #[cfg(feature = "allocator-debug")]
-    versions: Vec<(usize, usize)>,
+    versions: Vec<(u32, u32)>,
 }
 
 impl Default for Allocator {
@@ -321,7 +321,7 @@ impl Allocator {
             ghost_heap: 0,
 
             #[cfg(feature = "allocator-debug")]
-            fingerprint: rand::thread_rng().next_u64(),
+            fingerprint: rand::thread_rng().next_u32(),
 
             #[cfg(feature = "allocator-debug")]
             versions: Vec::new(),
@@ -334,7 +334,7 @@ impl Allocator {
 
     #[cfg(feature = "allocator-debug")]
     fn validate_node(&self, n: NodePtr) {
-        if n.1.fingerprint == u64::MAX && n.1.version == usize::MAX {
+        if n.1.fingerprint == u32::MAX && n.1.version == u32::MAX {
             assert!(matches!(n.object_type(), ObjectType::SmallAtom));
             return;
         }
@@ -345,19 +345,19 @@ impl Allocator {
         );
         // if n.1.version is equal to self.versions.len() it means no
         // restore_checkpoint() has been called since this NodePtr was created
-        if n.1.version < self.versions.len() {
+        if n.1.version < self.versions.len() as u32 {
             // self.versions contains the number of atoms (.0) and pairs (.1) at
             // the specific version
             match n.object_type() {
                 ObjectType::Bytes => {
                     assert!(
-                        (n.index() as usize) < self.versions[n.1.version].0,
+                        n.index() < self.versions[n.1.version as usize].0,
                         "NodePtr (atom) was invalidated by restore_checkpoint()"
                     );
                 }
                 ObjectType::Pair => {
                     assert!(
-                        (n.index() as usize) < self.versions[n.1.version].1,
+                        n.index() < self.versions[n.1.version as usize].1,
                         "NodePtr (pair) was invalidated by restore_checkpoint()"
                     );
                 }
@@ -380,7 +380,7 @@ impl Allocator {
             idx,
             AllocatorReference {
                 fingerprint: self.fingerprint,
-                version: self.versions.len(),
+                version: self.versions.len() as u32,
             },
         )
     }
@@ -418,7 +418,7 @@ impl Allocator {
         // lower version than self.versions.len()
         #[cfg(feature = "allocator-debug")]
         self.versions
-            .push((self.atom_vec.len(), self.pair_vec.len()));
+            .push((self.atom_vec.len() as u32, self.pair_vec.len() as u32));
     }
 
     pub fn new_atom(&mut self, v: &[u8]) -> Result<NodePtr> {
@@ -2235,7 +2235,7 @@ c6c886f6b57ec72a6178288c47c33577\
 
         // 0 is encoded as an empty string
         let num = number_from_u8(bytes);
-        assert_eq!(format!("{num}",), text);
+        assert_eq!(format!("{num}"), text);
         let ptr = a.new_number(num).unwrap();
         assert_eq!(a.atom(ptr).as_ref(), buf);
     }
