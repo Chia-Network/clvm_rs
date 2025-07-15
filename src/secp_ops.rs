@@ -20,10 +20,7 @@ pub fn op_secp256r1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) ->
     // first argument is sec1 encoded pubkey
     let pubkey = atom(a, pubkey, "secp256r1_verify pubkey")?;
     let verifier = P1VerifyingKey::from_sec1_bytes(pubkey.as_ref()).map_err(|_| {
-        EvalErr::InvalidOpArg(
-            input,
-            "Secp256 Verify Error: pubkey is not valid".to_string(),
-        )
+        EvalErr::InvalidOpArg(input, "secp256r1_verify: pubkey is not valid".to_string())
     })?;
 
     // second arg is sha256 hash of message
@@ -31,7 +28,7 @@ pub fn op_secp256r1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) ->
     if msg.as_ref().len() != 32 {
         Err(EvalErr::InvalidOpArg(
             input,
-            "Secp256 Verify Error: message digest is not 32 bytes".to_string(),
+            "secp256r1_verify: message digest is not 32 bytes".to_string(),
         ))?;
     }
 
@@ -40,7 +37,7 @@ pub fn op_secp256r1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) ->
     let sig = P1Signature::from_slice(sig.as_ref()).map_err(|_| {
         EvalErr::InvalidOpArg(
             input,
-            "Secp256 Verify Error: signature is not valid".to_string(),
+            "secp256r1_verify: signature is not valid".to_string(),
         )
     })?;
 
@@ -64,10 +61,7 @@ pub fn op_secp256k1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) ->
     // first argument is sec1 encoded pubkey
     let pubkey = atom(a, pubkey, "secp256k1_verify pubkey")?;
     let verifier = K1VerifyingKey::from_sec1_bytes(pubkey.as_ref()).map_err(|_| {
-        EvalErr::InvalidOpArg(
-            input,
-            "Secp256 Verify Error: pubkey is not valid".to_string(),
-        )
+        EvalErr::InvalidOpArg(input, "secp256k1_verify: pubkey is not valid".to_string())
     })?;
 
     // second arg is message
@@ -75,7 +69,7 @@ pub fn op_secp256k1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) ->
     if msg.as_ref().len() != 32 {
         Err(EvalErr::InvalidOpArg(
             input,
-            "Secp256 Verify Error: message digest is not 32 bytes".to_string(),
+            "secp256k1_verify: message digest is not 32 bytes".to_string(),
         ))?;
     }
 
@@ -84,7 +78,7 @@ pub fn op_secp256k1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) ->
     let sig = K1Signature::from_slice(sig.as_ref()).map_err(|_| {
         EvalErr::InvalidOpArg(
             input,
-            "Secp256 Verify Error: signature is not valid".to_string(),
+            "secp256k1_verify: signature is not valid".to_string(),
         )
     })?;
 
