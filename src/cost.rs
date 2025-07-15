@@ -1,11 +1,10 @@
-use crate::allocator::Allocator;
-use crate::reduction::EvalErr;
+use crate::error::{EvalErr, Result};
 
 pub type Cost = u64;
 
-pub fn check_cost(a: &Allocator, cost: Cost, max_cost: Cost) -> Result<(), EvalErr> {
+pub fn check_cost(cost: Cost, max_cost: Cost) -> Result<()> {
     if cost > max_cost {
-        Err(EvalErr(a.nil(), "cost exceeded".into()))
+        Err(EvalErr::CostExceeded)
     } else {
         Ok(())
     }

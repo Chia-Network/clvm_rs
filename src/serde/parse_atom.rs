@@ -1,8 +1,8 @@
-use std::io::{Cursor, Read, Result, Seek, SeekFrom};
+use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use crate::allocator::{Allocator, NodePtr};
 
-use super::errors::{bad_encoding, internal_error};
+use crate::error::{EvalErr, Result};
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 
@@ -13,12 +13,15 @@ const MAX_SINGLE_BYTE: u8 = 0x7f;
 pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> Result<(u8, u64)> {
     debug_assert!((initial_b & 0x80) != 0);
     if (initial_b & 0x80) == 0 {
-        return Err(internal_error());
+        return Err(EvalErr::InternalError(
+            NodePtr::NIL,
+            "Error Initializing Encoding".to_string(),
+        ));
     }
 
     let atom_start_offset = initial_b.leading_ones() as usize;
     if atom_start_offset >= 8 {
-        return Err(bad_encoding());
+        return Err(EvalErr::SerializationError);
     }
     let bit_mask: u8 = 0xff >> atom_start_offset;
     let b = initial_b & bit_mask;
@@ -32,14 +35,14 @@ pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> Result<(u8,
     // need to convert size_blob to an int
     let mut atom_size: u64 = 0;
     if size_blob.len() > 6 {
-        return Err(bad_encoding());
+        return Err(EvalErr::SerializationError);
     }
     for b in size_blob {
         atom_size <<= 8;
         atom_size += *b as u64;
     }
     if atom_size >= 0x400000000 {
-        return Err(bad_encoding());
+        return Err(EvalErr::SerializationError);
     }
     Ok((atom_start_offset as u8, atom_size))
 }
@@ -58,7 +61,7 @@ fn parse_atom_ptr<'a>(f: &'a mut Cursor<&[u8]>, first_byte: u8) -> Result<&'a [u
         let blob_size = decode_size(f, first_byte)?;
         let pos = f.position() as usize;
         if f.get_ref().len() < pos + blob_size as usize {
-            return Err(bad_encoding());
+            return Err(EvalErr::SerializationError);
         }
         f.seek(SeekFrom::Current(blob_size as i64))?;
         &f.get_ref()[pos..(pos + blob_size as usize)]
@@ -98,8 +101,6 @@ mod tests {
     use crate::serde::write_atom::write_atom;
     use rstest::rstest;
 
-    use std::io::ErrorKind;
-
     #[rstest]
     // single-byte length prefix
     #[case(0b10100000, &[], (1, 0x20))]
@@ -130,9 +131,9 @@ mod tests {
     // this is still too large
     #[case(0b11111100, &[0x4, 0, 0, 0, 0], "bad encoding")]
     // this ensures a fuzzer-found bug doesn't reoccur
-    #[case(0b11111100, &[0xff, 0xfe], "failed to fill whole buffer")]
+    #[case(0b11111100, &[0xff, 0xfe], "bad encoding")]
     // the stream is truncated
-    #[case(0b11111100, &[0x4, 0, 0, 0], "failed to fill whole buffer")]
+    #[case(0b11111100, &[0x4, 0, 0, 0], "bad encoding")]
     // atoms are too large
     #[case(0b11111101, &[0, 0, 0, 0, 0], "bad encoding")]
     #[case(0b11111110, &[0x80, 0, 0, 0, 0, 0], "bad encoding")]
@@ -163,7 +164,7 @@ mod tests {
             decode_size_with_offset(&mut stream, 0x7f)
                 .unwrap_err()
                 .to_string(),
-            "internal error"
+            "Internal Error: Error Initializing Encoding"
         );
     }
 
@@ -221,6 +222,6 @@ mod tests {
         let mut allocator = Allocator::new();
         let ret = parse_atom(&mut allocator, first, &mut cursor);
         let err = ret.unwrap_err();
-        assert_eq!(err.kind(), ErrorKind::UnexpectedEof);
+        assert_eq!(err.to_string(), "bad encoding".to_string());
     }
 }

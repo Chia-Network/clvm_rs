@@ -7,7 +7,7 @@ use std::ops::BitXorAssign;
 
 use crate::allocator::{len_for_value, Allocator, NodePtr, NodeVisitor, SExp};
 use crate::cost::{check_cost, Cost};
-use crate::err_utils::err;
+use crate::error::EvalErr;
 use crate::number::Number;
 use crate::op_utils::{
     atom, atom_len, get_args, get_varargs, i32_atom, int_atom, match_args, mod_group_order,
@@ -192,14 +192,14 @@ pub fn op_unknown(
     let op = op_atom.as_ref();
 
     if op.is_empty() || (op.len() >= 2 && op[0] == 0xff && op[1] == 0xff) {
-        return err(o, "reserved operator");
+        Err(EvalErr::Reserved(o))?;
     }
 
     let cost_function = (op[op.len() - 1] & 0b11000000) >> 6;
     let cost_multiplier: u64 = match u32_from_u8(&op[0..op.len() - 1]) {
         Some(v) => v as u64,
         None => {
-            return err(o, "invalid operator");
+            return Err(EvalErr::Invalid(o))?;
         }
     };
 
@@ -213,11 +213,7 @@ pub fn op_unknown(
                 cost += ARITH_COST_PER_ARG;
                 let len = atom_len(allocator, arg, "unknown op")?;
                 byte_count += len as u64;
-                check_cost(
-                    allocator,
-                    cost + (byte_count as Cost * ARITH_COST_PER_BYTE),
-                    max_cost,
-                )?;
+                check_cost(cost + (byte_count as Cost * ARITH_COST_PER_BYTE), max_cost)?;
             }
             cost + (byte_count * ARITH_COST_PER_BYTE)
         }
@@ -238,7 +234,7 @@ pub fn op_unknown(
                 cost += (l0 + l1) * MUL_LINEAR_COST_PER_BYTE;
                 cost += (l0 * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
                 l0 += l1;
-                check_cost(allocator, cost, max_cost)?;
+                check_cost(cost, max_cost)?;
             }
             cost
         }
@@ -250,11 +246,7 @@ pub fn op_unknown(
                 cost += CONCAT_COST_PER_ARG;
                 let len = atom_len(allocator, arg, "unknown op")?;
                 total_size += len as u64;
-                check_cost(
-                    allocator,
-                    cost + total_size as Cost * CONCAT_COST_PER_BYTE,
-                    max_cost,
-                )?;
+                check_cost(cost + total_size as Cost * CONCAT_COST_PER_BYTE, max_cost)?;
             }
             cost + total_size * CONCAT_COST_PER_BYTE
         }
@@ -263,10 +255,10 @@ pub fn op_unknown(
 
     assert!(cost > 0);
 
-    check_cost(allocator, cost, max_cost)?;
+    check_cost(cost, max_cost)?;
     cost *= cost_multiplier + 1;
     if cost > u32::MAX as u64 {
-        err(o, "invalid operator")
+        Err(EvalErr::Invalid(o))?
     } else {
         Ok(Reduction(cost as Cost, allocator.nil()))
     }
@@ -318,7 +310,7 @@ fn test_unknown_op_reserved() {
 
 #[test]
 fn test_lenient_mode_last_bits() {
-    let mut a = crate::allocator::Allocator::new();
+    let mut a = Allocator::new();
 
     // the last 6 bits are ignored for computing cost
     let buf = vec![0x3c, 0x3f];
@@ -402,11 +394,7 @@ pub fn op_sha256(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += SHA256_COST_PER_ARG;
-        check_cost(
-            a,
-            cost + byte_count as Cost * SHA256_COST_PER_BYTE,
-            max_cost,
-        )?;
+        check_cost(cost + byte_count as Cost * SHA256_COST_PER_BYTE, max_cost)?;
         let blob = atom(a, arg, "sha256")?;
         byte_count += blob.as_ref().len();
         hasher.update(blob);
@@ -422,11 +410,7 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += ARITH_COST_PER_ARG;
-        check_cost(
-            a,
-            cost + (byte_count as Cost * ARITH_COST_PER_BYTE),
-            max_cost,
-        )?;
+        check_cost(cost + (byte_count as Cost * ARITH_COST_PER_BYTE), max_cost)?;
 
         match a.node(arg) {
             NodeVisitor::Buffer(buf) => {
@@ -439,7 +423,10 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
                 byte_count += len_for_value(val);
             }
             NodeVisitor::Pair(_, _) => {
-                return err(arg, "+ requires int args");
+                Err(EvalErr::InvalidOpArg(
+                    arg,
+                    "Requires Int Argument: +".to_string(),
+                ))?;
             }
         }
     }
@@ -456,7 +443,7 @@ pub fn op_subtract(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += ARITH_COST_PER_ARG;
-        check_cost(a, cost + byte_count as Cost * ARITH_COST_PER_BYTE, max_cost)?;
+        check_cost(cost + byte_count as Cost * ARITH_COST_PER_BYTE, max_cost)?;
         if is_first {
             let (v, len) = int_atom(a, arg, "-")?;
             byte_count = len;
@@ -473,7 +460,10 @@ pub fn op_subtract(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
                     byte_count += len_for_value(val);
                 }
                 NodeVisitor::Pair(_, _) => {
-                    return err(arg, "- requires int args");
+                    Err(EvalErr::InvalidOpArg(
+                        arg,
+                        "Requires Int Argument: -".to_string(),
+                    ))?;
                 }
             }
         };
@@ -491,7 +481,7 @@ pub fn op_multiply(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
     let mut l0: usize = 0;
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
-        check_cost(a, cost, max_cost)?;
+        check_cost(cost, max_cost)?;
         if first_iter {
             (total, l0) = int_atom(a, arg, "*")?;
             first_iter = false;
@@ -509,7 +499,10 @@ pub fn op_multiply(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
                 len_for_value(val)
             }
             NodeVisitor::Pair(_, _) => {
-                return err(arg, "* requires int args");
+                return Err(EvalErr::InvalidOpArg(
+                    arg,
+                    "Requires Int Argument: *".to_string(),
+                ))?;
             }
         };
 
@@ -528,7 +521,7 @@ pub fn op_div(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let (a1, a1_len) = int_atom(a, v1, "/")?;
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
     if a1.sign() == Sign::NoSign {
-        err(input, "div with 0")
+        Err(EvalErr::DivisionByZero(input))
     } else {
         let q = a0.div_floor(&a1);
         let q = a.new_number(q)?;
@@ -542,7 +535,7 @@ pub fn op_divmod(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
     let (a1, a1_len) = int_atom(a, v1, "divmod")?;
     let cost = DIVMOD_BASE_COST + ((a0_len + a1_len) as Cost) * DIVMOD_COST_PER_BYTE;
     if a1.sign() == Sign::NoSign {
-        err(input, "divmod with 0")
+        Err(EvalErr::DivisionByZero(input))
     } else {
         let (q, r) = a0.div_mod_floor(&a1);
         let q1 = a.new_number(q)?;
@@ -560,7 +553,7 @@ pub fn op_mod(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let (a1, a1_len) = int_atom(a, v1, "mod")?;
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
     if a1.sign() == Sign::NoSign {
-        err(input, "mod with 0")
+        Err(EvalErr::DivisionByZero(input))
     } else {
         let q = a.new_number(a0.mod_floor(&a1))?;
         let c = a.atom_len(q) as Cost * MALLOC_COST_PER_BYTE;
@@ -607,7 +600,10 @@ pub fn op_strlen(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
 pub fn op_substr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let ([a0, start, end], argc) = get_varargs::<3>(a, input, "substr")?;
     if !(2..=3).contains(&argc) {
-        return err(input, "substr takes exactly 2 or 3 arguments");
+        Err(EvalErr::InvalidOpArg(
+            input,
+            format!("Substring takes exactly 2 or 3 arguments, got {argc}"),
+        ))?;
     }
     let size = atom_len(a, a0, "substr")?;
     let start = i32_atom(a, start, "substr")?;
@@ -618,7 +614,10 @@ pub fn op_substr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
         size as i32
     };
     if end < 0 || start < 0 || end as usize > size || end < start {
-        err(input, "invalid indices for substr")
+        Err(EvalErr::InvalidOpArg(
+            input,
+            "Invalid Indices for Substring".to_string(),
+        ))?
     } else {
         let r = a.new_substr(a0, start as u32, end as u32)?;
         let cost: Cost = 1;
@@ -633,13 +632,11 @@ pub fn op_concat(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += CONCAT_COST_PER_ARG;
-        check_cost(
-            a,
-            cost + total_size as Cost * CONCAT_COST_PER_BYTE,
-            max_cost,
-        )?;
+        check_cost(cost + total_size as Cost * CONCAT_COST_PER_BYTE, max_cost)?;
         let len = match a.sexp(arg) {
-            SExp::Pair(_, _) => return err(arg, "concat on list"),
+            SExp::Pair(_, _) => {
+                return Err(EvalErr::InvalidOpArg(arg, "concat on list".to_string()))?
+            }
             SExp::Atom => a.atom_len(arg),
         };
         if len > 0 {
@@ -651,7 +648,7 @@ pub fn op_concat(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
 
     cost += total_size as Cost * CONCAT_COST_PER_BYTE;
     cost += total_size as Cost * MALLOC_COST_PER_BYTE;
-    check_cost(a, cost, max_cost)?;
+    check_cost(cost, max_cost)?;
     let new_atom = a.new_concat(total_size, &terms)?;
     Ok(Reduction(cost, new_atom))
 }
@@ -661,7 +658,7 @@ pub fn op_ash(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let (i0, l0) = int_atom(a, n0, "ash")?;
     let a1 = i32_atom(a, n1, "ash")?;
     if !(-65535..=65535).contains(&a1) {
-        return err(n1, "shift too large");
+        return Err(EvalErr::ShiftTooLarge(n1));
     }
 
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
@@ -690,36 +687,27 @@ fn test_shift(
 fn test_op_ash() {
     let mut a = Allocator::new();
 
-    assert_eq!(
-        test_shift(op_ash, &mut a, &[1], &[0x80, 0, 0, 0])
-            .unwrap_err()
-            .1,
-        "shift too large"
-    );
-
-    assert_eq!(
-        test_shift(op_ash, &mut a, &[1], &[0x80, 0, 0])
-            .unwrap_err()
-            .1,
-        "shift too large"
-    );
+    assert!(matches!(
+        test_shift(op_ash, &mut a, &[1], &[0x80, 0, 0, 0]).unwrap_err(),
+        EvalErr::ShiftTooLarge(_)
+    ));
+    assert!(matches!(
+        test_shift(op_ash, &mut a, &[1], &[0x80, 0, 0]).unwrap_err(),
+        EvalErr::ShiftTooLarge(_)
+    ));
 
     let node = test_shift(op_ash, &mut a, &[1], &[0x80, 0]).unwrap().1;
     assert_eq!(a.atom(node).as_ref(), &[]);
 
-    assert_eq!(
-        test_shift(op_ash, &mut a, &[1], &[0x7f, 0, 0, 0])
-            .unwrap_err()
-            .1,
-        "shift too large"
-    );
+    assert!(matches!(
+        test_shift(op_ash, &mut a, &[1], &[0x7f, 0, 0, 0]).unwrap_err(),
+        EvalErr::ShiftTooLarge(_)
+    ));
 
-    assert_eq!(
-        test_shift(op_ash, &mut a, &[1], &[0x7f, 0, 0])
-            .unwrap_err()
-            .1,
-        "shift too large"
-    );
+    assert!(matches!(
+        test_shift(op_ash, &mut a, &[1], &[0x7f, 0, 0]).unwrap_err(),
+        EvalErr::ShiftTooLarge(_)
+    ));
 
     let node = test_shift(op_ash, &mut a, &[1], &[0x7f, 0]).unwrap().1;
     // the result is 1 followed by 4064 zeroes
@@ -735,7 +723,7 @@ pub fn op_lsh(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     let b0 = b0_atom.as_ref();
     let a1 = i32_atom(a, n1, "lsh")?;
     if !(-65535..=65535).contains(&a1) {
-        return err(n1, "shift too large");
+        return Err(EvalErr::ShiftTooLarge(n1));
     }
     let i0 = BigUint::from_bytes_be(b0);
     let l0 = b0.len();
@@ -753,36 +741,28 @@ pub fn op_lsh(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
 fn test_op_lsh() {
     let mut a = Allocator::new();
 
-    assert_eq!(
-        test_shift(op_lsh, &mut a, &[1], &[0x80, 0, 0, 0])
-            .unwrap_err()
-            .1,
-        "shift too large"
-    );
+    assert!(matches!(
+        test_shift(op_lsh, &mut a, &[1], &[0x80, 0, 0, 0]).unwrap_err(),
+        EvalErr::ShiftTooLarge(_)
+    ));
 
-    assert_eq!(
-        test_shift(op_lsh, &mut a, &[1], &[0x80, 0, 0])
-            .unwrap_err()
-            .1,
-        "shift too large"
-    );
+    assert!(matches!(
+        test_shift(op_lsh, &mut a, &[1], &[0x80, 0, 0]).unwrap_err(),
+        EvalErr::ShiftTooLarge(_)
+    ));
 
     let node = test_shift(op_lsh, &mut a, &[1], &[0x80, 0]).unwrap().1;
     assert_eq!(a.atom(node).as_ref(), &[]);
 
-    assert_eq!(
-        test_shift(op_lsh, &mut a, &[1], &[0x7f, 0, 0, 0])
-            .unwrap_err()
-            .1,
-        "shift too large"
-    );
+    assert!(matches!(
+        test_shift(op_lsh, &mut a, &[1], &[0x7f, 0, 0, 0]).unwrap_err(),
+        EvalErr::ShiftTooLarge(_)
+    ));
 
-    assert_eq!(
-        test_shift(op_lsh, &mut a, &[1], &[0x7f, 0, 0])
-            .unwrap_err()
-            .1,
-        "shift too large"
-    );
+    assert!(matches!(
+        test_shift(op_lsh, &mut a, &[1], &[0x7f, 0, 0]).unwrap_err(),
+        EvalErr::ShiftTooLarge(_)
+    ));
 
     let node = test_shift(op_lsh, &mut a, &[1], &[0x7f, 0]).unwrap().1;
     // the result is 1 followed by 4064 zeroes
@@ -809,7 +789,7 @@ fn binop_reduction(
         op_f(&mut total, &n0);
         arg_size += len;
         cost += LOG_COST_PER_ARG;
-        check_cost(a, cost + (arg_size as Cost * LOG_COST_PER_BYTE), max_cost)?;
+        check_cost(cost + (arg_size as Cost * LOG_COST_PER_BYTE), max_cost)?;
     }
     cost += arg_size as Cost * LOG_COST_PER_BYTE;
     let total = a.new_number(total)?;
@@ -830,7 +810,7 @@ fn logior_op(a: &mut Number, b: &Number) {
 }
 
 pub fn op_logior(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
-    let v: Number = (0).into();
+    let v: Number = 0.into();
     binop_reduction("logior", a, v, input, max_cost, logior_op)
 }
 
@@ -839,7 +819,7 @@ fn logxor_op(a: &mut Number, b: &Number) {
 }
 
 pub fn op_logxor(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
-    let v: Number = (0).into();
+    let v: Number = 0.into();
     binop_reduction("logxor", a, v, input, max_cost, logxor_op)
 }
 
@@ -865,7 +845,7 @@ pub fn op_any(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += BOOL_COST_PER_ARG;
-        check_cost(a, cost, max_cost)?;
+        check_cost(cost, max_cost)?;
         is_any = is_any || !nilp(a, arg);
     }
     Ok(Reduction(cost, if is_any { a.one() } else { a.nil() }))
@@ -877,7 +857,7 @@ pub fn op_all(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += BOOL_COST_PER_ARG;
-        check_cost(a, cost, max_cost)?;
+        check_cost(cost, max_cost)?;
         is_all = is_all && !nilp(a, arg);
     }
     Ok(Reduction(cost, if is_all { a.one() } else { a.nil() }))
@@ -904,7 +884,7 @@ pub fn op_point_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Re
         input = rest;
         let point = a.g1(arg)?;
         cost += POINT_ADD_COST_PER_ARG;
-        check_cost(a, cost, max_cost)?;
+        check_cost(cost, max_cost)?;
         total += &point;
     }
     Ok(Reduction(
@@ -918,31 +898,40 @@ pub fn op_coinid(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
 
     let parent_coin = atom(a, parent_coin, "coinid")?;
     if parent_coin.as_ref().len() != 32 {
-        return err(input, "coinid: invalid parent coin id (must be 32 bytes)");
+        Err(EvalErr::InvalidOpArg(
+            input,
+            "CoinID Error: Invalid Parent Coin ID, not 32 bytes".to_string(),
+        ))?;
     }
     let puzzle_hash = atom(a, puzzle_hash, "coinid")?;
     if puzzle_hash.as_ref().len() != 32 {
-        return err(input, "coinid: invalid puzzle hash (must be 32 bytes)");
+        Err(EvalErr::InvalidOpArg(
+            input,
+            "CoinID Error: Invalid Puzzle Hash, not 32 bytes".to_string(),
+        ))?;
     }
     let amount_atom = atom(a, amount, "coinid")?;
     let amount = amount_atom.as_ref();
     if !amount.is_empty() {
         if (amount[0] & 0x80) != 0 {
-            return err(input, "coinid: invalid amount (may not be negative");
+            Err(EvalErr::InvalidOpArg(
+                input,
+                "CoinID Error: Invalid Amount: Amount is Negative".to_string(),
+            ))?;
         }
         if amount == [0_u8] || (amount.len() > 1 && amount[0] == 0 && (amount[1] & 0x80) == 0) {
-            return err(
+            Err(EvalErr::InvalidOpArg(
                 input,
-                "coinid: invalid amount (may not have redundant leading zero)",
-            );
+                "CoinID Error: Invalid Amount: Amount has leading zeroes".to_string(),
+            ))?;
         }
         // the only valid coin value that's 9 bytes is when a leading zero is
         // required to not have the value interpreted as negative
         if amount.len() > 9 || (amount.len() == 9 && amount[0] != 0) {
-            return err(
+            Err(EvalErr::InvalidOpArg(
                 input,
-                "coinid: invalid amount (may not exceed max coin amount)",
-            );
+                "CoinID Error: Invalid Amount: Amount exceeds max coin amount".to_string(),
+            ))?;
         }
     }
 
@@ -967,17 +956,20 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
     cost += bsize as Cost * MODPOW_COST_PER_BYTE_BASE_VALUE;
     let (exponent, esize) = int_atom(a, exponent, "modpow")?;
     cost += (esize * esize) as Cost * MODPOW_COST_PER_BYTE_EXPONENT;
-    check_cost(a, cost, max_cost)?;
+    check_cost(cost, max_cost)?;
     let (modulus, msize) = int_atom(a, modulus, "modpow")?;
     cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
-    check_cost(a, cost, max_cost)?;
+    check_cost(cost, max_cost)?;
 
     if exponent.sign() == Sign::Minus {
-        return err(input, "modpow with negative exponent");
+        return Err(EvalErr::InvalidOpArg(
+            input,
+            "ModPow with Negative Exponent".to_string(),
+        ));
     }
 
     if modulus.sign() == Sign::NoSign {
-        return err(input, "modpow with 0 modulus");
+        return Err(EvalErr::DivisionByZero(input));
     }
 
     let ret = base.modpow(&exponent, &modulus);

@@ -2,9 +2,9 @@ use super::traverse_path::{traverse_path, traverse_path_fast};
 use crate::allocator::{Allocator, Checkpoint, NodePtr, NodeVisitor, SExp};
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
-use crate::err_utils::err;
+use crate::error::{EvalErr, Result};
 use crate::op_utils::{first, get_args, uint_atom};
-use crate::reduction::{EvalErr, Reduction, Response};
+use crate::reduction::{Reduction, Response};
 
 // lowered from 46
 const QUOTE_COST: Cost = 20;
@@ -20,8 +20,7 @@ const OP_COST: Cost = 1;
 const STACK_SIZE_LIMIT: usize = 20000000;
 
 #[cfg(feature = "pre-eval")]
-pub type PreEval =
-    Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<PostEval>>, EvalErr>>;
+pub type PreEval = Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<PostEval>>>>;
 
 #[cfg(feature = "pre-eval")]
 pub type PostEval = dyn Fn(&mut Allocator, Option<NodePtr>);
@@ -106,16 +105,6 @@ struct RunProgramContext<'a, D> {
     posteval_stack: Vec<Box<PostEval>>,
 }
 
-fn augment_cost_errors(r: Result<Cost, EvalErr>, max_cost: NodePtr) -> Result<Cost, EvalErr> {
-    r.map_err(|e| {
-        if &e.1 != "cost exceeded" {
-            e
-        } else {
-            EvalErr(max_cost, e.1)
-        }
-    })
-}
-
 impl<'a, D: Dialect> RunProgramContext<'a, D> {
     #[cfg(feature = "counters")]
     #[inline(always)]
@@ -150,28 +139,28 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     #[inline(always)]
     fn account_op_push(&mut self) {}
 
-    pub fn pop(&mut self) -> Result<NodePtr, EvalErr> {
+    pub fn pop(&mut self) -> Result<NodePtr> {
         let v: Option<NodePtr> = self.val_stack.pop();
         match v {
-            None => {
-                let node: NodePtr = self.allocator.nil();
-                err(node, "runtime error: value stack empty")
-            }
+            None => Err(EvalErr::InternalError(
+                NodePtr::NIL,
+                "value stack empty".to_string(),
+            ))?,
             Some(k) => Ok(k),
         }
     }
-    pub fn push(&mut self, node: NodePtr) -> Result<(), EvalErr> {
+    pub fn push(&mut self, node: NodePtr) -> Result<()> {
         if self.val_stack.len() == STACK_SIZE_LIMIT {
-            return err(node, "value stack limit reached");
+            return Err(EvalErr::ValueStackLimitReached(node));
         }
         self.val_stack.push(node);
         self.account_val_push();
         Ok(())
     }
 
-    pub fn push_env(&mut self, env: NodePtr) -> Result<(), EvalErr> {
+    pub fn push_env(&mut self, env: NodePtr) -> Result<()> {
         if self.env_stack.len() == STACK_SIZE_LIMIT {
-            return err(env, "environment stack limit reached");
+            return Err(EvalErr::EnvironmentStackLimitReached(env));
         }
         self.env_stack.push(env);
         self.account_env_push();
@@ -215,7 +204,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    fn cons_op(&mut self) -> Result<Cost, EvalErr> {
+    fn cons_op(&mut self) -> Result<Cost> {
         /* Join the top two operands. */
         let v1 = self.pop()?;
         let v2 = self.pop()?;
@@ -229,7 +218,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         operator_node: NodePtr,
         operand_list: NodePtr,
         env: NodePtr,
-    ) -> Result<Cost, EvalErr> {
+    ) -> Result<Cost> {
         // special case check for quote
         if self.allocator.small_number(operator_node) == Some(self.dialect.quote_kw()) {
             self.push(operand_list)?;
@@ -259,7 +248,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             }
             // ensure a correct nil terminator
             if self.allocator.atom_len(operands) != 0 {
-                err(operand_list, "bad operand list")
+                Err(EvalErr::InvalidNilTerminator(operand_list))
             } else {
                 self.push(self.allocator.nil())?;
                 Ok(OP_COST)
@@ -267,7 +256,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    fn eval_pair(&mut self, program: NodePtr, env: NodePtr) -> Result<Cost, EvalErr> {
+    fn eval_pair(&mut self, program: NodePtr, env: NodePtr) -> Result<Cost> {
         #[cfg(feature = "pre-eval")]
         if let Some(pre_eval) = &self.pre_eval {
             if let Some(post_eval) = pre_eval(self.allocator, program, env)? {
@@ -283,7 +272,10 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 NodeVisitor::Buffer(buf) => traverse_path(self.allocator, buf, env)?,
                 NodeVisitor::U32(val) => traverse_path_fast(self.allocator, val, env)?,
                 NodeVisitor::Pair(_, _) => {
-                    panic!("expected atom, got pair");
+                    return Err(EvalErr::InvalidOpArg(
+                        program,
+                        "expected atom, got pair".to_string(),
+                    ))?;
                 }
             };
             self.push(r.1)?;
@@ -298,7 +290,10 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                     "in the ((X)...) syntax, the inner list",
                 )?;
                 if let SExp::Pair(_, _) = self.allocator.sexp(inner) {
-                    return err(program, "in ((X)...) syntax X must be lone atom");
+                    return Err(EvalErr::InvalidOpArg(
+                        program,
+                        "in ((X)...) syntax X must be lone atom".to_string(),
+                    ));
                 }
                 self.push_env(env)?;
                 self.push(new_operator)?;
@@ -311,13 +306,13 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    fn swap_eval_op(&mut self) -> Result<Cost, EvalErr> {
+    fn swap_eval_op(&mut self) -> Result<Cost> {
         let v2 = self.pop()?;
         let program: NodePtr = self.pop()?;
-        let env: NodePtr = *self
-            .env_stack
-            .last()
-            .ok_or_else(|| EvalErr(program, "runtime error: env stack empty".into()))?;
+        let env: NodePtr = *self.env_stack.last().ok_or(EvalErr::InternalError(
+            program,
+            "environment stack empty".to_string(),
+        ))?;
         self.push(v2)?;
 
         // on the way back, build a list from the values
@@ -327,27 +322,27 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         self.eval_pair(program, env)
     }
 
-    fn parse_softfork_arguments(
-        &self,
-        args: NodePtr,
-    ) -> Result<(OperatorSet, NodePtr, NodePtr), EvalErr> {
+    fn parse_softfork_arguments(&self, args: NodePtr) -> Result<(OperatorSet, NodePtr, NodePtr)> {
         let [_cost, extension, program, env] = get_args::<4>(self.allocator, args, "softfork")?;
 
         let extension =
             self.dialect
                 .softfork_extension(uint_atom::<4>(self.allocator, extension, "softfork")? as u32);
         if extension == OperatorSet::Default {
-            err(args, "unknown softfork extension")
+            Err(EvalErr::UnknownSoftforkExtension)
         } else {
             Ok((extension, program, env))
         }
     }
 
-    fn apply_op(&mut self, current_cost: Cost, max_cost: Cost) -> Result<Cost, EvalErr> {
+    fn apply_op(&mut self, current_cost: Cost, max_cost: Cost) -> Result<Cost> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
         if self.env_stack.pop().is_none() {
-            return err(operator, "runtime error: env stack empty");
+            return Err(EvalErr::InternalError(
+                operator,
+                "environment stack empty".to_string(),
+            ));
         }
         let op_atom = self.allocator.small_number(operator);
 
@@ -361,10 +356,10 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 "softfork",
             )?;
             if expected_cost > max_cost {
-                return err(operand_list, "cost exceeded");
+                return Err(EvalErr::CostExceeded);
             }
             if expected_cost == 0 {
-                return err(operand_list, "cost must be > 0");
+                return Err(EvalErr::CostExceeded);
             }
 
             // we can't blindly propagate errors here, since we handle errors
@@ -416,7 +411,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         }
     }
 
-    fn exit_guard(&mut self, current_cost: Cost) -> Result<Cost, EvalErr> {
+    fn exit_guard(&mut self, current_cost: Cost) -> Result<Cost> {
         // this is called when we are done executing a softfork program.
         // This is when we have to validate the cost
         let guard = self
@@ -431,7 +426,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 current_cost - guard.start_cost,
                 guard.expected_cost - guard.start_cost
             );
-            return err(self.allocator.nil(), "softfork specified cost mismatch");
+            return Err(EvalErr::SoftforkCostMismatch);
         }
 
         // restore the allocator to the state when we entered the softfork guard
@@ -458,8 +453,10 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         // max_cost is always in effect, and necessary to prevent wrap-around of
         // the cost integer.
         let max_cost = if max_cost == 0 { Cost::MAX } else { max_cost };
-        let max_cost_ptr = self.allocator.new_number(max_cost.into())?;
-
+        // We would previously allocate an atom to hold the max cost for the program.
+        // Since we don't anymore we need to increment the ghost atom counter to remain
+        // backwards compatible with the atom count limit
+        self.allocator.add_ghost_atom(1)?;
         let mut cost: Cost = 0;
 
         cost += self.eval_pair(program, env)?;
@@ -476,7 +473,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             };
 
             if cost > effective_max_cost {
-                return err(max_cost_ptr, "cost exceeded");
+                return Err(EvalErr::CostExceeded);
             }
             let top = self.op_stack.pop();
             let op = match top {
@@ -484,13 +481,10 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 None => break,
             };
             cost += match op {
-                Operation::Apply => augment_cost_errors(
-                    self.apply_op(cost, effective_max_cost - cost),
-                    max_cost_ptr,
-                )?,
+                Operation::Apply => self.apply_op(cost, effective_max_cost - cost)?,
                 Operation::ExitGuard => self.exit_guard(cost)?,
                 Operation::Cons => self.cons_op()?,
-                Operation::SwapEval => augment_cost_errors(self.swap_eval_op(), max_cost_ptr)?,
+                Operation::SwapEval => self.swap_eval_op()?,
                 #[cfg(feature = "pre-eval")]
                 Operation::PostEval => {
                     let f = self.posteval_stack.pop().unwrap();
@@ -694,7 +688,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "apply takes exactly 2 arguments",
+            err: "InvalidOperatorArg: apply takes exactly 2 argument(s)",
         },
         RunProgramTest {
             prg: "(a (q 0x00ffffffffffffffffffff00) (q ()))",
@@ -710,7 +704,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "apply takes exactly 2 arguments",
+            err: "InvalidOperatorArg: apply takes exactly 2 argument(s)",
         },
         RunProgramTest {
             prg: "(a (q . 1) (q . (100 200)))",
@@ -734,7 +728,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "in the ((X)...) syntax, the inner list takes exactly 1 argument",
+            err: "InvalidOperatorArg: in the ((X)...) syntax, the inner list takes exactly 1 argument(s)",
         },
         RunProgramTest {
             prg: "((#c) (q . 3) (q . 4))",
@@ -958,7 +952,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "softfork takes exactly 4 arguments",
+            err: "InvalidOperatorArg: softfork takes exactly 4 argument(s)",
         },
         RunProgramTest {
             prg: "(softfork (q . 959) (q . 9))",
@@ -974,7 +968,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "softfork takes exactly 4 arguments",
+            err: "InvalidOperatorArg: softfork takes exactly 4 argument(s)",
         },
         RunProgramTest {
             prg: "(softfork (q . 939) (q . 9) (q x))",
@@ -990,7 +984,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "softfork takes exactly 4 arguments",
+            err: "InvalidOperatorArg: softfork takes exactly 4 argument(s)",
         },
         // this is a valid invocation, but we don't implement any extensions (yet)
         // so the extension specifier 0 is still unknown
@@ -1053,7 +1047,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "softfork requires positive int arg",
+            err: "InvalidOperatorArg: softfork requires positive int arg",
         },
 
         // we don't allow "extension" parameters > u32::MAX
@@ -1071,7 +1065,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "softfork requires u32 arg",
+            err: "InvalidOperatorArg: softfork requires u32 arg (with no leading zeros)",
         },
 
         // we don't allow pairs as extension specifier
@@ -1089,7 +1083,7 @@ mod tests {
             flags: NO_UNKNOWN_OPS,
             result: None,
             cost: 1000,
-            err: "softfork requires int arg",
+            err: "InvalidOperatorArg: Requires Int Argument: softfork",
         },
 
         // the cost value is checked in consensus mode as well
@@ -1099,7 +1093,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 1000,
-            err: "cost exceeded",
+            err: "cost exceeded or below zero",
         },
         // the cost parameter is mandatory
         RunProgramTest {
@@ -1108,7 +1102,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "first of non-cons",
+            err: "InvalidOperatorArg: first of non-cons",
         },
         RunProgramTest {
             prg: "(softfork (q . 0))",
@@ -1116,7 +1110,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 1000,
-            err: "cost must be > 0",
+            err: "cost exceeded or below zero",
         },
         // negative costs are not allowed
         RunProgramTest {
@@ -1125,7 +1119,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 1000,
-            err: "softfork requires positive int arg",
+            err: "InvalidOperatorArg: softfork requires positive int arg",
         },
         RunProgramTest {
             prg: "(softfork (q 1 2 3))",
@@ -1133,7 +1127,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 1000,
-            err: "softfork requires int arg",
+            err: "InvalidOperatorArg: Requires Int Argument: softfork",
         },
 
         // test mismatching cost
@@ -1152,7 +1146,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 241,
-            err: "cost exceeded",
+            err: "cost exceeded or below zero",
         },
         // the cost specified on the softfork must match exactly the cost of
         // executing the program
@@ -1256,7 +1250,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 861,
-            err: "coinid: invalid amount (may not have redundant leading zero)",
+            err: "InvalidOperatorArg: CoinID Error: Invalid Amount: Amount has leading zeroes",
         },
 
         // secp261k1
@@ -1276,7 +1270,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "secp256k1_verify failed",
+            err: "Secp256 Verify Error: failed",
         },
 
         // secp261r1
@@ -1296,7 +1290,7 @@ mod tests {
             flags: 0,
             result: None,
             cost: 0,
-            err: "secp256r1_verify failed",
+            err: "Secp256 Verify Error: failed",
         },
     ];
 
@@ -1325,11 +1319,11 @@ mod tests {
                 // ensure it fails with the correct error
                 let expected_cost_exceeded =
                     run_program(&mut allocator, &dialect, program, args, t.cost - 1).unwrap_err();
-                assert_eq!(expected_cost_exceeded.1, "cost exceeded");
+                assert_eq!(expected_cost_exceeded, EvalErr::CostExceeded);
             }
             Err(err) => {
-                println!("FAILED: {}", err.1);
-                assert_eq!(err.1, t.err);
+                println!("FAILED: {err}");
+                assert_eq!(err.to_string(), t.err);
                 assert!(expected_result.is_none());
             }
         }
@@ -1410,7 +1404,7 @@ mod tests {
     #[case::g1_neg(
         "(i (= (g1_negate (q . 0xb2f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))",
         (706634, 0, 0),
-        "atom is not a valid G1 point"
+        "InvalidOperatorArg: atom is not a G1 point"
     )]
     #[case::g2_add(
         "(i (= (g2_add (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))",
@@ -1420,7 +1414,7 @@ mod tests {
     #[case::g2_add(
         "(i (= (g2_add (q . 0x93e12b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))",
         (3981700, 0, 0),
-        "atom is not a G2 point"
+        "InvalidAllocatorArg: atom is not a G2 point"
     )]
     #[case::keccak(
         "(i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x))",

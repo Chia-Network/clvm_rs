@@ -1,21 +1,21 @@
-use std::io::{Error, Read, Result, Write};
-
-use chia_sha2::Sha256;
+use std::io;
 
 use super::parse_atom::decode_size_with_offset;
 use super::utils::{copy_exactly, skip_bytes};
+use crate::error::Result;
+use chia_sha2::Sha256;
 
 const MAX_SINGLE_BYTE: u8 = 0x7f;
 const CONS_BOX_MARKER: u8 = 0xff;
 
 struct ShaWrapper(Sha256);
 
-impl Write for ShaWrapper {
-    fn write(&mut self, blob: &[u8]) -> std::result::Result<usize, Error> {
+impl io::Write for ShaWrapper {
+    fn write(&mut self, blob: &[u8]) -> io::Result<usize> {
         self.0.update(blob);
         Ok(blob.len())
     }
-    fn flush(&mut self) -> std::result::Result<(), Error> {
+    fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
 }
@@ -77,7 +77,7 @@ fn tree_hash_for_byte(b: u8, calculate_tree_hashes: bool) -> Option<[u8; 32]> {
     }
 }
 
-fn skip_or_sha_bytes<R: Read>(
+fn skip_or_sha_bytes<R: io::Read>(
     f: &mut R,
     size: u64,
     calculate_tree_hashes: bool,
@@ -112,7 +112,7 @@ type ParsedTriplesOutput = (Vec<ParsedTriple>, Option<Vec<[u8; 32]>>);
 ///
 /// Since these values are offsets into the original buffer, that buffer needs
 /// to be kept around to get the original atoms.
-pub fn parse_triples<R: Read>(
+pub fn parse_triples<R: io::Read>(
     f: &mut R,
     calculate_tree_hashes: bool,
 ) -> Result<ParsedTriplesOutput> {

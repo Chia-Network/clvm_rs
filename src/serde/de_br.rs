@@ -1,9 +1,8 @@
-use std::io;
 use std::io::{Cursor, Read};
 
 use super::parse_atom::{parse_atom, parse_path};
 use crate::allocator::{Allocator, NodePtr, SExp};
-use crate::reduction::EvalErr;
+use crate::error::{EvalErr, Result};
 use crate::traverse_path::{first_non_zero, msb_mask, traverse_path};
 
 const BACK_REFERENCE: u8 = 0xfe;
@@ -20,7 +19,7 @@ pub fn node_from_stream_backrefs(
     allocator: &mut Allocator,
     f: &mut Cursor<&[u8]>,
     mut backref_callback: impl FnMut(NodePtr),
-) -> io::Result<NodePtr> {
+) -> Result<NodePtr> {
     // this contains the actual value and then an optional cached list which represents value stack as a chialisp list
     // we only build this list when we need it - i.e we have a backreference that points at the stack itself rather than a value
     // we reuse the most recent cached value when rebuilding the list
@@ -67,7 +66,7 @@ fn node_from_stream_backrefs_old(
     allocator: &mut Allocator,
     f: &mut Cursor<&[u8]>,
     mut backref_callback: impl FnMut(NodePtr),
-) -> io::Result<NodePtr> {
+) -> Result<NodePtr> {
     let mut values = allocator.nil();
     let mut ops = vec![ParseOp::SExp];
 
@@ -112,12 +111,12 @@ fn node_from_stream_backrefs_old(
     }
 }
 
-pub fn node_from_bytes_backrefs(allocator: &mut Allocator, b: &[u8]) -> io::Result<NodePtr> {
+pub fn node_from_bytes_backrefs(allocator: &mut Allocator, b: &[u8]) -> Result<NodePtr> {
     let mut buffer = Cursor::new(b);
     node_from_stream_backrefs(allocator, &mut buffer, |_node| {})
 }
 
-pub fn node_from_bytes_backrefs_old(allocator: &mut Allocator, b: &[u8]) -> io::Result<NodePtr> {
+pub fn node_from_bytes_backrefs_old(allocator: &mut Allocator, b: &[u8]) -> Result<NodePtr> {
     let mut buffer = Cursor::new(b);
     node_from_stream_backrefs_old(allocator, &mut buffer, |_node| {})
 }
@@ -126,7 +125,7 @@ pub fn traverse_path_with_vec(
     allocator: &mut Allocator,
     node_index: &[u8],
     args: &mut [(NodePtr, Option<NodePtr>)],
-) -> io::Result<NodePtr> {
+) -> Result<NodePtr> {
     // the vec is a stack so a ChiaLisp list of (3 . (2 . (1 . NIL))) would be [1, 2, 3]
     // however entries in this vec may be ChiaLisp SExps so it may look more like [1, (2 . NIL), 3]
 
@@ -156,11 +155,7 @@ pub fn traverse_path_with_vec(
         if parsing_sexp {
             match allocator.sexp(sexp_to_parse) {
                 SExp::Atom => {
-                    return Err(EvalErr(
-                        sexp_to_parse,
-                        "invalid backreference during deserialisation".into(),
-                    )
-                    .into());
+                    return Err(EvalErr::SerializationBackreferenceError);
                 }
                 SExp::Pair(left, right) => {
                     sexp_to_parse = if is_bit_set { right } else { left };
@@ -210,7 +205,6 @@ pub fn traverse_path_with_vec(
 
 #[cfg(test)]
 mod tests {
-
     use crate::test_ops::node_eq;
 
     use super::*;
