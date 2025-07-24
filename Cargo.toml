@@ -89,6 +89,10 @@ sha1 = { workspace = true }
 bumpalo = { workspace = true }
 thiserror = "1.0.69"
 
+[patch.crates-io]
+# So the chia fuzzing crate can be used in the workspace
+clvmr = { path = "." }
+
 [dev-dependencies]
 rstest = { workspace = true }
 criterion = { workspace = true }
