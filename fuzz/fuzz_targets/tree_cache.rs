@@ -1,16 +1,11 @@
 #![no_main]
-mod make_tree;
-mod node_eq;
-mod serialized_len;
 
+use chia_fuzzing::{compute_serialized_len, make_tree_limits, node_eq};
 use clvmr::reduction::Reduction;
 use clvmr::serde::TreeCache;
 use clvmr::traverse_path::traverse_path;
 use clvmr::{Allocator, NodePtr, SExp};
 use libfuzzer_sys::fuzz_target;
-use make_tree::make_tree_limits;
-use node_eq::node_eq;
-use serialized_len::compute_serialized_len;
 
 #[derive(PartialEq, Eq)]
 enum ReadOp {
@@ -21,7 +16,8 @@ enum ReadOp {
 fuzz_target!(|data: &[u8]| {
     let mut unstructured = arbitrary::Unstructured::new(data);
     let mut allocator = Allocator::new();
-    let (tree, node_count) = make_tree_limits(&mut allocator, &mut unstructured, 1000, true);
+    let (tree, node_count) =
+        make_tree_limits(&mut allocator, &mut unstructured, 1000, true).expect("out of memory");
     // uncomment this if you find an interesting test case to add to the benchmark
     /*
         let tmp = clvmr::serde::node_to_bytes_backrefs(&allocator, tree).unwrap();

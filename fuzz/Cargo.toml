@@ -11,9 +11,8 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = { workspace = true }
 clvmr = { workspace = true, features = ["counters"] }
-chia-sha2 = { workspace = true }
-hex = { workspace = true }
 arbitrary = { workspace = true }
+chia-fuzzing = { workspace = true }
 
 [[bin]]
 name = "fuzz_run_program"
