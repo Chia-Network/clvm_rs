@@ -1,14 +1,10 @@
 #![no_main]
 
-mod make_tree;
-mod node_eq;
-
+use chia_fuzzing::{make_tree_limits, node_eq};
 use clvmr::serde::{node_from_bytes_backrefs, Serializer};
 use clvmr::{Allocator, NodePtr, SExp};
-use make_tree::make_tree_limits;
-use std::collections::HashMap;
-
 use libfuzzer_sys::fuzz_target;
+use std::collections::HashMap;
 
 enum TreeOp {
     SExp(NodePtr),
@@ -94,7 +90,8 @@ fuzz_target!(|data: &[u8]| {
     // exceed the limit of the Allocator. Since we run this test for every node
     // in the resulting tree, a tree being too large causes the fuzzer to
     // time-out.
-    let (program, node_count) = make_tree_limits(&mut allocator, &mut unstructured, 600_000, false);
+    let (program, node_count) =
+        make_tree_limits(&mut allocator, &mut unstructured, 600_000, false).expect("out of memory");
 
     // this just needs to be a unique NodePtr, that won't appear in the tree
     let sentinel = allocator.new_pair(NodePtr::NIL, NodePtr::NIL).unwrap();
@@ -116,7 +113,7 @@ fuzz_target!(|data: &[u8]| {
         // now, make sure that we deserialize to the exact same structure, by
         // comparing the uncompressed form
         let roundtrip = node_from_bytes_backrefs(&mut allocator, ser.get_ref()).unwrap();
-        assert!(node_eq::node_eq(&allocator, program, roundtrip));
+        assert!(node_eq(&allocator, program, roundtrip));
 
         // free the memory used by the last iteration from the allocator,
         // otherwise we'll exceed the Allocator limits eventually

@@ -1,7 +1,6 @@
 #![no_main]
 
-mod node_eq;
-
+use chia_fuzzing::node_eq;
 use clvmr::allocator::Allocator;
 use clvmr::serde::node_from_bytes_backrefs;
 use clvmr::serde::node_from_bytes_backrefs_old;
@@ -20,7 +19,7 @@ fuzz_target!(|data: &[u8]| {
             return;
         }
         (Ok(n1), Ok(n2)) => {
-            assert!(node_eq::node_eq(&allocator, n1, n2));
+            assert!(node_eq(&allocator, n1, n2));
         }
         _ => {
             panic!("mismatching results");

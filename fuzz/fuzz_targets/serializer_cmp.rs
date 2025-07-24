@@ -1,8 +1,6 @@
 #![no_main]
 
-mod make_tree;
-mod node_eq;
-
+use chia_fuzzing::{make_tree, node_eq};
 use clvmr::allocator::{Allocator, NodePtr, SExp};
 use clvmr::error::Result;
 use clvmr::serde::node_from_bytes_backrefs;
@@ -10,12 +8,9 @@ use clvmr::serde::write_atom::write_atom;
 use clvmr::serde::ReadCacheLookup;
 use clvmr::serde::TreeCache;
 use clvmr::serde::{serialized_length, treehash, ObjectCache};
+use libfuzzer_sys::fuzz_target;
 use std::io::Cursor;
 use std::io::Write;
-
-use node_eq::node_eq;
-
-use libfuzzer_sys::fuzz_target;
 
 const BACK_REFERENCE: u8 = 0xfe;
 const CONS_BOX_MARKER: u8 = 0xff;
@@ -139,7 +134,7 @@ pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> Result<V
 fuzz_target!(|data: &[u8]| {
     let mut unstructured = arbitrary::Unstructured::new(data);
     let mut allocator = Allocator::new();
-    let (program, _) = make_tree::make_tree(&mut allocator, &mut unstructured);
+    let (program, _) = make_tree(&mut allocator, &mut unstructured);
 
     let b1 = compare_back_references(&allocator, program).unwrap();
     let b2 = node_from_bytes_backrefs(&mut allocator, &b1).unwrap();
