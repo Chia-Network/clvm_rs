@@ -1,7 +1,7 @@
 #![no_main]
-use libfuzzer_sys::fuzz_target;
 
-mod make_tree;
+use chia_fuzzing::make_tree_limits;
+use libfuzzer_sys::fuzz_target;
 
 use clvmr::allocator::Allocator;
 use clvmr::chia_dialect::{ChiaDialect, MEMPOOL_MODE, NO_UNKNOWN_OPS};
@@ -12,8 +12,10 @@ use clvmr::run_program::run_program;
 fuzz_target!(|data: &[u8]| {
     let mut unstructured = arbitrary::Unstructured::new(data);
     let mut allocator = Allocator::new();
-    let (program, _) = make_tree::make_tree_limits(&mut allocator, &mut unstructured, 10_000, true);
-    let (args, _) = make_tree::make_tree_limits(&mut allocator, &mut unstructured, 10_000, true);
+    let (program, _) =
+        make_tree_limits(&mut allocator, &mut unstructured, 10_000, true).expect("out of memory");
+    let (args, _) =
+        make_tree_limits(&mut allocator, &mut unstructured, 10_000, true).expect("out of memory");
 
     let allocator_checkpoint = allocator.checkpoint();
 
