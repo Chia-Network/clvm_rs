@@ -19,4 +19,3 @@ clvmr = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-test = { workspace = true }
 js-sys = { workspace = true }
-getrandom = { workspace = true, features = ["js"] }
