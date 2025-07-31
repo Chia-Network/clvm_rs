@@ -184,18 +184,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "chia-fuzzing"
-version = "0.28.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1b27106dd6e79158ccf5f47200eb95c550fc156a58c7305ae2f0eea301809d8"
-dependencies = [
- "anyhow",
- "arbitrary",
- "chia-sha2",
- "clvmr",
-]
-
-[[package]]
 name = "chia-sha2"
 version = "0.28.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -296,8 +284,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
+name = "clvm-fuzzing"
+version = "0.16.1"
+dependencies = [
+ "anyhow",
+ "arbitrary",
+ "chia-sha2",
+ "clvmr",
+]
+
+[[package]]
 name = "clvm-rs-test-tools"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "chia-bls",
  "clap",
@@ -316,7 +314,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_rs"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "clvmr",
  "pyo3",
@@ -324,17 +322,17 @@ dependencies = [
 
 [[package]]
 name = "clvm_rs-fuzz"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "arbitrary",
- "chia-fuzzing",
+ "clvm-fuzzing",
  "clvmr",
  "libfuzzer-sys",
 ]
 
 [[package]]
 name = "clvm_wasm"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "clvmr",
  "getrandom",
@@ -345,7 +343,7 @@ dependencies = [
 
 [[package]]
 name = "clvmr"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "bitvec",
  "bumpalo",

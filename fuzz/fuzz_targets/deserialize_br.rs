@@ -1,6 +1,6 @@
 #![no_main]
 
-use chia_fuzzing::node_eq;
+use clvm_fuzzing::node_eq;
 use clvmr::allocator::Allocator;
 use clvmr::serde::node_from_bytes_backrefs;
 use clvmr::serde::node_from_bytes_backrefs_old;

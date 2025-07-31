@@ -1,6 +1,6 @@
 [package]
 name = "clvm_rs-fuzz"
-version = "0.16.0"
+version = "0.16.1"
 authors = ["Arvid Norberg <arvid@chia.net>"]
 publish = false
 edition = "2021"
@@ -12,7 +12,7 @@ cargo-fuzz = true
 libfuzzer-sys = { workspace = true }
 clvmr = { workspace = true, features = ["counters"] }
 arbitrary = { workspace = true }
-chia-fuzzing = { workspace = true }
+clvm-fuzzing = { workspace = true }
 
 [[bin]]
 name = "fuzz_run_program"

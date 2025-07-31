@@ -1,6 +1,6 @@
 #![no_main]
 
-use chia_fuzzing::{make_tree_limits, node_eq};
+use clvm_fuzzing::{make_tree_limits, node_eq};
 use clvmr::serde::{node_from_bytes_backrefs, Serializer};
 use clvmr::{Allocator, NodePtr, SExp};
 use libfuzzer_sys::fuzz_target;

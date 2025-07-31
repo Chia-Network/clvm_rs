@@ -1,6 +1,6 @@
 #![no_main]
 
-use chia_fuzzing::{compute_serialized_len, make_tree_limits, node_eq};
+use clvm_fuzzing::{compute_serialized_len, make_tree_limits, node_eq};
 use clvmr::reduction::Reduction;
 use clvmr::serde::TreeCache;
 use clvmr::traverse_path::traverse_path;
