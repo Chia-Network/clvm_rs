@@ -8,6 +8,7 @@ description = "Developer tools for the CLVM interpreter"
 homepage = "https://github.com/Chia-Network/clvm_rs/tools/"
 repository = "https://github.com/Chia-Network/clvm_rs/tools/"
 readme = "README.md"
+publish = false
 
 [dependencies]
 hex-literal = { workspace = true }
