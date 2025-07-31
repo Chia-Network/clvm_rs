@@ -50,7 +50,6 @@ jobs:
       - name: Publish (dry run)
         run: cargo ws publish --publish-as-is --dry-run
 
-
       - name: publish to crates.io if tagged
         if: startsWith(github.event.ref, 'refs/tags')
         env:
