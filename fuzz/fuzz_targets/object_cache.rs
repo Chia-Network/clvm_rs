@@ -1,5 +1,5 @@
 #![no_main]
-use chia_fuzzing::{compute_serialized_len, make_tree_limits, pick_node, tree_hash};
+use clvm_fuzzing::{compute_serialized_len, make_tree_limits, pick_node, tree_hash};
 
 use clvmr::serde::{serialized_length, treehash, ObjectCache};
 use clvmr::Allocator;

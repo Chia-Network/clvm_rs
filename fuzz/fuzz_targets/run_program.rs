@@ -1,6 +1,6 @@
 #![no_main]
 
-use chia_fuzzing::make_tree_limits;
+use clvm_fuzzing::make_tree_limits;
 use libfuzzer_sys::fuzz_target;
 
 use clvmr::allocator::Allocator;

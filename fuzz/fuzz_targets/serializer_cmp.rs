@@ -1,6 +1,6 @@
 #![no_main]
 
-use chia_fuzzing::{make_tree, node_eq};
+use clvm_fuzzing::{make_tree, node_eq};
 use clvmr::allocator::{Allocator, NodePtr, SExp};
 use clvmr::error::Result;
 use clvmr::serde::node_from_bytes_backrefs;

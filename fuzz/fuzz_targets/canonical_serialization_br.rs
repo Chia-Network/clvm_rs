@@ -1,6 +1,6 @@
 #![no_main]
 
-use chia_fuzzing::make_tree_limits;
+use clvm_fuzzing::make_tree_limits;
 use clvmr::serde::is_canonical_serialization;
 use clvmr::serde::node_to_bytes_backrefs;
 use clvmr::Allocator;

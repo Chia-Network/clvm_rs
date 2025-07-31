@@ -1,6 +1,6 @@
 #![no_main]
 
-use chia_fuzzing::make_tree;
+use clvm_fuzzing::make_tree;
 use libfuzzer_sys::fuzz_target;
 
 use clvmr::allocator::{Allocator, NodePtr};
