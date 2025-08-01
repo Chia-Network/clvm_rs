@@ -8,6 +8,7 @@ description = "Implementation of `clvm` for Chia Network's cryptocurrency"
 homepage = "https://github.com/Chia-Network/clvm_rs/"
 repository = "https://github.com/Chia-Network/clvm_rs/"
 readme = "README.md"
+publish = false
 
 [lib]
 name = "clvm_wasm"
@@ -20,3 +21,6 @@ wasm-bindgen = { workspace = true }
 wasm-bindgen-test = { workspace = true }
 js-sys = { workspace = true }
 getrandom = { workspace = true, features = ["js"] }
+
+[package.metadata.cargo-machete]
+ignored = ["getrandom"]
