@@ -89,7 +89,7 @@ rand = { workspace = true }
 hex = { workspace = true }
 sha1 = { workspace = true }
 bumpalo = { workspace = true }
-thiserror = "1.0.69"
+thiserror = "2.0.14"
 
 
 [dev-dependencies]
