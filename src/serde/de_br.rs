@@ -265,7 +265,6 @@ mod tests {
         assert_eq!(expected_hash, ch);
     }
 
-    #[cfg(feature = "counters")]
     #[test]
     fn test_counters() {
         use crate::allocator::Allocator;

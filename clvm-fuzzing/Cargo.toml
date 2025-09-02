@@ -14,7 +14,7 @@ cargo-fuzz = true
 
 [dependencies]
 arbitrary = { workspace = true, features = ["derive"] }
-clvmr = { workspace = true, features = ["counters"] }
+clvmr = { workspace = true }
 chia-sha2 = { workspace = true }
 anyhow = { workspace = true }
 

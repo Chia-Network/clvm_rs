@@ -732,7 +732,7 @@ impl Allocator {
         val == atom_val
     }
 
-    pub fn atom(&self, node: NodePtr) -> Atom {
+    pub fn atom(&self, node: NodePtr) -> Atom<'_> {
         #[cfg(feature = "allocator-debug")]
         self.validate_node(node);
 
@@ -871,7 +871,7 @@ impl Allocator {
             .map_err(|_| EvalErr::InvalidAllocArg(node, "atom is not a G2 point".to_string()))
     }
 
-    pub fn node(&self, node: NodePtr) -> NodeVisitor {
+    pub fn node(&self, node: NodePtr) -> NodeVisitor<'_> {
         #[cfg(feature = "allocator-debug")]
         self.validate_node(node);
 
@@ -936,27 +936,22 @@ impl Allocator {
         }
     }
 
-    #[cfg(feature = "counters")]
     pub fn atom_count(&self) -> usize {
         self.atom_vec.len()
     }
 
-    #[cfg(feature = "counters")]
     pub fn small_atom_count(&self) -> usize {
         self.ghost_atoms
     }
 
-    #[cfg(feature = "counters")]
     pub fn pair_count(&self) -> usize {
         self.pair_vec.len() + self.ghost_pairs
     }
 
-    #[cfg(feature = "counters")]
     pub fn pair_count_no_ghosts(&self) -> usize {
         self.pair_vec.len()
     }
 
-    #[cfg(feature = "counters")]
     pub fn heap_size(&self) -> usize {
         self.u8_vec.len()
     }
