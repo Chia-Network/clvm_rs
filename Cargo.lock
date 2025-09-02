@@ -185,9 +185,9 @@ dependencies = [
 
 [[package]]
 name = "chia-sha2"
-version = "0.28.1"
+version = "0.28.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4794753f68eee46d289e079b2e3fc63aee9a63d15a171b3ce47b0b98dee529a5"
+checksum = "d2f03c71bc63599a711caad15dafca1d2a948c26b4c8a021709a338149632769"
 dependencies = [
  "openssl",
  "sha2",
