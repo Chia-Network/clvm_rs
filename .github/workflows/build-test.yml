@@ -26,7 +26,7 @@ jobs:
         python: [3.8]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -138,7 +138,7 @@ jobs:
     needs: build_wheels
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -165,7 +165,7 @@ jobs:
     runs-on: ubuntu-22.04
     name: Checks
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 1
       - name: Install rust
@@ -188,7 +188,7 @@ jobs:
         os: [macos-13, ubuntu-latest]
         python: [3.8]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 1
       - name: Install rust
@@ -223,7 +223,7 @@ jobs:
         os: [macos-13, ubuntu-latest, windows-latest]
         python: [3.8]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 1
       - name: Install rust
@@ -252,7 +252,7 @@ jobs:
   coverage:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - name: Run for coverage
         run: |
