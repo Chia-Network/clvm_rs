@@ -25,6 +25,8 @@ jobs:
 
       - name: Set up rusts
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: fmt (stable)
         run: cargo +stable fmt --all -- --files-with-diff --check
