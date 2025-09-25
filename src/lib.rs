@@ -15,6 +15,7 @@ pub mod run_program;
 pub mod runtime_dialect;
 pub mod secp_ops;
 pub mod serde;
+pub mod sha_tree_op;
 pub mod traverse_path;
 
 pub use allocator::{Allocator, Atom, NodePtr, ObjectType, SExp};
