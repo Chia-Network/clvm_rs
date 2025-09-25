@@ -15,7 +15,6 @@ use crate::more_ops::{
 };
 use crate::reduction::Response;
 use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
-use crate::sha_tree_op::op_sha256_tree;
 
 type OpFn = fn(&mut Allocator, NodePtr, Cost) -> Response;
 
@@ -67,7 +66,6 @@ pub fn opcode_by_name(name: &str) -> Option<OpFn> {
         (op_bls_verify, "op_bls_verify"),
         (op_secp256k1_verify, "op_secp256k1_verify"),
         (op_secp256r1_verify, "op_secp256r1_verify"),
-        (op_sha256_tree, "op_sha256_tree"),
     ];
     let name: &[u8] = name.as_ref();
     for (f, op) in opcode_lookup.iter() {
