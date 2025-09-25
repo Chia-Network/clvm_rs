@@ -28,10 +28,10 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: fmt (stable)
-        run: cargo +stable fmt --all -- --files-with-diff --check
+      - name: fmt
+        run: cargo fmt --all -- --files-with-diff --check
 
-      - name: clippy (stable)
+      - name: clippy
         run: cargo clippy --workspace --all-features --all-targets -- -D warnings
 
       - name: Install cargo-machete
