@@ -15,6 +15,109 @@ const SHA256TREE_BASE_COST: Cost = 50;
 const SHA256TREE_COST_PER_CALL: Cost = 160;
 const SHA256TREE_COST_PER_BYTE: Cost = 2;
 
+#[derive(Default)]
+pub struct TreeCache {
+    hashes: Vec<TreeHash>,
+    // each entry is an index into hashes, or one of 3 special values:
+    // u16::MAX if the pair has not been visited
+    // u16::MAX - 1 if the pair has been seen once
+    // u16::MAX - 2 if the pair has been seen at least twice (this makes it a
+    // candidate for memoization)
+    pairs: Vec<u16>,
+}
+
+const NOT_VISITED: u16 = u16::MAX;
+const SEEN_ONCE: u16 = u16::MAX - 1;
+const SEEN_MULTIPLE: u16 = u16::MAX - 2;
+
+impl TreeCache {
+    pub fn get(&self, n: NodePtr) -> Option<&TreeHash> {
+        // We only cache pairs (for now)
+        if !matches!(n.object_type(), ObjectType::Pair) {
+            return None;
+        }
+
+        let idx = n.index() as usize;
+        let slot = *self.pairs.get(idx)?;
+        if slot >= SEEN_MULTIPLE {
+            return None;
+        }
+        Some(&self.hashes[slot as usize])
+    }
+
+    pub fn insert(&mut self, n: NodePtr, hash: &TreeHash) {
+        // If we've reached the max size, just ignore new cache items
+        if self.hashes.len() == SEEN_MULTIPLE as usize {
+            return;
+        }
+
+        if !matches!(n.object_type(), ObjectType::Pair) {
+            return;
+        }
+
+        let idx = n.index() as usize;
+        if idx >= self.pairs.len() {
+            self.pairs.resize(idx + 1, NOT_VISITED);
+        }
+
+        let slot = self.hashes.len();
+        self.hashes.push(*hash);
+        self.pairs[idx] = slot as u16;
+    }
+
+    /// mark the node as being visited. Returns true if we need to
+    /// traverse visitation down this node.
+    fn visit(&mut self, n: NodePtr) -> bool {
+        if !matches!(n.object_type(), ObjectType::Pair) {
+            return false;
+        }
+        let idx = n.index() as usize;
+        if idx >= self.pairs.len() {
+            self.pairs.resize(idx + 1, NOT_VISITED);
+        }
+        if self.pairs[idx] > SEEN_MULTIPLE {
+            self.pairs[idx] -= 1;
+        }
+        self.pairs[idx] == SEEN_ONCE
+    }
+
+    pub fn should_memoize(&mut self, n: NodePtr) -> bool {
+        if !matches!(n.object_type(), ObjectType::Pair) {
+            return false;
+        }
+        let idx = n.index() as usize;
+        if idx >= self.pairs.len() {
+            false
+        } else {
+            self.pairs[idx] <= SEEN_MULTIPLE
+        }
+    }
+
+    pub fn visit_tree(&mut self, a: &Allocator, node: NodePtr) {
+        if !self.visit(node) {
+            return;
+        }
+        let mut nodes = vec![node];
+        while let Some(n) = nodes.pop() {
+            let SExp::Pair(left, right) = a.sexp(n) else {
+                continue;
+            };
+            if self.visit(left) {
+                nodes.push(left);
+            }
+            if self.visit(right) {
+                nodes.push(right);
+            }
+        }
+    }
+}
+
+enum TreeOp {
+    SExp(NodePtr),
+    Cons,
+    ConsAddCache(NodePtr),
+}
+
 pub fn tree_hash_cached_costed(
     a: &Allocator,
     node: NodePtr,
@@ -85,7 +188,6 @@ pub fn tree_hash_cached_costed(
     assert!(hashes.len() == 1);
     Ok(hashes[0])
 }
-
 
 pub fn op_sha256_tree(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response {
     let mut cost = SHA256TREE_BASE_COST;
