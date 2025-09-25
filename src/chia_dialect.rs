@@ -167,9 +167,6 @@ impl Dialect for ChiaDialect {
             60 => op_modpow,
             61 => op_mod,
             62 if (flags & ENABLE_KECCAK_OPS_OUTSIDE_GUARD) != 0 => op_keccak256,
-            _ => {
-                return unknown_operator(allocator, o, argument_list, flags, max_cost);
-            }
             63 if (flags & ENABLE_SHA256_TREE) != 0 => op_sha256_tree,
             _ => {
                 return unknown_operator(allocator, o, argument_list, flags, max_cost);

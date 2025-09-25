@@ -15,6 +15,24 @@ const SHA256TREE_BASE_COST: Cost = 50;
 const SHA256TREE_COST_PER_CALL: Cost = 160;
 const SHA256TREE_COST_PER_BYTE: Cost = 2;
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TreeHash([u8; 32]);
+
+pub fn tree_hash_atom(bytes: &[u8]) -> TreeHash {
+    let mut sha256 = Sha256::new();
+    sha256.update([1]);
+    sha256.update(bytes);
+    TreeHash::new(sha256.finalize())
+}
+
+pub fn tree_hash_pair(first: TreeHash, rest: TreeHash) -> TreeHash {
+    let mut sha256 = Sha256::new();
+    sha256.update([2]);
+    sha256.update(first);
+    sha256.update(rest);
+    TreeHash::new(sha256.finalize())
+}
+
 #[derive(Default)]
 pub struct TreeCache {
     hashes: Vec<TreeHash>,
