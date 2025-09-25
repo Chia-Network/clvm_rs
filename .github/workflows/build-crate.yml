@@ -24,12 +24,12 @@ jobs:
           fetch-depth: 0
 
       - name: Set up rusts
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.89.0
 
-      - name: fmt (stable)
-        run: cargo +stable fmt --all -- --files-with-diff --check
+      - name: fmt
+        run: cargo fmt --all -- --files-with-diff --check
 
-      - name: clippy (stable)
+      - name: clippy
         run: cargo clippy --workspace --all-features --all-targets -- -D warnings
 
       - name: Install cargo-machete
