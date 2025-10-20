@@ -11,6 +11,11 @@ on:
     branches:
       - "**"
 
+permissions:
+  contents: read
+  actions: write
+  id-token: write
+
 jobs:
   build_crate:
     name: NPM
@@ -45,7 +50,7 @@ jobs:
 
       - name: publish to npmjs.com if tagged
         if: startsWith(github.event.ref, 'refs/tags')
-        uses: JS-DevTools/npm-publish@v3
+        uses: JS-DevTools/npm-publish@v4
         with:
-          token: ${{ secrets.node_auth_token }}
+          provenance: true
           package: wasm/pkg/package.json
