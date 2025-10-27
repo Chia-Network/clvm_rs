@@ -5,9 +5,9 @@ use crate::op_utils::get_args;
 use crate::reduction::{Reduction, Response};
 use crate::treehash::*;
 
-const SHA256TREE_BASE_COST: Cost = 50;
-const SHA256TREE_COST_PER_CALL: Cost = 160;
-const SHA256TREE_COST_PER_BYTE: Cost = 2;
+const SHA256TREE_BASE_COST: Cost = 0;
+const SHA256TREE_COST_PER_CALL: Cost = 1300;
+const SHA256TREE_COST_PER_BYTE: Cost = 10;
 
 pub fn tree_hash_cached_costed(
     a: &mut Allocator,

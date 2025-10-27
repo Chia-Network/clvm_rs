@@ -193,9 +193,6 @@ pub fn node_eq(allocator: &Allocator, s1: NodePtr, s2: NodePtr) -> bool {
             (SExp::Atom, SExp::Atom) => {
                 if !allocator.atom_eq(l, r) {
                     return false;
-                    // let left = allocator.atom(l);
-                    // let right = allocator.atom(r);
-                    // panic!("left val {:?} - right val {:?}", left, right);
                 }
             }
             _ => {
