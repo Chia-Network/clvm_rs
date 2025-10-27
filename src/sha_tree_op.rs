@@ -13,19 +13,18 @@ pub fn tree_hash_cached_costed(
     a: &mut Allocator,
     node: NodePtr,
     cache: &mut TreeCache,
-    cost_left: u64,
+    cost_left: Cost,
 ) -> Response {
     cache.visit_tree(a, node);
 
     let mut hashes = Vec::new();
     let mut ops = vec![TreeOp::SExp(node)];
-    let mut cost = SHA256TREE_BASE_COST;
+    let mut cost: Cost = SHA256TREE_BASE_COST;
 
-    // we will call check_cost throughout the runtime so we can exit immediately if we go over cost
     while let Some(op) = ops.pop() {
+        // charge a call cost for processing this op
         cost += SHA256TREE_COST_PER_CALL;
         check_cost(cost, cost_left)?;
-
         match op {
             TreeOp::SExp(node) => match a.node(node) {
                 NodeVisitor::Buffer(bytes) => {
@@ -44,13 +43,18 @@ pub fn tree_hash_cached_costed(
                     }
                 }
                 NodeVisitor::Pair(left, right) => {
+                    // pair cost (65 bytes as before)
                     cost += SHA256TREE_COST_PER_BYTE * 65_u64;
                     check_cost(cost, cost_left)?;
-                    if let Some(hash) = cache.get(node) {
+                    if let Some((hash, cached_cost)) = cache.get(node) {
+                        // when reusing a cached subtree, charge its cached cost
+                        cost += cached_cost;
+                        check_cost(cost, cost_left)?;
                         hashes.push(*hash);
                     } else {
                         if cache.should_memoize(node) {
-                            ops.push(TreeOp::ConsAddCache(node));
+                            // record the cost_left before traversing this subtree
+                            ops.push(TreeOp::ConsAddCacheCost(node, cost));
                         } else {
                             ops.push(TreeOp::Cons);
                         }
@@ -64,12 +68,16 @@ pub fn tree_hash_cached_costed(
                 let rest = hashes.pop().unwrap();
                 hashes.push(tree_hash_pair(first, rest));
             }
-            TreeOp::ConsAddCache(original_node) => {
+            TreeOp::ConsAddCacheCost(original_node, cost_before) => {
                 let first = hashes.pop().unwrap();
                 let rest = hashes.pop().unwrap();
                 let hash = tree_hash_pair(first, rest);
                 hashes.push(hash);
-                cache.insert(original_node, &hash);
+                // cost_before will be lower
+                // cost_left is the remaining after computing it
+                // the cost of this subtree = after - before
+                let used = cost - cost_before;
+                cache.insert(original_node, &hash, used);
             }
         }
     }

@@ -1,4 +1,5 @@
 use crate::allocator::{Allocator, NodePtr};
+use crate::cost::Cost;
 use crate::ObjectType;
 use crate::SExp;
 use chia_sha2::Sha256;
@@ -79,7 +80,9 @@ pub fn tree_hash_pair(first: TreeHash, rest: TreeHash) -> TreeHash {
 #[derive(Default)]
 pub struct TreeCache {
     hashes: Vec<TreeHash>,
-    // each entry is an index into hashes, or one of 3 special values:
+    // parallel vector holding the cost used to compute the corresponding hash
+    costs: Vec<Cost>,
+    // each entry is an index into hashes and costs, or one of 3 special values:
     // u16::MAX if the pair has not been visited
     // u16::MAX - 1 if the pair has been seen once
     // u16::MAX - 2 if the pair has been seen at least twice (this makes it a
@@ -92,7 +95,8 @@ const SEEN_ONCE: u16 = u16::MAX - 1;
 const SEEN_MULTIPLE: u16 = u16::MAX - 2;
 
 impl TreeCache {
-    pub fn get(&self, n: NodePtr) -> Option<&TreeHash> {
+    /// Get cached hash and its associated cost (if present).
+    pub fn get(&self, n: NodePtr) -> Option<(&TreeHash, Cost)> {
         // We only cache pairs (for now)
         if !matches!(n.object_type(), ObjectType::Pair) {
             return None;
@@ -103,10 +107,12 @@ impl TreeCache {
         if slot >= SEEN_MULTIPLE {
             return None;
         }
-        Some(&self.hashes[slot as usize])
+        Some((&self.hashes[slot as usize], self.costs[slot as usize]))
     }
 
-    pub fn insert(&mut self, n: NodePtr, hash: &TreeHash) {
+    /// Insert a cached hash with its associated cost. If the cache is full we
+    /// ignore the insertion.
+    pub fn insert(&mut self, n: NodePtr, hash: &TreeHash, cost: Cost) {
         // If we've reached the max size, just ignore new cache items
         if self.hashes.len() == SEEN_MULTIPLE as usize {
             return;
@@ -123,6 +129,7 @@ impl TreeCache {
 
         let slot = self.hashes.len();
         self.hashes.push(*hash);
+        self.costs.push(cost);
         self.pairs[idx] = slot as u16;
     }
 
@@ -176,7 +183,7 @@ impl TreeCache {
 pub(crate) enum TreeOp {
     SExp(NodePtr),
     Cons,
-    ConsAddCache(NodePtr),
+    ConsAddCacheCost(NodePtr, Cost),
 }
 
 macro_rules! th {
