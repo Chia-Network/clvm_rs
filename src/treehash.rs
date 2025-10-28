@@ -3,7 +3,6 @@ use crate::cost::Cost;
 use crate::ObjectType;
 use crate::SExp;
 use chia_sha2::Sha256;
-use hex_literal::hex;
 
 pub fn tree_hash_atom(bytes: &[u8]) -> [u8; 32] {
     let mut sha256 = Sha256::new();
@@ -128,35 +127,3 @@ pub(crate) enum TreeOp {
     Cons,
     ConsAddCacheCost(NodePtr, Cost),
 }
-
-macro_rules! th {
-    ($hash:expr) => {
-        hex!($hash)
-    };
-}
-pub const PRECOMPUTED_HASHES: [[u8; 32]; 24] = [
-    th!("4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a"),
-    th!("9dcf97a184f32623d11a73124ceb99a5709b083721e878a16d78f596718ba7b2"),
-    th!("a12871fee210fb8619291eaea194581cbd2531e4b23759d225f6806923f63222"),
-    th!("c79b932e1e1da3c0e098e5ad2c422937eb904a76cf61d83975a74a68fbb04b99"),
-    th!("a8d5dd63fba471ebcb1f3e8f7c1e1879b7152a6e7298a91ce119a63400ade7c5"),
-    th!("bc5959f43bc6e47175374b6716e53c9a7d72c59424c821336995bad760d9aeb3"),
-    th!("44602a999abbebedf7de0ae1318e4f57e3cb1d67e482a65f9657f7541f3fe4bb"),
-    th!("ca6c6588fa01171b200740344d354e8548b7470061fb32a34f4feee470ec281f"),
-    th!("9e6282e4f25e370ce617e21d6fe265e88b9e7b8682cf00059b9d128d9381f09d"),
-    th!("ac9e61d54eb6967e212c06aab15408292f8558c48f06f9d705150063c68753b0"),
-    th!("c04b5bb1a5b2eb3e9cd4805420dba5a9d133da5b7adeeafb5474c4adae9faa80"),
-    th!("57bfd1cb0adda3d94315053fda723f2028320faa8338225d99f629e3d46d43a9"),
-    th!("6b6daa8334bbcc8f6b5906b6c04be041d92700b74024f73f50e0a9f0dae5f06f"),
-    th!("c7b89cfb9abf2c4cb212a4840b37d762f4c880b8517b0dadb0c310ded24dd86d"),
-    th!("653b3bb3e18ef84d5b1e8ff9884aecf1950c7a1c98715411c22b987663b86dda"),
-    th!("24255ef5d941493b9978f3aabb0ed07d084ade196d23f463ff058954cbf6e9b6"),
-    th!("af340aa58ea7d72c2f9a7405f3734167bb27dd2a520d216addef65f8362102b6"),
-    th!("26e7f98cfafee5b213726e22632923bf31bf3e988233235f8f5ca5466b3ac0ed"),
-    th!("115b498ce94335826baa16386cd1e2fde8ca408f6f50f3785964f263cdf37ebe"),
-    th!("d8c50d6282a1ba47f0a23430d177bbfbb72e2b84713745e894f575570f1f3d6e"),
-    th!("dbe726e81a7221a385e007ef9e834a975a4b528c6f55a5d2ece288bee831a3d1"),
-    th!("764c8a3561c7cf261771b4e1969b84c210836f3c034baebac5e49a394a6ee0a9"),
-    th!("dce37f3512b6337d27290436ba9289e2fd6c775494c33668dd177cf811fbd47a"),
-    th!("5809addc9f6926fc5c4e20cf87958858c4454c21cdfc6b02f377f12c06b35cca"),
-];

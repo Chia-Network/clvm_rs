@@ -1,6 +1,7 @@
 use crate::allocator::NodeVisitor;
 use crate::allocator::{Allocator, NodePtr};
 use crate::cost::{check_cost, Cost};
+use crate::more_ops::PRECOMPUTED_HASHES;
 use crate::op_utils::get_args;
 use crate::reduction::{Reduction, Response};
 use crate::treehash::*;
