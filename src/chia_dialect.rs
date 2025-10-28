@@ -30,9 +30,12 @@ pub const LIMIT_HEAP: u32 = 0x0004;
 // This is a hard-fork and should only be enabled when it activates
 pub const ENABLE_KECCAK_OPS_OUTSIDE_GUARD: u32 = 0x0100;
 
+
+// this flag enables the sha256tree op *outside* the softfork guard.
+// This is a hard-fork and should only be enabled when it activates.
 pub const ENABLE_SHA256_TREE: u32 = 0x0200;
 
-// The default mode when running grnerators in mempool-mode (i.e. the stricter
+// The default mode when running generators in mempool-mode (i.e. the stricter
 // mode)
 pub const MEMPOOL_MODE: u32 = NO_UNKNOWN_OPS | LIMIT_HEAP;
 
