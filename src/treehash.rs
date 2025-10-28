@@ -4,82 +4,25 @@ use crate::ObjectType;
 use crate::SExp;
 use chia_sha2::Sha256;
 use hex_literal::hex;
-use std::fmt;
-use std::ops::Deref;
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TreeHash([u8; 32]);
-
-impl TreeHash {
-    pub const fn new(hash: [u8; 32]) -> Self {
-        Self(hash)
-    }
-
-    pub const fn to_bytes(&self) -> [u8; 32] {
-        self.0
-    }
-
-    pub fn to_vec(&self) -> Vec<u8> {
-        self.0.to_vec()
-    }
-}
-
-impl fmt::Debug for TreeHash {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "TreeHash({self})")
-    }
-}
-
-impl fmt::Display for TreeHash {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::encode(self.0))
-    }
-}
-
-impl From<[u8; 32]> for TreeHash {
-    fn from(hash: [u8; 32]) -> Self {
-        Self::new(hash)
-    }
-}
-
-impl From<TreeHash> for [u8; 32] {
-    fn from(hash: TreeHash) -> [u8; 32] {
-        hash.0
-    }
-}
-
-impl AsRef<[u8]> for TreeHash {
-    fn as_ref(&self) -> &[u8] {
-        &self.0
-    }
-}
-
-impl Deref for TreeHash {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-pub fn tree_hash_atom(bytes: &[u8]) -> TreeHash {
+pub fn tree_hash_atom(bytes: &[u8]) -> [u8; 32] {
     let mut sha256 = Sha256::new();
     sha256.update([1]);
     sha256.update(bytes);
-    TreeHash::new(sha256.finalize())
+    sha256.finalize()
 }
 
-pub fn tree_hash_pair(first: TreeHash, rest: TreeHash) -> TreeHash {
+pub fn tree_hash_pair(first: [u8; 32], rest: [u8; 32]) -> [u8; 32] {
     let mut sha256 = Sha256::new();
     sha256.update([2]);
     sha256.update(first);
     sha256.update(rest);
-    TreeHash::new(sha256.finalize())
+    sha256.finalize()
 }
 
 #[derive(Default)]
 pub struct TreeCache {
-    hashes: Vec<TreeHash>,
+    hashes: Vec<[u8; 32]>,
     // parallel vector holding the cost used to compute the corresponding hash
     costs: Vec<Cost>,
     // each entry is an index into hashes and costs, or one of 3 special values:
@@ -96,7 +39,7 @@ const SEEN_MULTIPLE: u16 = u16::MAX - 2;
 
 impl TreeCache {
     /// Get cached hash and its associated cost (if present).
-    pub fn get(&self, n: NodePtr) -> Option<(&TreeHash, Cost)> {
+    pub fn get(&self, n: NodePtr) -> Option<(&[u8; 32], Cost)> {
         // We only cache pairs (for now)
         if !matches!(n.object_type(), ObjectType::Pair) {
             return None;
@@ -112,7 +55,7 @@ impl TreeCache {
 
     /// Insert a cached hash with its associated cost. If the cache is full we
     /// ignore the insertion.
-    pub fn insert(&mut self, n: NodePtr, hash: &TreeHash, cost: Cost) {
+    pub fn insert(&mut self, n: NodePtr, hash: &[u8; 32], cost: Cost) {
         // If we've reached the max size, just ignore new cache items
         if self.hashes.len() == SEEN_MULTIPLE as usize {
             return;
@@ -188,10 +131,10 @@ pub(crate) enum TreeOp {
 
 macro_rules! th {
     ($hash:expr) => {
-        TreeHash::new(hex!($hash))
+        hex!($hash)
     };
 }
-pub const PRECOMPUTED_HASHES: [TreeHash; 24] = [
+pub const PRECOMPUTED_HASHES: [[u8; 32]; 24] = [
     th!("4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a"),
     th!("9dcf97a184f32623d11a73124ceb99a5709b083721e878a16d78f596718ba7b2"),
     th!("a12871fee210fb8619291eaea194581cbd2531e4b23759d225f6806923f63222"),
