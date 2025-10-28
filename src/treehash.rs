@@ -3,6 +3,7 @@ use crate::allocator::{Allocator, NodePtr};
 use crate::cost::check_cost;
 use crate::cost::Cost;
 use crate::more_ops::PRECOMPUTED_HASHES;
+use crate::op_utils::MALLOC_COST_PER_BYTE;
 use crate::reduction::Reduction;
 use crate::reduction::Response;
 use crate::ObjectType;
@@ -211,5 +212,7 @@ pub fn tree_hash_cached_costed(
     }
 
     assert!(hashes.len() == 1);
+    cost += MALLOC_COST_PER_BYTE * 32;
+    check_cost(cost, cost_left)?;
     Ok(Reduction(cost, a.new_atom(&hashes[0])?))
 }
