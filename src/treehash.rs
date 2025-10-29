@@ -21,7 +21,7 @@ pub fn tree_hash_atom(bytes: &[u8]) -> [u8; 32] {
     sha256.finalize()
 }
 
-pub fn tree_hash_pair(first: [u8; 32], rest: [u8; 32]) -> [u8; 32] {
+pub fn tree_hash_pair(first: &[u8; 32], rest: &[u8; 32]) -> [u8; 32] {
     let mut sha256 = Sha256::new();
     sha256.update([2]);
     sha256.update(first);
@@ -196,12 +196,12 @@ pub fn tree_hash_cached_costed(
             TreeOp::Cons => {
                 let first = hashes.pop().unwrap();
                 let rest = hashes.pop().unwrap();
-                hashes.push(tree_hash_pair(first, rest));
+                hashes.push(tree_hash_pair(&first, &rest));
             }
             TreeOp::ConsAddCacheCost(original_node, cost_before) => {
                 let first = hashes.pop().unwrap();
                 let rest = hashes.pop().unwrap();
-                let hash = tree_hash_pair(first, rest);
+                let hash = tree_hash_pair(&first, &rest);
                 hashes.push(hash);
                 // cost_before will be lower
                 // cost_left is the remaining after computing it
@@ -252,7 +252,7 @@ mod tests {
                 TreeOp::Cons => {
                     let first = hashes.pop().unwrap();
                     let rest = hashes.pop().unwrap();
-                    hashes.push(tree_hash_pair(first, rest));
+                    hashes.push(tree_hash_pair(&first, &rest));
                 }
                 TreeOp::ConsAddCacheCost(_, _) => unreachable!(),
             }
@@ -306,7 +306,7 @@ mod tests {
                 TreeOp::Cons => {
                     let first = hashes.pop().unwrap();
                     let rest = hashes.pop().unwrap();
-                    hashes.push(tree_hash_pair(first, rest));
+                    hashes.push(tree_hash_pair(&first, &rest));
                 }
                 TreeOp::ConsAddCacheCost(_, _) => unreachable!(),
             }
@@ -393,7 +393,7 @@ mod tests {
         for i in 0..65540 {
             let b = allocator.one();
             list = allocator.new_pair(b, list).expect("new_pair");
-            hash = tree_hash_pair(tree_hash_atom(b"\x01"), hash);
+            hash = tree_hash_pair(&tree_hash_atom(b"\x01"), &hash);
             cache.insert(list, &hash, 0);
 
             println!("{i}");
