@@ -267,6 +267,7 @@ mod tests {
     #[case("test-modpow")]
     #[case("test-sha256")]
     #[case("test-sha256tree")]
+    #[case("test-sha256tree-hash")]
     #[case("test-keccak256")]
     #[case("test-keccak256-generated")]
     fn test_ops(#[case] filename: &str) {

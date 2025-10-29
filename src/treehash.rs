@@ -151,47 +151,48 @@ pub fn tree_hash_cached_costed(
     let mut cost: Cost = SHA256TREE_BASE_COST;
 
     while let Some(op) = ops.pop() {
-        // charge a call cost for processing this op
-        cost += SHA256TREE_COST_PER_CALL;
-        check_cost(cost, cost_left)?;
         match op {
-            TreeOp::SExp(node) => match a.node(node) {
-                NodeVisitor::Buffer(bytes) => {
-                    cost += SHA256TREE_COST_PER_BYTE * bytes.len() as u64;
-                    check_cost(cost, cost_left)?;
-                    let hash = tree_hash_atom(bytes);
-                    hashes.push(hash);
-                }
-                NodeVisitor::U32(val) => {
-                    cost += SHA256TREE_COST_PER_BYTE * a.atom_len(node) as u64;
-                    check_cost(cost, cost_left)?;
-                    if (val as usize) < PRECOMPUTED_HASHES.len() {
-                        hashes.push(PRECOMPUTED_HASHES[val as usize]);
-                    } else {
-                        hashes.push(tree_hash_atom(a.atom(node).as_ref()));
-                    }
-                }
-                NodeVisitor::Pair(left, right) => {
-                    // pair cost (65 bytes as before)
-                    cost += SHA256TREE_COST_PER_BYTE * 65_u64;
-                    check_cost(cost, cost_left)?;
-                    if let Some((hash, cached_cost)) = cache.get(node) {
-                        // when reusing a cached subtree, charge its cached cost
-                        cost += cached_cost;
+            TreeOp::SExp(node) => {
+                // charge a call cost for processing this op
+                cost += SHA256TREE_COST_PER_CALL;
+                check_cost(cost, cost_left)?;
+                match a.node(node) {
+                    NodeVisitor::Buffer(bytes) => {
+                        cost += SHA256TREE_COST_PER_BYTE * bytes.len() as u64;
                         check_cost(cost, cost_left)?;
-                        hashes.push(*hash);
-                    } else {
-                        if cache.should_memoize(node) {
-                            // record the cost_left before traversing this subtree
-                            ops.push(TreeOp::ConsAddCacheCost(node, cost));
+                        let hash = tree_hash_atom(bytes);
+                        hashes.push(hash);
+                    }
+                    NodeVisitor::U32(val) => {
+                        cost += SHA256TREE_COST_PER_BYTE * a.atom_len(node) as u64;
+                        check_cost(cost, cost_left)?;
+                        if (val as usize) < PRECOMPUTED_HASHES.len() {
+                            hashes.push(PRECOMPUTED_HASHES[val as usize]);
                         } else {
-                            ops.push(TreeOp::Cons);
+                            hashes.push(tree_hash_atom(a.atom(node).as_ref()));
                         }
-                        ops.push(TreeOp::SExp(left));
-                        ops.push(TreeOp::SExp(right));
+                    }
+                    NodeVisitor::Pair(left, right) => {
+                        cost += SHA256TREE_COST_PER_BYTE * 65_u64;
+                        check_cost(cost, cost_left)?;
+                        if let Some((hash, cached_cost)) = cache.get(node) {
+                            // when reusing a cached subtree, charge its cached cost
+                            cost += cached_cost;
+                            check_cost(cost, cost_left)?;
+                            hashes.push(*hash);
+                        } else {
+                            if cache.should_memoize(node) {
+                                // record the cost before traversing this subtree
+                                ops.push(TreeOp::ConsAddCacheCost(node, cost));
+                            } else {
+                                ops.push(TreeOp::Cons);
+                            }
+                            ops.push(TreeOp::SExp(left));
+                            ops.push(TreeOp::SExp(right));
+                        }
                     }
                 }
-            },
+            }
             TreeOp::Cons => {
                 let first = hashes.pop().unwrap();
                 let rest = hashes.pop().unwrap();
