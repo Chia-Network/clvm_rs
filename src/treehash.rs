@@ -368,16 +368,16 @@ mod tests {
         assert_eq!(cache.get(c), None);
 
         // We don't cache atoms
-        cache.insert(a, &tree_hash(&mut allocator, a), 0);
+        cache.insert(a, &tree_hash(& allocator, a), 0);
         assert_eq!(cache.get(a), None);
 
-        cache.insert(b, &tree_hash(&mut allocator, b), 0);
+        cache.insert(b, &tree_hash(& allocator, b), 0);
         assert_eq!(cache.get(b), None);
 
         // but pair is OK
-        cache.insert(c, &tree_hash(&mut allocator, c), 0);
+        cache.insert(c, &tree_hash(& allocator, c), 0);
         let (h, _c) = cache.get(c).expect("expected cached pair");
-        assert_eq!(h, &tree_hash(&mut allocator, c));
+        assert_eq!(h, &tree_hash(& allocator, c));
     }
 
     #[test]
@@ -386,7 +386,7 @@ mod tests {
         let mut cache = TreeCache::default();
 
         let mut list = allocator.nil();
-        let mut hash = tree_hash(&mut allocator, list);
+        let mut hash = tree_hash(& allocator, list);
         cache.insert(list, &hash, 0);
 
         // we only fit 65k items in the cache
