@@ -383,23 +383,22 @@ pub fn op_sha256(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
                 if (val as usize) < PRECOMPUTED_HASHES.len() {
                     let num_bytes = if val > 0 { 2 } else { 1 };
                     cost += num_bytes * SHA256_COST_PER_BYTE + 2 as Cost * SHA256_COST_PER_ARG;
+                    check_cost(cost, max_cost)?;
                     return new_atom_and_cost(a, cost, &PRECOMPUTED_HASHES[val as usize]);
                 }
             }
         }
     }
 
-    let mut byte_count: usize = 0;
     let mut hasher = Sha256::new();
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += SHA256_COST_PER_ARG;
-        check_cost(cost + byte_count as Cost * SHA256_COST_PER_BYTE, max_cost)?;
         let blob = atom(a, arg, "sha256")?;
-        byte_count += blob.as_ref().len();
+        cost += blob.as_ref().len() as Cost * SHA256_COST_PER_BYTE;
+        check_cost(cost, max_cost)?;
         hasher.update(blob);
     }
-    cost += byte_count as Cost * SHA256_COST_PER_BYTE;
     new_atom_and_cost(a, cost, &hasher.finalize())
 }
 
