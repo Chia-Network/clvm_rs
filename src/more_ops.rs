@@ -383,6 +383,7 @@ pub fn op_sha256(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
                 if (val as usize) < PRECOMPUTED_HASHES.len() {
                     let num_bytes = if val > 0 { 2 } else { 1 };
                     cost += num_bytes * SHA256_COST_PER_BYTE + 2 as Cost * SHA256_COST_PER_ARG;
+                    check_cost(cost, max_cost)?;
                     return new_atom_and_cost(a, cost, &PRECOMPUTED_HASHES[val as usize]);
                 }
             }
