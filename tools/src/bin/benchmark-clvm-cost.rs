@@ -118,7 +118,7 @@ fn substitute(args: Placeholder, s: NodePtr) -> OpArgs {
 fn time_invocation(a: &mut Allocator, op: u32, arg: OpArgs, flags: u32) -> f64 {
     let call = build_call(a, op, arg, 1, None);
     //println!("{:x?}", &Node::new(a, call));
-    let dialect = ChiaDialect::new(0);
+    let dialect = ChiaDialect::new(0x0200);
     let start = Instant::now();
     let r = run_program(a, &dialect, call, a.nil(), 11000000000);
     if (flags & ALLOW_FAILURE) == 0 {
@@ -378,7 +378,7 @@ pub fn main() {
         .unwrap();
     let number = quote(&mut a, number);
 
-    let ops: [Operator; 19] = [
+    let ops: [Operator; 20] = [
         Operator {
             opcode: 60,
             name: "modpow (modulus cost)",
@@ -508,6 +508,13 @@ pub fn main() {
         Operator {
             opcode: 62,
             name: "keccak256",
+            arg: Placeholder::SingleArg(Some(g1)),
+            extra: None,
+            flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | LARGE_BUFFERS,
+        },
+        Operator {
+            opcode: 65,
+            name: "sha256tree (atom)",
             arg: Placeholder::SingleArg(Some(g1)),
             extra: None,
             flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | LARGE_BUFFERS,
