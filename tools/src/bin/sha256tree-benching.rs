@@ -37,7 +37,7 @@ fn main() -> std::io::Result<()> {
         for depth in 1..100 {
             let node = make_nested_pairs(&mut a, depth);
             let start = Instant::now();
-            tree_hash(&a, node);  // using tree hash as it costs the same as cached
+            tree_hash(&a, node); // using tree hash as it costs the same as cached
             let t = start.elapsed().as_secs_f64();
             writeln!(output, "call\t{}\t{}", depth, t)?;
             samples.push((depth as f64, t));
