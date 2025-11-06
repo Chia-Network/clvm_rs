@@ -218,49 +218,49 @@ pub fn tree_hash_cached_costed(
     Ok(Reduction(cost, a.new_atom(&hashes[0])?))
 }
 
+// this function neither costs, nor caches
+// and it also returns bytes, rather than an Atom
+pub fn tree_hash(a: &Allocator, node: NodePtr) -> [u8; 32] {
+    let mut hashes = Vec::new();
+    let mut ops = vec![TreeOp::SExp(node)];
+
+    while let Some(op) = ops.pop() {
+        match op {
+            TreeOp::SExp(node) => match a.node(node) {
+                NodeVisitor::Buffer(bytes) => {
+                    hashes.push(tree_hash_atom(bytes));
+                }
+                NodeVisitor::U32(val) => {
+                    if (val as usize) < PRECOMPUTED_HASHES.len() {
+                        hashes.push(PRECOMPUTED_HASHES[val as usize]);
+                    } else {
+                        hashes.push(tree_hash_atom(a.atom(node).as_ref()));
+                    }
+                }
+                NodeVisitor::Pair(left, right) => {
+                    ops.push(TreeOp::Cons);
+                    ops.push(TreeOp::SExp(left));
+                    ops.push(TreeOp::SExp(right));
+                }
+            },
+            TreeOp::Cons => {
+                let first = hashes.pop().unwrap();
+                let rest = hashes.pop().unwrap();
+                hashes.push(tree_hash_pair(&first, &rest));
+            }
+            TreeOp::ConsAddCacheCost(_, _) => unreachable!(),
+        }
+    }
+
+    assert!(hashes.len() == 1);
+    hashes[0]
+}
+
 #[cfg(test)]
 mod tests {
     use crate::test_ops::node_eq;
 
     use super::*;
-
-    // this function neither costs, nor caches
-    // and it also returns bytes, rather than an Atom
-    pub fn tree_hash(a: &Allocator, node: NodePtr) -> [u8; 32] {
-        let mut hashes = Vec::new();
-        let mut ops = vec![TreeOp::SExp(node)];
-
-        while let Some(op) = ops.pop() {
-            match op {
-                TreeOp::SExp(node) => match a.node(node) {
-                    NodeVisitor::Buffer(bytes) => {
-                        hashes.push(tree_hash_atom(bytes));
-                    }
-                    NodeVisitor::U32(val) => {
-                        if (val as usize) < PRECOMPUTED_HASHES.len() {
-                            hashes.push(PRECOMPUTED_HASHES[val as usize]);
-                        } else {
-                            hashes.push(tree_hash_atom(a.atom(node).as_ref()));
-                        }
-                    }
-                    NodeVisitor::Pair(left, right) => {
-                        ops.push(TreeOp::Cons);
-                        ops.push(TreeOp::SExp(left));
-                        ops.push(TreeOp::SExp(right));
-                    }
-                },
-                TreeOp::Cons => {
-                    let first = hashes.pop().unwrap();
-                    let rest = hashes.pop().unwrap();
-                    hashes.push(tree_hash_pair(&first, &rest));
-                }
-                TreeOp::ConsAddCacheCost(_, _) => unreachable!(),
-            }
-        }
-
-        assert!(hashes.len() == 1);
-        hashes[0]
-    }
 
     // this function costs but does not cache
     // we can use it to check that the cache is properly remembering costs
