@@ -34,7 +34,7 @@ fn main() -> std::io::Result<()> {
     let mut samples = vec![];
     {
         let mut a = Allocator::new();
-        for depth in 1..100 {
+        for depth in 1..1000 {
             let node = make_nested_pairs(&mut a, depth);
             let start = Instant::now();
             tree_hash(&a, node); // using tree hash as it costs the same as cached
@@ -51,8 +51,8 @@ fn main() -> std::io::Result<()> {
     // cost atom sizes
     let mut samples = vec![];
     {
-        for size in [1, 8, 16, 64, 256, 1024, 4096, 8192] {
-            let atom = vec![0u8; size];
+        for size in 1..8192 {
+            let atom: Vec<u8> = vec![11_u8; size];
             let start = Instant::now();
             tree_hash_atom(&atom);
             let t = start.elapsed().as_secs_f64();
@@ -69,7 +69,7 @@ fn main() -> std::io::Result<()> {
     let mut samples = vec![];
     {
         let mut a = Allocator::new();
-        for n in [1, 2, 4, 8, 16, 32, 64, 128, 256] {
+        for n in 1..256 {
             let node = make_list_of_atoms(&mut a, n);
             let start = Instant::now();
             tree_hash(&a, node);
