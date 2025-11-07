@@ -1,3 +1,4 @@
+use core::time;
 use std::fs::File;
 use std::io::Write;
 use std::time::Instant;
@@ -29,6 +30,9 @@ fn main() -> std::io::Result<()> {
     let mut output = File::create("sha256tree_costs.tsv")?;
 
     writeln!(output, "# type\tx\ty")?;
+    // this "magic" scaling depends on the computer you run the tests on.
+    // It's calibrated against the timing of point_add, which has a cost
+    let cost_scale = ((101094.0 / 39000.0) + (1343980.0 / 131000.0)) / 2.0;
 
     // cost call (with nil)
     let mut samples = vec![];
@@ -38,14 +42,19 @@ fn main() -> std::io::Result<()> {
             let node = make_nested_pairs(&mut a, depth);
             let start = Instant::now();
             tree_hash(&a, node); // using tree hash as it costs the same as cached
-            let t = start.elapsed().as_secs_f64();
+            let t = start.elapsed().as_nanos() as f64;
             writeln!(output, "call\t{}\t{}", depth, t)?;
             samples.push((depth as f64, t));
         }
         let (slope, intercept): (f64, f64) = linear_regression_of(&samples).expect("linreg failed");
+        let cost = slope * cost_scale;
         writeln!(output, "\n# call_slope\t{:.9}", slope)?;
+        writeln!(output, "\n# call_slope * cost_scale\t{:?}", cost)?;
         writeln!(output, "# call_intercept\t{:.9}\n", intercept)?;
-        println!("call slope: {:.9}, intercept: {:.9}", slope, intercept);
+        println!(
+            "call slope: {:.9}, intercept: {:.9}, cost: {:.9}",
+            slope, intercept, cost
+        );
     }
 
     // cost atom sizes
@@ -55,14 +64,20 @@ fn main() -> std::io::Result<()> {
             let atom: Vec<u8> = vec![11_u8; size];
             let start = Instant::now();
             tree_hash_atom(&atom);
-            let t = start.elapsed().as_secs_f64();
+            let t = start.elapsed().as_nanos() as f64;
+
             writeln!(output, "atom\t{}\t{}", size, t)?;
             samples.push((size as f64, t));
         }
         let (slope, intercept): (f64, f64) = linear_regression_of(&samples).expect("linreg failed");
+        let cost = slope * cost_scale;
         writeln!(output, "\n# atom_slope\t{:.9}", slope)?;
+        writeln!(output, "\n# atom_slope * cost_scale\t{:?}", cost)?;
         writeln!(output, "# atom_intercept\t{:.9}\n", intercept)?;
-        println!("atom slope: {:.9}, intercept: {:.9}", slope, intercept);
+        println!(
+            "atom slope: {:.9}, intercept: {:.9}, cost: {:.9}",
+            slope, intercept, cost
+        );
     }
 
     // cost list of atoms
@@ -73,14 +88,19 @@ fn main() -> std::io::Result<()> {
             let node = make_list_of_atoms(&mut a, n);
             let start = Instant::now();
             tree_hash(&a, node);
-            let t = start.elapsed().as_secs_f64();
+            let t = start.elapsed().as_nanos() as f64;
             writeln!(output, "pair\t{}\t{}", n, t)?;
             samples.push((n as f64, t));
         }
         let (slope, intercept): (f64, f64) = linear_regression_of(&samples).expect("linreg failed");
+        let cost = slope * cost_scale;
         writeln!(output, "\n# pair_slope\t{:.9}", slope)?;
+        writeln!(output, "\n# pair_slope * cost_scale\t{:?}", cost)?;
         writeln!(output, "# pair_intercept\t{:.9}\n", intercept)?;
-        println!("pair slope: {:.9}, intercept: {:.9}", slope, intercept);
+        println!(
+            "pair slope: {:.9}, intercept: {:.9}, cost: {:.9}",
+            slope, intercept, cost
+        );
     }
 
     println!("Results written to sha256tree_costs.tsv");
