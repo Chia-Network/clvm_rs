@@ -1,4 +1,3 @@
-use core::time;
 use std::fs::File;
 use std::io::Write;
 use std::time::Instant;
