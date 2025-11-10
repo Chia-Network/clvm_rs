@@ -515,7 +515,7 @@ pub fn main() {
         Operator {
             opcode: 65,
             name: "sha256tree (atom)",
-            arg: Placeholder::SingleArg(Some(g1)),
+            arg: Placeholder::SingleArg(None),
             extra: None,
             flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | LARGE_BUFFERS,
         },
