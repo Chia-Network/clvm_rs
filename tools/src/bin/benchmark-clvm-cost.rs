@@ -227,17 +227,16 @@ fn base_call_time(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f
             if (op.flags & ALLOW_FAILURE) == 0 {
                 r.unwrap();
             }
-            let duration_ns = start.elapsed().as_nanos() as f64;
-            writeln!(output, "{}\t{}", i, duration_ns).expect("failed to write");
-            samples.push((i as f64, duration_ns));
+            let duration = start.elapsed();
+            let duration = (duration.as_nanos() as f64) - (per_arg_time * i as f64);
+            let sample = (i as f64, duration);
+            writeln!(output, "{}\t{}", sample.0, sample.1).expect("failed to write");
+            samples.push(sample);
         }
     }
 
-    // duration = base_cost (intercept) + slope (nested_cost) * i
-    let (_slope, intercept): (f64, f64) = linear_regression_of(&samples).expect("linreg failed");
-
-    // 'intercept' is the estimated base cost per call (in ns)
-    intercept.max(100.0)
+    let (slope, _): (f64, f64) = linear_regression_of(&samples).expect("linreg failed");
+    slope.max(100.0)
 }
 
 fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -> f64 {
