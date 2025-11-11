@@ -204,7 +204,12 @@ fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64
 
 // measure run-time of many *nested* calls, to establish how much longer it
 // takes, approximately, for each additional nesting.
-fn base_call_time(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64 {
+fn base_call_time(
+    a: &mut Allocator,
+    op: &Operator,
+    per_arg_time: f64,
+    output: &mut dyn Write,
+) -> f64 {
     let mut samples = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(0);
 
@@ -551,7 +556,7 @@ pub fn main() {
         let base_call_time = if (op.flags & NESTING_BASE_COST) != 0 {
             let mut output = maybe_open(options.plot, op.name, "base.log");
             write_gnuplot_header(&mut *gnuplot, op, "base", "num nested calls");
-            let base_call_time = base_call_time(&mut a, op, &mut *output);
+            let base_call_time = base_call_time(&mut a, op, time_per_arg, &mut *output);
             println!("   time: base: {base_call_time:.2}ns");
             println!("   cost: base: {:.0}", base_call_time * base_cost_scale);
 
