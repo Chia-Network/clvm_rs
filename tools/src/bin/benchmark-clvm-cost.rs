@@ -205,12 +205,7 @@ fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64
 // measure run-time of many *nested* calls, to establish how much longer it
 // takes, approximately, for each additional nesting. The per_arg_time is
 // subtracted to get the base cost
-fn base_call_time(
-    a: &mut Allocator,
-    op: &Operator,
-    per_arg_time: f64,
-    output: &mut dyn Write,
-) -> f64 {
+fn base_call_time(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64 {
     let mut samples = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(0);
 
@@ -229,20 +224,21 @@ fn base_call_time(
             a.restore_checkpoint(&checkpoint);
             let call = build_nested_call(a, op.opcode, arg, i, op.extra);
             let start = Instant::now();
-            let r = run_program(a, &dialect, call, a.nil(), 11000000000);
+            let r = run_program(a, &dialect, call, a.nil(), 11_000_000_000);
             if (op.flags & ALLOW_FAILURE) == 0 {
                 r.unwrap();
             }
-            let duration = start.elapsed();
-            let duration = (duration.as_nanos() as f64) - (per_arg_time * i as f64);
-            let sample = (i as f64, duration);
-            writeln!(output, "{}\t{}", sample.0, sample.1).expect("failed to write");
-            samples.push(sample);
+            let duration_ns = start.elapsed().as_nanos() as f64;
+            writeln!(output, "{}\t{}", i, duration_ns).expect("failed to write");
+            samples.push((i as f64, duration_ns));
         }
     }
 
-    let (slope, _): (f64, f64) = linear_regression_of(&samples).expect("linreg failed");
-    slope
+    // duration = base_cost (intercept) + slope (nested_cost) * i
+    let (_slope, intercept): (f64, f64) = linear_regression_of(&samples).expect("linreg failed");
+
+    // 'intercept' is the estimated base cost per call (in ns)
+    intercept.max(100.0)
 }
 
 fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -> f64 {
@@ -265,7 +261,7 @@ fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -
         num_samples += 1;
     }
 
-    (total_time - per_arg_time * num_samples as f64) / num_samples as f64
+    ((total_time - per_arg_time * num_samples as f64) / num_samples as f64).max(100.0)
 }
 
 const PER_BYTE_COST: u32 = 1;
@@ -557,7 +553,7 @@ pub fn main() {
         let base_call_time = if (op.flags & NESTING_BASE_COST) != 0 {
             let mut output = maybe_open(options.plot, op.name, "base.log");
             write_gnuplot_header(&mut *gnuplot, op, "base", "num nested calls");
-            let base_call_time = base_call_time(&mut a, op, time_per_arg, &mut *output);
+            let base_call_time = base_call_time(&mut a, op, &mut *output);
             println!("   time: base: {base_call_time:.2}ns");
             println!("   cost: base: {:.0}", base_call_time * base_cost_scale);
 
