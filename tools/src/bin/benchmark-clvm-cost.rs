@@ -203,8 +203,7 @@ fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64
 }
 
 // measure run-time of many *nested* calls, to establish how much longer it
-// takes, approximately, for each additional nesting. The per_arg_time is
-// subtracted to get the base cost
+// takes, approximately, for each additional nesting.
 fn base_call_time(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64 {
     let mut samples = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(0);
