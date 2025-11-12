@@ -1161,7 +1161,7 @@ mod tests {
 
         // without the flag to enable the keccak extensions, it's an unknown extension
         RunProgramTest {
-            prg: "(softfork (q . 161) (q . 2) (q . (q . 42)) (q . ()))",
+            prg: "(softfork (q . 161) (q . 3) (q . (q . 42)) (q . ()))",
             args: "()",
             flags: NO_UNKNOWN_OPS,
             result: None,
