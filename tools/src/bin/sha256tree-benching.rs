@@ -1,5 +1,6 @@
 use clvmr::chia_dialect::ChiaDialect;
 use clvmr::run_program::run_program;
+use clvmr::serde::node_to_bytes;
 use std::fs::File;
 use std::io::Write;
 use std::time::Instant;
@@ -7,17 +8,7 @@ use std::time::Instant;
 use linreg::linear_regression_of;
 
 // bring in your existing code
-use clvmr::allocator::{Allocator, NodePtr};
-use clvmr::treehash::tree_hash;
-
-fn make_list_of_atoms(a: &mut Allocator, n: usize) -> NodePtr {
-    let atom = a.new_atom(&[1u8; 32]).unwrap();
-    let mut list = a.nil();
-    for _ in 0..n {
-        list = a.new_pair(atom, list).unwrap();
-    }
-    list
-}
+use clvmr::allocator::Allocator;
 
 fn time_per_byte_for_atom(a: &mut Allocator, output: &mut dyn Write) -> (f64, f64) {
     let mut samples = Vec::<(f64, f64)>::new();
@@ -28,7 +19,7 @@ fn time_per_byte_for_atom(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
     let mut atom_str = String::from("");
     let checkpoint = a.checkpoint();
 
-    for i in (0..1000000).step_by(5) {
+    for i in 0..10000 {
         // make the atom longer as a function of i
         atom_str.push_str(&((i % 89) + 10).to_string()); // just to mix it up
         let atom = a.new_atom(&hex::decode(&atom_str).unwrap()).unwrap();
@@ -49,6 +40,33 @@ fn time_per_byte_for_atom(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
     linear_regression_of(&samples).expect("linreg failed")
 }
 
+fn time_per_cons_for_list(a: &mut Allocator, output: &mut dyn Write) -> (f64, f64) {
+    let mut samples = Vec::<(f64, f64)>::new();
+    let dialect = ChiaDialect::new(0x0200); // enable shatree
+
+    let op_code = a.new_number(65.into()).unwrap();
+    let quote = a.new_number(1.into()).unwrap();
+    let list = a.nil();
+
+    for i in 0..10000 {
+        // make the atom longer as a function of i
+        let list = a.new_pair(a.nil(), list).unwrap();
+        let quotation = a.new_pair(quote, list).unwrap();
+        let call = a.new_pair(quotation, a.nil()).unwrap();
+        let call = a.new_pair(op_code, call).unwrap();
+        let debug = node_to_bytes(a, call);
+        println!("DEBUG: {:?}", debug);
+        let start = Instant::now();
+        run_program(a, &dialect, call, a.nil(), 11000000000).unwrap();
+        let duration = start.elapsed();
+        let sample = (i as f64, duration.as_nanos() as f64);
+        writeln!(output, "{}\t{}", sample.0, sample.1).expect("failed to write");
+        samples.push(sample);
+    }
+
+    linear_regression_of(&samples).expect("linreg failed")
+}
+
 fn main() -> std::io::Result<()> {
     let mut output = File::create("sha256tree_costs.tsv")?;
 
@@ -58,6 +76,7 @@ fn main() -> std::io::Result<()> {
     let cost_scale = ((101094.0 / 39000.0) + (1343980.0 / 131000.0)) / 2.0;
 
     // base call cost is covered in benchmark-clvm-cost so not included here
+
     // cost atom sizes
     {
         let mut a = Allocator::new();
@@ -72,19 +91,10 @@ fn main() -> std::io::Result<()> {
         );
     }
 
-    // cost list of atoms
-    let mut samples = vec![];
+    // cost list / cons boxes
     {
         let mut a = Allocator::new();
-        for n in 1..256 {
-            let node = make_list_of_atoms(&mut a, n);
-            let start = Instant::now();
-            tree_hash(&a, node);
-            let t = start.elapsed().as_nanos() as f64;
-            writeln!(output, "pair\t{}\t{}", n, t)?;
-            samples.push((n as f64, t));
-        }
-        let (slope, intercept): (f64, f64) = linear_regression_of(&samples).expect("linreg failed");
+        let (slope, intercept): (f64, f64) = time_per_cons_for_list(&mut a, &mut output);
         let cost = slope * cost_scale;
         writeln!(output, "\n# pair_slope\t{:.9}", slope)?;
         writeln!(output, "\n# pair_slope * cost_scale\t{:?}", cost)?;
