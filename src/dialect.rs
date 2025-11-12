@@ -16,6 +16,9 @@ pub enum OperatorSet {
     /// The keccak256 operator, which is only available inside the softfork guard.
     /// This uses softfork extension 1, which does not conflict with the BLS fork.
     Keccak,
+
+    // The sha256tree operator, which is only activated after a hardfork
+    Sha256tree,
 }
 
 pub trait Dialect {
