@@ -14,7 +14,7 @@ fn time_per_byte_for_atom(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
     let mut samples = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(0x0200); // enable shatree
 
-    let op_code = a.new_number(65.into()).unwrap();
+    let op_code = a.new_number(63.into()).unwrap();
     let quote = a.new_number(1.into()).unwrap();
     let mut atom_str = String::from("");
     let checkpoint = a.checkpoint();
@@ -44,7 +44,7 @@ fn time_per_cons_for_list(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
     let mut samples = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(0x0200); // enable shatree
 
-    let op_code = a.new_number(65.into()).unwrap();
+    let op_code = a.new_number(63.into()).unwrap();
     let quote = a.new_number(1.into()).unwrap();
     let list = a.nil();
 
@@ -55,7 +55,6 @@ fn time_per_cons_for_list(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
         let call = a.new_pair(quotation, a.nil()).unwrap();
         let call = a.new_pair(op_code, call).unwrap();
         let debug = node_to_bytes(a, call);
-        println!("DEBUG: {:?}", debug);
         let start = Instant::now();
         run_program(a, &dialect, call, a.nil(), 11000000000).unwrap();
         let duration = start.elapsed();
