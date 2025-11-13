@@ -1,6 +1,5 @@
 use clvmr::chia_dialect::ChiaDialect;
 use clvmr::run_program::run_program;
-use clvmr::serde::node_to_bytes;
 use std::fs::File;
 use std::io::Write;
 use std::time::Instant;
@@ -16,7 +15,7 @@ fn time_per_byte_for_atom(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
 
     let op_code = a.new_number(63.into()).unwrap();
     let quote = a.new_number(1.into()).unwrap();
-    let mut atom_str = String::from("");
+    let mut atom_str = String::from("ff".repeat(10_000));
     let checkpoint = a.checkpoint();
 
     for i in 0..10000 {
@@ -48,13 +47,12 @@ fn time_per_cons_for_list(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
     let quote = a.new_number(1.into()).unwrap();
     let list = a.nil();
 
-    for i in 0..10000 {
+    for i in 0..100000 {
         // make the atom longer as a function of i
         let list = a.new_pair(a.nil(), list).unwrap();
         let quotation = a.new_pair(quote, list).unwrap();
         let call = a.new_pair(quotation, a.nil()).unwrap();
         let call = a.new_pair(op_code, call).unwrap();
-        let debug = node_to_bytes(a, call);
         let start = Instant::now();
         run_program(a, &dialect, call, a.nil(), 11000000000).unwrap();
         let duration = start.elapsed();
@@ -85,7 +83,7 @@ fn main() -> std::io::Result<()> {
         writeln!(output, "\n# atom_slope * cost_scale\t{:?}", cost)?;
         writeln!(output, "# atom_intercept\t{:.9}\n", intercept)?;
         println!(
-            "atom slope: {:.9}, intercept: {:.9}, cost (slope * cost_scale): {:.9}",
+            "atom byte slope: {:.9}, intercept: {:.9}, cost (slope * cost_scale): {:.9}",
             slope, intercept, cost
         );
     }
@@ -99,7 +97,7 @@ fn main() -> std::io::Result<()> {
         writeln!(output, "\n# pair_slope * cost_scale\t{:?}", cost)?;
         writeln!(output, "# pair_intercept\t{:.9}\n", intercept)?;
         println!(
-            "pair slope: {:.9}, intercept: {:.9}, cost: {:.9}",
+            "list length slope: {:.9}, intercept: {:.9}, cost: {:.9}",
             slope, intercept, cost
         );
     }
