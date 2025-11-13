@@ -138,10 +138,9 @@ enum TreeOp {
     ConsAddCacheCost(NodePtr, Cost),
 }
 
-fn increment_bytes(bytes: &mut usize, amount: usize, cost: &mut Cost) {
-    *bytes += amount;
-    *cost += (*bytes / 32) as u64 * SHA256TREE_COST_PER_32_BYTES;
-    *bytes %= 32;
+#[inline]
+fn increment_bytes(amount: usize, cost: &mut Cost) {
+    *cost += (amount.div_ceil(32)) as u64 * SHA256TREE_COST_PER_32_BYTES;
 }
 
 pub fn tree_hash_cached_costed(
@@ -155,7 +154,6 @@ pub fn tree_hash_cached_costed(
     let mut hashes = Vec::new();
     let mut ops = vec![TreeOp::SExp(node)];
     let mut cost: Cost = SHA256TREE_BASE_COST;
-    let mut total_bytes: usize = 0;
 
     while let Some(op) = ops.pop() {
         match op {
@@ -163,17 +161,16 @@ pub fn tree_hash_cached_costed(
                 // charge a call cost for processing this op
                 cost += SHA256TREE_COST_PER_NODE;
                 // this represents the 1 or 2 for atom or pair
-                increment_bytes(&mut total_bytes, 1, &mut cost);
                 check_cost(cost, cost_left)?;
                 match a.node(node) {
                     NodeVisitor::Buffer(bytes) => {
-                        increment_bytes(&mut total_bytes, bytes.len(), &mut cost);
+                        increment_bytes(bytes.len() + 1, &mut cost);
                         check_cost(cost, cost_left)?;
                         let hash = tree_hash_atom(bytes);
                         hashes.push(hash);
                     }
                     NodeVisitor::U32(val) => {
-                        increment_bytes(&mut total_bytes, a.atom_len(node), &mut cost);
+                        increment_bytes(a.atom_len(node) + 1, &mut cost);
                         check_cost(cost, cost_left)?;
                         if (val as usize) < PRECOMPUTED_HASHES.len() {
                             hashes.push(PRECOMPUTED_HASHES[val as usize]);
@@ -182,7 +179,7 @@ pub fn tree_hash_cached_costed(
                         }
                     }
                     NodeVisitor::Pair(left, right) => {
-                        increment_bytes(&mut total_bytes, 64, &mut cost);
+                        increment_bytes(65, &mut cost);
                         check_cost(cost, cost_left)?;
                         if let Some((hash, cached_cost)) = cache.get(node) {
                             // when reusing a cached subtree, charge its cached cost
@@ -278,7 +275,6 @@ mod tests {
         let mut ops = vec![TreeOp::SExp(node)];
 
         let mut cost = SHA256TREE_BASE_COST;
-        let mut total_bytes: usize = 0;
 
         while let Some(op) = ops.pop() {
             match op {
@@ -287,13 +283,13 @@ mod tests {
                     check_cost(cost, cost_left)?;
                     match a.node(node) {
                         NodeVisitor::Buffer(bytes) => {
-                            increment_bytes(&mut total_bytes, bytes.len(), &mut cost);
+                            increment_bytes(bytes.len() + 1, &mut cost);
                             check_cost(cost, cost_left)?;
                             let hash = tree_hash_atom(bytes);
                             hashes.push(hash);
                         }
                         NodeVisitor::U32(val) => {
-                            increment_bytes(&mut total_bytes, a.atom_len(node), &mut cost);
+                            increment_bytes(a.atom_len(node) + 1, &mut cost);
                             check_cost(cost, cost_left)?;
                             if (val as usize) < PRECOMPUTED_HASHES.len() {
                                 hashes.push(PRECOMPUTED_HASHES[val as usize]);
@@ -302,7 +298,7 @@ mod tests {
                             }
                         }
                         NodeVisitor::Pair(left, right) => {
-                            increment_bytes(&mut total_bytes, 64, &mut cost);
+                            increment_bytes(65, &mut cost);
                             check_cost(cost, cost_left)?;
 
                             ops.push(TreeOp::Cons);

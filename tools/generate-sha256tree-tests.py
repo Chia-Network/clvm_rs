@@ -3,10 +3,11 @@ from hashlib import sha256
 from pathlib import Path
 from random import randbytes, choice, randint, seed
 import sys
+import math
 
 seed(1337)
 
-# Match Rust cost constants exactly
+# --- updated costing constants to match current Rust ---
 SHA256TREE_BASE_COST = 30
 SHA256TREE_COST_PER_NODE = 3090
 SHA256TREE_COST_PER_32_BYTES = 610
@@ -49,40 +50,25 @@ def random_tree(depth: int):
     else:
         return (random_tree(depth - 1), random_tree(depth - 1))
 
+def increment_bytes(amount: int) -> int:
+    return math.ceil(amount / 32) * SHA256TREE_COST_PER_32_BYTES
+
 
 def compute_tree_hash_and_cost(obj) -> tuple[bytes, int]:
-    """
-    Return (hash, cost) consistent with Rust's tree_hash_cached_costed()
-    """
-    total_cost = SHA256TREE_BASE_COST
-    total_bytes = 0
+    """Return (hash, cost) similar to tree_hash_cached_costed"""
+    cost = SHA256TREE_COST_PER_NODE
 
-    def helper(node):
-        nonlocal total_cost, total_bytes
-        # Every node adds a fixed per-node cost
-        total_cost += SHA256TREE_COST_PER_NODE
+    if isinstance(obj, bytes):
+        cost += increment_bytes(len(obj) + 1)
+        return tree_hash_atom(obj), cost
 
-        if isinstance(node, bytes):
-            # Add 1 for the atom marker (b"\x01") + len(bytes)
-            added_bytes = 1 + len(node)
-            total_bytes += added_bytes
-            total_cost += (total_bytes // 32) * SHA256TREE_COST_PER_32_BYTES
-            total_bytes %= 32
-            return tree_hash_atom(node)
-        else:
-            left, right = node
-            # Add 1 for the pair marker (b"\x02") + 64 bytes of child hashes
-            added_bytes = 1 + 64
-            total_bytes += added_bytes
-            total_cost += (total_bytes // 32) * SHA256TREE_COST_PER_32_BYTES
-            total_bytes %= 32
-            left_hash = helper(left)
-            right_hash = helper(right)
-            return tree_hash_pair(left_hash, right_hash)
-
-    h = helper(obj)
-    total_cost += MALLOC_COST_PER_BYTE * 32
-    return h, total_cost
+    # Pair
+    left, right = obj
+    cost += increment_bytes(65)
+    left_hash, left_cost = compute_tree_hash_and_cost(left)
+    right_hash, right_cost = compute_tree_hash_and_cost(right)
+    total_cost = cost + left_cost + right_cost
+    return tree_hash_pair(left_hash, right_hash), total_cost
 
 
 def sexp_repr(obj) -> str:
@@ -109,4 +95,6 @@ with open(p, "w") as f:
             continue
         test_cases.add(s)
         h, cost = compute_tree_hash_and_cost(t)
+        cost += SHA256TREE_BASE_COST
+        cost += MALLOC_COST_PER_BYTE * 32
         f.write(f"sha256tree {s} => 0x{h.hex()} | {cost}\n")
