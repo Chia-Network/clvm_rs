@@ -1,6 +1,6 @@
 use clap::Parser;
 use clvmr::allocator::{Allocator, NodePtr};
-use clvmr::chia_dialect::ChiaDialect;
+use clvmr::chia_dialect::{ChiaDialect, ENABLE_SHA256_TREE};
 use clvmr::run_program::run_program;
 use linreg::linear_regression_of;
 use std::fs::{create_dir_all, File};
@@ -118,7 +118,7 @@ fn substitute(args: Placeholder, s: NodePtr) -> OpArgs {
 fn time_invocation(a: &mut Allocator, op: u32, arg: OpArgs, flags: u32) -> f64 {
     let call = build_call(a, op, arg, 1, None);
     //println!("{:x?}", &Node::new(a, call));
-    let dialect = ChiaDialect::new(0x0200);
+    let dialect = ChiaDialect::new(ENABLE_SHA256_TREE);
     let start = Instant::now();
     let r = run_program(a, &dialect, call, a.nil(), 11000000000);
     if (flags & ALLOW_FAILURE) == 0 {
@@ -241,7 +241,7 @@ fn base_call_time(
     }
 
     let (slope, _): (f64, f64) = linear_regression_of(&samples).expect("linreg failed");
-    slope.max(100.0)
+    slope
 }
 
 fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -> f64 {
@@ -264,7 +264,7 @@ fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -
         num_samples += 1;
     }
 
-    ((total_time - per_arg_time * num_samples as f64) / num_samples as f64).max(100.0)
+    ((total_time - per_arg_time * num_samples as f64) / num_samples as f64)
 }
 
 const PER_BYTE_COST: u32 = 1;
@@ -558,14 +558,20 @@ pub fn main() {
             write_gnuplot_header(&mut *gnuplot, op, "base", "num nested calls");
             let base_call_time = base_call_time(&mut a, op, time_per_arg, &mut *output);
             println!("   time: base: {base_call_time:.2}ns");
-            println!("   cost: base: {:.0}", base_call_time * base_cost_scale);
+            println!(
+                "   cost: base: {:.0}",
+                (base_call_time * base_cost_scale).max(100.0)
+            );
 
             print_plot(&mut *gnuplot, &base_call_time, &0.0, op.name, "base");
             base_call_time
         } else {
             let base_call_time = base_call_time_no_nest(&mut a, op, time_per_arg);
             println!("   time: base: {base_call_time:.2}ns");
-            println!("   cost: base: {:.0}", base_call_time * base_cost_scale);
+            println!(
+                "   cost: base: {:.0}",
+                (base_call_time * base_cost_scale).max(100)
+            );
             base_call_time
         };
 

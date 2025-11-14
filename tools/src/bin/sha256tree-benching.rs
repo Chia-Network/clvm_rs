@@ -101,7 +101,7 @@ fn main() -> std::io::Result<()> {
         writeln!(output, "\n# pair_slope * cost_scale\t{:?}", cost)?;
         writeln!(output, "# pair_intercept\t{:.9}\n", intercept)?;
         println!(
-            "list length slope: {:.9}, intercept: {:.9}, cost: {:.9}",
+            "list length slope: {:.9}, intercept: {:.9}, cost (slope * cost_scale): {:.9}",
             slope, intercept, cost
         );
     }
