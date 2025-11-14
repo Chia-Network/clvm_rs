@@ -329,7 +329,6 @@ fn time_per_cons_for_list(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
     linear_regression_of(&samples).expect("linreg failed")
 }
 
-
 const PER_BYTE_COST: u32 = 1;
 const PER_ARG_COST: u32 = 2;
 const NESTING_BASE_COST: u32 = 4;
@@ -674,20 +673,14 @@ pub fn main() {
         }
         if (op.flags & LIST_LENGTH_COST) != 0 {
             write_gnuplot_header(&mut *gnuplot, op, "per-pair", "num pairs");
-            let mut output = maybe_open(options.plot, op.name, "per-list.log");
+            let mut output = maybe_open(options.plot, op.name, "per-pair.log");
             let (slope, intercept): (f64, f64) = time_per_cons_for_list(&mut a, &mut output);
             let cost = slope * cost_scale;
             println!(
                 "list length slope: {:.9}, intercept: {:.9}, cost (slope * cost_scale): {:.9}",
                 slope, intercept, cost
             );
-            print_plot(
-                &mut *gnuplot,
-                &slope,
-                &intercept,
-                op.name,
-                "per-pair",
-            );
+            print_plot(&mut *gnuplot, &slope, &intercept, op.name, "per-pair");
         }
     }
     if options.plot {
