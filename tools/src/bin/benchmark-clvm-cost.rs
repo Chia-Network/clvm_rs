@@ -264,8 +264,71 @@ fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -
         num_samples += 1;
     }
 
-    ((total_time - per_arg_time * num_samples as f64) / num_samples as f64)
+    (total_time - per_arg_time * num_samples as f64) / num_samples as f64
 }
+
+// this adds 32 bytes at a time compared to per_byte which adds 5 at a time
+// at the moment this func is only for sha256tree and will need adapting in the future for other uses
+fn time_per_byte_for_atom(a: &mut Allocator, output: &mut dyn Write) -> (f64, f64) {
+    let mut samples = Vec::<(f64, f64)>::new();
+    let dialect = ChiaDialect::new(ENABLE_SHA256_TREE); // enable shatree
+
+    let op_code = a.new_number(63.into()).unwrap();
+    let quote = a.new_number(1.into()).unwrap();
+    let mut atom_str = "ff".repeat(10_000);
+    let checkpoint = a.checkpoint();
+
+    for i in 0..10000 {
+        // make the atom longer as a function of i
+        atom_str.push_str(&((i % 89) + 10).to_string().repeat(32)); // just to mix it up
+        let atom = a.new_atom(&hex::decode(&atom_str).unwrap()).unwrap();
+        // let args = a.new_pair(atom, a.nil()).unwrap();
+        let args = a.new_pair(quote, atom).unwrap();
+        let call = a.new_pair(args, a.nil()).unwrap();
+        let call = a.new_pair(op_code, call).unwrap();
+        let start = Instant::now();
+        run_program(a, &dialect, call, a.nil(), 11000000000).unwrap();
+        let duration = start.elapsed();
+        let sample = (i as f64, duration.as_nanos() as f64);
+        writeln!(output, "{}\t{}", sample.0, sample.1).expect("failed to write");
+        samples.push(sample);
+
+        a.restore_checkpoint(&checkpoint);
+    }
+
+    linear_regression_of(&samples).expect("linreg failed")
+}
+
+// at the moment this func is only for sha256tree and will need adapting in the future for other uses
+fn time_per_cons_for_list(a: &mut Allocator, output: &mut dyn Write) -> (f64, f64) {
+    let mut samples = Vec::<(f64, f64)>::new();
+    let dialect = ChiaDialect::new(ENABLE_SHA256_TREE); // enable shatree
+
+    let op_code = a.new_number(63.into()).unwrap();
+    let quote = a.new_number(1.into()).unwrap();
+    let mut list = a.nil();
+
+    for _ in 0..500 {
+        list = a.new_pair(a.nil(), list).unwrap();
+    }
+
+    for i in 0..10000 {
+        // make the atom longer as a function of i
+        list = a.new_pair(a.nil(), list).unwrap();
+        let quotation = a.new_pair(quote, list).unwrap();
+        let call = a.new_pair(quotation, a.nil()).unwrap();
+        let call = a.new_pair(op_code, call).unwrap();
+        let start = Instant::now();
+        run_program(a, &dialect, call, a.nil(), 11000000000).unwrap();
+        let duration = start.elapsed();
+        let sample = (i as f64, duration.as_nanos() as f64);
+        writeln!(output, "{}\t{}", sample.0, sample.1).expect("failed to write");
+        samples.push(sample);
+    }
+
+    linear_regression_of(&samples).expect("linreg failed")
+}
+
 
 const PER_BYTE_COST: u32 = 1;
 const PER_ARG_COST: u32 = 2;
@@ -273,6 +336,8 @@ const NESTING_BASE_COST: u32 = 4;
 const EXPONENTIAL_COST: u32 = 8;
 const LARGE_BUFFERS: u32 = 16;
 const ALLOW_FAILURE: u32 = 32;
+const LIST_LENGTH_COST: u32 = 64;
+const ALT_PER_BYTE_COST: u32 = 128;
 
 struct Operator {
     opcode: u32,
@@ -513,10 +578,10 @@ pub fn main() {
         },
         Operator {
             opcode: 65,
-            name: "sha256tree (atom)",
+            name: "sha256tree",
             arg: Placeholder::SingleArg(None),
             extra: None,
-            flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | LARGE_BUFFERS,
+            flags: NESTING_BASE_COST | ALT_PER_BYTE_COST | LARGE_BUFFERS | LIST_LENGTH_COST,
         },
     ];
 
@@ -541,6 +606,13 @@ pub fn main() {
             println!("   time: per-byte: {time_per_byte:.2}ns");
             println!("   cost: per-byte: {:.0}", time_per_byte * cost_scale);
             time_per_byte
+        } else if (op.flags & ALT_PER_BYTE_COST) != 0 {
+            let mut output = maybe_open(options.plot, op.name, "per-byte.log");
+            let (slope, _intercept) = time_per_byte_for_atom(&mut a, &mut output);
+            let cost = slope * cost_scale;
+            println!("   time: per-byte: {slope:.2}ns");
+            println!("   cost: per-byte: {:.0}", cost);
+            slope
         } else {
             0.0
         };
@@ -570,7 +642,7 @@ pub fn main() {
             println!("   time: base: {base_call_time:.2}ns");
             println!(
                 "   cost: base: {:.0}",
-                (base_call_time * base_cost_scale).max(100)
+                (base_call_time * base_cost_scale).max(100.0)
             );
             base_call_time
         };
@@ -590,7 +662,7 @@ pub fn main() {
                 op.name,
                 "per-arg",
             );
-        } else if (op.flags & PER_BYTE_COST) != 0 {
+        } else if (op.flags & PER_BYTE_COST) != 0 || (op.flags & ALT_PER_BYTE_COST) != 0 {
             write_gnuplot_header(&mut *gnuplot, op, "per-byte", "num bytes");
             print_plot(
                 &mut *gnuplot,
@@ -598,6 +670,23 @@ pub fn main() {
                 &base_call_time,
                 op.name,
                 "per-byte",
+            );
+        }
+        if (op.flags & LIST_LENGTH_COST) != 0 {
+            write_gnuplot_header(&mut *gnuplot, op, "per-pair", "num pairs");
+            let mut output = maybe_open(options.plot, op.name, "per-list.log");
+            let (slope, intercept): (f64, f64) = time_per_cons_for_list(&mut a, &mut output);
+            let cost = slope * cost_scale;
+            println!(
+                "list length slope: {:.9}, intercept: {:.9}, cost (slope * cost_scale): {:.9}",
+                slope, intercept, cost
+            );
+            print_plot(
+                &mut *gnuplot,
+                &slope,
+                &intercept,
+                op.name,
+                "per-pair",
             );
         }
     }
