@@ -280,8 +280,9 @@ fn time_per_byte_for_atom(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
 
     for i in 0..10000 {
         // make the atom longer as a function of i
-        atom.append([(i % 89 + 10) as u8].repeat(32)); // just to mix it up
-        let args = a.new_pair(quote, atom).unwrap();
+        atom.append(&mut [(i % 89 + 10) as u8].repeat(32)); // just to mix it up
+        let atom_node = a.new_atom(&atom).unwrap();
+        let args = a.new_pair(quote, atom_node).unwrap();
         let call = a.new_pair(args, a.nil()).unwrap();
         let call = a.new_pair(op_code, call).unwrap();
         let start = Instant::now();
@@ -682,10 +683,11 @@ pub fn main() {
             let mut output = maybe_open(options.plot, op.name, "per-pair.log");
             let (slope, intercept): (f64, f64) = time_per_cons_for_list(&mut a, &mut output);
             let cost = slope * cost_scale;
-            println!(
-                "list length slope: {:.9}, intercept: {:.9}, cost (slope * cost_scale): {:.9}",
-                slope, intercept, cost
-            );
+
+            println!("   time: per-pair: {:.2}ns", slope);
+            println!("   cost: per-pair: {:.0}", cost);
+            println!("   intercept: {:.2}", intercept);
+
             print_plot(&mut *gnuplot, &slope, &intercept, op.name, "per-pair");
         }
     }
