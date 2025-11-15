@@ -274,7 +274,7 @@ fn time_per_byte_for_atom(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
     let dialect = ChiaDialect::new(ENABLE_SHA256_TREE); // enable shatree
 
     let op_code = a.new_number(63.into()).unwrap();
-    let quote = a.new_number(1.into()).unwrap();
+    let quote = a.one();
     let mut atom_str = "ff".repeat(10_000);
     let checkpoint = a.checkpoint();
 
