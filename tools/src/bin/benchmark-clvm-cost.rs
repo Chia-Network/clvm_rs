@@ -280,7 +280,7 @@ fn time_per_byte_for_atom(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
 
     for i in 0..10000 {
         // make the atom longer as a function of i
-        atom.append([(i % 89 + 10) as u8].repeat(32)) // just to mix it up
+        atom.append([(i % 89 + 10) as u8].repeat(32)); // just to mix it up
         let args = a.new_pair(quote, atom).unwrap();
         let call = a.new_pair(args, a.nil()).unwrap();
         let call = a.new_pair(op_code, call).unwrap();
@@ -327,13 +327,21 @@ fn time_per_cons_for_list(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
     linear_regression_of(&samples).expect("linreg failed")
 }
 
+// cost one argument with increasing amount of bytes
 const PER_BYTE_COST: u32 = 1;
+// cost multiple arguments with increasing amount of arguments
 const PER_ARG_COST: u32 = 2;
+// cost the base cost by doing f(f(f(x))) instead of arg amounts
 const NESTING_BASE_COST: u32 = 4;
+// EXPONENTIAL_COST is for operators where the cost grows exponentially with the size of the arguments.
 const EXPONENTIAL_COST: u32 = 8;
+// make the buffers extra large, 1000x the size
 const LARGE_BUFFERS: u32 = 16;
+// permit the operator to fail in tests
 const ALLOW_FAILURE: u32 = 32;
+// increase the length of a list for the argument for the operator
 const LIST_LENGTH_COST: u32 = 64;
+// increase byte size by 32 per step when running the linear regression
 const ALT_PER_BYTE_COST: u32 = 128;
 
 struct Operator {
