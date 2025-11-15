@@ -275,7 +275,7 @@ fn time_per_byte_for_atom(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
 
     let op_code = a.new_small_number(63).unwrap();
     let quote = a.one();
-    let mut atom_str = "ff".repeat(10_000);
+    let mut atom = [0xff].repeat(10_000);
     let checkpoint = a.checkpoint();
 
     for i in 0..10000 {
