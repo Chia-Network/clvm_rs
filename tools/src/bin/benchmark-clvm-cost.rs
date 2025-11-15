@@ -305,7 +305,7 @@ fn time_per_cons_for_list(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
     let dialect = ChiaDialect::new(ENABLE_SHA256_TREE); // enable shatree
 
     let op_code = a.new_small_number(63).unwrap();
-    let quote = a.new_number(1.into()).unwrap();
+    let quote = a.one();
     let mut list = a.nil();
 
     for _ in 0..500 {
@@ -609,8 +609,8 @@ pub fn main() {
             let mut output = maybe_open(options.plot, op.name, "per-byte.log");
             let (slope, _intercept) = time_per_byte_for_atom(&mut a, &mut output);
             let cost = slope * cost_scale;
-            println!("   time: per-32bytes: {slope:.2}ns");
-            println!("   cost: per-32bytes: {:.0}", cost);
+            println!("   time: per-byte: {slope:.2}ns");
+            println!("   cost: per-byte: {:.0}", cost);
             slope
         } else {
             0.0
