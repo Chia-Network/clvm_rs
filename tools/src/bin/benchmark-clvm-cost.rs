@@ -275,14 +275,12 @@ fn time_per_byte_for_atom(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
 
     let op_code = a.new_small_number(63).unwrap();
     let quote = a.one();
-    let mut atom_str = "ff".repeat(10_000);
+    let mut atom = [0xff].repeat(10_000);
     let checkpoint = a.checkpoint();
 
     for i in 0..10000 {
         // make the atom longer as a function of i
-        atom_str.push_str(&((i % 89) + 10).to_string().repeat(32)); // just to mix it up
-        let atom = a.new_atom(&hex::decode(&atom_str).unwrap()).unwrap();
-        // let args = a.new_pair(atom, a.nil()).unwrap();
+        atom.append([(i % 89 + 10) as u8].repeat(32)) // just to mix it up
         let args = a.new_pair(quote, atom).unwrap();
         let call = a.new_pair(args, a.nil()).unwrap();
         let call = a.new_pair(op_code, call).unwrap();
@@ -313,7 +311,7 @@ fn time_per_cons_for_list(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
     }
 
     for i in 0..10000 {
-        // make the atom longer as a function of i
+        // make the list longer
         list = a.new_pair(a.nil(), list).unwrap();
         let quotation = a.new_pair(quote, list).unwrap();
         let call = a.new_pair(quotation, a.nil()).unwrap();
