@@ -16,6 +16,7 @@ use crate::more_ops::{
 };
 use crate::reduction::Response;
 use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
+use crate::sha_tree_op::op_sha256_tree;
 
 // unknown operators are disallowed
 // (otherwise they are no-ops with well defined cost)
@@ -29,7 +30,11 @@ pub const LIMIT_HEAP: u32 = 0x0004;
 // This is a hard-fork and should only be enabled when it activates
 pub const ENABLE_KECCAK_OPS_OUTSIDE_GUARD: u32 = 0x0100;
 
-// The default mode when running grnerators in mempool-mode (i.e. the stricter
+// this flag enables the sha256tree op *outside* the softfork guard.
+// This is a hard-fork and should only be enabled when it activates.
+pub const ENABLE_SHA256_TREE: u32 = 0x0200;
+
+// The default mode when running generators in mempool-mode (i.e. the stricter
 // mode)
 pub const MEMPOOL_MODE: u32 = NO_UNKNOWN_OPS | LIMIT_HEAP;
 
@@ -76,6 +81,9 @@ impl Dialect for ChiaDialect {
 
                 // Keccak is allowed as if it were a default operator, inside of the softfork guard.
                 OperatorSet::Keccak => ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
+
+                // Sha256tree is enabled as if it were a default operator
+                OperatorSet::Sha256tree => ENABLE_SHA256_TREE | ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
             };
 
         let op_len = allocator.atom_len(o);
@@ -164,6 +172,7 @@ impl Dialect for ChiaDialect {
             60 => op_modpow,
             61 => op_mod,
             62 if (flags & ENABLE_KECCAK_OPS_OUTSIDE_GUARD) != 0 => op_keccak256,
+            63 if (flags & ENABLE_SHA256_TREE) != 0 => op_sha256_tree,
             _ => {
                 return unknown_operator(allocator, o, argument_list, flags, max_cost);
             }
@@ -193,7 +202,10 @@ impl Dialect for ChiaDialect {
             // Extension 1 is for the keccak256 operator.
             1 => OperatorSet::Keccak,
 
-            // Extensions 2 and beyond are considered invalid by the mempool.
+            // Extension 2 is for the sha256tree operator.
+            2 => OperatorSet::Sha256tree,
+
+            // Extensions 3 and beyond are considered invalid by the mempool.
             // However, all future extensions are valid in consensus mode and reserved for future softforks.
             _ => OperatorSet::Default,
         }

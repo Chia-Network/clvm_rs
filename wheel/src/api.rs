@@ -10,7 +10,7 @@ use clvmr::error::EvalErr;
 use clvmr::reduction::Response;
 use clvmr::run_program::run_program;
 use clvmr::serde::{node_from_bytes, parse_triples, serialized_length_from_bytes, ParsedTriple};
-use clvmr::{LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS};
+use clvmr::{ENABLE_SHA256_TREE, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
 use pyo3::wrap_pyfunction;
@@ -91,6 +91,7 @@ fn clvm_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("NO_UNKNOWN_OPS", NO_UNKNOWN_OPS)?;
     m.add("LIMIT_HEAP", LIMIT_HEAP)?;
     m.add("MEMPOOL_MODE", MEMPOOL_MODE)?;
+    m.add("ENABLE_SHA256_TREE", ENABLE_SHA256_TREE)?;
     m.add_class::<LazyNode>()?;
 
     Ok(())
