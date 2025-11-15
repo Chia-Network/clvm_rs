@@ -280,9 +280,7 @@ fn time_per_byte_for_atom(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
 
     for i in 0..10000 {
         // make the atom longer as a function of i
-        atom_str.push_str(&((i % 89) + 10).to_string().repeat(32)); // just to mix it up
-        let atom = a.new_atom(&hex::decode(&atom_str).unwrap()).unwrap();
-        // let args = a.new_pair(atom, a.nil()).unwrap();
+        atom.append([(i % 89 + 10) as u8].repeat(32)) // just to mix it up
         let args = a.new_pair(quote, atom).unwrap();
         let call = a.new_pair(args, a.nil()).unwrap();
         let call = a.new_pair(op_code, call).unwrap();
