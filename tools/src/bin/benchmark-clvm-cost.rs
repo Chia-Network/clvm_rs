@@ -304,7 +304,7 @@ fn time_per_cons_for_list(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
     let mut samples = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(ENABLE_SHA256_TREE); // enable shatree
 
-    let op_code = a.new_number(63.into()).unwrap();
+    let op_code = a.new_small_number(63).unwrap();
     let quote = a.new_number(1.into()).unwrap();
     let mut list = a.nil();
 
