@@ -684,8 +684,8 @@ pub fn main() {
             let (slope, intercept): (f64, f64) = time_per_cons_for_list(&mut a, &mut output);
             let cost = slope * cost_scale;
 
-            println!("   time: per-pair: {:.2}ns", slope);
-            println!("   cost: per-pair: {:.0}", cost);
+            println!("   time: per-node: {:.2}ns", slope);
+            println!("   cost: per-node: {:.0}", cost);
             println!("   intercept: {:.2}", intercept);
 
             print_plot(&mut *gnuplot, &slope, &intercept, op.name, "per-pair");
