@@ -313,7 +313,7 @@ fn time_per_cons_for_list(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
     }
 
     for i in 0..10000 {
-        // make the atom longer as a function of i
+        // make the list longer
         list = a.new_pair(a.nil(), list).unwrap();
         let quotation = a.new_pair(quote, list).unwrap();
         let call = a.new_pair(quotation, a.nil()).unwrap();
