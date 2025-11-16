@@ -81,9 +81,6 @@ impl Dialect for ChiaDialect {
 
                 // Keccak is allowed as if it were a default operator, inside of the softfork guard.
                 OperatorSet::Keccak => ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
-
-                // Sha256tree is enabled as if it were a default operator
-                OperatorSet::Sha256tree => ENABLE_SHA256_TREE | ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
             };
 
         let op_len = allocator.atom_len(o);
@@ -202,10 +199,7 @@ impl Dialect for ChiaDialect {
             // Extension 1 is for the keccak256 operator.
             1 => OperatorSet::Keccak,
 
-            // Extension 2 is for the sha256tree operator.
-            2 => OperatorSet::Sha256tree,
-
-            // Extensions 3 and beyond are considered invalid by the mempool.
+            // Extensions 2 and beyond are considered invalid by the mempool.
             // However, all future extensions are valid in consensus mode and reserved for future softforks.
             _ => OperatorSet::Default,
         }

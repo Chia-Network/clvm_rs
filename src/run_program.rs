@@ -1432,7 +1432,7 @@ mod tests {
         #[case] err: &'static str,
         #[values(0)] flags: u32,
         #[values(false, true)] mempool: bool,
-        #[values(0, 1, 2, 3)] test_ext: u8,
+        #[values(0, 1, 2)] test_ext: u8,
     ) {
         let (cost, enabled, hard_fork_flag) = fields;
         let softfork_prg =
@@ -1445,7 +1445,6 @@ mod tests {
         let ext_enabled = match test_ext {
             0 => true, // BLS
             1 => true, // KECCAK
-            2 => true, // SHA256TREE
             _ => false,
         };
 
