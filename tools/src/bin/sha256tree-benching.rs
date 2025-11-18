@@ -119,8 +119,8 @@ fn main() {
 
     println!("Atom native slope: {:.4}", atom_nat_lin.0);
     println!("Atom CLVM slope: {:.4}", atom_clvm_lin.0);
-    println!("Cons native slope: {:.4}", cons_nat_lin.0);
-    println!("Cons CLVM slope: {:.4}", cons_clvm_lin.0);
+    println!("List native slope: {:.4}", cons_nat_lin.0);
+    println!("List CLVM slope: {:.4}", cons_clvm_lin.0);
 
     let mut gp = File::create("plots.gnuplot").unwrap();
     writeln!(
