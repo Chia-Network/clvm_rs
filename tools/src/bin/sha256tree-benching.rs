@@ -1,7 +1,7 @@
 use clvmr::allocator::{Allocator, NodePtr};
 use clvmr::chia_dialect::{ChiaDialect, ENABLE_SHA256_TREE};
 use clvmr::run_program::run_program;
-use clvmr::serde::node_from_bytes;
+use clvmr::serde::{node_from_bytes, node_to_bytes};
 use linreg::linear_regression_of;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -42,9 +42,9 @@ fn time_per_byte_for_atom(
 
         // native
         let start = Instant::now();
-        let cost = run_program(a, &dialect, call, a.nil(), 11_000_000_000)
-            .unwrap()
-            .0;
+        let red = run_program(a, &dialect, call, a.nil(), 11_000_000_000).unwrap();
+        let cost = red.0;
+        let result_1 = node_to_bytes(a, red.1).expect("should work");
         let duration = start.elapsed().as_nanos() as f64;
         writeln!(output_native_time, "{}\t{}", i, duration).unwrap();
         writeln!(output_native_cost, "{}\t{}", i, cost).unwrap();
@@ -54,9 +54,10 @@ fn time_per_byte_for_atom(
         // clvm
         a.restore_checkpoint(&checkpoint);
         let start = Instant::now();
-        let cost = run_program(a, &dialect, sha_prog, atom_node, 11_000_000_000)
-            .unwrap()
-            .0;
+        let red = run_program(a, &dialect, sha_prog, atom_node, 11_000_000_000).unwrap();
+        let cost = red.0;
+        let result_2 = node_to_bytes(a, red.1).expect("should work");
+        assert_eq!(result_1, result_2);
         let duration = start.elapsed().as_nanos() as f64;
         writeln!(output_clvm_time, "{}\t{}", i, duration).unwrap();
         writeln!(output_clvm_cost, "{}\t{}", i, cost).unwrap();
@@ -109,9 +110,9 @@ fn time_per_cons_for_list(
 
         // native
         let start = Instant::now();
-        let cost = run_program(a, &dialect, call, a.nil(), 11_000_000_000)
-            .unwrap()
-            .0;
+        let red = run_program(a, &dialect, call, a.nil(), 11_000_000_000).unwrap();
+        let cost = red.0;
+        let result_1 = node_to_bytes(a, red.1).expect("should work");
         let duration = start.elapsed().as_nanos() as f64;
         writeln!(output_native_time, "{}\t{}", i, duration).unwrap();
         writeln!(output_native_cost, "{}\t{}", i, cost).unwrap();
@@ -121,9 +122,11 @@ fn time_per_cons_for_list(
         // clvm
         a.restore_checkpoint(&checkpoint);
         let start = Instant::now();
-        let cost = run_program(a, &dialect, sha_prog, list, 11_000_000_000)
-            .unwrap()
-            .0;
+        let red = run_program(a, &dialect, sha_prog, list, 11_000_000_000).unwrap();
+        let cost = red.0;
+        let result_2 = node_to_bytes(a, red.1).expect("should work");
+        assert_eq!(result_1, result_2);
+
         let duration = start.elapsed().as_nanos() as f64;
         writeln!(output_clvm_time, "{}\t{}", i, duration).unwrap();
         writeln!(output_clvm_cost, "{}\t{}", i, cost).unwrap();
