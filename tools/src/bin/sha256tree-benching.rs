@@ -10,11 +10,20 @@ use std::time::Instant;
 fn time_per_byte_for_atom(
     a: &mut Allocator,
     sha_prog: NodePtr,
-    mut output_native: impl Write,
-    mut output_clvm: impl Write,
-) -> ((f64, f64), (f64, f64)) {
-    let mut samples = Vec::<(f64, f64)>::new();
-    let mut samples_clvm = Vec::<(f64, f64)>::new();
+    mut output_native_time: impl Write,
+    mut output_clvm_time: impl Write,
+    mut output_native_cost: impl Write,
+    mut output_clvm_cost: impl Write,
+) -> (
+    (f64, f64),
+    (f64, f64), // time slopes
+    (f64, f64),
+    (f64, f64), // cost slopes
+) {
+    let mut samples_time_native = Vec::<(f64, f64)>::new();
+    let mut samples_time_clvm = Vec::<(f64, f64)>::new();
+    let mut samples_cost_native = Vec::<(f64, f64)>::new();
+    let mut samples_cost_clvm = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(ENABLE_SHA256_TREE);
 
     let op_code = a.new_small_number(63).unwrap();
@@ -30,34 +39,56 @@ fn time_per_byte_for_atom(
         let call = a.new_pair(op_code, call).unwrap();
 
         let checkpoint = a.checkpoint();
-        let start = Instant::now();
-        run_program(a, &dialect, call, a.nil(), 11000000000).unwrap();
-        let duration = start.elapsed().as_nanos() as f64;
-        writeln!(output_native, "{}\t{}", i, duration).unwrap();
-        samples.push((i as f64, duration));
 
+        // native
+        let start = Instant::now();
+        let cost = run_program(a, &dialect, call, a.nil(), 11_000_000_000)
+            .unwrap()
+            .0;
+        let duration = start.elapsed().as_nanos() as f64;
+        writeln!(output_native_time, "{}\t{}", i, duration).unwrap();
+        writeln!(output_native_cost, "{}\t{}", i, cost).unwrap();
+        samples_time_native.push((i as f64, duration));
+        samples_cost_native.push((i as f64, cost as f64));
+
+        // clvm
         a.restore_checkpoint(&checkpoint);
         let start = Instant::now();
-        run_program(a, &dialect, sha_prog, atom_node, 11000000000).unwrap();
+        let cost = run_program(a, &dialect, sha_prog, atom_node, 11_000_000_000)
+            .unwrap()
+            .0;
         let duration = start.elapsed().as_nanos() as f64;
-        writeln!(output_clvm, "{}\t{}", i, duration).unwrap();
-        samples_clvm.push((i as f64, duration));
+        writeln!(output_clvm_time, "{}\t{}", i, duration).unwrap();
+        writeln!(output_clvm_cost, "{}\t{}", i, cost).unwrap();
+        samples_time_clvm.push((i as f64, duration));
+        samples_cost_clvm.push((i as f64, cost as f64));
     }
 
     (
-        linear_regression_of(&samples).unwrap(),
-        linear_regression_of(&samples_clvm).unwrap(),
+        linear_regression_of(&samples_time_native).unwrap(),
+        linear_regression_of(&samples_time_clvm).unwrap(),
+        linear_regression_of(&samples_cost_native).unwrap(),
+        linear_regression_of(&samples_cost_clvm).unwrap(),
     )
 }
 
 fn time_per_cons_for_list(
     a: &mut Allocator,
     sha_prog: NodePtr,
-    mut output_native: impl Write,
-    mut output_clvm: impl Write,
-) -> ((f64, f64), (f64, f64)) {
-    let mut samples_native = Vec::<(f64, f64)>::new();
-    let mut samples_clvm = Vec::<(f64, f64)>::new();
+    mut output_native_time: impl Write,
+    mut output_clvm_time: impl Write,
+    mut output_native_cost: impl Write,
+    mut output_clvm_cost: impl Write,
+) -> (
+    (f64, f64),
+    (f64, f64), // time slopes
+    (f64, f64),
+    (f64, f64), // cost slopes
+) {
+    let mut samples_time_native = Vec::<(f64, f64)>::new();
+    let mut samples_time_clvm = Vec::<(f64, f64)>::new();
+    let mut samples_cost_native = Vec::<(f64, f64)>::new();
+    let mut samples_cost_clvm = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(ENABLE_SHA256_TREE);
 
     let op_code = a.new_small_number(63).unwrap();
@@ -68,33 +99,43 @@ fn time_per_cons_for_list(
         list = a.new_pair(a.nil(), list).unwrap();
     }
 
-    for i in 0..10_00 {
+    for i in 0..1000 {
         list = a.new_pair(a.nil(), list).unwrap();
-
-        let quoted = a.new_pair(quote, list).unwrap();
-        let call = a.new_pair(quoted, a.nil()).unwrap();
+        let q = a.new_pair(quote, list).unwrap();
+        let call = a.new_pair(q, a.nil()).unwrap();
         let call = a.new_pair(op_code, call).unwrap();
 
-        // native
         let checkpoint = a.checkpoint();
+
+        // native
         let start = Instant::now();
-        run_program(a, &dialect, call, a.nil(), 11000000000).unwrap();
-        let t = start.elapsed().as_nanos() as f64;
-        writeln!(output_native, "{}\t{}", i, t).unwrap();
-        samples_native.push((i as f64, t));
+        let cost = run_program(a, &dialect, call, a.nil(), 11_000_000_000)
+            .unwrap()
+            .0;
+        let duration = start.elapsed().as_nanos() as f64;
+        writeln!(output_native_time, "{}\t{}", i, duration).unwrap();
+        writeln!(output_native_cost, "{}\t{}", i, cost).unwrap();
+        samples_time_native.push((i as f64, duration));
+        samples_cost_native.push((i as f64, cost as f64));
 
         // clvm
         a.restore_checkpoint(&checkpoint);
         let start = Instant::now();
-        run_program(a, &dialect, sha_prog, list, 11000000000).unwrap();
-        let t = start.elapsed().as_nanos() as f64;
-        writeln!(output_clvm, "{}\t{}", i, t).unwrap();
-        samples_clvm.push((i as f64, t));
+        let cost = run_program(a, &dialect, sha_prog, list, 11_000_000_000)
+            .unwrap()
+            .0;
+        let duration = start.elapsed().as_nanos() as f64;
+        writeln!(output_clvm_time, "{}\t{}", i, duration).unwrap();
+        writeln!(output_clvm_cost, "{}\t{}", i, cost).unwrap();
+        samples_time_clvm.push((i as f64, duration));
+        samples_cost_clvm.push((i as f64, cost as f64));
     }
 
     (
-        linear_regression_of(&samples_native).unwrap(),
-        linear_regression_of(&samples_clvm).unwrap(),
+        linear_regression_of(&samples_time_native).unwrap(),
+        linear_regression_of(&samples_time_clvm).unwrap(),
+        linear_regression_of(&samples_cost_native).unwrap(),
+        linear_regression_of(&samples_cost_clvm).unwrap(),
     )
 }
 
@@ -106,22 +147,48 @@ fn main() {
     let mut a = Allocator::new();
     let shaprog = node_from_bytes(&mut a, shaprogbytes.as_ref()).unwrap();
 
-    let atom_native = BufWriter::new(File::create("atom_native.dat").unwrap());
-    let atom_clvm = BufWriter::new(File::create("atom_clvm.dat").unwrap());
-    let cons_native = BufWriter::new(File::create("cons_native.dat").unwrap());
-    let cons_clvm = BufWriter::new(File::create("cons_clvm.dat").unwrap());
+    // Output files
+    let atom_native_time = BufWriter::new(File::create("atom_native.dat").unwrap());
+    let atom_clvm_time = BufWriter::new(File::create("atom_clvm.dat").unwrap());
+    let cons_native_time = BufWriter::new(File::create("cons_native.dat").unwrap());
+    let cons_clvm_time = BufWriter::new(File::create("cons_clvm.dat").unwrap());
 
-    let (atom_nat_lin, atom_clvm_lin) =
-        time_per_byte_for_atom(&mut a, shaprog, atom_native, atom_clvm);
+    let atom_native_cost = BufWriter::new(File::create("atom_native_cost.dat").unwrap());
+    let atom_clvm_cost = BufWriter::new(File::create("atom_clvm_cost.dat").unwrap());
+    let cons_native_cost = BufWriter::new(File::create("cons_native_cost.dat").unwrap());
+    let cons_clvm_cost = BufWriter::new(File::create("cons_clvm_cost.dat").unwrap());
 
-    let (cons_nat_lin, cons_clvm_lin) =
-        time_per_cons_for_list(&mut a, shaprog, cons_native, cons_clvm);
+    let (atom_nat_t, atom_clvm_t, atom_nat_c, atom_clvm_c) = time_per_byte_for_atom(
+        &mut a,
+        shaprog,
+        atom_native_time,
+        atom_clvm_time,
+        atom_native_cost,
+        atom_clvm_cost,
+    );
 
-    println!("Atom native slope: {:.4}", atom_nat_lin.0);
-    println!("Atom CLVM slope: {:.4}", atom_clvm_lin.0);
-    println!("List native slope: {:.4}", cons_nat_lin.0);
-    println!("List CLVM slope: {:.4}", cons_clvm_lin.0);
+    let (cons_nat_t, cons_clvm_t, cons_nat_c, cons_clvm_c) = time_per_cons_for_list(
+        &mut a,
+        shaprog,
+        cons_native_time,
+        cons_clvm_time,
+        cons_native_cost,
+        cons_clvm_cost,
+    );
 
+    println!("atom results: ");
+    println!("Native time slope  (ns): {:.4}", atom_nat_t.0);
+    println!("CLVM   time slope  (ns): {:.4}", atom_clvm_t.0);
+    println!("Native cost slope      : {:.4}", atom_nat_c.0);
+    println!("CLVM   cost slope      : {:.4}", atom_clvm_c.0);
+
+    println!("list results: ");
+    println!("Native time slope  (ns): {:.4}", cons_nat_t.0);
+    println!("CLVM   time slope  (ns): {:.4}", cons_clvm_t.0);
+    println!("Native cost slope      : {:.4}", cons_nat_c.0);
+    println!("CLVM   cost slope      : {:.4}", cons_clvm_c.0);
+
+    // gnuplot script
     let mut gp = File::create("plots.gnuplot").unwrap();
     writeln!(
         gp,
@@ -136,6 +203,14 @@ plot \
     "atom_native.dat" using 1:2 with lines title "native", \
     "atom_clvm.dat" using 1:2 with lines title "clvm"
 
+set output "atom_cost.png"
+set title "Cost per Byte (Atom SHA-tree)"
+set xlabel "Iteration"
+set ylabel "Cost"
+plot \
+    "atom_native_cost.dat" using 1:2 with lines title "native", \
+    "atom_clvm_cost.dat" using 1:2 with lines title "clvm"
+
 set output "cons_bench.png"
 set title "Time per Cons Cell (List SHA-tree)"
 set xlabel "Iteration"
@@ -143,9 +218,18 @@ set ylabel "Time (ns)"
 plot \
     "cons_native.dat" using 1:2 with lines title "native", \
     "cons_clvm.dat" using 1:2 with lines title "clvm"
+
+set output "cons_cost.png"
+set title "Cost per Cons Cell (List SHA-tree)"
+set xlabel "Iteration"
+set ylabel "Cost"
+plot \
+    "cons_native_cost.dat" using 1:2 with lines title "native", \
+    "cons_clvm_cost.dat" using 1:2 with lines title "clvm"
 "#
     )
     .unwrap();
 
-    println!("Run with: gnuplot plots.gnuplot");
+    println!("\nData + plots complete. Generate graphs with:");
+    println!("    gnuplot plots.gnuplot\n");
 }
