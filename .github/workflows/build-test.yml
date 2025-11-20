@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-13, ubuntu-latest, windows-latest]
+        os: [macos-15-intel, ubuntu-latest, windows-latest]
         python: [3.8]
 
     steps:
@@ -183,7 +183,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-13, ubuntu-latest]
+        os: [macos-15-intel, ubuntu-latest]
         python: [3.8]
     steps:
       - uses: actions/checkout@v4
@@ -215,7 +215,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-13, ubuntu-latest, windows-latest]
+        os: [macos-15-intel, ubuntu-latest, windows-latest]
         python: [3.8]
     steps:
       - uses: actions/checkout@v4
