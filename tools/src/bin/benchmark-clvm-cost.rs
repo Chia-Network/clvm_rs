@@ -1,6 +1,6 @@
 use clap::Parser;
 use clvmr::allocator::{Allocator, NodePtr};
-use clvmr::chia_dialect::ChiaDialect;
+use clvmr::chia_dialect::{ChiaDialect, ENABLE_SHA256_TREE};
 use clvmr::run_program::run_program;
 use linreg::linear_regression_of;
 use std::fs::{create_dir_all, File};
@@ -118,7 +118,7 @@ fn substitute(args: Placeholder, s: NodePtr) -> OpArgs {
 fn time_invocation(a: &mut Allocator, op: u32, arg: OpArgs, flags: u32) -> f64 {
     let call = build_call(a, op, arg, 1, None);
     //println!("{:x?}", &Node::new(a, call));
-    let dialect = ChiaDialect::new(0);
+    let dialect = ChiaDialect::new(ENABLE_SHA256_TREE);
     let start = Instant::now();
     let r = run_program(a, &dialect, call, a.nil(), 11000000000);
     if (flags & ALLOW_FAILURE) == 0 {
@@ -203,8 +203,7 @@ fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64
 }
 
 // measure run-time of many *nested* calls, to establish how much longer it
-// takes, approximately, for each additional nesting. The per_arg_time is
-// subtracted to get the base cost
+// takes, approximately, for each additional nesting.
 fn base_call_time(
     a: &mut Allocator,
     op: &Operator,
@@ -229,7 +228,7 @@ fn base_call_time(
             a.restore_checkpoint(&checkpoint);
             let call = build_nested_call(a, op.opcode, arg, i, op.extra);
             let start = Instant::now();
-            let r = run_program(a, &dialect, call, a.nil(), 11000000000);
+            let r = run_program(a, &dialect, call, a.nil(), 11_000_000_000);
             if (op.flags & ALLOW_FAILURE) == 0 {
                 r.unwrap();
             }
@@ -268,12 +267,81 @@ fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -
     (total_time - per_arg_time * num_samples as f64) / num_samples as f64
 }
 
+// this adds 32 bytes at a time compared to per_byte which adds 5 at a time
+fn time_per_byte_for_atom(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> (f64, f64) {
+    let mut samples = Vec::<(f64, f64)>::new();
+    let dialect = ChiaDialect::new(ENABLE_SHA256_TREE); // enable shatree
+
+    let op_code = a.new_small_number(op.opcode).unwrap();
+    let quote = a.one();
+    let mut atom = [0xff].repeat(10_000);
+    let checkpoint = a.checkpoint();
+
+    for i in 0..10000 {
+        // make the atom longer as a function of i
+        atom.append(&mut [(i % 89 + 10) as u8].repeat(32)); // just to mix it up
+        let atom_node = a.new_atom(&atom).unwrap();
+        let args = a.new_pair(quote, atom_node).unwrap();
+        let call = a.new_pair(args, a.nil()).unwrap();
+        let call = a.new_pair(op_code, call).unwrap();
+        let start = Instant::now();
+        run_program(a, &dialect, call, a.nil(), 11000000000).unwrap();
+        let duration = start.elapsed();
+        let sample = (i as f64, duration.as_nanos() as f64);
+        writeln!(output, "{}\t{}", sample.0, sample.1).expect("failed to write");
+        samples.push(sample);
+
+        a.restore_checkpoint(&checkpoint);
+    }
+
+    linear_regression_of(&samples).expect("linreg failed")
+}
+
+fn time_per_cons_for_list(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> (f64, f64) {
+    let mut samples = Vec::<(f64, f64)>::new();
+    let dialect = ChiaDialect::new(ENABLE_SHA256_TREE); // enable shatree
+
+    let op_code = a.new_small_number(op.opcode).unwrap();
+    let quote = a.one();
+    let mut list = a.nil();
+
+    for _ in 0..500 {
+        list = a.new_pair(a.nil(), list).unwrap();
+    }
+
+    for i in 0..10000 {
+        // make the list longer
+        list = a.new_pair(a.nil(), list).unwrap();
+        let quotation = a.new_pair(quote, list).unwrap();
+        let call = a.new_pair(quotation, a.nil()).unwrap();
+        let call = a.new_pair(op_code, call).unwrap();
+        let start = Instant::now();
+        run_program(a, &dialect, call, a.nil(), 11000000000).unwrap();
+        let duration = start.elapsed();
+        let sample = (i as f64, duration.as_nanos() as f64);
+        writeln!(output, "{}\t{}", sample.0, sample.1).expect("failed to write");
+        samples.push(sample);
+    }
+
+    linear_regression_of(&samples).expect("linreg failed")
+}
+
+// cost one argument with increasing amount of bytes
 const PER_BYTE_COST: u32 = 1;
+// cost multiple arguments with increasing amount of arguments
 const PER_ARG_COST: u32 = 2;
+// cost the base cost by doing f(f(f(x))) instead of arg amounts
 const NESTING_BASE_COST: u32 = 4;
+// EXPONENTIAL_COST is for operators where the cost grows exponentially with the size of the arguments.
 const EXPONENTIAL_COST: u32 = 8;
+// make the buffers extra large, 1000x the size
 const LARGE_BUFFERS: u32 = 16;
+// permit the operator to fail in tests
 const ALLOW_FAILURE: u32 = 32;
+// increase the length of a list for the argument for the operator
+const LIST_LENGTH_COST: u32 = 64;
+// increase byte size by 32 per step when running the linear regression
+const ALT_PER_BYTE_COST: u32 = 128;
 
 struct Operator {
     opcode: u32,
@@ -378,7 +446,7 @@ pub fn main() {
         .unwrap();
     let number = quote(&mut a, number);
 
-    let ops: [Operator; 19] = [
+    let ops: [Operator; 20] = [
         Operator {
             opcode: 60,
             name: "modpow (modulus cost)",
@@ -503,7 +571,7 @@ pub fn main() {
             name: "sha256",
             arg: Placeholder::SingleArg(Some(g1)),
             extra: None,
-            flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | LARGE_BUFFERS,
+            flags: NESTING_BASE_COST | PER_ARG_COST | ALT_PER_BYTE_COST | LARGE_BUFFERS,
         },
         Operator {
             opcode: 62,
@@ -511,6 +579,13 @@ pub fn main() {
             arg: Placeholder::SingleArg(Some(g1)),
             extra: None,
             flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | LARGE_BUFFERS,
+        },
+        Operator {
+            opcode: 63,
+            name: "sha256tree",
+            arg: Placeholder::SingleArg(None),
+            extra: None,
+            flags: NESTING_BASE_COST | ALT_PER_BYTE_COST | LARGE_BUFFERS | LIST_LENGTH_COST,
         },
     ];
 
@@ -535,6 +610,13 @@ pub fn main() {
             println!("   time: per-byte: {time_per_byte:.2}ns");
             println!("   cost: per-byte: {:.0}", time_per_byte * cost_scale);
             time_per_byte
+        } else if (op.flags & ALT_PER_BYTE_COST) != 0 {
+            let mut output = maybe_open(options.plot, op.name, "per-byte.log");
+            let (slope, _intercept) = time_per_byte_for_atom(&mut a, op, &mut output);
+            let cost = slope * cost_scale;
+            println!("   time: per-32byte: {slope:.2}ns");
+            println!("   cost: per-32byte: {:.0}", cost);
+            slope
         } else {
             0.0
         };
@@ -552,14 +634,20 @@ pub fn main() {
             write_gnuplot_header(&mut *gnuplot, op, "base", "num nested calls");
             let base_call_time = base_call_time(&mut a, op, time_per_arg, &mut *output);
             println!("   time: base: {base_call_time:.2}ns");
-            println!("   cost: base: {:.0}", base_call_time * base_cost_scale);
+            println!(
+                "   cost: base: {:.0}",
+                (base_call_time * base_cost_scale).max(100.0)
+            );
 
             print_plot(&mut *gnuplot, &base_call_time, &0.0, op.name, "base");
             base_call_time
         } else {
             let base_call_time = base_call_time_no_nest(&mut a, op, time_per_arg);
             println!("   time: base: {base_call_time:.2}ns");
-            println!("   cost: base: {:.0}", base_call_time * base_cost_scale);
+            println!(
+                "   cost: base: {:.0}",
+                (base_call_time * base_cost_scale).max(100.0)
+            );
             base_call_time
         };
 
@@ -578,7 +666,7 @@ pub fn main() {
                 op.name,
                 "per-arg",
             );
-        } else if (op.flags & PER_BYTE_COST) != 0 {
+        } else if (op.flags & PER_BYTE_COST) != 0 || (op.flags & ALT_PER_BYTE_COST) != 0 {
             write_gnuplot_header(&mut *gnuplot, op, "per-byte", "num bytes");
             print_plot(
                 &mut *gnuplot,
@@ -587,6 +675,18 @@ pub fn main() {
                 op.name,
                 "per-byte",
             );
+        }
+        if (op.flags & LIST_LENGTH_COST) != 0 {
+            write_gnuplot_header(&mut *gnuplot, op, "per-pair", "num pairs");
+            let mut output = maybe_open(options.plot, op.name, "per-pair.log");
+            let (slope, intercept): (f64, f64) = time_per_cons_for_list(&mut a, op, &mut output);
+            let cost = slope * cost_scale;
+
+            println!("   time: per-node: {:.2}ns", slope);
+            println!("   cost: per-node: {:.0}", cost);
+            println!("   intercept: {:.2}", intercept);
+
+            print_plot(&mut *gnuplot, &slope, &intercept, op.name, "per-pair");
         }
     }
     if options.plot {
