@@ -127,7 +127,7 @@ jobs:
           # ignoring `clvm_rs.so`, which is pretty important)
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: wheels-${{ matrix.os }}-py-${{ matrix.python }}
           path: ./target/wheels/
