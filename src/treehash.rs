@@ -11,8 +11,8 @@ use crate::SExp;
 use chia_sha2::Sha256;
 
 const SHA256TREE_BASE_COST: Cost = 30;
-const SHA256TREE_COST_PER_NODE: Cost = 3090;
-const SHA256TREE_COST_PER_32_BYTES: Cost = 610;
+const SHA256TREE_COST_PER_NODE: Cost = 3000;
+const SHA256TREE_COST_PER_32_BYTES: Cost = 700;
 
 pub fn tree_hash_atom(bytes: &[u8]) -> [u8; 32] {
     let mut sha256 = Sha256::new();

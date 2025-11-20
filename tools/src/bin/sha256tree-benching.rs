@@ -7,6 +7,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::time::Instant;
 
+#[allow(clippy::type_complexity)]
 fn time_per_byte_for_atom(
     a: &mut Allocator,
     sha_prog: NodePtr,
@@ -31,7 +32,7 @@ fn time_per_byte_for_atom(
     let mut atom = vec![0xff; 10_000];
 
     for i in 0..10_000 {
-        atom.extend(std::iter::repeat(((i % 89) + 10) as u8).take(32));
+        atom.extend(std::iter::repeat_n(((i % 89) + 10) as u8, 32));
 
         let atom_node = a.new_atom(&atom).unwrap();
         let args = a.new_pair(quote, atom_node).unwrap();
@@ -73,6 +74,7 @@ fn time_per_byte_for_atom(
     )
 }
 
+#[allow(clippy::type_complexity)]
 fn time_per_cons_for_list(
     a: &mut Allocator,
     sha_prog: NodePtr,
