@@ -268,12 +268,11 @@ fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -
 }
 
 // this adds 32 bytes at a time compared to per_byte which adds 5 at a time
-// at the moment this func is only for sha256tree and will need adapting in the future for other uses
-fn time_per_byte_for_atom(a: &mut Allocator, output: &mut dyn Write) -> (f64, f64) {
+fn time_per_byte_for_atom(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> (f64, f64) {
     let mut samples = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(ENABLE_SHA256_TREE); // enable shatree
 
-    let op_code = a.new_small_number(63).unwrap();
+    let op_code = a.new_small_number(op.opcode).unwrap();
     let quote = a.one();
     let mut atom = [0xff].repeat(10_000);
     let checkpoint = a.checkpoint();
@@ -298,12 +297,11 @@ fn time_per_byte_for_atom(a: &mut Allocator, output: &mut dyn Write) -> (f64, f6
     linear_regression_of(&samples).expect("linreg failed")
 }
 
-// at the moment this func is only for sha256tree and will need adapting in the future for other uses
-fn time_per_cons_for_list(a: &mut Allocator, output: &mut dyn Write) -> (f64, f64) {
+fn time_per_cons_for_list(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> (f64, f64) {
     let mut samples = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(ENABLE_SHA256_TREE); // enable shatree
 
-    let op_code = a.new_small_number(63).unwrap();
+    let op_code = a.new_small_number(op.opcode).unwrap();
     let quote = a.one();
     let mut list = a.nil();
 
@@ -573,7 +571,7 @@ pub fn main() {
             name: "sha256",
             arg: Placeholder::SingleArg(Some(g1)),
             extra: None,
-            flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | LARGE_BUFFERS,
+            flags: NESTING_BASE_COST | PER_ARG_COST | ALT_PER_BYTE_COST | LARGE_BUFFERS,
         },
         Operator {
             opcode: 62,
@@ -583,7 +581,7 @@ pub fn main() {
             flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | LARGE_BUFFERS,
         },
         Operator {
-            opcode: 65,
+            opcode: 63,
             name: "sha256tree",
             arg: Placeholder::SingleArg(None),
             extra: None,
@@ -614,7 +612,7 @@ pub fn main() {
             time_per_byte
         } else if (op.flags & ALT_PER_BYTE_COST) != 0 {
             let mut output = maybe_open(options.plot, op.name, "per-byte.log");
-            let (slope, _intercept) = time_per_byte_for_atom(&mut a, &mut output);
+            let (slope, _intercept) = time_per_byte_for_atom(&mut a, op, &mut output);
             let cost = slope * cost_scale;
             println!("   time: per-32byte: {slope:.2}ns");
             println!("   cost: per-32byte: {:.0}", cost);
@@ -681,7 +679,7 @@ pub fn main() {
         if (op.flags & LIST_LENGTH_COST) != 0 {
             write_gnuplot_header(&mut *gnuplot, op, "per-pair", "num pairs");
             let mut output = maybe_open(options.plot, op.name, "per-pair.log");
-            let (slope, intercept): (f64, f64) = time_per_cons_for_list(&mut a, &mut output);
+            let (slope, intercept): (f64, f64) = time_per_cons_for_list(&mut a, op, &mut output);
             let cost = slope * cost_scale;
 
             println!("   time: per-node: {:.2}ns", slope);

@@ -7,10 +7,9 @@ import math
 
 seed(1337)
 
-# --- updated costing constants to match current Rust ---
 SHA256TREE_BASE_COST = 30
-SHA256TREE_COST_PER_NODE = 3090
-SHA256TREE_COST_PER_32_BYTES = 610
+SHA256TREE_COST_PER_NODE = 3000
+SHA256TREE_COST_PER_32_BYTES = 700
 MALLOC_COST_PER_BYTE = 10
 
 SIZE = 30
@@ -44,7 +43,6 @@ def random_atom() -> bytes:
 
 
 def random_tree(depth: int):
-    """Recursively generate random nested pairs (tuples) or atoms"""
     if depth == 0 or randint(0, 2) == 0:
         return random_atom()
     else:
@@ -55,7 +53,6 @@ def increment_bytes(amount: int) -> int:
 
 
 def compute_tree_hash_and_cost(obj) -> tuple[bytes, int]:
-    """Return (hash, cost) similar to tree_hash_cached_costed"""
     cost = SHA256TREE_COST_PER_NODE
 
     if isinstance(obj, bytes):
@@ -72,7 +69,6 @@ def compute_tree_hash_and_cost(obj) -> tuple[bytes, int]:
 
 
 def sexp_repr(obj) -> str:
-    """Turn the structure into a Lisp-like representation"""
     if isinstance(obj, bytes):
         if len(obj) == 0:
             return "0"
