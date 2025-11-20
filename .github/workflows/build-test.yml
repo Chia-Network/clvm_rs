@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-13-intel, ubuntu-latest, windows-latest]
+        os: [macos-15-intel, ubuntu-latest, windows-latest]
         python: [3.8]
 
     steps:
