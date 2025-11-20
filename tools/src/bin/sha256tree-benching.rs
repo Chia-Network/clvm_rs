@@ -96,12 +96,14 @@ fn time_per_cons_for_list(
     let quote = a.one();
     let mut list = a.nil();
 
+    let atom = a.new_atom(&[0xff, 0xff]).unwrap();
+
     for _ in 0..500 {
-        list = a.new_pair(a.nil(), list).unwrap();
+        list = a.new_pair(atom, list).unwrap();
     }
 
     for i in 0..1000 {
-        list = a.new_pair(a.nil(), list).unwrap();
+        list = a.new_pair(atom, list).unwrap();
         let q = a.new_pair(quote, list).unwrap();
         let call = a.new_pair(q, a.nil()).unwrap();
         let call = a.new_pair(op_code, call).unwrap();

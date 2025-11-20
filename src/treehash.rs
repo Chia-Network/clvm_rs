@@ -224,6 +224,60 @@ pub fn tree_hash_cached_costed(
     Ok(Reduction(cost, a.new_atom(&hashes[0])?))
 }
 
+// this function costs but does not cache
+// we can use it to check that the cache is properly remembering costs
+pub fn tree_hash_costed(a: &mut Allocator, node: NodePtr, cost_left: Cost) -> Response {
+    let mut hashes = Vec::new();
+    let mut ops = vec![TreeOp::SExp(node)];
+
+    let mut cost = SHA256TREE_BASE_COST;
+
+    while let Some(op) = ops.pop() {
+        match op {
+            TreeOp::SExp(node) => {
+                cost += SHA256TREE_COST_PER_NODE;
+                check_cost(cost, cost_left)?;
+                match a.node(node) {
+                    NodeVisitor::Buffer(bytes) => {
+                        increment_bytes(bytes.len() + 1, &mut cost);
+                        check_cost(cost, cost_left)?;
+                        let hash = tree_hash_atom(bytes);
+                        hashes.push(hash);
+                    }
+                    NodeVisitor::U32(val) => {
+                        increment_bytes(a.atom_len(node) + 1, &mut cost);
+                        check_cost(cost, cost_left)?;
+                        if (val as usize) < PRECOMPUTED_HASHES.len() {
+                            hashes.push(PRECOMPUTED_HASHES[val as usize]);
+                        } else {
+                            hashes.push(tree_hash_atom(a.atom(node).as_ref()));
+                        }
+                    }
+                    NodeVisitor::Pair(left, right) => {
+                        increment_bytes(65, &mut cost);
+                        check_cost(cost, cost_left)?;
+
+                        ops.push(TreeOp::Cons);
+                        ops.push(TreeOp::SExp(left));
+                        ops.push(TreeOp::SExp(right));
+                    }
+                }
+            }
+            TreeOp::Cons => {
+                let first = hashes.pop().unwrap();
+                let rest = hashes.pop().unwrap();
+                hashes.push(tree_hash_pair(&first, &rest));
+            }
+            TreeOp::ConsAddCacheCost(_, _) => unreachable!(),
+        }
+    }
+
+    assert!(hashes.len() == 1);
+    cost += MALLOC_COST_PER_BYTE * 32;
+    check_cost(cost, cost_left)?;
+    Ok(Reduction(cost, a.new_atom(&hashes[0])?))
+}
+
 // this function neither costs, nor caches
 // and it also returns bytes, rather than an Atom
 pub fn tree_hash(a: &Allocator, node: NodePtr) -> [u8; 32] {
@@ -267,60 +321,6 @@ mod tests {
     use crate::test_ops::node_eq;
 
     use super::*;
-
-    // this function costs but does not cache
-    // we can use it to check that the cache is properly remembering costs
-    fn tree_hash_costed(a: &mut Allocator, node: NodePtr, cost_left: Cost) -> Response {
-        let mut hashes = Vec::new();
-        let mut ops = vec![TreeOp::SExp(node)];
-
-        let mut cost = SHA256TREE_BASE_COST;
-
-        while let Some(op) = ops.pop() {
-            match op {
-                TreeOp::SExp(node) => {
-                    cost += SHA256TREE_COST_PER_NODE;
-                    check_cost(cost, cost_left)?;
-                    match a.node(node) {
-                        NodeVisitor::Buffer(bytes) => {
-                            increment_bytes(bytes.len() + 1, &mut cost);
-                            check_cost(cost, cost_left)?;
-                            let hash = tree_hash_atom(bytes);
-                            hashes.push(hash);
-                        }
-                        NodeVisitor::U32(val) => {
-                            increment_bytes(a.atom_len(node) + 1, &mut cost);
-                            check_cost(cost, cost_left)?;
-                            if (val as usize) < PRECOMPUTED_HASHES.len() {
-                                hashes.push(PRECOMPUTED_HASHES[val as usize]);
-                            } else {
-                                hashes.push(tree_hash_atom(a.atom(node).as_ref()));
-                            }
-                        }
-                        NodeVisitor::Pair(left, right) => {
-                            increment_bytes(65, &mut cost);
-                            check_cost(cost, cost_left)?;
-
-                            ops.push(TreeOp::Cons);
-                            ops.push(TreeOp::SExp(left));
-                            ops.push(TreeOp::SExp(right));
-                        }
-                    }
-                }
-                TreeOp::Cons => {
-                    let first = hashes.pop().unwrap();
-                    let rest = hashes.pop().unwrap();
-                    hashes.push(tree_hash_pair(&first, &rest));
-                }
-                TreeOp::ConsAddCacheCost(_, _) => unreachable!(),
-            }
-        }
-
-        assert!(hashes.len() == 1);
-        cost += MALLOC_COST_PER_BYTE * 32;
-        check_cost(cost, cost_left)?;
-        Ok(Reduction(cost, a.new_atom(&hashes[0])?))
-    }
 
     fn test_sha256_atom(buf: &[u8]) {
         let hash = tree_hash_atom(buf);

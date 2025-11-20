@@ -6,6 +6,6 @@ use crate::treehash::*;
 
 pub fn op_sha256_tree(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let [n] = get_args::<1>(a, input, "sha256tree")?;
-    let mut cache = TreeCache::default();
-    tree_hash_cached_costed(a, n, &mut cache, max_cost)
+    // let mut cache = TreeCache::default();
+    tree_hash_costed(a, n, max_cost)
 }
