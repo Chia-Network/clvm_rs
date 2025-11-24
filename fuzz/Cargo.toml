@@ -121,3 +121,9 @@ name = "canonical-serialization-br"
 path = "fuzz_targets/canonical_serialization_br.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "intern"
+path = "fuzz_targets/intern.rs"
+test = false
+doc = false
