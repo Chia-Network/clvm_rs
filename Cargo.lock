@@ -174,7 +174,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cabdd13a5884c10ed6c445e8ae858d50e16152c9ab1eeddee5ff659fe70f0915"
 dependencies = [
  "blst",
- "chia-sha2",
+ "chia-sha2 0.28.2",
  "chia-traits",
  "hex",
  "hkdf",
@@ -185,9 +185,18 @@ dependencies = [
 
 [[package]]
 name = "chia-sha2"
-version = "0.28.1"
+version = "0.28.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4794753f68eee46d289e079b2e3fc63aee9a63d15a171b3ce47b0b98dee529a5"
+checksum = "d2f03c71bc63599a711caad15dafca1d2a948c26b4c8a021709a338149632769"
+dependencies = [
+ "sha2",
+]
+
+[[package]]
+name = "chia-sha2"
+version = "0.34.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f06500dc809a916fa0c70f5219b8b79a598462382a4ddca91ef1a3cb32b826ce"
 dependencies = [
  "openssl",
  "sha2",
@@ -199,7 +208,7 @@ version = "0.28.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af1849a64aecd0bfd22e6e735b08ac39dd07834ab7f05b621137498e75b6154c"
 dependencies = [
- "chia-sha2",
+ "chia-sha2 0.28.2",
  "chia_streamable_macro",
  "thiserror",
 ]
@@ -289,7 +298,7 @@ version = "0.16.2"
 dependencies = [
  "anyhow",
  "arbitrary",
- "chia-sha2",
+ "chia-sha2 0.34.0",
  "clvmr",
 ]
 
@@ -348,7 +357,7 @@ dependencies = [
  "bitvec",
  "bumpalo",
  "chia-bls",
- "chia-sha2",
+ "chia-sha2 0.34.0",
  "criterion",
  "hex",
  "hex-literal",
