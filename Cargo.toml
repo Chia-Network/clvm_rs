@@ -112,3 +112,7 @@ harness = false
 [[bench]]
 name = "serialize"
 harness = false
+
+[[bench]]
+name = "intern"
+harness = false
