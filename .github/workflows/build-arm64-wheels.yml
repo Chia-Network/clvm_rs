@@ -25,6 +25,11 @@ jobs:
     steps:
       - uses: Chia-Network/actions/clean-workspace@main
 
+      - uses: chia-network/actions/setup-python@main
+        name: Install Python 3.10
+        with:
+          python-version: "3.10"
+
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
