@@ -61,10 +61,8 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/ws --workdir=/ws \
-            quay.io/pypa/manylinux_2_28_x86_64 \
+            ghcr.io/chia-network/build-images/centos-pypa-rust-x86_64 \
             bash -exc '\
-              curl -L https://sh.rustup.rs > rustup-init.sh && \
-              sh rustup-init.sh -y && \
               yum -y install perl-IPC-Cmd && \
               yum -y --disablerepo=epel install openssl-devel && \
               source $HOME/.cargo/env && \

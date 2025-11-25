@@ -17,11 +17,10 @@ permissions:
 
 jobs:
   build_wheels:
-    name: ARM64 Python Wheels on ARM64 Ubuntu
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [[ARM64, Linux]]
+    name: Build ARM64 Python Wheels
+    runs-on: [ARM64, Linux]
+    container:
+      image: ghcr.io/chia-network/build-images/centos-pypa-rust-aarch64:latest
 
     steps:
       - uses: Chia-Network/actions/clean-workspace@main
@@ -31,29 +30,24 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Setup for python wheel build
+        run: |
+          echo "${PATH}"
+          yum -y install openssl-devel
+          source /root/.cargo/env
+          rustup default stable
+          rustup target add aarch64-unknown-linux-musl
+          rm -rf venv
+          export PATH="${PATH}:/opt/python/cp310-cp310/bin/"
+
       - name: Build Python wheels
         run: |
-          docker run --rm \
-            -v ${{ github.workspace }}:/ws --workdir=/ws \
-            quay.io/pypa/manylinux_2_28_aarch64 \
-            bash -exc '\
-              echo $PATH && \
-              curl -L https://sh.rustup.rs > rustup-init.sh && \
-              sh rustup-init.sh -y && \
-              yum -y install perl-IPC-Cmd && \
-              yum -y install openssl-devel && \
-              source $HOME/.cargo/env && \
-              rustup target add aarch64-unknown-linux-musl && \
-              rm -rf venv && \
-              export PATH=/opt/python/cp310-cp310/bin/:$PATH && \
-              export PATH=/opt/python/cp39-cp39/bin/:$PATH && \
-              export PATH=/opt/python/cp38-cp38/bin/:$PATH && \
-              /opt/python/cp38-cp38/bin/python -m venv venv && \
-              if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
-              . ./activate && \
-              pip install maturin && \
-              CC=gcc maturin build -m wheel/Cargo.toml --release --strip --manylinux 2_28 --features=openssl \
-            '
+          cd wheel
+          python -m venv venv
+          if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi
+          . ./activate
+          pip install maturin
+          CC=gcc maturin build --release --strip --manylinux 2_28 --no-sdist --cargo-extra-args=--all-features
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v5
@@ -61,7 +55,7 @@ jobs:
           name: wheels
           path: target/wheels/
 
-      - name: Install Twine
+      - name: Install setuptools_rust
         run: |
           if [ ! -f "venv" ]; then sudo rm -rf venv; fi
           sudo apt-get install python3-venv python3-pip -y
