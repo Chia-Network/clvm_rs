@@ -35,7 +35,7 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/ws --workdir=/ws \
-            ghcr.io/chia-network/build-images/centos-pypa-rust-x86_64 \
+            ghcr.io/chia-network/build-images/centos-pypa-rust-aarch64 \
             bash -exc '\
               echo $PATH && \
               yum -y install perl-IPC-Cmd && \
