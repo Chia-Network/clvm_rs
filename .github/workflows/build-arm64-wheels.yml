@@ -37,11 +37,10 @@ jobs:
           source /root/.cargo/env
           rustup default stable
           rustup target add aarch64-unknown-linux-musl
-          rm -rf venv
 
       - name: Build Python wheels
         run: |
-          cd wheel
+          rm -rf venv
           /opt/python/cp310-cp310/bin/python -m venv venv
           if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi
           . ./activate
