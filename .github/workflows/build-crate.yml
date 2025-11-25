@@ -28,7 +28,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up rusts
-        uses: dtolnay/rust-toolchain@1.89.0
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: fmt
         run: cargo fmt --all -- --files-with-diff --check

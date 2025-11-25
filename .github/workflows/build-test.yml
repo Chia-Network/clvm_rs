@@ -169,7 +169,7 @@ jobs:
         with:
           fetch-depth: 1
       - name: Set up rusts
-        uses: dtolnay/rust-toolchain@1.89.0
+        uses: dtolnay/rust-toolchain@1.100.0
       - name: Clippy
         run: cargo clippy --all-targets --workspace -- -D warnings
       - name: fmt
@@ -222,7 +222,7 @@ jobs:
         with:
           fetch-depth: 1
       - name: Set up rusts
-        uses: dtolnay/rust-toolchain@1.89.0
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: build
         run: cargo build --workspace --exclude clvm_rs-fuzz
