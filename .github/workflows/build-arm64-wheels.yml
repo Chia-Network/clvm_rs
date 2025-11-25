@@ -17,10 +17,11 @@ permissions:
 
 jobs:
   build_wheels:
-    name: Build ARM64 Python Wheels
-    runs-on: [ARM64, Linux]
-    container:
-      image: ghcr.io/chia-network/build-images/centos-pypa-rust-aarch64:latest
+    name: ARM64 Python Wheels on ARM64 Ubuntu
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [[ARM64, Linux]]
 
     steps:
       - uses: Chia-Network/actions/clean-workspace@main
@@ -30,23 +31,25 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Setup for python wheel build
-        run: |
-          echo "${PATH}"
-          yum -y install openssl-devel
-          source /root/.cargo/env
-          rustup default stable
-          rustup target add aarch64-unknown-linux-musl
-
       - name: Build Python wheels
         run: |
-          rm -rf venv
-          /opt/python/cp310-cp310/bin/python -m venv venv
-          if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi
-          . ./activate
-          pip install --upgrade pip
-          pip install maturin
-          CC=gcc maturin build -m wheel/Cargo.toml --release --strip --manylinux 2_28 --features=openssl
+          docker run --rm \
+            -v ${{ github.workspace }}:/ws --workdir=/ws \
+            ghcr.io/chia-network/build-images/centos-pypa-rust-x86_64 \
+            bash -exc '\
+              echo $PATH && \
+              yum -y install perl-IPC-Cmd && \
+              yum -y --disablerepo=epel install openssl-devel && \
+              source $HOME/.cargo/env && \
+              rustup target add aarch64-unknown-linux-musl && \
+              rm -rf venv && \
+              export PATH=/opt/python/cp310-cp310/bin/:$PATH && \
+              /opt/python/cp310-cp310/bin/python -m venv venv && \
+              if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
+              . ./activate && \
+              pip install maturin && \
+              CC=gcc maturin build -m wheel/Cargo.toml --release --strip --manylinux 2_28 --features=openssl \
+            '
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v5
@@ -58,7 +61,7 @@ jobs:
         run: |
           if [ ! -f "venv" ]; then sudo rm -rf venv; fi
           sudo apt-get install python3-venv python3-pip -y
-          /opt/python/cp310-cp310/bin/python -m venv venv
+          python3 -m venv venv
           if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi
           . ./activate
           pip install setuptools_rust
