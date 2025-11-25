@@ -25,11 +25,6 @@ jobs:
     steps:
       - uses: Chia-Network/actions/clean-workspace@main
 
-      - uses: chia-network/actions/setup-python@main
-        name: Install Python 3.10
-        with:
-          python-version: "3.10"
-
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
@@ -48,7 +43,7 @@ jobs:
       - name: Build Python wheels
         run: |
           cd wheel
-          python -m venv venv
+          /opt/python/cp310-cp310/bin/python -m venv venv
           if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi
           . ./activate
           pip install maturin
@@ -64,7 +59,7 @@ jobs:
         run: |
           if [ ! -f "venv" ]; then sudo rm -rf venv; fi
           sudo apt-get install python3-venv python3-pip -y
-          python3 -m venv venv
+          /opt/python/cp310-cp310/bin/python -m venv venv
           if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi
           . ./activate
           pip install setuptools_rust
