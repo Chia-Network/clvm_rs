@@ -222,6 +222,11 @@ jobs:
       - name: Set up rusts
         uses: dtolnay/rust-toolchain@1.89.0
 
+      - uses: chia-network/actions/setup-python@main
+        name: Install Python ${{ matrix.python }}
+        with:
+          python-version: ${{ matrix.python }}
+
       - name: build
         run: cargo build --workspace --exclude clvm_rs-fuzz
 
