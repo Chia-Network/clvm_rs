@@ -75,6 +75,7 @@ fn time_per_byte_for_atom(
 }
 
 #[allow(clippy::type_complexity)]
+#[allow(clippy::too_many_arguments)]
 fn time_per_cons_for_list(
     a: &mut Allocator,
     sha_prog: NodePtr,
