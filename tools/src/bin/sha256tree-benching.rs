@@ -16,10 +16,10 @@ fn time_per_byte_for_atom(
     mut output_native_cost: impl Write,
     mut output_clvm_cost: impl Write,
 ) -> (
-    (f64, f64),
-    (f64, f64), // time slopes
-    (f64, f64),
-    (f64, f64), // cost slopes
+    f64,
+    f64, // time slopes
+    f64,
+    f64, // cost slopes
 ) {
     let mut samples_time_native = Vec::<(f64, f64)>::new();
     let mut samples_time_clvm = Vec::<(f64, f64)>::new();
@@ -67,10 +67,10 @@ fn time_per_byte_for_atom(
     }
 
     (
-        linear_regression_of(&samples_time_native).unwrap(),
-        linear_regression_of(&samples_time_clvm).unwrap(),
-        linear_regression_of(&samples_cost_native).unwrap(),
-        linear_regression_of(&samples_cost_clvm).unwrap(),
+        linear_regression_of(&samples_time_native).unwrap().0,
+        linear_regression_of(&samples_time_clvm).unwrap().0,
+        linear_regression_of(&samples_cost_native).unwrap().0,
+        linear_regression_of(&samples_cost_clvm).unwrap().0,
     )
 }
 
@@ -78,15 +78,19 @@ fn time_per_byte_for_atom(
 fn time_per_cons_for_list(
     a: &mut Allocator,
     sha_prog: NodePtr,
+    bytes32_native_cost: f64,
+    bytes32_clvm_cost: f64,
+    bytes32_native_time: f64,
+    bytes32_clvm_time: f64,
     mut output_native_time: impl Write,
     mut output_clvm_time: impl Write,
     mut output_native_cost: impl Write,
     mut output_clvm_cost: impl Write,
 ) -> (
-    (f64, f64),
-    (f64, f64), // time slopes
-    (f64, f64),
-    (f64, f64), // cost slopes
+    f64,
+    f64, // time slopes
+    f64,
+    f64, // cost slopes
 ) {
     let mut samples_time_native = Vec::<(f64, f64)>::new();
     let mut samples_time_clvm = Vec::<(f64, f64)>::new();
@@ -118,6 +122,8 @@ fn time_per_cons_for_list(
         let cost = red.0;
         let result_1 = node_to_bytes(a, red.1).expect("should work");
         let duration = start.elapsed().as_nanos() as f64;
+        let duration = (duration - (3.0 * bytes32_native_time)) / 2.0;
+        let cost = (cost as f64 - (3.0 * bytes32_native_cost)) / 2.0;
         writeln!(output_native_time, "{}\t{}", i, duration).unwrap();
         writeln!(output_native_cost, "{}\t{}", i, cost).unwrap();
         samples_time_native.push((i as f64, duration));
@@ -130,8 +136,9 @@ fn time_per_cons_for_list(
         let cost = red.0;
         let result_2 = node_to_bytes(a, red.1).expect("should work");
         assert_eq!(result_1, result_2);
-
         let duration = start.elapsed().as_nanos() as f64;
+        let duration = (duration - (3.0 * bytes32_clvm_time)) / 2.0;
+        let cost = (cost as f64 - (3.0 * bytes32_clvm_cost)) / 2.0;
         writeln!(output_clvm_time, "{}\t{}", i, duration).unwrap();
         writeln!(output_clvm_cost, "{}\t{}", i, cost).unwrap();
         samples_time_clvm.push((i as f64, duration));
@@ -139,10 +146,10 @@ fn time_per_cons_for_list(
     }
 
     (
-        linear_regression_of(&samples_time_native).unwrap(),
-        linear_regression_of(&samples_time_clvm).unwrap(),
-        linear_regression_of(&samples_cost_native).unwrap(),
-        linear_regression_of(&samples_cost_clvm).unwrap(),
+        linear_regression_of(&samples_time_native).unwrap().0,
+        linear_regression_of(&samples_time_clvm).unwrap().0,
+        linear_regression_of(&samples_cost_native).unwrap().0,
+        linear_regression_of(&samples_cost_clvm).unwrap().0,
     )
 }
 
@@ -177,23 +184,47 @@ fn main() {
     let (cons_nat_t, cons_clvm_t, cons_nat_c, cons_clvm_c) = time_per_cons_for_list(
         &mut a,
         shaprog,
+        atom_nat_c,
+        atom_clvm_c,
+        atom_nat_t,
+        atom_clvm_t,
         cons_native_time,
         cons_clvm_time,
         cons_native_cost,
         cons_clvm_cost,
     );
 
-    println!("atom results: ");
-    println!("Native time slope  (ns): {:.4}", atom_nat_t.0);
-    println!("CLVM   time slope  (ns): {:.4}", atom_clvm_t.0);
-    println!("Native cost slope      : {:.4}", atom_nat_c.0);
-    println!("CLVM   cost slope      : {:.4}", atom_clvm_c.0);
+    // taken from benchmark-clvm-cost.rs
+    let cost_scale = ((101094.0 / 39000.0) + (1343980.0 / 131000.0)) / 2.0;
 
-    println!("list results: ");
-    println!("Native time slope  (ns): {:.4}", cons_nat_t.0);
-    println!("CLVM   time slope  (ns): {:.4}", cons_clvm_t.0);
-    println!("Native cost slope      : {:.4}", cons_nat_c.0);
-    println!("CLVM   cost slope      : {:.4}", cons_clvm_c.0);
+    println!("bytes32 results: ");
+    println!("Native time per bytes32  (ns): {:.4}", atom_nat_t);
+    println!("CLVM   time per bytes32  (ns): {:.4}", atom_clvm_t);
+    println!(
+        "Native (time_per_bytes32  * cost_ratio): {:.4}",
+        atom_nat_t * cost_scale
+    );
+    println!(
+        "CLVM   (time_per_bytes  * cost_ratio : {:.4}",
+        atom_clvm_t * cost_scale
+    );
+
+    println!("Native cost per bytes32      : {:.4}", atom_nat_c);
+    println!("CLVM   cost per bytes32      : {:.4}", atom_clvm_c);
+
+    println!("per node results: ");
+    println!("Native time per node  (ns): {:.4}", cons_nat_t);
+    println!("CLVM   time per node  (ns): {:.4}", cons_clvm_t);
+    println!(
+        "Native (time_per_node  * cost_ratio): {:.4}",
+        cons_nat_t * cost_scale
+    );
+    println!(
+        "CLVM   (time_per_node * cost_ratio): {:.4}",
+        cons_clvm_t * cost_scale
+    );
+    println!("Native cost slope      : {:.4}", cons_nat_c);
+    println!("CLVM   cost slope      : {:.4}", cons_clvm_c);
 
     // gnuplot script
     let mut gp = File::create("plots.gnuplot").unwrap();
