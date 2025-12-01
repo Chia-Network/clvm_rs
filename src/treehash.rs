@@ -8,8 +8,11 @@ use crate::reduction::Reduction;
 use crate::reduction::Response;
 use chia_sha2::Sha256;
 
+// the base cost is the cost of calling it to begin with
 const SHA256TREE_BASE_COST: Cost = 30;
-const SHA256TREE_COST_PER_NODE: Cost = 3000;
+// this is the cost per node, whether it is a cons box or an atom
+const SHA256TREE_COST_PER_NODE: Cost = 2000;
+// this is the cost for every 32 bytes in a sha256 call
 const SHA256TREE_COST_PER_32_BYTES: Cost = 700;
 
 pub fn tree_hash_atom(bytes: &[u8]) -> [u8; 32] {
@@ -32,9 +35,10 @@ enum TreeOp {
     Cons,
 }
 
+// costing is done for every 32 byte chunk that is hashed
 #[inline]
-fn increment_bytes(amount: usize, cost: &mut Cost) {
-    *cost += (amount.div_ceil(32)) as u64 * SHA256TREE_COST_PER_32_BYTES;
+fn increment_cost_for_hash_of_bytes(size: usize, cost: &mut Cost) {
+    *cost += (size.div_ceil(32)) as u64 * SHA256TREE_COST_PER_32_BYTES;
 }
 
 // this function costs but does not cache
@@ -52,13 +56,13 @@ pub fn tree_hash_costed(a: &mut Allocator, node: NodePtr, cost_left: Cost) -> Re
                 check_cost(cost, cost_left)?;
                 match a.node(node) {
                     NodeVisitor::Buffer(bytes) => {
-                        increment_bytes(bytes.len() + 1, &mut cost);
+                        increment_cost_for_hash_of_bytes(bytes.len() + 1, &mut cost);
                         check_cost(cost, cost_left)?;
                         let hash = tree_hash_atom(bytes);
                         hashes.push(hash);
                     }
                     NodeVisitor::U32(val) => {
-                        increment_bytes(a.atom_len(node) + 1, &mut cost);
+                        increment_cost_for_hash_of_bytes(a.atom_len(node) + 1, &mut cost);
                         check_cost(cost, cost_left)?;
                         if (val as usize) < PRECOMPUTED_HASHES.len() {
                             hashes.push(PRECOMPUTED_HASHES[val as usize]);
@@ -67,7 +71,7 @@ pub fn tree_hash_costed(a: &mut Allocator, node: NodePtr, cost_left: Cost) -> Re
                         }
                     }
                     NodeVisitor::Pair(left, right) => {
-                        increment_bytes(65, &mut cost);
+                        increment_cost_for_hash_of_bytes(65, &mut cost);
                         check_cost(cost, cost_left)?;
 
                         ops.push(TreeOp::Cons);

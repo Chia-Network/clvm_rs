@@ -224,8 +224,8 @@ fn main() {
         "CLVM   (time_per_node * cost_ratio): {:.4}",
         cons_clvm_t * cost_scale
     );
-    println!("Native cost slope      : {:.4}", cons_nat_c);
-    println!("CLVM   cost slope      : {:.4}", cons_clvm_c);
+    println!("Native cost per node      : {:.4}", cons_nat_c);
+    println!("CLVM   cost per node      : {:.4}", cons_clvm_c);
 
     // gnuplot script
     let mut gp = File::create("plots.gnuplot").unwrap();
