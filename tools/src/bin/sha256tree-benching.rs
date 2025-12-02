@@ -7,6 +7,12 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::time::Instant;
 
+/*
+This file is for comparing the native sha256tree with the clvm implementation which previously existed.
+The costs for the native implementation should be lower as it is not required to make allocations.
+*/
+
+// this function is for comparing the cost per 32byte chunk of hashing between the native and clvm implementation
 #[allow(clippy::type_complexity)]
 fn time_per_byte_for_atom(
     a: &mut Allocator,
@@ -74,6 +80,8 @@ fn time_per_byte_for_atom(
     )
 }
 
+// this function calculates the cost per node theoretically
+// in reality we are only charging per hash operation on a 32 byte chunk
 #[allow(clippy::type_complexity)]
 #[allow(clippy::too_many_arguments)]
 fn time_per_cons_for_list(
@@ -123,8 +131,10 @@ fn time_per_cons_for_list(
         let cost = red.0;
         let result_1 = node_to_bytes(a, red.1).expect("should work");
         let duration = start.elapsed().as_nanos() as f64;
-        let duration = (duration - (3.0 * bytes32_native_time)) / 2.0;
-        let cost = (cost as f64 - (3.0 * bytes32_native_cost)) / 2.0;
+        // a new list entry is 2 nodes (a cons and a nil) and a 3 chunk hash operation and a 1 chunk hash operation
+        // this equation lets us figure out a theoretical cost just for a node
+        let duration = (duration - (4.0 * bytes32_native_time)) / 2.0;
+        let cost = (cost as f64 - (4.0 * bytes32_native_cost)) / 2.0;
         writeln!(output_native_time, "{}\t{}", i, duration).unwrap();
         writeln!(output_native_cost, "{}\t{}", i, cost).unwrap();
         samples_time_native.push((i as f64, duration));
@@ -138,8 +148,10 @@ fn time_per_cons_for_list(
         let result_2 = node_to_bytes(a, red.1).expect("should work");
         assert_eq!(result_1, result_2);
         let duration = start.elapsed().as_nanos() as f64;
-        let duration = (duration - (3.0 * bytes32_clvm_time)) / 2.0;
-        let cost = (cost as f64 - (3.0 * bytes32_clvm_cost)) / 2.0;
+        // a new list entry is 2 nodes (a cons and a nil) and a 3 chunk hash operation and a 1 chunk hash operation
+        // this equation lets us figure out a theoretical cost just for a node
+        let duration = (duration - (4.0 * bytes32_clvm_time)) / 2.0;
+        let cost = (cost as f64 - (4.0 * bytes32_clvm_cost)) / 2.0;
         writeln!(output_clvm_time, "{}\t{}", i, duration).unwrap();
         writeln!(output_clvm_cost, "{}\t{}", i, cost).unwrap();
         samples_time_clvm.push((i as f64, duration));

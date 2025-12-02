@@ -297,6 +297,10 @@ fn time_per_byte_for_atom(a: &mut Allocator, op: &Operator, output: &mut dyn Wri
     linear_regression_of(&samples).expect("linreg failed")
 }
 
+// this function is used for calculating a theoretical cost per node
+// we pass in the time it takes for a byte32 chunk and subtract 4*chunk_time
+// we then divide by two to account for the fact that we are adding a nil atom each time the list grows too
+// this is because atoms are nodes too
 fn time_per_cons_for_list(
     a: &mut Allocator,
     time_per_byte32: f64,
