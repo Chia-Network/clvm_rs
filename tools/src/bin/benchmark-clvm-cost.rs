@@ -297,7 +297,12 @@ fn time_per_byte_for_atom(a: &mut Allocator, op: &Operator, output: &mut dyn Wri
     linear_regression_of(&samples).expect("linreg failed")
 }
 
-fn time_per_cons_for_list(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> (f64, f64) {
+fn time_per_cons_for_list(
+    a: &mut Allocator,
+    time_per_byte32: f64,
+    op: &Operator,
+    output: &mut dyn Write,
+) -> (f64, f64) {
     let mut samples = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(ENABLE_SHA256_TREE); // enable shatree
 
@@ -318,7 +323,8 @@ fn time_per_cons_for_list(a: &mut Allocator, op: &Operator, output: &mut dyn Wri
         let start = Instant::now();
         run_program(a, &dialect, call, a.nil(), 11000000000).unwrap();
         let duration = start.elapsed();
-        let sample = (i as f64, duration.as_nanos() as f64);
+        let duration_f64 = (duration.as_nanos() as f64 - (4.0 * time_per_byte32)) / 2.0;
+        let sample = (i as f64, duration_f64);
         writeln!(output, "{}\t{}", sample.0, sample.1).expect("failed to write");
         samples.push(sample);
     }
@@ -616,6 +622,19 @@ pub fn main() {
             let cost = slope * cost_scale;
             println!("   time: per-32byte: {slope:.2}ns");
             println!("   cost: per-32byte: {:.0}", cost);
+            if (op.flags & LIST_LENGTH_COST) != 0 {
+                write_gnuplot_header(&mut *gnuplot, op, "per-pair", "num pairs");
+                let mut output = maybe_open(options.plot, op.name, "per-pair.log");
+                let (slope, intercept): (f64, f64) =
+                    time_per_cons_for_list(&mut a, slope, op, &mut output);
+                let cost = slope * cost_scale;
+
+                println!("   time: per-node: {:.2}ns", slope);
+                println!("   cost: per-node: {:.0}", cost);
+                println!("   intercept: {:.2}", intercept);
+
+                print_plot(&mut *gnuplot, &slope, &intercept, op.name, "per-pair");
+            }
             slope
         } else {
             0.0
@@ -675,18 +694,6 @@ pub fn main() {
                 op.name,
                 "per-byte",
             );
-        }
-        if (op.flags & LIST_LENGTH_COST) != 0 {
-            write_gnuplot_header(&mut *gnuplot, op, "per-pair", "num pairs");
-            let mut output = maybe_open(options.plot, op.name, "per-pair.log");
-            let (slope, intercept): (f64, f64) = time_per_cons_for_list(&mut a, op, &mut output);
-            let cost = slope * cost_scale;
-
-            println!("   time: per-node: {:.2}ns", slope);
-            println!("   cost: per-node: {:.0}", cost);
-            println!("   intercept: {:.2}", intercept);
-
-            print_plot(&mut *gnuplot, &slope, &intercept, op.name, "per-pair");
         }
     }
     if options.plot {

@@ -9,9 +9,9 @@ use crate::reduction::Response;
 use chia_sha2::Sha256;
 
 // the base cost is the cost of calling it to begin with
-const SHA256TREE_BASE_COST: Cost = 30;
+const SHA256TREE_BASE_COST: Cost = 0;
 // this is the cost per node, whether it is a cons box or an atom
-const SHA256TREE_COST_PER_NODE: Cost = 2000;
+const SHA256TREE_COST_PER_NODE: Cost = 0;
 // this is the cost for every 32 bytes in a sha256 call
 const SHA256TREE_COST_PER_32_BYTES: Cost = 700;
 
