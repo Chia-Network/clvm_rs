@@ -1,5 +1,5 @@
 [workspace]
-members = ["fuzz", "tools", "wasm", "wheel", "clvm-fuzzing"]
+members = ["fuzz", "tools", "wheel", "clvm-fuzzing"]
 
 [package]
 name = "clvmr"
@@ -54,8 +54,6 @@ rstest = "0.21.0"
 criterion = "0.5.1"
 hex = "0.4.3"
 pyo3 = "0.22.6"
-wasm-bindgen = "0.2.100"
-wasm-bindgen-test = "0.3.50"
 js-sys = "0.3.77"
 getrandom = "0.2.16"
 libfuzzer-sys = "0.4.10"
