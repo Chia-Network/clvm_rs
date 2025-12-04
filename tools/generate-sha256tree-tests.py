@@ -7,8 +7,7 @@ import math
 
 seed(1337)
 
-SHA256TREE_BASE_COST = 0
-SHA256TREE_COST_PER_NODE = 0
+SHA256TREE_BASE_COST = 87
 SHA256TREE_COST_PER_32_BYTES = 700
 MALLOC_COST_PER_BYTE = 10
 
@@ -53,7 +52,7 @@ def increment_bytes(amount: int) -> int:
 
 
 def compute_tree_hash_and_cost(obj) -> tuple[bytes, int]:
-    cost = SHA256TREE_COST_PER_NODE
+    cost = 0
 
     if isinstance(obj, bytes):
         cost += increment_bytes(len(obj) + 1)

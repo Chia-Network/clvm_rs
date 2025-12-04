@@ -9,9 +9,8 @@ use crate::reduction::Response;
 use chia_sha2::Sha256;
 
 // the base cost is the cost of calling it to begin with
-const SHA256TREE_BASE_COST: Cost = 0;
-// this is the cost per node, whether it is a cons box or an atom
-const SHA256TREE_COST_PER_NODE: Cost = 0;
+// this is set to the same as sha256
+const SHA256TREE_BASE_COST: Cost = 87;
 // this is the cost for every 32 bytes in a sha256 call
 const SHA256TREE_COST_PER_32_BYTES: Cost = 700;
 
@@ -52,16 +51,17 @@ pub fn tree_hash_costed(a: &mut Allocator, node: NodePtr, cost_left: Cost) -> Re
     while let Some(op) = ops.pop() {
         match op {
             TreeOp::SExp(node) => {
-                cost += SHA256TREE_COST_PER_NODE;
-                check_cost(cost, cost_left)?;
+                // we could theoretically add a COST_PER_NODE on this line in the future
                 match a.node(node) {
                     NodeVisitor::Buffer(bytes) => {
+                        // +1 byte to length because of prefix before atoms
                         increment_cost_for_hash_of_bytes(bytes.len() + 1, &mut cost);
                         check_cost(cost, cost_left)?;
                         let hash = tree_hash_atom(bytes);
                         hashes.push(hash);
                     }
                     NodeVisitor::U32(val) => {
+                        // +1 byte to length because of prefix before atoms
                         increment_cost_for_hash_of_bytes(a.atom_len(node) + 1, &mut cost);
                         check_cost(cost, cost_left)?;
                         if (val as usize) < PRECOMPUTED_HASHES.len() {
@@ -71,6 +71,8 @@ pub fn tree_hash_costed(a: &mut Allocator, node: NodePtr, cost_left: Cost) -> Re
                         }
                     }
                     NodeVisitor::Pair(left, right) => {
+                        // 2 * 32byte hashes from a pair
+                        // + 1 byte to length because of prefix before atoms
                         increment_cost_for_hash_of_bytes(65, &mut cost);
                         check_cost(cost, cost_left)?;
 
