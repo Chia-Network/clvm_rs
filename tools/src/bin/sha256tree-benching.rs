@@ -210,7 +210,7 @@ fn main() {
     // taken from benchmark-clvm-cost.rs
     let cost_scale = ((101094.0 / 39000.0) + (1343980.0 / 131000.0)) / 2.0;
 
-    println!("bytes32 results: ");
+    println!("Costs per bytes32 chunk: ");
     println!("Native time per bytes32  (ns): {:.4}", atom_nat_t);
     println!("CLVM   time per bytes32  (ns): {:.4}", atom_clvm_t);
     println!(
@@ -225,7 +225,9 @@ fn main() {
     println!("Native cost per bytes32      : {:.4}", atom_nat_c);
     println!("CLVM   cost per bytes32      : {:.4}", atom_clvm_c);
 
-    println!("per node results: ");
+    // this is described as estimated as we're adding a cons and a nil atom each time
+    // and then we're subtracting the costs to calculate what a single node might theoretically cost
+    println!("Estimated costs per node results: ");
     println!("Native time per node  (ns): {:.4}", cons_nat_t);
     println!("CLVM   time per node  (ns): {:.4}", cons_clvm_t);
     println!(
