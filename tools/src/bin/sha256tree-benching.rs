@@ -10,6 +10,9 @@ use std::time::Instant;
 /*
 This file is for comparing the native sha256tree with the clvm implementation which previously existed.
 The costs for the native implementation should be lower as it is not required to make allocations.
+
+This file also outputs the timings for both the native and clvm versions so we can check that the costs
+are closely aligned with the actual work done on the CPU.
 */
 
 // this function is for comparing the cost per 32byte chunk of hashing between the native and clvm implementation

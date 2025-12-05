@@ -298,46 +298,6 @@ fn time_per_byte_for_atom(a: &mut Allocator, op: &Operator, output: &mut dyn Wri
     linear_regression_of(&samples).expect("linreg failed")
 }
 
-// this function is used for calculating a theoretical cost per node
-// we pass in the time it takes for a byte32 chunk and subtract 4*chunk_time
-// we then divide by two to account for the fact that we are adding a nil atom each time the list grows too
-// this is because atoms are nodes too
-// at the moment this function is extremely specialised for sha256tree
-fn time_per_cons_for_list(
-    a: &mut Allocator,
-    time_per_byte32: f64,
-    op: &Operator,
-    output: &mut dyn Write,
-) -> (f64, f64) {
-    let mut samples = Vec::<(f64, f64)>::new();
-    let dialect = ChiaDialect::new(ENABLE_SHA256_TREE); // enable shatree
-
-    let op_code = a.new_small_number(op.opcode).unwrap();
-    let quote = a.one();
-    let mut list = a.nil();
-
-    for _ in 0..500 {
-        list = a.new_pair(a.nil(), list).unwrap();
-    }
-
-    for i in 0..10000 {
-        // make the list longer
-        list = a.new_pair(a.nil(), list).unwrap();
-        let quotation = a.new_pair(quote, list).unwrap();
-        let call = a.new_pair(quotation, a.nil()).unwrap();
-        let call = a.new_pair(op_code, call).unwrap();
-        let start = Instant::now();
-        run_program(a, &dialect, call, a.nil(), 11000000000).unwrap();
-        let duration = start.elapsed();
-        let duration_f64 = (duration.as_nanos() as f64 - (4.0 * time_per_byte32)) / 2.0;
-        let sample = (i as f64, duration_f64);
-        writeln!(output, "{}\t{}", sample.0, sample.1).expect("failed to write");
-        samples.push(sample);
-    }
-
-    linear_regression_of(&samples).expect("linreg failed")
-}
-
 // cost one argument with increasing amount of bytes
 const PER_BYTE_COST: u32 = 1;
 // cost multiple arguments with increasing amount of arguments
@@ -350,8 +310,6 @@ const EXPONENTIAL_COST: u32 = 8;
 const LARGE_BUFFERS: u32 = 16;
 // permit the operator to fail in tests
 const ALLOW_FAILURE: u32 = 32;
-// increase the length of a list for the argument for the operator
-const LIST_LENGTH_COST: u32 = 64;
 // increase byte size by 32 per step when running the linear regression
 const ALT_PER_BYTE_COST: u32 = 128;
 
@@ -597,7 +555,7 @@ pub fn main() {
             name: "sha256tree",
             arg: Placeholder::SingleArg(None),
             extra: None,
-            flags: NESTING_BASE_COST | ALT_PER_BYTE_COST | LARGE_BUFFERS | LIST_LENGTH_COST,
+            flags: NESTING_BASE_COST | ALT_PER_BYTE_COST | LARGE_BUFFERS,
         },
     ];
 
@@ -628,19 +586,6 @@ pub fn main() {
             let cost = slope * cost_scale;
             println!("   time: per-32byte: {slope:.2}ns");
             println!("   cost: per-32byte: {:.0}", cost);
-            if (op.flags & LIST_LENGTH_COST) != 0 {
-                write_gnuplot_header(&mut *gnuplot, op, "per-pair", "num pairs");
-                let mut output = maybe_open(options.plot, op.name, "per-pair.log");
-                let (slope, intercept): (f64, f64) =
-                    time_per_cons_for_list(&mut a, slope, op, &mut output);
-                let cost = slope * cost_scale;
-
-                println!("   time: per-node: {:.2}ns", slope);
-                println!("   cost: per-node: {:.0}", cost);
-                println!("   intercept: {:.2}", intercept);
-
-                print_plot(&mut *gnuplot, &slope, &intercept, op.name, "per-pair");
-            }
             slope
         } else {
             0.0
