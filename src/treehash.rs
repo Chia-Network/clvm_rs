@@ -11,8 +11,11 @@ use chia_sha2::Sha256;
 // the base cost is the cost of calling it to begin with
 // this is set to the same as sha256
 const SHA256TREE_BASE_COST: Cost = 87;
+// this cost is applied for every node we traverse to
+const SHA256TREE_NODE_COST: Cost = 500;
 // this is the cost for every 32 bytes in a sha256 call
-const SHA256TREE_COST_PER_32_BYTES: Cost = 700;
+// it is set to the same as sha256
+const SHA256TREE_COST_PER_32_BYTES: Cost = 64;
 
 pub fn tree_hash_atom(bytes: &[u8]) -> [u8; 32] {
     let mut sha256 = Sha256::new();
@@ -52,6 +55,8 @@ pub fn tree_hash_costed(a: &mut Allocator, node: NodePtr, cost_left: Cost) -> Re
         match op {
             TreeOp::SExp(node) => {
                 // we could theoretically add a COST_PER_NODE on this line in the future
+                cost += SHA256TREE_NODE_COST;
+                check_cost(cost, cost_left)?;
                 match a.node(node) {
                     NodeVisitor::Buffer(bytes) => {
                         // +1 byte to length because of prefix before atoms
