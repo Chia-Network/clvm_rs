@@ -115,25 +115,38 @@ fn substitute(args: Placeholder, s: NodePtr) -> OpArgs {
     }
 }
 
-fn time_invocation(a: &mut Allocator, op: u32, arg: OpArgs, flags: u32) -> f64 {
+fn time_invocation(
+    a: &mut Allocator,
+    op: u32,
+    arg: OpArgs,
+    flags: u32,
+    cost_samples: &mut Vec<(f64, f64)>,
+) -> f64 {
     let call = build_call(a, op, arg, 1, None);
     //println!("{:x?}", &Node::new(a, call));
     let dialect = ChiaDialect::new(ENABLE_SHA256_TREE);
     let start = Instant::now();
     let r = run_program(a, &dialect, call, a.nil(), 11000000000);
-    if (flags & ALLOW_FAILURE) == 0 {
-        r.unwrap();
-    }
-    if (flags & EXPONENTIAL_COST) != 0 {
+    let time = if (flags & EXPONENTIAL_COST) != 0 {
         (start.elapsed().as_nanos() as f64).sqrt()
     } else {
         start.elapsed().as_nanos() as f64
+    };
+    if (flags & ALLOW_FAILURE) == 0 {
+        let cost = r.unwrap().0;
+        cost_samples.push((time.clone(), cost as f64));
     }
+    time
 }
 
 // returns the time per byte
 // measures run-time of many calls
-fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64 {
+fn time_per_byte(
+    a: &mut Allocator,
+    op: &Operator,
+    output: &mut dyn Write,
+    cost_samples: &mut Vec<(f64, f64)>,
+) -> f64 {
     let checkpoint = a.checkpoint();
     let mut samples = Vec::<(f64, f64)>::new();
     let mut atom = vec![0; 10000000];
@@ -152,7 +165,7 @@ fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f6
             let arg = substitute(op.arg, quote(a, subst));
             let sample = (
                 i as f64 * scale as f64,
-                time_invocation(a, op.opcode, arg, op.flags),
+                time_invocation(a, op.opcode, arg, op.flags, cost_samples),
             );
             writeln!(output, "{}\t{}", sample.0, sample.1).expect("failed to write");
             samples.push(sample);
@@ -167,7 +180,12 @@ fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f6
 // returns the time per argument
 // measures the run-time of many calls with varying number of arguments, to
 // establish how much time each additional argument contributes
-fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64 {
+fn time_per_arg(
+    a: &mut Allocator,
+    op: &Operator,
+    output: &mut dyn Write,
+    cost_samples: &mut Vec<(f64, f64)>,
+) -> f64 {
     let mut samples = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(0);
 
@@ -186,11 +204,12 @@ fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64
             let call = build_call(a, op.opcode, arg, i, op.extra);
             let start = Instant::now();
             let r = run_program(a, &dialect, call, a.nil(), 11000000000);
-            if (op.flags & ALLOW_FAILURE) == 0 {
-                r.unwrap();
-            }
             let duration = start.elapsed();
             let sample = (i as f64, duration.as_nanos() as f64);
+            if (op.flags & ALLOW_FAILURE) == 0 {
+                let cost = r.unwrap().0;
+                cost_samples.push((sample.1, cost as f64));
+            }
             writeln!(output, "{}\t{}", sample.0, sample.1).expect("failed to write");
             samples.push(sample);
 
@@ -209,6 +228,7 @@ fn base_call_time(
     op: &Operator,
     per_arg_time: f64,
     output: &mut dyn Write,
+    cost_samples: &mut Vec<(f64, f64)>,
 ) -> f64 {
     let mut samples = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(0);
@@ -229,12 +249,14 @@ fn base_call_time(
             let call = build_nested_call(a, op.opcode, arg, i, op.extra);
             let start = Instant::now();
             let r = run_program(a, &dialect, call, a.nil(), 11_000_000_000);
-            if (op.flags & ALLOW_FAILURE) == 0 {
-                r.unwrap();
-            }
+
             let duration = start.elapsed();
             let duration = (duration.as_nanos() as f64) - (per_arg_time * i as f64);
             let sample = (i as f64, duration);
+            if (op.flags & ALLOW_FAILURE) == 0 {
+                let cost = r.unwrap().0;
+                cost_samples.push((duration, cost as f64));
+            }
             writeln!(output, "{}\t{}", sample.0, sample.1).expect("failed to write");
             samples.push(sample);
         }
@@ -244,7 +266,12 @@ fn base_call_time(
     slope
 }
 
-fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -> f64 {
+fn base_call_time_no_nest(
+    a: &mut Allocator,
+    op: &Operator,
+    per_arg_time: f64,
+    cost_samples: &mut Vec<(f64, f64)>,
+) -> f64 {
     let mut total_time: f64 = 0.0;
     let mut num_samples = 0;
 
@@ -260,7 +287,13 @@ fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -
 
     for _i in 0..300 {
         a.restore_checkpoint(&checkpoint);
-        total_time += time_invocation(a, op.opcode, arg, op.flags & !EXPONENTIAL_COST);
+        total_time += time_invocation(
+            a,
+            op.opcode,
+            arg,
+            op.flags & !EXPONENTIAL_COST,
+            cost_samples,
+        );
         num_samples += 1;
     }
 
@@ -372,6 +405,8 @@ fn print_plot(gnuplot: &mut dyn Write, a: &f64, b: &f64, op: &str, name: &str) {
 
 pub fn main() {
     let options = Args::parse();
+
+    let mut cost_factor_samples = Vec::<(f64, f64)>::new();
 
     let mut a = Allocator::new();
 
@@ -580,7 +615,7 @@ pub fn main() {
         println!("opcode: {} ({})", op.name, op.opcode);
         let time_per_byte = if (op.flags & PER_BYTE_COST) != 0 {
             let mut output = maybe_open(options.plot, op.name, "per-byte.log");
-            let time_per_byte = time_per_byte(&mut a, op, &mut *output);
+            let time_per_byte = time_per_byte(&mut a, op, &mut *output, &mut cost_factor_samples);
             println!("   time: per-byte: {time_per_byte:.2}ns");
             println!("   cost: per-byte: {:.0}", time_per_byte * cost_scale);
             time_per_byte
@@ -596,7 +631,7 @@ pub fn main() {
         };
         let time_per_arg = if (op.flags & PER_ARG_COST) != 0 {
             let mut output = maybe_open(options.plot, op.name, "per-arg.log");
-            let time_per_arg = time_per_arg(&mut a, op, &mut *output);
+            let time_per_arg = time_per_arg(&mut a, op, &mut *output, &mut cost_factor_samples);
             println!("   time: per-arg: {time_per_arg:.2}ns");
             println!("   cost: per-arg: {:.0}", time_per_arg * arg_cost_scale);
             time_per_arg
@@ -606,7 +641,13 @@ pub fn main() {
         let base_call_time = if (op.flags & NESTING_BASE_COST) != 0 {
             let mut output = maybe_open(options.plot, op.name, "base.log");
             write_gnuplot_header(&mut *gnuplot, op, "base", "num nested calls");
-            let base_call_time = base_call_time(&mut a, op, time_per_arg, &mut *output);
+            let base_call_time = base_call_time(
+                &mut a,
+                op,
+                time_per_arg,
+                &mut *output,
+                &mut cost_factor_samples,
+            );
             println!("   time: base: {base_call_time:.2}ns");
             println!(
                 "   cost: base: {:.0}",
@@ -616,7 +657,8 @@ pub fn main() {
             print_plot(&mut *gnuplot, &base_call_time, &0.0, op.name, "base");
             base_call_time
         } else {
-            let base_call_time = base_call_time_no_nest(&mut a, op, time_per_arg);
+            let base_call_time =
+                base_call_time_no_nest(&mut a, op, time_per_arg, &mut cost_factor_samples);
             println!("   time: base: {base_call_time:.2}ns");
             println!(
                 "   cost: base: {:.0}",
@@ -651,6 +693,11 @@ pub fn main() {
             );
         }
     }
+    let new_cost_factor: (f64, f64) = linear_regression_of(&cost_factor_samples).unwrap();
+    println!(
+        "Newly calculated cost_factor for this computer is: {}",
+        new_cost_factor.0
+    );
     if options.plot {
         println!("To generate plots, run:\n   (cd measurements; gnuplot gen-graphs.gnuplot)");
     }
