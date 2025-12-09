@@ -208,7 +208,9 @@ fn time_per_arg(
             let sample = (i as f64, duration.as_nanos() as f64);
             if (op.flags & ALLOW_FAILURE) == 0 {
                 let cost = r.unwrap().0;
-                cost_samples.push((sample.1, cost as f64));
+                if sample.1 > 0.0 {
+                    cost_samples.push((sample.1, cost as f64));
+                };
             }
             writeln!(output, "{}\t{}", sample.0, sample.1).expect("failed to write");
             samples.push(sample);
@@ -255,7 +257,9 @@ fn base_call_time(
             let sample = (i as f64, duration);
             if (op.flags & ALLOW_FAILURE) == 0 {
                 let cost = r.unwrap().0;
-                cost_samples.push((duration, cost as f64));
+                if duration > 0.0 {
+                    cost_samples.push((duration, cost as f64))
+                };
             }
             writeln!(output, "{}\t{}", sample.0, sample.1).expect("failed to write");
             samples.push(sample);
@@ -407,6 +411,8 @@ pub fn main() {
     let options = Args::parse();
 
     let mut cost_factor_samples = Vec::<(f64, f64)>::new();
+    let mut base_cost_factor_samples = Vec::<(f64, f64)>::new();
+    let mut args_cost_factor_samples = Vec::<(f64, f64)>::new();
 
     let mut a = Allocator::new();
 
@@ -631,7 +637,8 @@ pub fn main() {
         };
         let time_per_arg = if (op.flags & PER_ARG_COST) != 0 {
             let mut output = maybe_open(options.plot, op.name, "per-arg.log");
-            let time_per_arg = time_per_arg(&mut a, op, &mut *output, &mut cost_factor_samples);
+            let time_per_arg =
+                time_per_arg(&mut a, op, &mut *output, &mut args_cost_factor_samples);
             println!("   time: per-arg: {time_per_arg:.2}ns");
             println!("   cost: per-arg: {:.0}", time_per_arg * arg_cost_scale);
             time_per_arg
@@ -646,7 +653,7 @@ pub fn main() {
                 op,
                 time_per_arg,
                 &mut *output,
-                &mut cost_factor_samples,
+                &mut base_cost_factor_samples,
             );
             println!("   time: base: {base_call_time:.2}ns");
             println!(
@@ -658,7 +665,7 @@ pub fn main() {
             base_call_time
         } else {
             let base_call_time =
-                base_call_time_no_nest(&mut a, op, time_per_arg, &mut cost_factor_samples);
+                base_call_time_no_nest(&mut a, op, time_per_arg, &mut base_cost_factor_samples);
             println!("   time: base: {base_call_time:.2}ns");
             println!(
                 "   cost: base: {:.0}",
@@ -697,6 +704,16 @@ pub fn main() {
     println!(
         "Newly calculated cost_factor for this computer is: {}",
         new_cost_factor.0
+    );
+    let new_base_cost_factor: (f64, f64) = linear_regression_of(&base_cost_factor_samples).unwrap();
+    println!(
+        "Newly calculated base_cost_factor for this computer is: {}",
+        new_base_cost_factor.0
+    );
+    let new_args_cost_factor: (f64, f64) = linear_regression_of(&args_cost_factor_samples).unwrap();
+    println!(
+        "Newly calculated args_cost_factor for this computer is: {}",
+        new_args_cost_factor.0
     );
     if options.plot {
         println!("To generate plots, run:\n   (cd measurements; gnuplot gen-graphs.gnuplot)");
