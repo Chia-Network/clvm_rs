@@ -269,7 +269,11 @@ fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -
 
 // this adds 32 bytes at a time compared to per_byte which adds 5 at a time
 // at the moment this function is specialised for sha256tree but may be relevant to other hash operations in the future
-fn time_per_32bytes_for_atom(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> (f64, f64) {
+fn time_per_32bytes_for_atom(
+    a: &mut Allocator,
+    op: &Operator,
+    output: &mut dyn Write,
+) -> (f64, f64) {
     let mut samples = Vec::<(f64, f64)>::new();
     let dialect = ChiaDialect::new(ENABLE_SHA256_TREE); // enable shatree
 
