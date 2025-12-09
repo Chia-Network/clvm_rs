@@ -582,7 +582,7 @@ pub fn main() {
             time_per_byte
         } else if (op.flags & ALT_PER_BYTE_COST) != 0 {
             let mut output = maybe_open(options.plot, op.name, "per-byte.log");
-            let (slope, _intercept) = time_per_byte_for_atom(&mut a, op, &mut output);
+            let (slope, _intercept) = time_per_32bytes_for_atom(&mut a, op, &mut output);
             let cost = slope * cost_scale;
             println!("   time: per-32byte: {slope:.2}ns");
             println!("   cost: per-32byte: {:.0}", cost);
