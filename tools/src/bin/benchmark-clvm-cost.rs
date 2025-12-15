@@ -134,7 +134,7 @@ fn time_invocation(
     };
     if (flags & ALLOW_FAILURE) == 0 {
         let cost = r.unwrap().0;
-        cost_samples.push((time.clone(), cost as f64));
+        cost_samples.push((time, cost as f64));
     }
     time
 }
