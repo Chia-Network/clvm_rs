@@ -15,6 +15,81 @@ This file also outputs the timings for both the native and clvm versions so we c
 are closely aligned with the actual work done on the CPU.
 */
 
+// this function calculates the cost per node theoretically
+// for a perfectly balanced binary tree
+#[allow(clippy::type_complexity)]
+#[allow(clippy::too_many_arguments)]
+fn time_per_cons_for_balanced_tree(
+    a: &mut Allocator,
+    sha_prog: NodePtr,
+    mut output_native_time: impl Write,
+    mut output_clvm_time: impl Write,
+    mut output_native_cost: impl Write,
+    mut output_clvm_cost: impl Write,
+) -> (
+    f64,
+    f64, // time slopes
+    f64,
+    f64, // cost slopes
+) {
+    let mut samples_time_native = Vec::<(f64, f64)>::new();
+    let mut samples_time_clvm = Vec::<(f64, f64)>::new();
+    let mut samples_cost_native = Vec::<(f64, f64)>::new();
+    let mut samples_cost_clvm = Vec::<(f64, f64)>::new();
+
+    let dialect = ChiaDialect::new(ENABLE_SHA256_TREE);
+    let op_code = a.new_small_number(63).unwrap();
+    let quote = a.one();
+
+    // leaf atom (not pre-processed)
+    let mut tree = a.new_atom(&[0xff, 0xff]).unwrap();
+
+    for i in 0..10 {
+        // double the number of leaves each iteration
+        tree = a.new_pair(tree, tree).unwrap();
+
+        let leaf_count = 2 ^ i;
+
+        let q = a.new_pair(quote, tree).unwrap();
+        let call = a.new_pair(q, a.nil()).unwrap();
+        let call = a.new_pair(op_code, call).unwrap();
+
+        // native
+        let start = Instant::now();
+        let red = run_program(a, &dialect, call, a.nil(), 11_000_000_000).unwrap();
+        let cost = red.0;
+        let result_1 = node_to_bytes(a, red.1).expect("should work");
+        let duration = start.elapsed().as_nanos() as f64;
+
+        writeln!(output_native_time, "{}\t{}", leaf_count, duration).unwrap();
+        writeln!(output_native_cost, "{}\t{}", leaf_count, cost).unwrap();
+
+        samples_time_native.push((leaf_count as f64, duration));
+        samples_cost_native.push((leaf_count as f64, cost as f64));
+
+        // clvm
+        let start = Instant::now();
+        let red = run_program(a, &dialect, sha_prog, tree, 11_000_000_000).unwrap();
+        let cost = red.0;
+        let result_2 = node_to_bytes(a, red.1).expect("should work");
+        assert_eq!(result_1, result_2);
+        let duration = start.elapsed().as_nanos() as f64;
+
+        writeln!(output_clvm_time, "{}\t{}", leaf_count, duration).unwrap();
+        writeln!(output_clvm_cost, "{}\t{}", leaf_count, cost).unwrap();
+
+        samples_time_clvm.push((leaf_count as f64, duration));
+        samples_cost_clvm.push((leaf_count as f64, cost as f64));
+    }
+
+    (
+        linear_regression_of(&samples_time_native).unwrap().0,
+        linear_regression_of(&samples_time_clvm).unwrap().0,
+        linear_regression_of(&samples_cost_native).unwrap().0,
+        linear_regression_of(&samples_cost_clvm).unwrap().0,
+    )
+}
+
 // this function is for comparing the cost per 32byte chunk of hashing between the native and clvm implementation
 #[allow(clippy::type_complexity)]
 fn time_per_byte_for_atom(
@@ -114,6 +189,7 @@ fn time_per_cons_for_list(
     let quote = a.one();
     let mut list = a.nil();
 
+    // we use an atom that isn't part of the pre-processed list
     let atom = a.new_atom(&[0xff, 0xff]).unwrap();
 
     for _ in 0..500 {
@@ -182,11 +258,15 @@ fn main() {
     let atom_clvm_time = BufWriter::new(File::create("atom_clvm.dat").unwrap());
     let cons_native_time = BufWriter::new(File::create("cons_native.dat").unwrap());
     let cons_clvm_time = BufWriter::new(File::create("cons_clvm.dat").unwrap());
+    let tree_native_time = BufWriter::new(File::create("tree_native.dat").unwrap());
+    let tree_clvm_time = BufWriter::new(File::create("tree_clvm.dat").unwrap());
 
     let atom_native_cost = BufWriter::new(File::create("atom_native_cost.dat").unwrap());
     let atom_clvm_cost = BufWriter::new(File::create("atom_clvm_cost.dat").unwrap());
     let cons_native_cost = BufWriter::new(File::create("cons_native_cost.dat").unwrap());
     let cons_clvm_cost = BufWriter::new(File::create("cons_clvm_cost.dat").unwrap());
+    let tree_native_cost = BufWriter::new(File::create("tree_native_cost.dat").unwrap());
+    let tree_clvm_cost = BufWriter::new(File::create("tree_clvm_cost.dat").unwrap());
 
     let (atom_nat_t, atom_clvm_t, atom_nat_c, atom_clvm_c) = time_per_byte_for_atom(
         &mut a,
@@ -195,6 +275,15 @@ fn main() {
         atom_clvm_time,
         atom_native_cost,
         atom_clvm_cost,
+    );
+
+    let (leaf_nat_t, leaf_clvm_t, leaf_nat_c, leaf_clvm_c) = time_per_cons_for_balanced_tree(
+        &mut a,
+        shaprog,
+        tree_native_time,
+        tree_clvm_time,
+        tree_native_cost,
+        tree_clvm_cost,
     );
 
     let (cons_nat_t, cons_clvm_t, cons_nat_c, cons_clvm_c) = time_per_cons_for_list(
@@ -224,9 +313,26 @@ fn main() {
         "CLVM   (time_per_bytes  * cost_ratio : {:.4}",
         atom_clvm_t * cost_scale
     );
-
     println!("Native cost per bytes32      : {:.4}", atom_nat_c);
     println!("CLVM   cost per bytes32      : {:.4}", atom_clvm_c);
+    println!();
+
+    // this is the costing of the balanced binary tree
+    println!("Costs based on balanced binary tree: ");
+    println!("Native time per leaf  (ns): {:.4}", leaf_nat_t);
+    println!("CLVM   time per leaf  (ns): {:.4}", leaf_clvm_t);
+    println!(
+        "Native (time_per_leaf  * cost_ratio): {:.4}",
+        leaf_nat_t * cost_scale
+    );
+    println!(
+        "CLVM   (time_per_leaf  * cost_ratio : {:.4}",
+        leaf_clvm_t * cost_scale
+    );
+
+    println!("Native cost per leaf      : {:.4}", leaf_nat_c);
+    println!("CLVM   cost per leaf      : {:.4}", leaf_clvm_c);
+    println!();
 
     // this is described as estimated as we're adding a cons and a nil atom each time
     // and then we're subtracting the costs to calculate what a single node might theoretically cost
