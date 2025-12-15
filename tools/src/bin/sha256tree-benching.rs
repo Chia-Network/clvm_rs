@@ -305,6 +305,11 @@ fn main() {
     println!("Costs per bytes32 chunk: ");
     println!("Native time per bytes32  (ns): {:.4}", atom_nat_t);
     println!("CLVM   time per bytes32  (ns): {:.4}", atom_clvm_t);
+    let native_vs_clvm_ratio = atom_nat_t / atom_clvm_t;
+    println!(
+        "Native implementation takes {:.4}% of the time.",
+        native_vs_clvm_ratio * 100.0
+    );
     println!(
         "Native (time_per_bytes32  * cost_ratio): {:.4}",
         atom_nat_t * cost_scale
@@ -315,12 +320,22 @@ fn main() {
     );
     println!("Native cost per bytes32      : {:.4}", atom_nat_c);
     println!("CLVM   cost per bytes32      : {:.4}", atom_clvm_c);
+    println!(
+        "{:.4}% of the CLVM cost is:  : {:.4}",
+        native_vs_clvm_ratio * 100.0,
+        atom_clvm_c * native_vs_clvm_ratio
+    );
     println!();
 
     // this is the costing of the balanced binary tree
     println!("Costs based on balanced binary tree: ");
     println!("Native time per leaf  (ns): {:.4}", leaf_nat_t);
     println!("CLVM   time per leaf  (ns): {:.4}", leaf_clvm_t);
+    let native_vs_clvm_ratio = leaf_nat_t / leaf_clvm_t;
+    println!(
+        "Native implementation takes {:.4}% of the time.",
+        native_vs_clvm_ratio * 100.0
+    );
     println!(
         "Native (time_per_leaf  * cost_ratio): {:.4}",
         leaf_nat_t * cost_scale
@@ -332,6 +347,11 @@ fn main() {
 
     println!("Native cost per leaf      : {:.4}", leaf_nat_c);
     println!("CLVM   cost per leaf      : {:.4}", leaf_clvm_c);
+    println!(
+        "{:.4}% of the CLVM cost is:  : {:.4}",
+        native_vs_clvm_ratio * 100.0,
+        leaf_clvm_c * native_vs_clvm_ratio
+    );
     println!();
 
     // this is described as estimated as we're adding a cons and a nil atom each time
@@ -339,6 +359,11 @@ fn main() {
     println!("Estimated costs per node results: ");
     println!("Native time per node  (ns): {:.4}", cons_nat_t);
     println!("CLVM   time per node  (ns): {:.4}", cons_clvm_t);
+    let native_vs_clvm_ratio = cons_nat_t / cons_clvm_t;
+    println!(
+        "Native implementation takes {:.4}% of the time.",
+        native_vs_clvm_ratio * 100.0
+    );
     println!(
         "Native (time_per_node  * cost_ratio): {:.4}",
         cons_nat_t * cost_scale
@@ -349,6 +374,11 @@ fn main() {
     );
     println!("Native cost per node      : {:.4}", cons_nat_c);
     println!("CLVM   cost per node      : {:.4}", cons_clvm_c);
+    println!(
+        "{:.4}% of the CLVM cost is:  : {:.4}",
+        native_vs_clvm_ratio * 100.0,
+        cons_clvm_c * native_vs_clvm_ratio
+    );
 
     // gnuplot script
     let mut gp = File::create("plots.gnuplot").unwrap();
