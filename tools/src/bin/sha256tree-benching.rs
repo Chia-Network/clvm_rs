@@ -22,6 +22,10 @@ are closely aligned with the actual work done on the CPU.
 fn time_per_cons_for_balanced_tree(
     a: &mut Allocator,
     sha_prog: NodePtr,
+    bytes32_native_cost: f64,
+    bytes32_clvm_cost: f64,
+    bytes32_native_time: f64,
+    bytes32_clvm_time: f64,
     mut output_native_time: impl Write,
     mut output_clvm_time: impl Write,
     mut output_native_cost: impl Write,
@@ -61,9 +65,16 @@ fn time_per_cons_for_balanced_tree(
         let result_1 = node_to_bytes(a, red.1).expect("should work");
         let duration = start.elapsed().as_nanos() as f64;
 
+        // subtract out the duration of hashing all the 32byte chunks
+        let duration = duration - ((2 * leaf_count - 1) as f64 * bytes32_native_time);
+        // subtract out the cost of hashing all the 32byte chunks
+        let cost = cost as f64 - ((2 * leaf_count - 1) as f64 * bytes32_native_cost);
+
         writeln!(output_native_time, "{}\t{}", leaf_count, duration).unwrap();
         writeln!(output_native_cost, "{}\t{}", leaf_count, cost).unwrap();
 
+        // internal node count == leaf_count - 1
+        // total nodes == (leaf_count * 2) - 1
         samples_time_native.push((((leaf_count * 2) - 1) as f64, duration));
         samples_cost_native.push((((leaf_count * 2) - 1) as f64, cost as f64));
 
@@ -74,6 +85,10 @@ fn time_per_cons_for_balanced_tree(
         let result_2 = node_to_bytes(a, red.1).expect("should work");
         assert_eq!(result_1, result_2);
         let duration = start.elapsed().as_nanos() as f64;
+        // subtract out the duration of hashing all the 32byte chunks
+        let duration = duration - ((2 * leaf_count - 1) as f64 * bytes32_clvm_time);
+        // subtract out the cost of hashing all the 32byte chunks
+        let cost = cost as f64 - ((2 * leaf_count - 1) as f64 * bytes32_clvm_cost);
 
         writeln!(output_clvm_time, "{}\t{}", leaf_count, duration).unwrap();
         writeln!(output_clvm_cost, "{}\t{}", leaf_count, cost).unwrap();
@@ -282,6 +297,10 @@ fn main() {
     let (leaf_nat_t, leaf_clvm_t, leaf_nat_c, leaf_clvm_c) = time_per_cons_for_balanced_tree(
         &mut a,
         shaprog,
+        atom_nat_c,
+        atom_clvm_c,
+        atom_nat_t,
+        atom_clvm_t,
         tree_native_time,
         tree_clvm_time,
         tree_native_cost,
