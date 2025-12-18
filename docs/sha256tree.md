@@ -29,7 +29,7 @@ The trick to costing was to compare with the "in-language" implementation and de
 
 The calculations for this can be seen in the file `sha256tree-benching.rs`.
 
-
+`MacOS M1`
 ```
 Costs based on an increasing atom per bytes32 chunks: 
 Native time per bytes32  (ns): 95.1425
@@ -60,4 +60,37 @@ CLVM   (time_per_node * cost_ratio): 2552.2694
 Native cost per node      : 500.0000
 CLVM   cost per node      : 1399.0000
 28.9756% of the CLVM cost is:  : 405.3693
+```
+
+`Windows`
+```
+Costs based on an increasing atom per bytes32 chunks:
+Native time per bytes32  (ns): 10.4049
+CLVM   time per bytes32  (ns): 10.2604
+Native implementation takes 101.4084% of the time.
+Native (time_per_bytes32  * cost_ratio): 66.8597
+CLVM   (time_per_bytes  * cost_ratio) : 65.9311
+Native cost per bytes32      : 64.0000
+CLVM   cost per bytes32      : 64.0000
+101.4084% of the CLVM cost is:  : 64.9014
+
+Costs based on growing a balanced binary tree:
+Native time per node  (ns): 62.6417
+CLVM   time per node  (ns): 1350.7339
+Native implementation takes 4.6376% of the time.
+Native (time_per_node  * cost_ratio): 402.5212
+CLVM   (time_per_node  * cost_ratio) : 8679.5078
+Native cost per node      : 564.0000
+CLVM   cost per node      : 1463.0000
+4.6376% of the CLVM cost is:  : 67.8481
+
+Costs based on growing a list:
+Native time per node  (ns): 61.1526
+CLVM   time per node  (ns): 608.9923
+Native implementation takes 10.0416% of the time.
+Native (time_per_node  * cost_ratio): 392.9526
+CLVM   (time_per_node * cost_ratio): 3913.2455
+Native cost per node      : 500.0000
+CLVM   cost per node      : 1399.0000
+10.0416% of the CLVM cost is:  : 140.4821
 ```
