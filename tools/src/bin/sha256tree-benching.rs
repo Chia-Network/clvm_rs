@@ -48,7 +48,7 @@ fn time_per_cons_for_balanced_tree(
         // double the number of leaves each iteration
         tree = a.new_pair(tree, tree).unwrap();
 
-        let leaf_count = 2 ^ i;
+        let leaf_count = 2_i32.pow(i);
 
         let q = a.new_pair(quote, tree).unwrap();
         let call = a.new_pair(q, a.nil()).unwrap();
