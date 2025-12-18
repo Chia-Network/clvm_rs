@@ -46,9 +46,10 @@ fn time_per_cons_for_balanced_tree(
     let quote = a.one();
 
     // leaf atom (not pre-processed)
+    // small enough to still fit into one bytes32 chunk
     let mut tree = a.new_atom(&[0xff, 0xff]).unwrap();
 
-    for i in 0..10 {
+    for i in 1..10 {
         // double the number of leaves each iteration
         tree = a.new_pair(tree, tree).unwrap();
 
@@ -336,7 +337,7 @@ fn main() {
         atom_nat_t * cost_scale
     );
     println!(
-        "CLVM   (time_per_bytes  * cost_ratio : {:.4}",
+        "CLVM   (time_per_bytes  * cost_ratio) : {:.4}",
         atom_clvm_t * cost_scale
     );
     println!("Native cost per bytes32      : {:.4}", atom_nat_c);
@@ -362,7 +363,7 @@ fn main() {
         leaf_nat_t * cost_scale
     );
     println!(
-        "CLVM   (time_per_node  * cost_ratio : {:.4}",
+        "CLVM   (time_per_node  * cost_ratio) : {:.4}",
         leaf_clvm_t * cost_scale
     );
 
