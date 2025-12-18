@@ -64,8 +64,8 @@ fn time_per_cons_for_balanced_tree(
         writeln!(output_native_time, "{}\t{}", leaf_count, duration).unwrap();
         writeln!(output_native_cost, "{}\t{}", leaf_count, cost).unwrap();
 
-        samples_time_native.push((leaf_count as f64, duration));
-        samples_cost_native.push((leaf_count as f64, cost as f64));
+        samples_time_native.push((((leaf_count * 2) - 1) as f64, duration));
+        samples_cost_native.push((((leaf_count * 2) - 1) as f64, cost as f64));
 
         // clvm
         let start = Instant::now();
@@ -78,8 +78,10 @@ fn time_per_cons_for_balanced_tree(
         writeln!(output_clvm_time, "{}\t{}", leaf_count, duration).unwrap();
         writeln!(output_clvm_cost, "{}\t{}", leaf_count, cost).unwrap();
 
-        samples_time_clvm.push((leaf_count as f64, duration));
-        samples_cost_clvm.push((leaf_count as f64, cost as f64));
+        // internal node count == leaf_count - 1
+        // total nodes == (leaf_count * 2) - 1
+        samples_time_clvm.push((((leaf_count * 2) - 1) as f64, duration));
+        samples_cost_clvm.push((((leaf_count * 2) - 1) as f64, cost as f64));
     }
 
     (
@@ -329,24 +331,24 @@ fn main() {
 
     // this is the costing of the balanced binary tree
     println!("Costs based on balanced binary tree: ");
-    println!("Native time per leaf  (ns): {:.4}", leaf_nat_t);
-    println!("CLVM   time per leaf  (ns): {:.4}", leaf_clvm_t);
+    println!("Native time per node  (ns): {:.4}", leaf_nat_t);
+    println!("CLVM   time per node  (ns): {:.4}", leaf_clvm_t);
     let native_vs_clvm_ratio = leaf_nat_t / leaf_clvm_t;
     println!(
         "Native implementation takes {:.4}% of the time.",
         native_vs_clvm_ratio * 100.0
     );
     println!(
-        "Native (time_per_leaf  * cost_ratio): {:.4}",
+        "Native (time_per_node  * cost_ratio): {:.4}",
         leaf_nat_t * cost_scale
     );
     println!(
-        "CLVM   (time_per_leaf  * cost_ratio : {:.4}",
+        "CLVM   (time_per_node  * cost_ratio : {:.4}",
         leaf_clvm_t * cost_scale
     );
 
-    println!("Native cost per leaf      : {:.4}", leaf_nat_c);
-    println!("CLVM   cost per leaf      : {:.4}", leaf_clvm_c);
+    println!("Native cost per node      : {:.4}", leaf_nat_c);
+    println!("CLVM   cost per node      : {:.4}", leaf_clvm_c);
     println!(
         "{:.4}% of the CLVM cost is:  : {:.4}",
         native_vs_clvm_ratio * 100.0,
