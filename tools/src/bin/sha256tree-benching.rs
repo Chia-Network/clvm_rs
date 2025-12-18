@@ -304,7 +304,7 @@ fn main() {
     // taken from benchmark-clvm-cost.rs
     let cost_scale = ((101094.0 / 39000.0) + (1343980.0 / 131000.0)) / 2.0;
 
-    println!("Costs per bytes32 chunk: ");
+    println!("Costs based on an increasing atom per bytes32 chunks: ");
     println!("Native time per bytes32  (ns): {:.4}", atom_nat_t);
     println!("CLVM   time per bytes32  (ns): {:.4}", atom_clvm_t);
     let native_vs_clvm_ratio = atom_nat_t / atom_clvm_t;
@@ -330,7 +330,7 @@ fn main() {
     println!();
 
     // this is the costing of the balanced binary tree
-    println!("Costs based on balanced binary tree: ");
+    println!("Costs based on growing a balanced binary tree: ");
     println!("Native time per node  (ns): {:.4}", leaf_nat_t);
     println!("CLVM   time per node  (ns): {:.4}", leaf_clvm_t);
     let native_vs_clvm_ratio = leaf_nat_t / leaf_clvm_t;
@@ -358,7 +358,7 @@ fn main() {
 
     // this is described as estimated as we're adding a cons and a nil atom each time
     // and then we're subtracting the costs to calculate what a single node might theoretically cost
-    println!("Estimated costs per node results: ");
+    println!("Costs based on growing a list: ");
     println!("Native time per node  (ns): {:.4}", cons_nat_t);
     println!("CLVM   time per node  (ns): {:.4}", cons_clvm_t);
     let native_vs_clvm_ratio = cons_nat_t / cons_clvm_t;
