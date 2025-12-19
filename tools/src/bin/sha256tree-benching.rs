@@ -321,9 +321,6 @@ fn main() {
         cons_clvm_cost,
     );
 
-    // taken from benchmark-clvm-cost.rs
-    let cost_scale = ((101094.0 / 39000.0) + (1343980.0 / 131000.0)) / 2.0;
-
     println!("Costs based on an increasing atom per bytes32 chunks: ");
     println!("Native time per bytes32  (ns): {:.4}", atom_nat_t);
     println!("CLVM   time per bytes32  (ns): {:.4}", atom_clvm_t);
@@ -331,14 +328,6 @@ fn main() {
     println!(
         "Native implementation takes {:.4}% of the time.",
         native_vs_clvm_ratio * 100.0
-    );
-    println!(
-        "Native (time_per_bytes32  * cost_ratio): {:.4}",
-        atom_nat_t * cost_scale
-    );
-    println!(
-        "CLVM   (time_per_bytes  * cost_ratio) : {:.4}",
-        atom_clvm_t * cost_scale
     );
     println!("Native cost per bytes32      : {:.4}", atom_nat_c);
     println!("CLVM   cost per bytes32      : {:.4}", atom_clvm_c);
@@ -358,15 +347,6 @@ fn main() {
         "Native implementation takes {:.4}% of the time.",
         native_vs_clvm_ratio * 100.0
     );
-    println!(
-        "Native (time_per_node  * cost_ratio): {:.4}",
-        leaf_nat_t * cost_scale
-    );
-    println!(
-        "CLVM   (time_per_node  * cost_ratio) : {:.4}",
-        leaf_clvm_t * cost_scale
-    );
-
     println!("Native cost per node      : {:.4}", leaf_nat_c);
     println!("CLVM   cost per node      : {:.4}", leaf_clvm_c);
     println!(
@@ -385,14 +365,6 @@ fn main() {
     println!(
         "Native implementation takes {:.4}% of the time.",
         native_vs_clvm_ratio * 100.0
-    );
-    println!(
-        "Native (time_per_node  * cost_ratio): {:.4}",
-        cons_nat_t * cost_scale
-    );
-    println!(
-        "CLVM   (time_per_node * cost_ratio): {:.4}",
-        cons_clvm_t * cost_scale
     );
     println!("Native cost per node      : {:.4}", cons_nat_c);
     println!("CLVM   cost per node      : {:.4}", cons_clvm_c);
