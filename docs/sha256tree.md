@@ -10,7 +10,7 @@ In addition to this, a native operator also opens the door to future optimisatio
 The matter of how to assign Cost to the new operator was the subject of intense thought and debate.
 It should be costed in proportion to:
 - the time to Cost vs other operators, and especially the `sha256` operator
-- the time to Cost ratio of the in-language implementation 
+- the time to Cost ratio of the ChiaLisp implementation 
 - the size of its inputs
 
 The lattermost being a unique problem with regards to shatree as it is the first operator that parses trees, so utmost care must be taken when assigning cost.
