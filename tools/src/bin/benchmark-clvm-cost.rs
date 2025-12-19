@@ -280,8 +280,6 @@ const EXPONENTIAL_COST: u32 = 8;
 const LARGE_BUFFERS: u32 = 16;
 // permit the operator to fail in tests
 const ALLOW_FAILURE: u32 = 32;
-// measure the timing per 32 bytes block of atom argument
-const ALT_PER_BYTE_COST: u32 = 128;
 
 struct Operator {
     opcode: u32,
