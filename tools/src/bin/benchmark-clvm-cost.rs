@@ -268,11 +268,17 @@ fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -
     (total_time - per_arg_time * num_samples as f64) / num_samples as f64
 }
 
+// cost one argument with increasing amount of bytes
 const PER_BYTE_COST: u32 = 1;
+// cost multiple arguments with increasing amount of arguments
 const PER_ARG_COST: u32 = 2;
+// cost the base cost by doing f(f(f(x))) instead of arg amounts
 const NESTING_BASE_COST: u32 = 4;
+// EXPONENTIAL_COST is for operators where the cost grows exponentially with the size of the arguments.
 const EXPONENTIAL_COST: u32 = 8;
+// make the buffers extra large, 1000x the size
 const LARGE_BUFFERS: u32 = 16;
+// permit the operator to fail in tests
 const ALLOW_FAILURE: u32 = 32;
 
 struct Operator {

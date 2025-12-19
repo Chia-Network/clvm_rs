@@ -14,6 +14,7 @@ NO_NEG_DIV: int
 NO_UNKNOWN_OPS: int
 LIMIT_HEAP: int
 MEMPOOL_MODE: int
+ENABLE_SHA256_TREE: int
 
 class LazyNode(CLVMStorage):
     atom: Optional[bytes]
