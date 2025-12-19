@@ -431,6 +431,22 @@ set ylabel "Cost"
 plot \
     "cons_native_cost.dat" using 1:2 with lines title "native", \
     "cons_clvm_cost.dat" using 1:2 with lines title "clvm"
+
+set output "tree_bench.png"
+set title "Time per Tree Node (Tree SHA-tree)"
+set xlabel "Iteration"
+set ylabel "Time (ns)"
+plot \
+    "tree_native.dat" using 1:2 with lines title "native", \
+    "tree_clvm.dat" using 1:2 with lines title "clvm"
+
+set output "tree_cost.png"
+set title "Cost per Tree Node (Tree SHA-tree)"
+set xlabel "Iteration"
+set ylabel "Cost"
+plot \
+    "tree_native_cost.dat" using 1:2 with lines title "native", \
+    "tree_clvm_cost.dat" using 1:2 with lines title "clvm"
 "#
     )
     .unwrap();

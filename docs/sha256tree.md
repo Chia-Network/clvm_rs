@@ -86,3 +86,22 @@ Native cost per node      : 500.0000
 CLVM   cost per node      : 1399.0000
 10.0416% of the CLVM cost is:  : 140.4821
 ```
+
+
+## Costing Graphs
+
+Below are the generated benchmarking graphs (PNG) from running `sha256tree-benching.rs` on Macbook M1.
+
+![Atom - Time per Byte](graphs/atom_bench.png)
+
+![Atom - Cost per Byte](graphs/atom_cost.png)
+
+![List - Time per Cons Cell](graphs/cons_bench.png)
+
+![List - Cost per Cons Cell](graphs/cons_cost.png)
+
+![Tree - Time per Node](graphs/tree_bench.png)
+
+![Tree - Cost per Node](graphs/tree_cost.png)
+
+
