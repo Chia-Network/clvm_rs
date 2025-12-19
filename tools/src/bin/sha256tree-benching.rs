@@ -214,7 +214,7 @@ fn time_per_cons_for_list(
         list = a.new_pair(atom, list).unwrap();
     }
 
-    for i in 0..1000 {
+    for i in 500..1500 {
         list = a.new_pair(atom, list).unwrap();
         let q = a.new_pair(quote, list).unwrap();
         let call = a.new_pair(q, a.nil()).unwrap();
@@ -230,8 +230,8 @@ fn time_per_cons_for_list(
         let duration = start.elapsed().as_nanos() as f64;
         // a new list entry is 2 nodes (a cons and a nil) and a 3 chunk hash operation and a 1 chunk hash operation
         // this equation lets us figure out a theoretical cost just for a node
-        let duration = (duration - (500.0 + i as f64) * (4.0 * bytes32_native_time)) / 2.0;
-        let cost = (cost as f64 - (500.0 + i as f64) * (4.0 * bytes32_native_cost)) / 2.0;
+        let duration = (duration - i as f64 * (4.0 * bytes32_native_time)) / 2.0;
+        let cost = (cost as f64 - i as f64 * (4.0 * bytes32_native_cost)) / 2.0;
         writeln!(output_native_time, "{}\t{}", i, duration).unwrap();
         writeln!(output_native_cost, "{}\t{}", i, cost).unwrap();
         samples_time_native.push((i as f64, duration));
