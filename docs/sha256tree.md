@@ -24,10 +24,14 @@ The `BASE_COST` was set to equal the base cost of `sha256`.
 The `COST_PER_BYTES32` was designed as the sha256 operation operates on 32byte chunks. We set the Cost to be on parity with the Cost of `sha256` although sha256 costs `per byte` and `per arg`. 
 We can ignore `per arg` as `sha256tree` only takes a single argument, and we benchmarked the `cost-per-bytes32` so that it matches `sha256`'s `cost-per-byte`.
 
+The calculations for this can be seen in the file `benchmark-clvm-cost.rs`.
+
 Finally the `COST_PER_NODE` was the trickiest to pin down as it is the most unique to this operator.
 The trick to costing was to compare with the "in-language" implementation and deduct the costs of the known hash operations using our previously costed `COST_PER_BYTES32`.
 
 The calculations for this can be seen in the file `sha256tree-benching.rs`.
+
+## Costing Results
 
 `MacOS M1`
 ```
