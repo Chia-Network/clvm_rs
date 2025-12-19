@@ -110,7 +110,7 @@ fn time_per_cons_for_balanced_tree(
 
 // this function is for comparing the cost per 32byte chunk of hashing between the native and clvm implementation
 #[allow(clippy::type_complexity)]
-fn time_per_byte_for_atom(
+fn time_per_bytes32_for_atom(
     a: &mut Allocator,
     sha_prog: NodePtr,
     mut output_native_time: impl Write,
@@ -286,7 +286,7 @@ fn main() {
     let tree_native_cost = BufWriter::new(File::create("tree_native_cost.dat").unwrap());
     let tree_clvm_cost = BufWriter::new(File::create("tree_clvm_cost.dat").unwrap());
 
-    let (atom_nat_t, atom_clvm_t, atom_nat_c, atom_clvm_c) = time_per_byte_for_atom(
+    let (atom_nat_t, atom_clvm_t, atom_nat_c, atom_clvm_c) = time_per_bytes32_for_atom(
         &mut a,
         shaprog,
         atom_native_time,
@@ -329,16 +329,23 @@ fn main() {
         "Native implementation takes {:.4}% of the time.",
         native_vs_clvm_ratio * 100.0
     );
-    println!("Native cost per bytes32      : {:.4}", atom_nat_c);
     println!("CLVM   cost per bytes32      : {:.4}", atom_clvm_c);
     println!(
         "{:.4}% of the CLVM cost is:  : {:.4}",
         native_vs_clvm_ratio * 100.0,
         atom_clvm_c * native_vs_clvm_ratio
     );
+    // this output is what the current set cost values produce
+    // for setting the cost this should only be used to compare with calculated theoretical costs
+    // it is NOT a target or a proof of correctness
+    println!(
+        "With current cost values the native cost per bytes32 is: {:.4}",
+        atom_nat_c
+    );
     println!();
 
     // this is the costing of the balanced binary tree
+    // we are calculating the cost per node by dividing time by node count
     println!("Costs based on growing a balanced binary tree: ");
     println!("Native time per node  (ns): {:.4}", leaf_nat_t);
     println!("CLVM   time per node  (ns): {:.4}", leaf_clvm_t);
@@ -347,16 +354,22 @@ fn main() {
         "Native implementation takes {:.4}% of the time.",
         native_vs_clvm_ratio * 100.0
     );
-    println!("Native cost per node      : {:.4}", leaf_nat_c);
     println!("CLVM   cost per node      : {:.4}", leaf_clvm_c);
     println!(
         "{:.4}% of the CLVM cost is:  : {:.4}",
         native_vs_clvm_ratio * 100.0,
         leaf_clvm_c * native_vs_clvm_ratio
     );
+    // this output is what the current set cost values produce
+    // for setting the cost this should only be used to compare with calculated theoretical costs
+    // it is NOT a target or a proof of correctness
+    println!(
+        "With current cost values the native cost per node is: {:.4}",
+        leaf_nat_c
+    );
     println!();
 
-    // this is described as estimated as we're adding a cons and a nil atom each time
+    // this is estimated as we're adding a cons and a nil atom each time
     // and then we're subtracting the costs to calculate what a single node might theoretically cost
     println!("Costs based on growing a list: ");
     println!("Native time per node  (ns): {:.4}", cons_nat_t);
@@ -366,12 +379,18 @@ fn main() {
         "Native implementation takes {:.4}% of the time.",
         native_vs_clvm_ratio * 100.0
     );
-    println!("Native cost per node      : {:.4}", cons_nat_c);
     println!("CLVM   cost per node      : {:.4}", cons_clvm_c);
     println!(
         "{:.4}% of the CLVM cost is:  : {:.4}",
         native_vs_clvm_ratio * 100.0,
         cons_clvm_c * native_vs_clvm_ratio
+    );
+    // this output is what the current set cost values produce
+    // for setting the cost this should only be used to compare with calculated theoretical costs
+    // it is NOT a target or a proof of correctness
+    println!(
+        "With current cost values the native cost per node is: {:.4}",
+        cons_nat_c
     );
 
     // gnuplot script
