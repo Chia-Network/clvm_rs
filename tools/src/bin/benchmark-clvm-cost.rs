@@ -313,6 +313,18 @@ struct Operator {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
+    /// Only benchmark a single operator, by specifying its name
+    #[arg(long)]
+    only_operator: Option<String>,
+
+    /// Multiply timings (in nanoseconds) by this factor to get cost
+    #[arg(long)]
+    cost_factor: Option<f64>,
+
+    /// List available operators, by name, and exit
+    #[arg(long)]
+    list_operators: bool,
+
     /// enable plotting of measurements
     #[arg(short, long, default_value_t = false)]
     plot: bool,
@@ -540,26 +552,37 @@ pub fn main() {
         },
     ];
 
-    // this "magic" scaling depends on the computer you run the tests on.
-    // It's calibrated against the timing of point_add, which has a cost
-    let cost_scale = ((101094.0 / 39000.0) + (1343980.0 / 131000.0)) / 2.0;
-    let base_cost_scale = 101094.0 / 42500.0;
-    let arg_cost_scale = 1343980.0 / 129000.0;
-    println!("cost scale: {cost_scale}");
-    println!("base cost scale: {base_cost_scale}");
-    println!("arg cost scale: {arg_cost_scale}");
+    if options.list_operators {
+        for op in &ops {
+            println!("{}", op.name);
+        }
+        return;
+    }
+
+    if let Some(cost_scale) = options.cost_factor {
+        println!("cost scale: {cost_scale}");
+    }
 
     let mut gnuplot = maybe_open(options.plot, "gen", "graphs.gnuplot");
     writeln!(gnuplot, "set term png size 1200,600").expect("failed to write");
     writeln!(gnuplot, "set key top right").expect("failed to write");
 
     for op in &ops {
+        // If an operator name was specified, skip all other operators
+        if let Some(ref name) = options.only_operator {
+            if op.name != name {
+                continue;
+            }
+        }
+
         println!("opcode: {} ({})", op.name, op.opcode);
         let time_per_byte = if (op.flags & PER_BYTE_COST) != 0 {
             let mut output = maybe_open(options.plot, op.name, "per-byte.log");
             let time_per_byte = time_per_byte(&mut a, op, &mut *output);
             println!("   time: per-byte: {time_per_byte:.2}ns");
-            println!("   cost: per-byte: {:.0}", time_per_byte * cost_scale);
+            if let Some(cost_scale) = options.cost_factor {
+                println!("   cost: per-byte: {:.0}", time_per_byte * cost_scale);
+            }
             time_per_byte
         } else {
             0.0
@@ -568,7 +591,9 @@ pub fn main() {
             let mut output = maybe_open(options.plot, op.name, "per-arg.log");
             let time_per_arg = time_per_arg(&mut a, op, &mut *output);
             println!("   time: per-arg: {time_per_arg:.2}ns");
-            println!("   cost: per-arg: {:.0}", time_per_arg * arg_cost_scale);
+            if let Some(cost_scale) = options.cost_factor {
+                println!("   cost: per-arg: {:.0}", time_per_arg * cost_scale);
+            }
             time_per_arg
         } else {
             0.0
@@ -578,14 +603,18 @@ pub fn main() {
             write_gnuplot_header(&mut *gnuplot, op, "base", "num nested calls");
             let base_call_time = base_call_time(&mut a, op, time_per_arg, &mut *output);
             println!("   time: base: {base_call_time:.2}ns");
-            println!("   cost: base: {:.0}", base_call_time * base_cost_scale);
+            if let Some(cost_scale) = options.cost_factor {
+                println!("   cost: base: {:.0}", base_call_time * cost_scale);
+            }
 
             print_plot(&mut *gnuplot, &base_call_time, &0.0, op.name, "base");
             base_call_time
         } else {
             let base_call_time = base_call_time_no_nest(&mut a, op, time_per_arg);
             println!("   time: base: {base_call_time:.2}ns");
-            println!("   cost: base: {:.0}", base_call_time * base_cost_scale);
+            if let Some(cost_scale) = options.cost_factor {
+                println!("   cost: base: {:.0}", base_call_time * cost_scale);
+            }
             base_call_time
         };
 
