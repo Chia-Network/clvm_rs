@@ -7,6 +7,9 @@ use std::fs::{create_dir_all, File};
 use std::io::{sink, Write};
 use std::time::Instant;
 
+// When specifying the signature of operators, some arguments may be fixed
+// constants. The None argument slots will be replaced by the benchmark for the
+// various invocations of the operator.
 #[derive(Clone, Copy)]
 enum Placeholder {
     SingleArg(Option<NodePtr>),
@@ -14,6 +17,7 @@ enum Placeholder {
     ThreeArgs(Option<NodePtr>, Option<NodePtr>, Option<NodePtr>),
 }
 
+// This enum is used as the concrete arguments to a call, after substitution
 #[derive(Clone, Copy)]
 enum OpArgs {
     SingleArg(NodePtr),
@@ -120,7 +124,7 @@ fn time_invocation(a: &mut Allocator, op: u32, arg: OpArgs, flags: u32) -> f64 {
     //println!("{:x?}", &Node::new(a, call));
     let dialect = ChiaDialect::new(0);
     let start = Instant::now();
-    let r = run_program(a, &dialect, call, a.nil(), 11000000000);
+    let r = run_program(a, &dialect, call, a.nil(), 11_000_000_000);
     if (flags & ALLOW_FAILURE) == 0 {
         r.unwrap();
     }
@@ -132,7 +136,8 @@ fn time_invocation(a: &mut Allocator, op: u32, arg: OpArgs, flags: u32) -> f64 {
 }
 
 // returns the time per byte
-// measures run-time of many calls
+// measures run-time of many calls with the variable argument substituted for
+// buffers of variying sizes
 fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64 {
     let checkpoint = a.checkpoint();
     let mut samples = Vec::<(f64, f64)>::new();
@@ -185,7 +190,7 @@ fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64
         for i in (0..1000).step_by(5) {
             let call = build_call(a, op.opcode, arg, i, op.extra);
             let start = Instant::now();
-            let r = run_program(a, &dialect, call, a.nil(), 11000000000);
+            let r = run_program(a, &dialect, call, a.nil(), 11_000_000_000);
             if (op.flags & ALLOW_FAILURE) == 0 {
                 r.unwrap();
             }
@@ -203,8 +208,9 @@ fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64
 }
 
 // measure run-time of many *nested* calls, to establish how much longer it
-// takes, approximately, for each additional nesting. The per_arg_time is
-// subtracted to get the base cost
+// takes for each additional nested call. The per_arg_time is subtracted to get
+// the base cost. This only works for operators that can take their return
+// value as an argument
 fn base_call_time(
     a: &mut Allocator,
     op: &Operator,
@@ -229,7 +235,7 @@ fn base_call_time(
             a.restore_checkpoint(&checkpoint);
             let call = build_nested_call(a, op.opcode, arg, i, op.extra);
             let start = Instant::now();
-            let r = run_program(a, &dialect, call, a.nil(), 11000000000);
+            let r = run_program(a, &dialect, call, a.nil(), 11_000_000_000);
             if (op.flags & ALLOW_FAILURE) == 0 {
                 r.unwrap();
             }
@@ -268,11 +274,31 @@ fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -
     (total_time - per_arg_time * num_samples as f64) / num_samples as f64
 }
 
+// measures run-time of many calls with the variable argument substituted for
+// buffers of variying sizes
 const PER_BYTE_COST: u32 = 1;
+
+// measures the run-time of many calls with varying number of arguments, to
+// establish how much time each additional argument contributes
 const PER_ARG_COST: u32 = 2;
+
+// measure run-time of many *nested* calls, to establish how much longer it
+// takes for each additional nested call. The per_arg_time is subtracted to get
+// the base cost. This only works for operators that can take their return
+// value as an argument
 const NESTING_BASE_COST: u32 = 4;
+
+// If the time doesn't grow linearly, but exponentially, this flag must be used
+// to square the samples before we run linear regression. It's an approximation.
 const EXPONENTIAL_COST: u32 = 8;
+
+// This modifies the PER_ARG_COST to use large buffers. This is useful when the
+// cost per byte is very low, and we need large buffers to measure it
 const LARGE_BUFFERS: u32 = 16;
+
+// Allow the operator to fail. This is useful for signature validation
+// functions. They must take just as long to execute as a successful run for this
+// to work as expected.
 const ALLOW_FAILURE: u32 = 32;
 
 struct Operator {
