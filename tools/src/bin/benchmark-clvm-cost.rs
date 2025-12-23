@@ -7,6 +7,8 @@ use std::fs::{create_dir_all, File};
 use std::io::{sink, Write};
 use std::time::Instant;
 
+const DIALECT_FLAGS: u32 = 0;
+
 // When specifying the signature of operators, some arguments may be fixed
 // constants. The None argument slots will be replaced by the benchmark for the
 // various invocations of the operator.
@@ -122,7 +124,7 @@ fn substitute(args: Placeholder, s: NodePtr) -> OpArgs {
 fn time_invocation(a: &mut Allocator, op: u32, arg: OpArgs, flags: u32) -> f64 {
     let call = build_call(a, op, arg, 1, None);
     //println!("{:x?}", &Node::new(a, call));
-    let dialect = ChiaDialect::new(0);
+    let dialect = ChiaDialect::new(DIALECT_FLAGS);
     let start = Instant::now();
     let r = run_program(a, &dialect, call, a.nil(), 11_000_000_000);
     if (flags & ALLOW_FAILURE) == 0 {
@@ -165,6 +167,13 @@ fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f6
         }
     }
 
+    // create a strong bias for 0 bytes to have 0 cost. Otherwise, noise may
+    // cause the offset to be increased, rather than the slope, of the fitted
+    // curve. But we only use the slope, as a way to reduce noise.
+    for _ in 0..3000 {
+        samples.push((0.0, 0.0));
+    }
+
     let (slope, _): (f64, f64) = linear_regression_of(&samples).expect("linreg failed");
     slope
 }
@@ -174,7 +183,7 @@ fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f6
 // establish how much time each additional argument contributes
 fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64 {
     let mut samples = Vec::<(f64, f64)>::new();
-    let dialect = ChiaDialect::new(0);
+    let dialect = ChiaDialect::new(DIALECT_FLAGS);
 
     let subst = a
         .new_atom(
@@ -218,7 +227,7 @@ fn base_call_time(
     output: &mut dyn Write,
 ) -> f64 {
     let mut samples = Vec::<(f64, f64)>::new();
-    let dialect = ChiaDialect::new(0);
+    let dialect = ChiaDialect::new(DIALECT_FLAGS);
 
     let subst = a
         .new_atom(
@@ -339,11 +348,17 @@ fn maybe_open(plot: bool, op: &str, name: &str) -> Box<dyn Write> {
     }
 }
 
-fn write_gnuplot_header(gnuplot: &mut dyn Write, op: &Operator, out: &str, xlabel: &str) {
+fn write_gnuplot_header(
+    gnuplot: &mut dyn Write,
+    op: &Operator,
+    out: &str,
+    xlabel: &str,
+    title: &str,
+) {
     writeln!(
         gnuplot,
-        "set output \"{}-{out}.png\"
-set title \"{}\"
+        "set output \"{}-{out}.svg\"
+set title \"{} {title}\"
 set xlabel \"{xlabel}\"
 set ylabel \"nanoseconds{}\"",
         op.name,
@@ -361,7 +376,7 @@ fn print_plot(gnuplot: &mut dyn Write, a: &f64, b: &f64, op: &str, name: &str) {
     writeln!(gnuplot, "f(x) = {a}*x+{b}").expect("failed to write");
     writeln!(
         gnuplot,
-        "plot \"{op}-{name}.log\" using 1:2 with dots title \"measured\", f(x) title \"fitting\""
+        "plot \"{op}-{name}.log\" using 1:2 with dots title \"{name} (measured)\", f(x) title \"{name} (fitted)\""
     )
     .expect("failed to write");
 }
@@ -539,7 +554,7 @@ pub fn main() {
         Operator {
             opcode: 11,
             name: "sha256",
-            arg: Placeholder::SingleArg(Some(g1)),
+            arg: Placeholder::SingleArg(None),
             extra: None,
             flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | LARGE_BUFFERS,
         },
@@ -564,8 +579,8 @@ pub fn main() {
     }
 
     let mut gnuplot = maybe_open(options.plot, "gen", "graphs.gnuplot");
-    writeln!(gnuplot, "set term png size 1200,600").expect("failed to write");
-    writeln!(gnuplot, "set key top right").expect("failed to write");
+    writeln!(gnuplot, "set term svg").expect("failed to write");
+    writeln!(gnuplot, "set key top left").expect("failed to write");
 
     for op in &ops {
         // If an operator name was specified, skip all other operators
@@ -600,7 +615,13 @@ pub fn main() {
         };
         let base_call_time = if (op.flags & NESTING_BASE_COST) != 0 {
             let mut output = maybe_open(options.plot, op.name, "base.log");
-            write_gnuplot_header(&mut *gnuplot, op, "base", "num nested calls");
+            write_gnuplot_header(
+                &mut *gnuplot,
+                op,
+                "base",
+                "num nested calls",
+                "base cost, nested calls",
+            );
             let base_call_time = base_call_time(&mut a, op, time_per_arg, &mut *output);
             println!("   time: base: {base_call_time:.2}ns");
             if let Some(cost_scale) = options.cost_factor {
@@ -618,14 +639,20 @@ pub fn main() {
             base_call_time
         };
 
-        // we adjust the base_Call_time here to make the curve fitting match
+        // we adjust the base_call_time here to make the curve fitting match
         let base_call_time = if (op.flags & EXPONENTIAL_COST) != 0 {
             base_call_time.sqrt()
         } else {
             base_call_time
         };
         if (op.flags & PER_ARG_COST) != 0 {
-            write_gnuplot_header(&mut *gnuplot, op, "per-arg", "num arguments");
+            write_gnuplot_header(
+                &mut *gnuplot,
+                op,
+                "per-arg",
+                "num arguments",
+                "timing per argument",
+            );
             print_plot(
                 &mut *gnuplot,
                 &time_per_arg,
@@ -634,7 +661,13 @@ pub fn main() {
                 "per-arg",
             );
         } else if (op.flags & PER_BYTE_COST) != 0 {
-            write_gnuplot_header(&mut *gnuplot, op, "per-byte", "num bytes");
+            write_gnuplot_header(
+                &mut *gnuplot,
+                op,
+                "per-byte",
+                "num bytes",
+                "timing per byte",
+            );
             print_plot(
                 &mut *gnuplot,
                 &time_per_byte,
