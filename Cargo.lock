@@ -128,9 +128,9 @@ dependencies = [
 
 [[package]]
 name = "blst"
-version = "0.3.14"
+version = "0.3.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47c79a94619fade3c0b887670333513a67ac28a6a7e653eb260bf0d4103db38d"
+checksum = "dcdb4c7013139a150f9fc55d123186dbfaba0d912817466282c73ac49e71fb45"
 dependencies = [
  "cc",
  "glob",
@@ -169,27 +169,18 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chia-bls"
-version = "0.28.1"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cabdd13a5884c10ed6c445e8ae858d50e16152c9ab1eeddee5ff659fe70f0915"
+checksum = "5a3d94c3019d4b231d06cb1c31c8e723505b84c0a949f1606fcfbf47c63db444"
 dependencies = [
  "blst",
- "chia-sha2 0.28.2",
+ "chia-sha2 0.35.0",
  "chia-traits",
  "hex",
  "hkdf",
  "linked-hash-map",
  "sha2",
  "thiserror",
-]
-
-[[package]]
-name = "chia-sha2"
-version = "0.28.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2f03c71bc63599a711caad15dafca1d2a948c26b4c8a021709a338149632769"
-dependencies = [
- "sha2",
 ]
 
 [[package]]
@@ -203,21 +194,30 @@ dependencies = [
 ]
 
 [[package]]
-name = "chia-traits"
-version = "0.28.1"
+name = "chia-sha2"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af1849a64aecd0bfd22e6e735b08ac39dd07834ab7f05b621137498e75b6154c"
+checksum = "65e815790507cd67c682955e9964919c6794e49889e859528d1a0bba795b3478"
 dependencies = [
- "chia-sha2 0.28.2",
+ "sha2",
+]
+
+[[package]]
+name = "chia-traits"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "abf3a93316fe064d53817c220ca7e69aa0bda5f9453815ae757949812691a476"
+dependencies = [
+ "chia-sha2 0.35.0",
  "chia_streamable_macro",
  "thiserror",
 ]
 
 [[package]]
 name = "chia_streamable_macro"
-version = "0.28.1"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2857568ff869cdddbc5c069f290f44b115002cba7c63858f313273d9cab279fb"
+checksum = "d1247fd01827afd533cf811214aa0f02718382a21f4413844f63d6ae6d2c7475"
 dependencies = [
  "proc-macro-crate 1.3.1",
  "proc-macro2",
