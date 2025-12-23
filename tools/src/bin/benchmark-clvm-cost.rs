@@ -593,11 +593,19 @@ pub fn main() {
         println!("opcode: {} ({})", op.name, op.opcode);
         let time_per_byte = if (op.flags & PER_BYTE_COST) != 0 {
             let mut output = maybe_open(options.plot, op.name, "per-byte.log");
+            write_gnuplot_header(
+                &mut *gnuplot,
+                op,
+                "per-byte",
+                "num bytes",
+                "timing per-byte, argument",
+            );
             let time_per_byte = time_per_byte(&mut a, op, &mut *output);
             println!("   time: per-byte: {time_per_byte:.2}ns");
             if let Some(cost_scale) = options.cost_factor {
                 println!("   cost: per-byte: {:.0}", time_per_byte * cost_scale);
             }
+            print_plot(&mut *gnuplot, &time_per_byte, &0.0, op.name, "per-byte");
             time_per_byte
         } else {
             0.0
