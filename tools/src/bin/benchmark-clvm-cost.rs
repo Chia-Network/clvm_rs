@@ -27,6 +27,28 @@ enum OpArgs {
     ThreeArgs(NodePtr, NodePtr, NodePtr),
 }
 
+struct Average {
+    sum: f64,
+    num_samples: u64,
+}
+
+impl Average {
+    pub fn new() -> Average {
+        Self {
+            sum: 0.0,
+            num_samples: 0,
+        }
+    }
+    pub fn add(&mut self, val: f64) {
+        self.sum += val;
+        self.num_samples += 1;
+    }
+
+    pub fn compute(&self) -> f64 {
+        self.sum / self.num_samples as f64
+    }
+}
+
 // builds calls in the form:
 // (<op> arg arg ...)
 // where "num" specifies the number of arguments
@@ -154,6 +176,7 @@ fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f6
         *value = (i + 1) as u8;
     }
     let reps = if (op.flags & LIMIT_REPS) == 0 { 3 } else { 1 };
+    let mut avg_factor = Average::new();
     for _k in 0..reps {
         for i in 1..1000 {
             let scale = if (op.flags & LARGE_BUFFERS) != 0 {
@@ -166,6 +189,7 @@ fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f6
             let arg = substitute(op.arg, quote(a, subst));
             let call = build_call(a, op.opcode, arg, 1, None);
             let (time, raw_time, cost) = time_invocation(a, call, op.flags);
+            avg_factor.add(cost as f64 / raw_time);
             let sample = (i as f64 * scale as f64, time);
             writeln!(output, "{}\t{time}\t{raw_time}\t{cost}", sample.0).expect("failed to write");
             samples.push(sample);
@@ -173,6 +197,9 @@ fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f6
         }
     }
 
+    if (op.flags & PLOT_COST) != 0 {
+        println!("   (per-byte) cost/ns: {}", avg_factor.compute());
+    }
     // create a strong bias for 0 bytes to have 0 cost. Otherwise, noise may
     // cause the offset to be increased, rather than the slope, of the fitted
     // curve. But we only use the slope, as a way to reduce noise.
@@ -201,15 +228,21 @@ fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64
     let checkpoint = a.checkpoint();
 
     let reps = if (op.flags & LIMIT_REPS) == 0 { 3 } else { 1 };
+    let mut avg_factor = Average::new();
     for _k in 0..reps {
         for i in (0..1000).step_by(5) {
             let call = build_call(a, op.opcode, arg, i, op.extra);
             let (time, raw_time, cost) = time_invocation(a, call, op.flags);
+            avg_factor.add(cost as f64 / raw_time);
             let sample = (i as f64, time);
             writeln!(output, "{}\t{time}\t{raw_time}\t{cost}", sample.0).expect("failed to write");
             samples.push(sample);
             a.restore_checkpoint(&checkpoint);
         }
+    }
+
+    if (op.flags & PLOT_COST) != 0 {
+        println!("   (per-arg) cost/ns: {}", avg_factor.compute());
     }
 
     let (slope, _): (f64, f64) = linear_regression_of(&samples).expect("linreg failed");
@@ -238,11 +271,13 @@ fn base_call_time(
     let checkpoint = a.checkpoint();
 
     let reps = if (op.flags & LIMIT_REPS) == 0 { 3 } else { 1 };
+    let mut avg_factor = Average::new();
     for _k in 0..reps {
         for i in 1..100 {
             a.restore_checkpoint(&checkpoint);
             let call = build_nested_call(a, op.opcode, arg, i, op.extra);
             let (time, raw_time, cost) = time_invocation(a, call, op.flags);
+            avg_factor.add(cost as f64 / raw_time);
             let duration = time - (per_arg_time * i as f64);
             let sample = (i as f64, duration);
             writeln!(output, "{i}\t{duration}\t{raw_time}\t{cost}").expect("failed to write");
@@ -250,14 +285,15 @@ fn base_call_time(
         }
     }
 
+    if (op.flags & PLOT_COST) != 0 {
+        println!("   (base-call) cost/ns: {}", avg_factor.compute());
+    }
+
     let (slope, _): (f64, f64) = linear_regression_of(&samples).expect("linreg failed");
     slope
 }
 
 fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -> f64 {
-    let mut total_time: f64 = 0.0;
-    let mut num_samples = 0;
-
     let subst = a
         .new_atom(
             &hex::decode("123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0")
@@ -268,15 +304,21 @@ fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -
 
     let checkpoint = a.checkpoint();
 
+    let mut average_time = Average::new();
+    let mut avg_factor = Average::new();
     for _i in 0..300 {
         a.restore_checkpoint(&checkpoint);
         let call = build_call(a, op.opcode, arg, 1, None);
-        let (_time, raw_time, _cost) = time_invocation(a, call, op.flags);
-        total_time += raw_time;
-        num_samples += 1;
+        let (_time, raw_time, cost) = time_invocation(a, call, op.flags);
+        avg_factor.add(cost as f64 / raw_time);
+        average_time.add(raw_time - per_arg_time);
     }
 
-    (total_time - per_arg_time * num_samples as f64) / num_samples as f64
+    if (op.flags & PLOT_COST) != 0 {
+        println!("   (base-call) cost/ns: {}", avg_factor.compute());
+    }
+
+    average_time.compute()
 }
 
 // measures run-time of many calls with the variable argument substituted for
@@ -404,12 +446,22 @@ fn print_plot(gnuplot: &mut dyn Write, a: &f64, b: &f64, op: &str, name: &str) {
     .expect("failed to write");
 }
 
-fn print_plot2(gnuplot: &mut dyn Write, op: &str, name: &str) {
-    writeln!(
+fn print_plot2(gnuplot: &mut dyn Write, op: &str, name: &str, cost_factor: Option<f64>) {
+    write!(
         gnuplot,
-        "plot \"{op}-{name}.log\" using 1:3 with dots title \"{name} (measured)\", \"{op}-{name}.log\" using 1:4 with dots axis x1y2 title \"{name} (CLVM cost)\""
-        )
+        "plot \"{op}-{name}.log\" using 1:3 with dots title \"{name} (measured)\","
+    )
+    .expect("failed to write");
+    write!(
+        gnuplot,
+        "\"{op}-{name}.log\" using 1:4 with dots axis x1y2 title \"{name} (CLVM cost)\""
+    )
+    .expect("failed to write");
+    if let Some(cost_scale) = cost_factor {
+        write!(gnuplot, ", \"{op}-{name}.log\" using 1:($4/{cost_scale}) with dots axis x1y2 title \"{name} timing inferred by cost-factor\"")
         .expect("failed to write");
+    }
+    writeln!(gnuplot).expect("failed to write");
 }
 
 pub fn main() {
@@ -635,7 +687,10 @@ pub fn main() {
             let time_per_byte = time_per_byte(&mut a, op, &mut *output);
             println!("   time: per-byte: {time_per_byte:.2}ns");
             if let Some(cost_scale) = options.cost_factor {
-                println!("   cost: per-byte: {:.0}", time_per_byte * cost_scale);
+                println!(
+                    "   estimated-cost: per-byte: {:.2}",
+                    time_per_byte * cost_scale
+                );
             }
             print_plot(&mut *gnuplot, &time_per_byte, &0.0, op.name, "per-byte");
             time_per_byte
@@ -647,7 +702,10 @@ pub fn main() {
             let time_per_arg = time_per_arg(&mut a, op, &mut *output);
             println!("   time: per-arg: {time_per_arg:.2}ns");
             if let Some(cost_scale) = options.cost_factor {
-                println!("   cost: per-arg: {:.0}", time_per_arg * cost_scale);
+                println!(
+                    "   estimated-cost: per-arg: {:.2}",
+                    time_per_arg * cost_scale
+                );
             }
             time_per_arg
         } else {
@@ -666,7 +724,10 @@ pub fn main() {
             let base_call_time = base_call_time(&mut a, op, time_per_arg, &mut *output);
             println!("   time: base: {base_call_time:.2}ns");
             if let Some(cost_scale) = options.cost_factor {
-                println!("   cost: base: {:.0}", base_call_time * cost_scale);
+                println!(
+                    "   estimated-cost: base: {:.2}",
+                    base_call_time * cost_scale
+                );
             }
 
             print_plot(&mut *gnuplot, &base_call_time, &0.0, op.name, "base");
@@ -675,7 +736,10 @@ pub fn main() {
             let base_call_time = base_call_time_no_nest(&mut a, op, time_per_arg);
             println!("   time: base: {base_call_time:.2}ns");
             if let Some(cost_scale) = options.cost_factor {
-                println!("   cost: base: {:.0}", base_call_time * cost_scale);
+                println!(
+                    "   estimated-cost: base: {:.2}",
+                    base_call_time * cost_scale
+                );
             }
             base_call_time
         };
@@ -733,7 +797,7 @@ pub fn main() {
                     "per argument",
                     true,
                 );
-                print_plot2(&mut gnuplot, op.name, "per-arg");
+                print_plot2(&mut gnuplot, op.name, "per-arg", options.cost_factor);
             }
             if (op.flags & NESTING_BASE_COST) != 0 {
                 write_gnuplot_header(
@@ -744,7 +808,7 @@ pub fn main() {
                     "base cost, nested calls",
                     true,
                 );
-                print_plot2(&mut gnuplot, op.name, "base");
+                print_plot2(&mut gnuplot, op.name, "base", options.cost_factor);
             }
             if (op.flags & PER_BYTE_COST) != 0 {
                 write_gnuplot_header(
@@ -755,7 +819,7 @@ pub fn main() {
                     "per byte",
                     true,
                 );
-                print_plot2(&mut gnuplot, op.name, "per-byte");
+                print_plot2(&mut gnuplot, op.name, "per-byte", options.cost_factor);
             }
         }
     }
