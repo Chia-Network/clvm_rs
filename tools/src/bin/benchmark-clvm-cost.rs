@@ -147,7 +147,8 @@ fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f6
     for (i, value) in atom.iter_mut().enumerate() {
         *value = (i + 1) as u8;
     }
-    for _k in 0..3 {
+    let reps = if (op.flags & LIMIT_REPS) == 0 { 3 } else { 1 };
+    for _k in 0..reps {
         for i in 1..1000 {
             let scale = if (op.flags & LARGE_BUFFERS) != 0 {
                 1000
@@ -195,7 +196,8 @@ fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64
 
     let checkpoint = a.checkpoint();
 
-    for _k in 0..3 {
+    let reps = if (op.flags & LIMIT_REPS) == 0 { 3 } else { 1 };
+    for _k in 0..reps {
         for i in (0..1000).step_by(5) {
             let call = build_call(a, op.opcode, arg, i, op.extra);
             let start = Instant::now();
@@ -239,7 +241,8 @@ fn base_call_time(
 
     let checkpoint = a.checkpoint();
 
-    for _k in 0..3 {
+    let reps = if (op.flags & LIMIT_REPS) == 0 { 3 } else { 1 };
+    for _k in 0..reps {
         for i in 1..100 {
             a.restore_checkpoint(&checkpoint);
             let call = build_nested_call(a, op.opcode, arg, i, op.extra);
@@ -309,6 +312,10 @@ const LARGE_BUFFERS: u32 = 16;
 // functions. They must take just as long to execute as a successful run for this
 // to work as expected.
 const ALLOW_FAILURE: u32 = 32;
+
+// For expensive operations, we can limit the number of measurements with this
+// flag
+const LIMIT_REPS: u32 = 64;
 
 struct Operator {
     opcode: u32,
@@ -458,14 +465,14 @@ pub fn main() {
             name: "point_add",
             arg: Placeholder::SingleArg(Some(g1)),
             extra: None,
-            flags: PER_ARG_COST | NESTING_BASE_COST,
+            flags: PER_ARG_COST | NESTING_BASE_COST | LIMIT_REPS,
         },
         Operator {
             opcode: 49,
             name: "g1_subtract",
             arg: Placeholder::SingleArg(Some(g1)),
             extra: None,
-            flags: PER_ARG_COST | NESTING_BASE_COST,
+            flags: PER_ARG_COST | NESTING_BASE_COST | LIMIT_REPS,
         },
         Operator {
             opcode: 50,
@@ -486,14 +493,14 @@ pub fn main() {
             name: "g2_add",
             arg: Placeholder::SingleArg(Some(g2)),
             extra: None,
-            flags: PER_ARG_COST | NESTING_BASE_COST,
+            flags: PER_ARG_COST | NESTING_BASE_COST | LIMIT_REPS,
         },
         Operator {
             opcode: 53,
             name: "g2_subtract",
             arg: Placeholder::SingleArg(Some(g2)),
             extra: None,
-            flags: PER_ARG_COST | NESTING_BASE_COST,
+            flags: PER_ARG_COST | NESTING_BASE_COST | LIMIT_REPS,
         },
         Operator {
             opcode: 54,
@@ -528,14 +535,14 @@ pub fn main() {
             name: "bls_pairing_identity",
             arg: Placeholder::TwoArgs(Some(g1), Some(g2)),
             extra: None,
-            flags: PER_ARG_COST | ALLOW_FAILURE,
+            flags: PER_ARG_COST | ALLOW_FAILURE | LIMIT_REPS,
         },
         Operator {
             opcode: 59,
             name: "bls_verify",
             arg: Placeholder::TwoArgs(Some(g1), Some(g2)),
             extra: Some(g2),
-            flags: PER_ARG_COST | ALLOW_FAILURE,
+            flags: PER_ARG_COST | ALLOW_FAILURE | LIMIT_REPS,
         },
         Operator {
             opcode: 0x13d61f00,
