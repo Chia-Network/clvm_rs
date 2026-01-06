@@ -1,6 +1,6 @@
 use clvmr::allocator::{Allocator, NodePtr};
 use clvmr::chia_dialect::ChiaDialect;
-use clvmr::serde::node_from_bytes;
+use clvmr::serde::node_from_bytes_backrefs;
 use criterion::{criterion_group, criterion_main, Criterion, SamplingMode};
 use std::fs::read_to_string;
 use std::time::Instant;
@@ -109,7 +109,7 @@ ff83\
 "
         );
         let puzzle = hex::decode(fmt).expect("failed to parse puzzle");
-        let puzzle = node_from_bytes(a, &puzzle[..]).expect("failed to parse puzzle");
+        let puzzle = node_from_bytes_backrefs(a, &puzzle[..]).expect("failed to parse puzzle");
         list = a.new_pair(puzzle, list).expect("new_pair");
     }
 
@@ -139,7 +139,7 @@ fn matrix<const W: i32, const H: i32>(a: &mut Allocator) -> NodePtr {
 }
 
 fn prev_generator(a: &mut Allocator) -> NodePtr {
-    node_from_bytes(
+    node_from_bytes_backrefs(
         a,
         &hex::decode(
             "ffff02ffff01ff05ffff02ff3effff04ff02ffff04ff05ff8080808080ffff\
@@ -227,14 +227,16 @@ fn run_program_benchmark(c: &mut Criterion) {
         let prg = read_to_string(format!("benchmark/{test}.hex"))
             .expect("failed to load benchmark program");
         let prg = hex::decode(prg.trim()).expect("invalid hex in benchmark program");
-        let prg = node_from_bytes(&mut a, &prg[..]).expect("failed to parse benchmark program");
+        let max_cost = 11_000_000_000 - prg.len() as u64 * 12_000;
+        let prg =
+            node_from_bytes_backrefs(&mut a, &prg[..]).expect("failed to parse benchmark program");
         let env = make_env(&mut a);
         let iter_checkpoint = a.checkpoint();
         group.bench_function(*test, |b| {
             b.iter(|| {
                 a.restore_checkpoint(&iter_checkpoint);
                 let start = Instant::now();
-                clvmr::run_program(&mut a, &dialect, prg, env, 11000000000)
+                clvmr::run_program(&mut a, &dialect, prg, env, max_cost)
                     .expect("benchmark program failed");
                 start.elapsed()
             })
