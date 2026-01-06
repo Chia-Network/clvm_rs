@@ -44,3 +44,8 @@ bench = false
 name = "generate-modpow-tests"
 test = false
 bench = false
+
+[[bin]]
+name = "generate-stress-tests"
+test = false
+bench = false
