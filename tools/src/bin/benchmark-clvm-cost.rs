@@ -549,7 +549,16 @@ pub fn main() {
         .unwrap();
     let number = quote(&mut a, number);
 
-    let ops: [Operator; 19] = [
+    let ops: [Operator; 20] = [
+        Operator {
+            opcode: 18,
+            name: "mul",
+            arg: Placeholder::TwoArgs(None, None),
+            arg_scale: 5,
+            root: 2,
+            extra: None,
+            flags: PER_BYTE_COST | PLOT_COST,
+        },
         Operator {
             opcode: 60,
             name: "modpow (modulus cost)",
