@@ -3,6 +3,7 @@ use clvmr::allocator::{Allocator, NodePtr};
 use clvmr::chia_dialect::ChiaDialect;
 use clvmr::run_program::run_program;
 use linreg::linear_regression_of;
+use rand::{rngs::StdRng, RngCore, SeedableRng};
 use std::fs::{create_dir_all, File};
 use std::io::{sink, Write};
 use std::time::Instant;
@@ -129,11 +130,14 @@ fn quote(a: &mut Allocator, v: NodePtr) -> NodePtr {
     a.new_pair(a.one(), v).unwrap()
 }
 
-fn subst(arg: Option<NodePtr>, substitution: NodePtr) -> NodePtr {
-    arg.unwrap_or(substitution)
+fn subst(arg: Option<NodePtr>, substitution: &mut impl FnMut() -> NodePtr) -> NodePtr {
+    match arg {
+        Some(n) => n,
+        None => substitution(),
+    }
 }
 
-fn substitute(args: Placeholder, s: NodePtr) -> OpArgs {
+fn substitute(args: Placeholder, s: &mut impl FnMut() -> NodePtr) -> OpArgs {
     match args {
         Placeholder::SingleArg(n) => OpArgs::SingleArg(subst(n, s)),
         Placeholder::TwoArgs(n0, n1) => OpArgs::TwoArgs(subst(n0, s), subst(n1, s)),
@@ -146,20 +150,20 @@ fn substitute(args: Placeholder, s: NodePtr) -> OpArgs {
 // returns time measurements in nanoseconds (but maybe adjusted for exponential growth)
 // raw time measurement in nanoseconds
 // CLVM cost of operator
-fn time_invocation(a: &mut Allocator, call: NodePtr, flags: u32) -> (f64, f64, u64) {
+fn time_invocation(a: &mut Allocator, call: NodePtr, op: &Operator) -> (f64, f64, u64) {
     //println!("{:x?}", &Node::new(a, call));
     let dialect = ChiaDialect::new(DIALECT_FLAGS);
     let start = Instant::now();
     let r = run_program(a, &dialect, call, a.nil(), 11_000_000_000);
-    let cost = if (flags & ALLOW_FAILURE) == 0 {
+    let cost = if (op.flags & ALLOW_FAILURE) == 0 {
         r.expect("operator failed").0
     } else {
-        assert!((flags & PLOT_COST) == 0, "PLOT_COST cannot be combined with ALLOW_FAILURE. The cost of an operator is unknown if it fails");
+        assert!((op.flags & PLOT_COST) == 0, "PLOT_COST cannot be combined with ALLOW_FAILURE. The cost of an operator is unknown if it fails");
         0
     };
     let duration = start.elapsed().as_nanos() as f64;
-    if (flags & EXPONENTIAL_COST) != 0 {
-        (duration.sqrt(), duration, cost)
+    if op.root != 1 {
+        (duration.powf(1.0 / (op.root as f64)), duration, cost)
     } else {
         (duration, duration, cost)
     }
@@ -171,26 +175,51 @@ fn time_invocation(a: &mut Allocator, call: NodePtr, flags: u32) -> (f64, f64, u
 fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64 {
     let checkpoint = a.checkpoint();
     let mut samples = Vec::<(f64, f64)>::new();
-    let mut atom = vec![0; 10000000];
-    for (i, value) in atom.iter_mut().enumerate() {
-        *value = (i + 1) as u8;
+    let max_atom_size = 1000 * op.arg_scale;
+    let mut atom = vec![0; max_atom_size * 3];
+    let mut rng = StdRng::seed_from_u64(0x1337);
+
+    if (op.flags & MANY_ONES_ARG) != 0 {
+        atom.fill(0xff);
+        // we want the arguments to be different
+        atom[max_atom_size - 1] = 1;
+        atom[2 * max_atom_size - 1] = 2;
+        atom[3 * max_atom_size - 1] = 3;
+    } else if (op.flags & MANY_ZERO_ARG) != 0 {
+        // values have few 1-bits
+        atom.fill(0x0);
+        atom[0] = 0x40;
+        atom[max_atom_size] = 0x40;
+        atom[2 * max_atom_size] = 0x40;
+        // we want the arguments to be different
+        atom[max_atom_size - 1] = 1;
+        atom[2 * max_atom_size - 1] = 2;
+        atom[3 * max_atom_size - 1] = 3;
+    } else {
+        rng.fill_bytes(atom.as_mut_slice());
     }
+    if (op.flags & POSITIVE_ARGS) != 0 {
+        atom[0] &= 0x7f;
+        atom[max_atom_size] &= 0x7f;
+        atom[2 * max_atom_size] &= 0x7f;
+    }
+
     let reps = if (op.flags & LIMIT_REPS) == 0 { 3 } else { 1 };
     let mut avg_factor = Average::new();
     for _k in 0..reps {
         for i in 1..1000 {
-            let scale = if (op.flags & LARGE_BUFFERS) != 0 {
-                1000
-            } else {
-                1
-            };
-
-            let subst = a.new_atom(&atom[0..(i * scale)]).unwrap();
-            let arg = substitute(op.arg, quote(a, subst));
+            let mut idx = 0;
+            let arg = substitute(op.arg, &mut || {
+                let atom = a
+                    .new_atom(&atom[idx * max_atom_size..][0..(i * op.arg_scale)])
+                    .expect("new_atom");
+                idx += 1;
+                quote(a, atom)
+            });
             let call = build_call(a, op.opcode, arg, 1, None);
-            let (time, raw_time, cost) = time_invocation(a, call, op.flags);
+            let (time, raw_time, cost) = time_invocation(a, call, op);
             avg_factor.add(cost as f64 / raw_time);
-            let sample = (i as f64 * scale as f64, time);
+            let sample = (i as f64 * op.arg_scale as f64, time);
             writeln!(output, "{}\t{time}\t{raw_time}\t{cost}", sample.0).expect("failed to write");
             samples.push(sample);
             a.restore_checkpoint(&checkpoint);
@@ -223,7 +252,7 @@ fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64
                 .unwrap(),
         )
         .unwrap();
-    let arg = substitute(op.arg, quote(a, subst));
+    let arg = substitute(op.arg, &mut || quote(a, subst));
 
     let checkpoint = a.checkpoint();
 
@@ -232,7 +261,7 @@ fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64
     for _k in 0..reps {
         for i in (0..1000).step_by(5) {
             let call = build_call(a, op.opcode, arg, i, op.extra);
-            let (time, raw_time, cost) = time_invocation(a, call, op.flags);
+            let (time, raw_time, cost) = time_invocation(a, call, op);
             avg_factor.add(cost as f64 / raw_time);
             let sample = (i as f64, time);
             writeln!(output, "{}\t{time}\t{raw_time}\t{cost}", sample.0).expect("failed to write");
@@ -266,7 +295,7 @@ fn base_call_time(
                 .unwrap(),
         )
         .unwrap();
-    let arg = substitute(op.arg, quote(a, subst));
+    let arg = substitute(op.arg, &mut || quote(a, subst));
 
     let checkpoint = a.checkpoint();
 
@@ -276,7 +305,7 @@ fn base_call_time(
         for i in 1..100 {
             a.restore_checkpoint(&checkpoint);
             let call = build_nested_call(a, op.opcode, arg, i, op.extra);
-            let (time, raw_time, cost) = time_invocation(a, call, op.flags);
+            let (time, raw_time, cost) = time_invocation(a, call, op);
             avg_factor.add(cost as f64 / raw_time);
             let duration = time - (per_arg_time * i as f64);
             let sample = (i as f64, duration);
@@ -300,7 +329,7 @@ fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -
                 .unwrap(),
         )
         .unwrap();
-    let arg = substitute(op.arg, quote(a, subst));
+    let arg = substitute(op.arg, &mut || quote(a, subst));
 
     let checkpoint = a.checkpoint();
 
@@ -309,7 +338,7 @@ fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -
     for _i in 0..300 {
         a.restore_checkpoint(&checkpoint);
         let call = build_call(a, op.opcode, arg, 1, None);
-        let (_time, raw_time, cost) = time_invocation(a, call, op.flags);
+        let (_time, raw_time, cost) = time_invocation(a, call, op);
         avg_factor.add(cost as f64 / raw_time);
         average_time.add(raw_time - per_arg_time);
     }
@@ -335,13 +364,11 @@ const PER_ARG_COST: u32 = 2;
 // value as an argument
 const NESTING_BASE_COST: u32 = 4;
 
-// If the time doesn't grow linearly, but exponentially, this flag must be used
-// to square the samples before we run linear regression. It's an approximation.
-const EXPONENTIAL_COST: u32 = 8;
-
-// This modifies the PER_ARG_COST to use large buffers. This is useful when the
-// cost per byte is very low, and we need large buffers to measure it
-const LARGE_BUFFERS: u32 = 16;
+// By default, arguments passed to per-byte timing contain random values. If one
+// of these flags are set, we instead use values with many zero bits or many 1
+// bits.
+const MANY_ONES_ARG: u32 = 8;
+const MANY_ZERO_ARG: u32 = 16;
 
 // Allow the operator to fail. This is useful for signature validation
 // functions. They must take just as long to execute as a successful run for this
@@ -357,11 +384,19 @@ const LIMIT_REPS: u32 = 64;
 // been deployed (or to validate that a model seems to fit the measurements)
 const PLOT_COST: u32 = 128;
 
+// make sure arguments are positive
+const POSITIVE_ARGS: u32 = 256;
+
 struct Operator {
     opcode: u32,
     name: &'static str,
     arg: Placeholder,
     extra: Option<NodePtr>,
+    // scale up the argument atom sizes by this factor
+    arg_scale: usize,
+    // for non-linear cost models, modify each time sample by finding the n:th
+    // root, where this field specify n. 1 means unchanged, 2 means square root
+    root: u32,
     flags: u32,
 }
 
@@ -412,10 +447,10 @@ set ylabel \"nanoseconds{}\"
 set ytics nomirror",
         op.name,
         op.name,
-        if (op.flags & EXPONENTIAL_COST) != 0 && !y2 {
-            " log"
+        if op.root != 1 && !y2 {
+            format!(" log{}", op.root)
         } else {
-            ""
+            String::new()
         }
     )
     .expect("failed to write");
@@ -519,27 +554,35 @@ pub fn main() {
             opcode: 60,
             name: "modpow (modulus cost)",
             arg: Placeholder::ThreeArgs(Some(number), Some(number), None),
+            arg_scale: 2,
+            root: 3,
             extra: None,
-            flags: PER_BYTE_COST | EXPONENTIAL_COST | PLOT_COST,
+            flags: PER_BYTE_COST | PLOT_COST | POSITIVE_ARGS | LIMIT_REPS | MANY_ZERO_ARG,
         },
         Operator {
             opcode: 60,
             name: "modpow (exponent cost)",
             arg: Placeholder::ThreeArgs(Some(number), None, Some(number)),
+            arg_scale: 2,
+            root: 2,
             extra: None,
-            flags: PER_BYTE_COST | EXPONENTIAL_COST | PLOT_COST,
+            flags: PER_BYTE_COST | PLOT_COST | POSITIVE_ARGS | LIMIT_REPS | MANY_ZERO_ARG,
         },
         Operator {
             opcode: 60,
             name: "modpow (value cost)",
             arg: Placeholder::ThreeArgs(None, Some(number), Some(number)),
+            arg_scale: 2,
+            root: 2,
             extra: None,
-            flags: PER_BYTE_COST | PLOT_COST,
+            flags: PER_BYTE_COST | PLOT_COST | POSITIVE_ARGS | LIMIT_REPS | MANY_ZERO_ARG,
         },
         Operator {
             opcode: 29,
             name: "point_add",
             arg: Placeholder::SingleArg(Some(g1)),
+            arg_scale: 1,
+            root: 1,
             extra: None,
             flags: PER_ARG_COST | NESTING_BASE_COST | LIMIT_REPS | PLOT_COST,
         },
@@ -547,6 +590,8 @@ pub fn main() {
             opcode: 49,
             name: "g1_subtract",
             arg: Placeholder::SingleArg(Some(g1)),
+            arg_scale: 1,
+            root: 1,
             extra: None,
             flags: PER_ARG_COST | NESTING_BASE_COST | LIMIT_REPS | PLOT_COST,
         },
@@ -554,6 +599,8 @@ pub fn main() {
             opcode: 50,
             name: "g1_multiply",
             arg: Placeholder::TwoArgs(Some(g1), None),
+            arg_scale: 1,
+            root: 1,
             extra: Some(g1),
             flags: PER_BYTE_COST | PLOT_COST,
         },
@@ -561,6 +608,8 @@ pub fn main() {
             opcode: 51,
             name: "g1_negate",
             arg: Placeholder::SingleArg(Some(g1)),
+            arg_scale: 1,
+            root: 1,
             extra: None,
             flags: PLOT_COST,
         },
@@ -568,6 +617,8 @@ pub fn main() {
             opcode: 52,
             name: "g2_add",
             arg: Placeholder::SingleArg(Some(g2)),
+            arg_scale: 1,
+            root: 1,
             extra: None,
             flags: PER_ARG_COST | NESTING_BASE_COST | LIMIT_REPS | PLOT_COST,
         },
@@ -575,6 +626,8 @@ pub fn main() {
             opcode: 53,
             name: "g2_subtract",
             arg: Placeholder::SingleArg(Some(g2)),
+            arg_scale: 1,
+            root: 1,
             extra: None,
             flags: PER_ARG_COST | NESTING_BASE_COST | LIMIT_REPS | PLOT_COST,
         },
@@ -582,6 +635,8 @@ pub fn main() {
             opcode: 54,
             name: "g2_multiply",
             arg: Placeholder::TwoArgs(Some(g2), None),
+            arg_scale: 1,
+            root: 1,
             extra: Some(g2),
             flags: PER_BYTE_COST | PLOT_COST,
         },
@@ -589,6 +644,8 @@ pub fn main() {
             opcode: 55,
             name: "g2_negate",
             arg: Placeholder::SingleArg(Some(g2)),
+            arg_scale: 1,
+            root: 1,
             extra: None,
             flags: PLOT_COST,
         },
@@ -596,20 +653,26 @@ pub fn main() {
             opcode: 56,
             name: "g1_map",
             arg: Placeholder::SingleArg(None),
+            arg_scale: 1000,
+            root: 1,
             extra: None,
-            flags: PER_BYTE_COST | LARGE_BUFFERS | PLOT_COST,
+            flags: PER_BYTE_COST | PLOT_COST,
         },
         Operator {
             opcode: 57,
             name: "g2_map",
             arg: Placeholder::SingleArg(None),
+            arg_scale: 1000,
+            root: 1,
             extra: None,
-            flags: PER_BYTE_COST | LARGE_BUFFERS | PLOT_COST,
+            flags: PER_BYTE_COST | PLOT_COST,
         },
         Operator {
             opcode: 58,
             name: "bls_pairing_identity",
             arg: Placeholder::TwoArgs(Some(g1), Some(g2)),
+            arg_scale: 1,
+            root: 1,
             extra: None,
             flags: PER_ARG_COST | ALLOW_FAILURE | LIMIT_REPS,
         },
@@ -617,6 +680,8 @@ pub fn main() {
             opcode: 59,
             name: "bls_verify",
             arg: Placeholder::TwoArgs(Some(g1), Some(g2)),
+            arg_scale: 1,
+            root: 1,
             extra: Some(g2),
             flags: PER_ARG_COST | ALLOW_FAILURE | LIMIT_REPS,
         },
@@ -624,6 +689,8 @@ pub fn main() {
             opcode: 0x13d61f00,
             name: "secp256k1_verify",
             arg: Placeholder::ThreeArgs(Some(k1_pk), Some(k1_msg), Some(k1_sig)),
+            arg_scale: 1,
+            root: 1,
             extra: None,
             flags: ALLOW_FAILURE,
         },
@@ -631,6 +698,8 @@ pub fn main() {
             opcode: 0x1c3a8f00,
             name: "secp256r1_verify",
             arg: Placeholder::ThreeArgs(Some(r1_pk), Some(r1_msg), Some(r1_sig)),
+            arg_scale: 1,
+            root: 1,
             extra: None,
             flags: ALLOW_FAILURE,
         },
@@ -638,15 +707,19 @@ pub fn main() {
             opcode: 11,
             name: "sha256",
             arg: Placeholder::SingleArg(None),
+            arg_scale: 1000,
+            root: 1,
             extra: None,
-            flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | LARGE_BUFFERS | PLOT_COST,
+            flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | PLOT_COST,
         },
         Operator {
             opcode: 62,
             name: "keccak256",
             arg: Placeholder::SingleArg(Some(g1)),
+            arg_scale: 1000,
+            root: 1,
             extra: None,
-            flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | LARGE_BUFFERS | PLOT_COST,
+            flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | PLOT_COST,
         },
     ];
 
@@ -745,8 +818,8 @@ pub fn main() {
         };
 
         // we adjust the base_call_time here to make the curve fitting match
-        let base_call_time = if (op.flags & EXPONENTIAL_COST) != 0 {
-            base_call_time.sqrt()
+        let base_call_time = if op.root != 1 {
+            base_call_time.powf(1.0 / (op.root as f64))
         } else {
             base_call_time
         };
