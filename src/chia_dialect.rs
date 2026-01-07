@@ -29,9 +29,11 @@ pub const LIMIT_HEAP: u32 = 0x0004;
 // This is a hard-fork and should only be enabled when it activates
 pub const ENABLE_KECCAK_OPS_OUTSIDE_GUARD: u32 = 0x0100;
 
+pub const DISABLE_OP: u32 = 0x200;
+
 // The default mode when running grnerators in mempool-mode (i.e. the stricter
 // mode)
-pub const MEMPOOL_MODE: u32 = NO_UNKNOWN_OPS | LIMIT_HEAP;
+pub const MEMPOOL_MODE: u32 = NO_UNKNOWN_OPS | LIMIT_HEAP | DISABLE_OP;
 
 fn unknown_operator(
     allocator: &mut Allocator,
@@ -161,7 +163,13 @@ impl Dialect for ChiaDialect {
             57 => op_bls_map_to_g2,
             58 => op_bls_pairing_identity,
             59 => op_bls_verify,
-            60 => op_modpow,
+            60 => {
+                if (flags & DISABLE_OP) != 0 {
+                    return Err(EvalErr::Unimplemented(o))?;
+                } else {
+                    op_modpow
+                }
+            }
             61 => op_mod,
             62 if (flags & ENABLE_KECCAK_OPS_OUTSIDE_GUARD) != 0 => op_keccak256,
             _ => {
