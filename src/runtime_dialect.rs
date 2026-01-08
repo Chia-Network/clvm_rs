@@ -3,7 +3,7 @@ use crate::chia_dialect::NO_UNKNOWN_OPS;
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::error::EvalErr;
-use crate::f_table::{f_lookup_for_hashmap, FLookup};
+use crate::f_table::{FLookup, f_lookup_for_hashmap};
 use crate::more_ops::op_unknown;
 use crate::reduction::Response;
 use std::collections::HashMap;
@@ -45,10 +45,10 @@ impl Dialect for RuntimeDialect {
         let atom = allocator.atom(o);
         let b = atom.as_ref();
 
-        if b.len() == 1 {
-            if let Some(f) = self.f_lookup[b[0] as usize] {
-                return f(allocator, argument_list, max_cost);
-            }
+        if b.len() == 1
+            && let Some(f) = self.f_lookup[b[0] as usize]
+        {
+            return f(allocator, argument_list, max_cost);
         }
         if (self.flags & NO_UNKNOWN_OPS) != 0 {
             Err(EvalErr::Unimplemented(o))?

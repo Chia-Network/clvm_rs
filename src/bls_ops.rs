@@ -1,14 +1,14 @@
 use crate::allocator::{Allocator, Atom, NodePtr};
-use crate::cost::{check_cost, Cost};
+use crate::cost::{Cost, check_cost};
 use crate::error::EvalErr;
 use crate::op_utils::{
-    atom, first, get_args, get_varargs, int_atom, mod_group_order, new_atom_and_cost, nilp, rest,
-    MALLOC_COST_PER_BYTE,
+    MALLOC_COST_PER_BYTE, atom, first, get_args, get_varargs, int_atom, mod_group_order,
+    new_atom_and_cost, nilp, rest,
 };
 use crate::reduction::{Reduction, Response};
 use chia_bls::{
-    aggregate_pairing, aggregate_verify, hash_to_g1_with_dst, hash_to_g2_with_dst, G1Element,
-    G2Element, PublicKey,
+    G1Element, G2Element, PublicKey, aggregate_pairing, aggregate_verify, hash_to_g1_with_dst,
+    hash_to_g2_with_dst,
 };
 
 // the same cost as point_add (aka g1_add)

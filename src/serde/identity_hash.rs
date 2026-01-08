@@ -31,7 +31,7 @@ pub struct RandomState(u64);
 impl Default for RandomState {
     fn default() -> Self {
         let mut rng = rand::thread_rng();
-        Self(rng.gen())
+        Self(rng.r#gen())
     }
 }
 

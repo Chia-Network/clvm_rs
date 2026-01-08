@@ -3,9 +3,9 @@ use clvmr::allocator::{Allocator, NodePtr};
 use clvmr::chia_dialect::ChiaDialect;
 use clvmr::run_program::run_program;
 use linreg::linear_regression_of;
-use rand::{rngs::StdRng, RngCore, SeedableRng};
-use std::fs::{create_dir_all, File};
-use std::io::{sink, Write};
+use rand::{RngCore, SeedableRng, rngs::StdRng};
+use std::fs::{File, create_dir_all};
+use std::io::{Write, sink};
 use std::time::Instant;
 
 const DIALECT_FLAGS: u32 = 0;
@@ -158,7 +158,10 @@ fn time_invocation(a: &mut Allocator, call: NodePtr, op: &Operator) -> (f64, f64
     let cost = if (op.flags & ALLOW_FAILURE) == 0 {
         r.expect("operator failed").0
     } else {
-        assert!((op.flags & PLOT_COST) == 0, "PLOT_COST cannot be combined with ALLOW_FAILURE. The cost of an operator is unknown if it fails");
+        assert!(
+            (op.flags & PLOT_COST) == 0,
+            "PLOT_COST cannot be combined with ALLOW_FAILURE. The cost of an operator is unknown if it fails"
+        );
         0
     };
     let duration = start.elapsed().as_nanos() as f64;
@@ -749,10 +752,10 @@ pub fn main() {
 
     for op in &ops {
         // If an operator name was specified, skip all other operators
-        if let Some(ref name) = options.only_operator {
-            if op.name != name {
-                continue;
-            }
+        if let Some(ref name) = options.only_operator
+            && op.name != name
+        {
+            continue;
         }
 
         println!("opcode: {} ({})", op.name, op.opcode);

@@ -1,8 +1,8 @@
 #![no_main]
+use clvmr::Allocator;
 use clvmr::serde::node_from_bytes_backrefs;
 use clvmr::serde::node_to_bytes;
 use clvmr::serde::serialized_length_from_bytes;
-use clvmr::Allocator;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
@@ -19,7 +19,9 @@ fuzz_target!(|data: &[u8]| {
             // this is expected
         }
         (Ok(len), Err(e)) => {
-            panic!("discrepancy between serialized_length and node_from_bytes_backrefs().\n {len}\n{e}");
+            panic!(
+                "discrepancy between serialized_length and node_from_bytes_backrefs().\n {len}\n{e}"
+            );
         }
         (Err(e), Ok(program)) => {
             panic!(

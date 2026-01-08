@@ -9,7 +9,7 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
 use std::collections::HashMap;
 type CachedFunction<T> = fn(&mut ObjectCache<T>, &Allocator, NodePtr) -> Option<T>;
-use super::bytes32::{hash_blobs, Bytes32};
+use super::bytes32::{Bytes32, hash_blobs};
 use crate::serde::serialized_length_atom;
 
 pub struct ObjectCache<T> {
@@ -279,15 +279,19 @@ mod tests {
         let mut cache = ObjectCache::new(treehash);
 
         for n in poisoned_nodes {
-            assert!(cache
-                .get_or_calculate(allocator, n, Some(stop_token))
-                .is_none());
+            assert!(
+                cache
+                    .get_or_calculate(allocator, n, Some(stop_token))
+                    .is_none()
+            );
         }
 
         for n in good_nodes {
-            assert!(cache
-                .get_or_calculate(allocator, n, Some(stop_token))
-                .is_some());
+            assert!(
+                cache
+                    .get_or_calculate(allocator, n, Some(stop_token))
+                    .is_some()
+            );
         }
     }
 

@@ -3,11 +3,11 @@
 use clvm_fuzzing::{make_tree, node_eq};
 use clvmr::allocator::{Allocator, NodePtr, SExp};
 use clvmr::error::Result;
-use clvmr::serde::node_from_bytes_backrefs;
-use clvmr::serde::write_atom::write_atom;
 use clvmr::serde::ReadCacheLookup;
 use clvmr::serde::TreeCache;
-use clvmr::serde::{serialized_length, treehash, ObjectCache};
+use clvmr::serde::node_from_bytes_backrefs;
+use clvmr::serde::write_atom::write_atom;
+use clvmr::serde::{ObjectCache, serialized_length, treehash};
 use libfuzzer_sys::fuzz_target;
 use std::io::Cursor;
 use std::io::Write;
@@ -70,15 +70,21 @@ pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> Result<V
                     // we find paths of equal lengths (i.e. both should be the
                     // shortest path)
                     if p1.len() != p2.len() || p1[0].leading_zeros() != p2[0].leading_zeros() {
-                        panic!("inconsistent results, {p1:?} != {p2:?} serialized-length: {node_serialized_length}");
+                        panic!(
+                            "inconsistent results, {p1:?} != {p2:?} serialized-length: {node_serialized_length}"
+                        );
                     }
                 }
                 (None, None) => {}
                 (Some(p1), None) => {
-                    panic!("read_cache_lookup: {p1:?}, tree_cache: None serialized-length: {node_serialized_length}");
+                    panic!(
+                        "read_cache_lookup: {p1:?}, tree_cache: None serialized-length: {node_serialized_length}"
+                    );
                 }
                 (None, Some(p2)) => {
-                    panic!("read_cache_lookup: None, tree_cache: {p2:?} serialized-length: {node_serialized_length}");
+                    panic!(
+                        "read_cache_lookup: None, tree_cache: {p2:?} serialized-length: {node_serialized_length}"
+                    );
                 }
             };
         } else {

@@ -184,7 +184,10 @@ mod tests {
 
         // this is the uncompressed representation
         let round_trip = node_to_bytes(&a, parsed).unwrap();
-        assert_eq!(hex::encode(&round_trip), "ffffff0102ff0304ffffff0102ff0304ffffff0102ff0304ffffff0102ff0304ffffff0102ff0304ffffff0102ff0304ffffff0102ff0304ffffff0102ff0304ffffff0102ff0304ffffff0102ff030480");
+        assert_eq!(
+            hex::encode(&round_trip),
+            "ffffff0102ff0304ffffff0102ff0304ffffff0102ff0304ffffff0102ff0304ffffff0102ff0304ffffff0102ff0304ffffff0102ff0304ffffff0102ff0304ffffff0102ff0304ffffff0102ff030480"
+        );
     }
 
     #[test]
@@ -232,7 +235,10 @@ mod tests {
         // The "foobar" atom is serialized as 86666f6f626172
         // and "barfoo" as 86626172666f6f
         let output = ser.into_inner();
-        assert_eq!(hex::encode(&output), "ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff0180ff0386626172666f6ffe0efe0efe0efe0efe0efe0efe0efe0efe0eff0386666f6f626172");
+        assert_eq!(
+            hex::encode(&output),
+            "ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff0180ff0386626172666f6ffe0efe0efe0efe0efe0efe0efe0efe0efe0eff0386666f6f626172"
+        );
         let parsed = node_from_bytes_backrefs(&mut a, &output).unwrap();
 
         // serializing (and compressing) incrementally can't "see through" the
@@ -241,11 +247,17 @@ mod tests {
         // possible options. Compressing the whole tree in one step, we'll get
         // better compression
         let round_trip = node_to_bytes_backrefs(&a, parsed).unwrap();
-        assert_eq!(hex::encode(&round_trip), "ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff0180ff0386626172666f6ffe0efe0efe0efe0efe0efe0efe0efe0efe0eff0386666f6f626172");
+        assert_eq!(
+            hex::encode(&round_trip),
+            "ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff0180ff0386626172666f6ffe0efe0efe0efe0efe0efe0efe0efe0efe0eff0386666f6f626172"
+        );
 
         // this is the uncompressed representation
         let round_trip = node_to_bytes(&a, parsed).unwrap();
-        assert_eq!(hex::encode(&round_trip), "ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff0180ff0386626172666f6fff0386626172666f6fff0386626172666f6fff0386626172666f6fff0386626172666f6fff0386626172666f6fff0386626172666f6fff0386626172666f6fff0386626172666f6fff0386626172666f6fff0386666f6f626172");
+        assert_eq!(
+            hex::encode(&round_trip),
+            "ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff01ffff0180ff0386626172666f6fff0386626172666f6fff0386626172666f6fff0386626172666f6fff0386626172666f6fff0386626172666f6fff0386626172666f6fff0386626172666f6fff0386626172666f6fff0386626172666f6fff0386666f6f626172"
+        );
     }
 
     #[test]

@@ -2,7 +2,7 @@
 name = "clvm-rs-test-tools"
 version = "0.16.3"
 authors = ["Arvid Norberg <arvid@chia.net>", "Cameron Cooper <cameron@chia.net>"]
-edition = "2021"
+edition = "2024"
 license = "Apache-2.0"
 description = "Developer tools for the CLVM interpreter"
 homepage = "https://github.com/Chia-Network/clvm_rs/tools/"

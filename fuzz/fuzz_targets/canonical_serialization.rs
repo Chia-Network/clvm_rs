@@ -1,9 +1,9 @@
 #![no_main]
 
 use clvm_fuzzing::make_tree_limits;
+use clvmr::Allocator;
 use clvmr::serde::is_canonical_serialization;
 use clvmr::serde::node_to_bytes;
-use clvmr::Allocator;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

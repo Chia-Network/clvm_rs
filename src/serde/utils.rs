@@ -1,6 +1,6 @@
-use crate::error::{EvalErr, Result};
 use crate::NodePtr;
-use std::io::{copy, sink, Read, Write};
+use crate::error::{EvalErr, Result};
+use std::io::{Read, Write, copy, sink};
 
 pub fn copy_exactly<R: Read, W: ?Sized + Write>(
     reader: &mut R,

@@ -9,7 +9,7 @@ use clvmr::cost::Cost;
 use clvmr::error::EvalErr;
 use clvmr::reduction::Response;
 use clvmr::run_program::run_program;
-use clvmr::serde::{node_from_bytes, parse_triples, serialized_length_from_bytes, ParsedTriple};
+use clvmr::serde::{ParsedTriple, node_from_bytes, parse_triples, serialized_length_from_bytes};
 use clvmr::{LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
