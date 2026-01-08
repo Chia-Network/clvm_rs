@@ -1,11 +1,11 @@
 use clap::Parser;
+use clvmr::ChiaDialect;
 use clvmr::allocator::{Allocator, NodePtr};
 use clvmr::reduction::Reduction;
 use clvmr::serde::node_to_bytes_backrefs;
-use clvmr::ChiaDialect;
-use rand::{rngs::StdRng, Rng, SeedableRng};
-use std::collections::hash_map::Entry;
+use rand::{Rng, SeedableRng, rngs::StdRng};
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::time::Instant;
 
 /// Generate artificial high-demand CLVM programs as stress tests for the

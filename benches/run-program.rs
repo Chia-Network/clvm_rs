@@ -1,7 +1,7 @@
 use clvmr::allocator::{Allocator, NodePtr};
 use clvmr::chia_dialect::ChiaDialect;
 use clvmr::serde::node_from_bytes_backrefs;
-use criterion::{criterion_group, criterion_main, Criterion, SamplingMode};
+use criterion::{Criterion, SamplingMode, criterion_group, criterion_main};
 use std::fs::read_to_string;
 use std::time::Instant;
 

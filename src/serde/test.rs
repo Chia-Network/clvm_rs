@@ -2,7 +2,7 @@ use hex::FromHex;
 
 use crate::allocator::Allocator;
 use crate::serde::{
-    node_from_bytes, node_from_bytes_backrefs, node_to_bytes, node_to_bytes_backrefs, Serializer,
+    Serializer, node_from_bytes, node_from_bytes_backrefs, node_to_bytes, node_to_bytes_backrefs,
 };
 
 fn check_round_trip(obj_ser_br_hex: &str, serializer_output: Option<&str>) {

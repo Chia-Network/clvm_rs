@@ -30,11 +30,7 @@ pub fn match_args<const N: usize>(a: &Allocator, args: NodePtr) -> Option<[NodeP
         counter += 1;
     }
 
-    if counter != N {
-        None
-    } else {
-        Some(ret)
-    }
+    if counter != N { None } else { Some(ret) }
 }
 
 pub fn atom_len(a: &Allocator, args: NodePtr, op_name: &str) -> Result<usize> {

@@ -1,4 +1,4 @@
-use chia_bls::{aggregate_pairing, G1Element, G2Element};
+use chia_bls::{G1Element, G2Element, aggregate_pairing};
 use num_bigint::BigInt;
 use serde::Deserialize;
 

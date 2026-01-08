@@ -1,7 +1,7 @@
 use chia_sha2::Sha256;
 use clvmr::allocator::{Allocator, NodePtr, SExp};
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 
 pub fn hash_atom(buf: &[u8]) -> [u8; 32] {
     let mut ctx = Sha256::new();

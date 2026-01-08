@@ -112,7 +112,7 @@ pub fn tree_hash_from_stream(f: &mut Cursor<&[u8]>) -> Result<[u8; 32]> {
 pub fn serialized_length_from_bytes(b: &[u8]) -> Result<u64> {
     use crate::serde::parse_atom::parse_path;
     use crate::traverse_path::traverse_path;
-    use crate::{allocator::SExp, Allocator};
+    use crate::{Allocator, allocator::SExp};
 
     let mut f = Cursor::new(b);
     let mut b = [0; 1];
@@ -229,9 +229,9 @@ pub fn is_canonical_serialization(b: &[u8]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Allocator;
     use crate::error::EvalErr;
     use crate::serde::node_from_bytes_backrefs;
-    use crate::Allocator;
     use hex::FromHex;
     use rstest::rstest;
 
@@ -439,7 +439,9 @@ mod tests {
         "ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff04\
 05ff0607ff0809ff0aff9b615f766572795f6c6f6e675f72657065617465645f737472696e6780"
     )]
-    #[case("ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff0405ff0607ff0809ff0afffe4180")]
+    #[case(
+        "ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff0405ff0607ff0809ff0afffe4180"
+    )]
     #[case(
         "ff01ffffffa022cf3c17be4e0e0e0b2e2a3f6dd1ee955528f737f0cb724247bc2e4a776cb989ff\
 ff02ffff01ff02ffff01ff02ffff03ffff18ff2fffff010180ffff01ff02ff36ffff04ff02ffff\

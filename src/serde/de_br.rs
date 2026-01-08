@@ -245,12 +245,15 @@ mod tests {
          05ff0607ff0809ff0aff9b615f766572795f6c6f6e675f72657065617465645f737472696e6780",
         "e23c73777f814e8a4e2785487b272b8b22ddaded1f7cfb808b43f1148602882f"
     )]
-    #[case("ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff0405ff0607ff0809ff0afffe4180", "e23c73777f814e8a4e2785487b272b8b22ddaded1f7cfb808b43f1148602882f")]
+    #[case(
+        "ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff0405ff0607ff0809ff0afffe4180",
+        "e23c73777f814e8a4e2785487b272b8b22ddaded1f7cfb808b43f1148602882f"
+    )]
     fn test_deserialize_with_backrefs(
         #[case] serialization_as_hex: &str,
         #[case] expected_hash_as_hex: &str,
     ) {
-        use crate::serde::object_cache::{treehash, ObjectCache};
+        use crate::serde::object_cache::{ObjectCache, treehash};
         let buf = Vec::from_hex(serialization_as_hex).unwrap();
         let mut allocator = Allocator::new();
         let node = node_from_bytes_backrefs(&mut allocator, &buf).unwrap();

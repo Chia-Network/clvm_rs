@@ -1,10 +1,10 @@
 use clvmr::serde::write_atom::write_atom;
 use hex_literal::hex;
-use rand::rngs::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 use sha1::{Digest, Sha1};
-use std::fs::{create_dir_all, File};
+use std::fs::{File, create_dir_all};
 use std::io::Write;
 
 #[repr(u8)]
@@ -327,15 +327,27 @@ const INTERESTING_U64: [u64; 8] = [
 ];
 
 const G1POINTS: [[u8; 48]; 3] = [
-    hex!("c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
-    hex!("8b202593319bce41b090f3309986de59861ab1e2ff32aef871d83f9aac232c7253c01f1f649c6f69879c441286319de4"),
-    hex!("b7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"),
+    hex!(
+        "c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    ),
+    hex!(
+        "8b202593319bce41b090f3309986de59861ab1e2ff32aef871d83f9aac232c7253c01f1f649c6f69879c441286319de4"
+    ),
+    hex!(
+        "b7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
+    ),
 ];
 
 const G2POINTS: [[u8; 96]; 3] = [
-    hex!("c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
-    hex!("80c37921e62092ef55f85f9eccb21bd80cfaafc0bce9cbdd6999b1a8cabadc8f23720f0261efafaf53cbcc74580b9432007b66d824668900a94934f184bc41bf9ccf9ec141c6f7da610aa7296cd0a181ae8fe176b607aa4c367f15ee0cb985d7"),
-    hex!("942adad4dbeadcfd75aaa11940a5e5e16a8d8e91742029a3944610635ccc0572eceeb1c89d8a0e904c5d30b9497e700312dee7b833535effef24953dbf8f8aa770e2f1a8e01d3b6f6844e01a635ed95664babe9d62a2572651d0258461c8ba00"),
+    hex!(
+        "c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    ),
+    hex!(
+        "80c37921e62092ef55f85f9eccb21bd80cfaafc0bce9cbdd6999b1a8cabadc8f23720f0261efafaf53cbcc74580b9432007b66d824668900a94934f184bc41bf9ccf9ec141c6f7da610aa7296cd0a181ae8fe176b607aa4c367f15ee0cb985d7"
+    ),
+    hex!(
+        "942adad4dbeadcfd75aaa11940a5e5e16a8d8e91742029a3944610635ccc0572eceeb1c89d8a0e904c5d30b9497e700312dee7b833535effef24953dbf8f8aa770e2f1a8e01d3b6f6844e01a635ed95664babe9d62a2572651d0258461c8ba00"
+    ),
 ];
 
 const BYTES20: [[u8; 20]; 1] = [hex!("39cb1950dba19a7bee9924b5bd2b29f190ffe4ef")];
@@ -347,12 +359,18 @@ const BYTES32: [[u8; 32]; 2] = [
 
 const SEC1: [&[u8]; 2] = [
     &hex!("02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439"),
-    &hex!("0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9"),
+    &hex!(
+        "0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9"
+    ),
 ];
 
-const SIG: [[u8;64]; 2] = [
-    hex!("1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c018"),
-    hex!("e8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffc"),
+const SIG: [[u8; 64]; 2] = [
+    hex!(
+        "1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c018"
+    ),
+    hex!(
+        "e8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffc"
+    ),
 ];
 
 fn type_convertible(from: Type, to: Type) -> bool {
@@ -414,7 +432,7 @@ fn generate_program<R: Rng>(op: &OperatorInfo, rng: &mut R, buffer: &mut Vec<u8>
 fn generate_args<R: Rng>(op: &OperatorInfo, rng: &mut R, buffer: &mut Vec<u8>) {
     for arg in op.operands {
         buffer.push(0xff); // cons
-                           // quoted value
+        // quoted value
         buffer.push(0xff); // cons
         buffer.push(1); // quote
         generate(*arg, rng, buffer);
@@ -426,7 +444,7 @@ fn generate<R: Rng>(t: Type, rng: &mut R, buffer: &mut Vec<u8>) {
     match t {
         Type::Tree => {
             buffer.push(0xff); // cons
-                               // 10% to keep growing the tree
+            // 10% to keep growing the tree
             let left_side = if rng.gen_bool(0.1) {
                 Type::Tree
             } else {
