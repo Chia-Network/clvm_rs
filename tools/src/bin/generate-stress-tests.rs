@@ -134,12 +134,19 @@ pub fn main() {
     }
 
     if options.run {
-        let max_cost = 11_000_000_000 - bytes.len() as u64 * 12_000;
-
         #[cfg(debug_assertions)]
         {
             println!("WARNING: Running debug build");
         }
+
+        if bytes.len() as u64 * 12_000 > 11_000_000_000 {
+            println!(
+                "byte cost exceeds generator limit: {}",
+                bytes.len() * 12_000
+            );
+        }
+
+        let max_cost = std::cmp::max(1, 11_000_000_000 - bytes.len() as u64 * 12_000);
 
         let dialect = ChiaDialect::new(0);
         let start = Instant::now();
