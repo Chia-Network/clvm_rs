@@ -258,11 +258,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
     fn eval_pair(&mut self, program: NodePtr, env: NodePtr) -> Result<Cost> {
         #[cfg(feature = "pre-eval")]
-        if let Some(pre_eval) = &self.pre_eval {
-            if let Some(post_eval) = pre_eval(self.allocator, program, env)? {
-                self.posteval_stack.push(post_eval);
-                self.op_stack.push(Operation::PostEval);
-            }
+        if let Some(pre_eval) = &self.pre_eval
+            && let Some(post_eval) = pre_eval(self.allocator, program, env)?
+        {
+            self.posteval_stack.push(post_eval);
+            self.op_stack.push(Operation::PostEval);
         };
 
         // put a bunch of ops on op_stack
@@ -587,7 +587,9 @@ mod tests {
             prg: "(a (q 2 2 (c 2 (c 5 (c 11 ())))) (c (q 2 (i (= 11 ()) (q 1 . 1) (q 18 5 (a 2 (c 2 (c 5 (c (- 11 (q . 1)) ())))))) 1) 1))",
             args: "(5033 1000)",
             flags: 0,
-            result: Some("0x024d4f505f1f813ca5e0ae8805bad8707347e65c5f7595da4852be5074288431d1df11a0c326d249f1f52ee051579403d1d0c23a7a1e9af18b7d7dc4c63c73542863c434ae9dfa80141a30cf4acee0d6c896aa2e64ea748404427a3bdaa1b97e4e09b8f5e4f8e9c568a4fc219532dbbad5ec54476d19b7408f8e7e7df16b830c20a1e83d90cc0620b0677b7606307f725539ef223561cdb276baf8e92156ee6492d97159c8f64768349ea7e219fd07fa818a59d81d0563b140396402f0ff758840da19808440e0a57c94c48ef84b4ab7ca8c5f010b69b8f443b12b50bd91bdcf2a96208ddac283fa294d6a99f369d57ab41d03eab5bb4809223c141ad94378516e6766a5054e22e997e260978af68a86893890d612f081b40d54fd1e940af35c0d7900c9a917e2458a61ef8a83f7211f519b2c5f015dfa7c2949ef8bedd02d3bad64ca9b2963dc2bb79f24092331133a7a299872079b9d0422b8fc0eeba4e12c7667ac7282cc6ff98a7c670614c9fce5a061b8d5cd4dd3c6d62d245688b62f9713dc2604bdd5bbc85c070c51f784a9ebac0e0eaa2e29e82d93e570887aa7e1a9d25baf0b2c55a4615f35ec0dbe9baa921569700f95e10cd2d4f6ba152a2ac288c37b60980df33dadfa920fd43dbbf55a0b333b88a3237d954e33d80ed6582019faf51db5f1b52e392559323f8bdd945e7fc6cb8f97f2b8417cfc184d7bfbfa5314d4114f95b725847523f1848d13c28ad96662298ee4e2d87af23e7cb4e58d7a20a5c57ae6833b4a37dcafccca0245a0d6ef28f83200d74db390281e03dd3a8b782970895764c3fcef31c5ed6d0b6e4e796a62ad5654691eea0d9db351cc4fee63248405b24c98bd5e68e4a5e0ab11e90e3c7de270c594d3a35639d931853b7010c8c896f6b28b2af719e53da65da89d44b926b6f06123c9217a43be35d751516bd02c18c4f868a2eae78ae3c6deab1115086c8ce58414db4561865d17ab95c7b3d4e1bfc6d0a4d3fbf5f20a0a7d77a9270e4da354c588da55b0063aec76654019ffb310e1503d99a7bc81ccdf5f8b15c8638156038624cf35988d8420bfdb59184c4b86bf5448df65c44aedc2e98eead7f1ba4be8f402baf12d41076b8f0991cfc778e04ba2c05d1440c70488ffaeefde537064035037f729b683e8ff1b3d0b4aa26a2b30bcaa9379f7fcc7072ff9a2c3e801c5979b0ab3e7acf89373de642d596f26514b9fa213ca217181a8429ad69d14445a822b16818c2509480576dc0ff7bac48c557e6d1883039f4daf873fa4f9a4d849130e2e4336049cfaf9e69a7664f0202b901cf07c7065c4dc93c46f98c5ea5c9c9d911b733093490da3bf1c95f43cd18b7be3798535a55ac6da3442946a268b74bde1349ca9807c41d90c7ec218a17efd2c21d5fcd720501f8a488f1dfba0a423dfdb2a877707b77930e80d734ceabcdb24513fad8f2e2470604d041df083bf184edd0e9720dd2b608b1ee1df951d7ce8ec671317b4f5a3946aa75280658b4ef77b3f504ce73e7ecac84eec3c2b45fb62f6fbd5ab78c744abd3bf5d0ab37d7b19124d2470d53db09ddc1f9dd9654b0e6a3a44c95d0a5a5e061bd24813508d3d1c901544dc3e6b84ca38dd2fde5ea60a57cbc12428848c4e3f6fd4941ebd23d709a717a090dd01830436659f7c20fd2d70c916427e9f3f12ac479128c2783f02a9824aa4e31de133c2704e049a50160f656e28aa0a2615b32bd48bb5d5d13d363a487324c1e9b8703be938bc545654465c9282ad5420978263b3e3ba1bb45e1a382554ac68e5a154b896c9c4c2c3853fbbfc877c4fb7dc164cc420f835c413839481b1d2913a68d206e711fb19b284a7bb2bd2033531647cf135833a0f3026b0c1dc0c184120d30ef4865985fdacdfb848ab963d2ae26a784b7b6a64fdb8feacf94febed72dcd0a41dc12be26ed79af88f1d9cba36ed1f95f2da8e6194800469091d2dfc7b04cfe93ab7a7a888b2695bca45a76a1458d08c3b6176ab89e7edc56c7e01142adfff944641b89cd5703a911145ac4ec42164d90b6fcd78b39602398edcd1f935485894fb8a1f416e031624806f02fbd07f398dbfdd48b86dfacf2045f85ecfe5bb1f01fae758dcdb4ae3b1e2aac6f0878f700d1f430b8ca47c9d8254059bd5c006042c4605f33ca98b41"),
+            result: Some(
+                "0x024d4f505f1f813ca5e0ae8805bad8707347e65c5f7595da4852be5074288431d1df11a0c326d249f1f52ee051579403d1d0c23a7a1e9af18b7d7dc4c63c73542863c434ae9dfa80141a30cf4acee0d6c896aa2e64ea748404427a3bdaa1b97e4e09b8f5e4f8e9c568a4fc219532dbbad5ec54476d19b7408f8e7e7df16b830c20a1e83d90cc0620b0677b7606307f725539ef223561cdb276baf8e92156ee6492d97159c8f64768349ea7e219fd07fa818a59d81d0563b140396402f0ff758840da19808440e0a57c94c48ef84b4ab7ca8c5f010b69b8f443b12b50bd91bdcf2a96208ddac283fa294d6a99f369d57ab41d03eab5bb4809223c141ad94378516e6766a5054e22e997e260978af68a86893890d612f081b40d54fd1e940af35c0d7900c9a917e2458a61ef8a83f7211f519b2c5f015dfa7c2949ef8bedd02d3bad64ca9b2963dc2bb79f24092331133a7a299872079b9d0422b8fc0eeba4e12c7667ac7282cc6ff98a7c670614c9fce5a061b8d5cd4dd3c6d62d245688b62f9713dc2604bdd5bbc85c070c51f784a9ebac0e0eaa2e29e82d93e570887aa7e1a9d25baf0b2c55a4615f35ec0dbe9baa921569700f95e10cd2d4f6ba152a2ac288c37b60980df33dadfa920fd43dbbf55a0b333b88a3237d954e33d80ed6582019faf51db5f1b52e392559323f8bdd945e7fc6cb8f97f2b8417cfc184d7bfbfa5314d4114f95b725847523f1848d13c28ad96662298ee4e2d87af23e7cb4e58d7a20a5c57ae6833b4a37dcafccca0245a0d6ef28f83200d74db390281e03dd3a8b782970895764c3fcef31c5ed6d0b6e4e796a62ad5654691eea0d9db351cc4fee63248405b24c98bd5e68e4a5e0ab11e90e3c7de270c594d3a35639d931853b7010c8c896f6b28b2af719e53da65da89d44b926b6f06123c9217a43be35d751516bd02c18c4f868a2eae78ae3c6deab1115086c8ce58414db4561865d17ab95c7b3d4e1bfc6d0a4d3fbf5f20a0a7d77a9270e4da354c588da55b0063aec76654019ffb310e1503d99a7bc81ccdf5f8b15c8638156038624cf35988d8420bfdb59184c4b86bf5448df65c44aedc2e98eead7f1ba4be8f402baf12d41076b8f0991cfc778e04ba2c05d1440c70488ffaeefde537064035037f729b683e8ff1b3d0b4aa26a2b30bcaa9379f7fcc7072ff9a2c3e801c5979b0ab3e7acf89373de642d596f26514b9fa213ca217181a8429ad69d14445a822b16818c2509480576dc0ff7bac48c557e6d1883039f4daf873fa4f9a4d849130e2e4336049cfaf9e69a7664f0202b901cf07c7065c4dc93c46f98c5ea5c9c9d911b733093490da3bf1c95f43cd18b7be3798535a55ac6da3442946a268b74bde1349ca9807c41d90c7ec218a17efd2c21d5fcd720501f8a488f1dfba0a423dfdb2a877707b77930e80d734ceabcdb24513fad8f2e2470604d041df083bf184edd0e9720dd2b608b1ee1df951d7ce8ec671317b4f5a3946aa75280658b4ef77b3f504ce73e7ecac84eec3c2b45fb62f6fbd5ab78c744abd3bf5d0ab37d7b19124d2470d53db09ddc1f9dd9654b0e6a3a44c95d0a5a5e061bd24813508d3d1c901544dc3e6b84ca38dd2fde5ea60a57cbc12428848c4e3f6fd4941ebd23d709a717a090dd01830436659f7c20fd2d70c916427e9f3f12ac479128c2783f02a9824aa4e31de133c2704e049a50160f656e28aa0a2615b32bd48bb5d5d13d363a487324c1e9b8703be938bc545654465c9282ad5420978263b3e3ba1bb45e1a382554ac68e5a154b896c9c4c2c3853fbbfc877c4fb7dc164cc420f835c413839481b1d2913a68d206e711fb19b284a7bb2bd2033531647cf135833a0f3026b0c1dc0c184120d30ef4865985fdacdfb848ab963d2ae26a784b7b6a64fdb8feacf94febed72dcd0a41dc12be26ed79af88f1d9cba36ed1f95f2da8e6194800469091d2dfc7b04cfe93ab7a7a888b2695bca45a76a1458d08c3b6176ab89e7edc56c7e01142adfff944641b89cd5703a911145ac4ec42164d90b6fcd78b39602398edcd1f935485894fb8a1f416e031624806f02fbd07f398dbfdd48b86dfacf2045f85ecfe5bb1f01fae758dcdb4ae3b1e2aac6f0878f700d1f430b8ca47c9d8254059bd5c006042c4605f33ca98b41",
+            ),
             cost: 15073165,
             err: "",
         },
@@ -612,7 +614,9 @@ mod tests {
             prg: "(point_add (pubkey_for_exp (q . 1)) (pubkey_for_exp (q . 2)))",
             args: "()",
             flags: 0,
-            result: Some("0x89ece308f9d1f0131765212deca99697b112d61f9be9a5f1f3780a51335b3ff981747a0b2ca2179b96d2c0c9024e5224"),
+            result: Some(
+                "0x89ece308f9d1f0131765212deca99697b112d61f9be9a5f1f3780a51335b3ff981747a0b2ca2179b96d2c0c9024e5224",
+            ),
             cost: 5442073,
             err: "",
         },
@@ -668,11 +672,12 @@ mod tests {
             prg: "(* (q . 10000000000000000000000000000000000) (q . 10000000000000000000000000000000) (q . 100000000000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000))",
             args: "()",
             flags: 0,
-            result: Some("0x04261a5c969abab851babdb4f178e63bf2ed3879fc13a4c75622d73c909440a4763849b52e49cd2522500f555f6a3131775f93ddcf24eda7a1dbdf828a033626da873caaaa880a9121f4c44a157973f60443dc53bc99ac12d5bd5fa20a88320ae2ccb8e1b5e792cbf0d001bb0fbd7765d3936e412e2fc8f1267833237237fcb638dda0a7aa674680000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+            result: Some(
+                "0x04261a5c969abab851babdb4f178e63bf2ed3879fc13a4c75622d73c909440a4763849b52e49cd2522500f555f6a3131775f93ddcf24eda7a1dbdf828a033626da873caaaa880a9121f4c44a157973f60443dc53bc99ac12d5bd5fa20a88320ae2ccb8e1b5e792cbf0d001bb0fbd7765d3936e412e2fc8f1267833237237fcb638dda0a7aa674680000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            ),
             cost: 24255,
             err: "",
         },
-
         // ## APPLY
         RunProgramTest {
             prg: "(a (q 0x0fffffffff) (q ()))",
@@ -754,7 +759,6 @@ mod tests {
             cost: 179,
             err: "",
         },
-
         // ## PATH LOOKUPS
 
         // 0
@@ -933,7 +937,6 @@ mod tests {
             cost: 0,
             err: "path into atom",
         },
-
         // ## SOFTFORK
 
         // the arguments to softfork are checked in mempool mode, but in consensus
@@ -1013,7 +1016,6 @@ mod tests {
             cost: 1000,
             err: "unknown softfork extension",
         },
-
         // this is a valid invocation, but we don't implement any extensions (yet)
         RunProgramTest {
             prg: "(softfork (q . 919) (q . 0x00ffffffff) (q x) (q . ()))",
@@ -1031,7 +1033,6 @@ mod tests {
             cost: 1000,
             err: "unknown softfork extension",
         },
-
         // we don't allow negative "extension" parameters
         RunProgramTest {
             prg: "(softfork (q . 919) (q . -1) (q x) (q . ()))",
@@ -1049,7 +1050,6 @@ mod tests {
             cost: 1000,
             err: "InvalidOperatorArg: softfork requires positive int arg",
         },
-
         // we don't allow "extension" parameters > u32::MAX
         RunProgramTest {
             prg: "(softfork (q . 919) (q . 0x0100000000) (q x) (q . ()))",
@@ -1067,7 +1067,6 @@ mod tests {
             cost: 1000,
             err: "InvalidOperatorArg: softfork requires u32 arg (with no leading zeros)",
         },
-
         // we don't allow pairs as extension specifier
         RunProgramTest {
             prg: "(softfork (q . 919) (q 1 2 3) (q x) (q . ()))",
@@ -1085,7 +1084,6 @@ mod tests {
             cost: 1000,
             err: "InvalidOperatorArg: Requires Int Argument: softfork",
         },
-
         // the cost value is checked in consensus mode as well
         RunProgramTest {
             prg: "(softfork (q . 1000))",
@@ -1129,7 +1127,6 @@ mod tests {
             cost: 1000,
             err: "InvalidOperatorArg: Requires Int Argument: softfork",
         },
-
         // test mismatching cost
         RunProgramTest {
             prg: "(softfork (q . 160) (q . 0) (q . (q . 42)) (q . ()))",
@@ -1158,7 +1155,6 @@ mod tests {
             cost: 10000,
             err: "softfork specified cost mismatch",
         },
-
         // without the flag to enable the keccak extensions, it's an unknown extension
         RunProgramTest {
             prg: "(softfork (q . 161) (q . 2) (q . (q . 42)) (q . ()))",
@@ -1168,7 +1164,6 @@ mod tests {
             cost: 10000,
             err: "unknown softfork extension",
         },
-
         // coinid is also available under softfork extension 1
         RunProgramTest {
             prg: "(softfork (q . 1432) (q . 1) (q a (i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x)) (q . ())) (q . ()))",
@@ -1178,7 +1173,6 @@ mod tests {
             cost: 1513,
             err: "",
         },
-
         // keccak256 is available when the softfork has activated
         RunProgramTest {
             prg: "(softfork (q . 1134) (q . 1) (q a (i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ())) (q . ()))",
@@ -1197,7 +1191,6 @@ mod tests {
             cost: 1215,
             err: "clvm raise",
         },
-
         // === HARD FORK ===
         // new operators *outside* the softfork guard
 
@@ -1210,7 +1203,6 @@ mod tests {
             cost: 994,
             err: "",
         },
-
         // coinid extension
         // make sure we can execute the coinid operator under softfork 0
         // this program raises an exception if the computed coin ID matches the
@@ -1233,7 +1225,6 @@ mod tests {
             cost: 1513,
             err: "",
         },
-
         // coinid operator after hardfork, where coinid is available outside the
         // softfork guard.
         RunProgramTest {
@@ -1252,9 +1243,7 @@ mod tests {
             cost: 861,
             err: "InvalidOperatorArg: CoinID Error: Invalid Amount: Amount has leading zeroes",
         },
-
         // secp261k1
-
         RunProgramTest {
             prg: "(secp256k1_verify (q . 0x02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439) (q . 0x74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668) (q . 0x1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c018))",
             args: "()",
@@ -1272,9 +1261,7 @@ mod tests {
             cost: 0,
             err: "Secp256 Verify Error: failed",
         },
-
         // secp261r1
-
         RunProgramTest {
             prg: "(secp256r1_verify (q . 0x0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9) (q . 0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08) (q . 0xe8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffc))",
             args: "()",
@@ -1549,7 +1536,10 @@ mod tests {
 
         let mut a = Allocator::new();
 
-        let program = check(parse_exp(&mut a, "(a (q 2 2 (c 2 (c 5 (c 11 ())))) (c (q 2 (i (= 11 ()) (q 1 . 1) (q 18 5 (a 2 (c 2 (c 5 (c (- 11 (q . 1)) ())))))) 1) 1))"));
+        let program = check(parse_exp(
+            &mut a,
+            "(a (q 2 2 (c 2 (c 5 (c 11 ())))) (c (q 2 (i (= 11 ()) (q 1 . 1) (q 18 5 (a 2 (c 2 (c 5 (c (- 11 (q . 1)) ())))))) 1) 1))",
+        ));
         let args = check(parse_exp(&mut a, "(5033 1000)"));
         let cost = 15073165;
 

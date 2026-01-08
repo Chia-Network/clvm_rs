@@ -1,5 +1,5 @@
 use crate::error::{EvalErr, Result};
-use crate::number::{number_from_u8, Number};
+use crate::number::{Number, number_from_u8};
 use chia_bls::{G1Element, G2Element};
 use std::borrow::Borrow;
 use std::fmt;
@@ -453,10 +453,10 @@ impl Allocator {
 
     pub fn new_number(&mut self, v: Number) -> Result<NodePtr> {
         use num_traits::ToPrimitive;
-        if let Some(val) = v.to_u32() {
-            if val <= NODE_PTR_IDX_MASK {
-                return self.new_small_number(val);
-            }
+        if let Some(val) = v.to_u32()
+            && val <= NODE_PTR_IDX_MASK
+        {
+            return self.new_small_number(val);
         }
         let bytes: Vec<u8> = v.to_signed_bytes_be();
         let mut slice = bytes.as_slice();

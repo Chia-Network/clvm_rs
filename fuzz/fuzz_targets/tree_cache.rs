@@ -44,17 +44,16 @@ fuzz_target!(|data: &[u8]| {
 
         // make sure we find a valid path to the node we're testing
         // This is the main test of the fuzzer
-        if let Some((node, serialized_len)) = node_to_test {
-            if let Some(path) = tree_cache.find_path(node) {
-                let Ok(Reduction(_, found_node)) = traverse_path(&allocator, &path, parse_stack)
-                else {
-                    panic!("invalid path");
-                };
-                // make sure the path we returned actually points to an atom
-                // that's equivalent
-                assert!(node_eq(&allocator, found_node, node));
-                assert!(serialized_len > path.len());
-            }
+        if let Some((node, serialized_len)) = node_to_test
+            && let Some(path) = tree_cache.find_path(node)
+        {
+            let Ok(Reduction(_, found_node)) = traverse_path(&allocator, &path, parse_stack) else {
+                panic!("invalid path");
+            };
+            // make sure the path we returned actually points to an atom
+            // that's equivalent
+            assert!(node_eq(&allocator, found_node, node));
+            assert!(serialized_len > path.len());
         }
 
         match tree_cache.find_path(node_to_write) {
