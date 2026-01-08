@@ -38,6 +38,11 @@ struct Args {
     #[arg(long)]
     output: Option<String>,
 
+    /// When set, set the cost limit to 11 billion, without subtracting the
+    /// byte cost
+    #[arg(long)]
+    ignore_byte_cost: bool,
+
     /// Run the resulting program
     #[arg(long)]
     run: bool,
@@ -139,14 +144,17 @@ pub fn main() {
             println!("WARNING: Running debug build");
         }
 
-        if bytes.len() as u64 * 12_000 > 11_000_000_000 {
+        let mut max_cost = 11_000_000_000_u64;
+        if bytes.len() as u64 * 12_000 > max_cost {
             println!(
                 "byte cost exceeds generator limit: {}",
                 bytes.len() * 12_000
             );
         }
 
-        let max_cost = std::cmp::max(1, 11_000_000_000 - bytes.len() as u64 * 12_000);
+        if !options.ignore_byte_cost {
+            max_cost = max_cost.saturating_sub(bytes.len() as u64 * 12_000);
+        }
 
         let dialect = ChiaDialect::new(0);
         let start = Instant::now();
@@ -155,7 +163,7 @@ pub fn main() {
                 .expect("program failed");
         let duration = start.elapsed();
         println!(
-            "program took {:0.3} s to run, cost: {cost} ({:.2}%)",
+            "program took {:0.3} s to run, cost: {cost} ({:.2}%) (max: {max_cost})",
             duration.as_millis() as f64 / 1000.0,
             cost as f64 / max_cost as f64 * 100.0
         );
