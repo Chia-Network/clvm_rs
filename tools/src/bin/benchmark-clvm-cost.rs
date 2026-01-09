@@ -1,14 +1,14 @@
 use clap::Parser;
 use clvmr::allocator::{Allocator, NodePtr};
-use clvmr::chia_dialect::ChiaDialect;
 use clvmr::run_program::run_program;
+use clvmr::{ChiaDialect, ENABLE_SHA256_TREE};
 use linreg::linear_regression_of;
-use rand::{RngCore, SeedableRng, rngs::StdRng};
+use rand::{Rng, RngCore, SeedableRng, rngs::StdRng};
 use std::fs::{File, create_dir_all};
 use std::io::{Write, sink};
 use std::time::Instant;
 
-const DIALECT_FLAGS: u32 = 0;
+const DIALECT_FLAGS: u32 = ENABLE_SHA256_TREE;
 
 // When specifying the signature of operators, some arguments may be fixed
 // constants. The None argument slots will be replaced by the benchmark for the
@@ -148,9 +148,14 @@ fn substitute(args: Placeholder, s: &mut impl FnMut() -> NodePtr) -> OpArgs {
 }
 
 // returns time measurements in nanoseconds (but maybe adjusted for exponential growth)
-// raw time measurement in nanoseconds
-// CLVM cost of operator
-fn time_invocation(a: &mut Allocator, call: NodePtr, op: &Operator) -> (f64, f64, u64) {
+// raw time measurement in nanoseconds CLVM cost of operator. time_adjust is
+// subtracted from the timing
+fn time_invocation(
+    a: &mut Allocator,
+    call: NodePtr,
+    op: &Operator,
+    time_adjust: f64,
+) -> (f64, f64, u64) {
     //println!("{:x?}", &Node::new(a, call));
     let dialect = ChiaDialect::new(DIALECT_FLAGS);
     let start = Instant::now();
@@ -164,7 +169,7 @@ fn time_invocation(a: &mut Allocator, call: NodePtr, op: &Operator) -> (f64, f64
         );
         0
     };
-    let duration = start.elapsed().as_nanos() as f64;
+    let duration = start.elapsed().as_nanos() as f64 - time_adjust;
     if op.root != 1 {
         (duration.powf(1.0 / (op.root as f64)), duration, cost)
     } else {
@@ -220,7 +225,7 @@ fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f6
                 quote(a, atom)
             });
             let call = build_call(a, op.opcode, arg, 1, None);
-            let (time, raw_time, cost) = time_invocation(a, call, op);
+            let (time, raw_time, cost) = time_invocation(a, call, op, 0.0);
             avg_factor.add(cost as f64 / raw_time);
             let sample = (i as f64 * op.arg_scale as f64, time);
             writeln!(output, "{}\t{time}\t{raw_time}\t{cost}", sample.0).expect("failed to write");
@@ -237,6 +242,102 @@ fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f6
     // curve. But we only use the slope, as a way to reduce noise.
     for _ in 0..3000 {
         samples.push((0.0, 0.0));
+    }
+
+    let (slope, _): (f64, f64) = linear_regression_of(&samples).expect("linreg failed");
+    slope
+}
+
+fn random_tree(a: &mut Allocator, rng: &mut StdRng, num_leafs: u32, leaf: NodePtr) -> NodePtr {
+    assert!(num_leafs > 0);
+    if num_leafs == 1 {
+        return leaf;
+    }
+
+    let pivot = rng.gen_range(1..num_leafs);
+    let left = random_tree(a, rng, pivot, leaf);
+    let right = random_tree(a, rng, num_leafs - pivot, leaf);
+    a.new_pair(left, right).expect("new_pair")
+}
+
+enum TreeShape {
+    Complete,
+    RightList,
+    LeftList,
+    Random,
+}
+
+// returns the time per *leaf* node. There's always num_leafs - 1 pairs, so the
+// cost is the cost of one pair and one atom. All atoms have the specified size
+// (atom_size), and their size * time_per_byte is subtracted from the timings.
+// Those bytes are expected to apply to the cost independently.
+// The cost is dominated by traversal and hashing. The shape of the tree
+// will shift cost between traversal and hashing. A list has the least
+// traversal pressure, wherase a left list has the most.
+fn tree_call_time(
+    a: &mut Allocator,
+    op: &Operator,
+    shape: TreeShape,
+    atom_size: usize,
+    time_per_byte: f64,
+    output: &mut dyn Write,
+) -> f64 {
+    let mut samples = Vec::<(f64, f64)>::new();
+    let mut rng = StdRng::seed_from_u64(0x1337);
+    let leaf_atom = if atom_size == 0 {
+        a.nil()
+    } else {
+        let mut buffer = vec![0; atom_size];
+        rng.fill_bytes(buffer.as_mut_slice());
+        a.new_atom(buffer.as_slice()).expect("new_atom")
+    };
+
+    let mut avg_factor = Average::new();
+    let checkpoint = a.checkpoint();
+    for _ in 0..3 {
+        let mut tree = leaf_atom;
+        let mut num_leafs = 1;
+
+        let range = if matches!(shape, TreeShape::Complete) {
+            0..15
+        } else {
+            0..200
+        };
+
+        for _ in range {
+            let arg = substitute(op.arg, &mut || quote(a, tree));
+
+            let call = build_call(a, op.opcode, arg, 1, op.extra);
+            let leaf_time = num_leafs as f64 * atom_size as f64 * time_per_byte;
+            let (time, raw_time, cost) = time_invocation(a, call, op, leaf_time);
+            avg_factor.add(cost as f64 / raw_time);
+            writeln!(output, "{num_leafs}\t{time}\t{raw_time}\t{cost}").expect("failed to write");
+            samples.push((num_leafs as f64, time));
+
+            match shape {
+                TreeShape::Complete => {
+                    tree = a.new_pair(tree, tree).unwrap();
+                    num_leafs *= 2;
+                }
+                TreeShape::RightList => {
+                    tree = a.new_pair(leaf_atom, tree).unwrap();
+                    num_leafs += 1;
+                }
+                TreeShape::LeftList => {
+                    tree = a.new_pair(tree, leaf_atom).unwrap();
+                    num_leafs += 1;
+                }
+                TreeShape::Random => {
+                    num_leafs += 1;
+                    tree = random_tree(a, &mut rng, num_leafs, leaf_atom);
+                }
+            }
+        }
+        a.restore_checkpoint(&checkpoint);
+    }
+
+    if (op.flags & PLOT_COST) != 0 {
+        println!("   (base-call) cost/ns: {}", avg_factor.compute());
     }
 
     let (slope, _): (f64, f64) = linear_regression_of(&samples).expect("linreg failed");
@@ -264,7 +365,7 @@ fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64
     for _k in 0..reps {
         for i in (0..1000).step_by(5) {
             let call = build_call(a, op.opcode, arg, i, op.extra);
-            let (time, raw_time, cost) = time_invocation(a, call, op);
+            let (time, raw_time, cost) = time_invocation(a, call, op, 0.0);
             avg_factor.add(cost as f64 / raw_time);
             let sample = (i as f64, time);
             writeln!(output, "{}\t{time}\t{raw_time}\t{cost}", sample.0).expect("failed to write");
@@ -308,12 +409,10 @@ fn base_call_time(
         for i in 1..100 {
             a.restore_checkpoint(&checkpoint);
             let call = build_nested_call(a, op.opcode, arg, i, op.extra);
-            let (time, raw_time, cost) = time_invocation(a, call, op);
+            let (time, raw_time, cost) = time_invocation(a, call, op, per_arg_time * i as f64);
             avg_factor.add(cost as f64 / raw_time);
-            let duration = time - (per_arg_time * i as f64);
-            let sample = (i as f64, duration);
-            writeln!(output, "{i}\t{duration}\t{raw_time}\t{cost}").expect("failed to write");
-            samples.push(sample);
+            writeln!(output, "{i}\t{time}\t{raw_time}\t{cost}").expect("failed to write");
+            samples.push((i as f64, time));
         }
     }
 
@@ -341,9 +440,9 @@ fn base_call_time_no_nest(a: &mut Allocator, op: &Operator, per_arg_time: f64) -
     for _i in 0..300 {
         a.restore_checkpoint(&checkpoint);
         let call = build_call(a, op.opcode, arg, 1, None);
-        let (_time, raw_time, cost) = time_invocation(a, call, op);
+        let (_time, raw_time, cost) = time_invocation(a, call, op, per_arg_time);
         avg_factor.add(cost as f64 / raw_time);
-        average_time.add(raw_time - per_arg_time);
+        average_time.add(raw_time);
     }
 
     if (op.flags & PLOT_COST) != 0 {
@@ -389,6 +488,9 @@ const PLOT_COST: u32 = 128;
 
 // make sure arguments are positive
 const POSITIVE_ARGS: u32 = 256;
+
+// The argument is an arbitrary tree structure, of pairs and atoms
+const TREE_ARG: u32 = 64;
 
 struct Operator {
     opcode: u32,
@@ -479,7 +581,7 @@ fn print_plot(gnuplot: &mut dyn Write, a: &f64, b: &f64, op: &str, name: &str) {
     writeln!(gnuplot, "f(x) = {a}*x+{b}").expect("failed to write");
     writeln!(
         gnuplot,
-        "plot \"{op}-{name}.log\" using 1:2 with dots title \"{name} (measured)\", f(x) title \"{name} (fitted)\""
+        "plot \"{op}-{name}\" using 1:2 with dots title \"{name} (measured)\", f(x) title \"{name} (fitted)\""
     )
     .expect("failed to write");
 }
@@ -487,17 +589,35 @@ fn print_plot(gnuplot: &mut dyn Write, a: &f64, b: &f64, op: &str, name: &str) {
 fn print_plot2(gnuplot: &mut dyn Write, op: &str, name: &str, cost_factor: Option<f64>) {
     write!(
         gnuplot,
-        "plot \"{op}-{name}.log\" using 1:3 with dots title \"{name} (measured)\","
+        "plot \"{op}-{name}\" using 1:3 with dots title \"{name} (measured)\","
     )
     .expect("failed to write");
     write!(
         gnuplot,
-        "\"{op}-{name}.log\" using 1:4 with dots axis x1y2 title \"{name} (CLVM cost)\""
+        "\"{op}-{name}\" using 1:4 with dots axis x1y2 title \"{name} (CLVM cost)\""
     )
     .expect("failed to write");
     if let Some(cost_scale) = cost_factor {
-        write!(gnuplot, ", \"{op}-{name}.log\" using 1:($4/{cost_scale}) with dots axis x1y2 title \"{name} timing inferred by cost-factor\"")
+        write!(gnuplot, ", \"{op}-{name}\" using 1:($4/{cost_scale}) with dots axis x1y2 title \"{name} timing inferred by cost-factor\"")
         .expect("failed to write");
+    }
+    writeln!(gnuplot).expect("failed to write");
+}
+
+fn print_multiplot(
+    gnuplot: &mut dyn Write,
+    op: &str,
+    names: impl Iterator<Item = (f64, f64, String)>,
+) {
+    write!(gnuplot, "plot").expect("failed to write");
+    let mut comma: &str = "";
+    for (a, b, name) in names {
+        write!(
+            gnuplot,
+            "{comma} \"{op}-{name}\" using 1:2 with dots title \"{name} (measured)\", {a}*x+{b} title \"{name} (fitted)\""
+            )
+            .expect("failed to write");
+        comma = ",";
     }
     writeln!(gnuplot).expect("failed to write");
 }
@@ -552,7 +672,16 @@ pub fn main() {
         .unwrap();
     let number = quote(&mut a, number);
 
-    let ops: [Operator; 20] = [
+    let ops: [Operator; 21] = [
+        Operator {
+            opcode: 63,
+            name: "sha256tree",
+            arg: Placeholder::SingleArg(None),
+            arg_scale: 10000,
+            root: 1,
+            extra: None,
+            flags: NESTING_BASE_COST | PER_BYTE_COST | TREE_ARG | PLOT_COST,
+        },
         Operator {
             opcode: 18,
             name: "mul",
@@ -777,13 +906,32 @@ pub fn main() {
                     time_per_byte * cost_scale
                 );
             }
-            print_plot(&mut *gnuplot, &time_per_byte, &0.0, op.name, "per-byte");
+            print_plot(&mut *gnuplot, &time_per_byte, &0.0, op.name, "per-byte.log");
+            if (op.flags & PLOT_COST) != 0 {
+                write_gnuplot_header(
+                    &mut *gnuplot,
+                    op,
+                    "per-byte-cost",
+                    "num bytes",
+                    "per byte",
+                    true,
+                );
+                print_plot2(&mut gnuplot, op.name, "per-byte.log", options.cost_factor);
+            }
             time_per_byte
         } else {
             0.0
         };
         let time_per_arg = if (op.flags & PER_ARG_COST) != 0 {
             let mut output = maybe_open(options.plot, op.name, "per-arg.log");
+            write_gnuplot_header(
+                &mut *gnuplot,
+                op,
+                "per-arg",
+                "num arguments",
+                "timing per argument",
+                false,
+            );
             let time_per_arg = time_per_arg(&mut a, op, &mut *output);
             println!("   time: per-arg: {time_per_arg:.2}ns");
             if let Some(cost_scale) = options.cost_factor {
@@ -792,11 +940,23 @@ pub fn main() {
                     time_per_arg * cost_scale
                 );
             }
+            print_plot(&mut *gnuplot, &time_per_arg, &0.0, op.name, "per-arg.log");
+            if (op.flags & PLOT_COST) != 0 {
+                write_gnuplot_header(
+                    &mut *gnuplot,
+                    op,
+                    "per-arg-cost",
+                    "num arguments",
+                    "per argument",
+                    true,
+                );
+                print_plot2(&mut gnuplot, op.name, "per-arg.log", options.cost_factor);
+            }
             time_per_arg
         } else {
             0.0
         };
-        let base_call_time = if (op.flags & NESTING_BASE_COST) != 0 {
+        if (op.flags & NESTING_BASE_COST) != 0 {
             let mut output = maybe_open(options.plot, op.name, "base.log");
             write_gnuplot_header(
                 &mut *gnuplot,
@@ -814,9 +974,19 @@ pub fn main() {
                     base_call_time * cost_scale
                 );
             }
+            print_plot(&mut *gnuplot, &base_call_time, &0.0, op.name, "base.log");
 
-            print_plot(&mut *gnuplot, &base_call_time, &0.0, op.name, "base");
-            base_call_time
+            if (op.flags & PLOT_COST) != 0 {
+                write_gnuplot_header(
+                    &mut *gnuplot,
+                    op,
+                    "base-cost",
+                    "num nested calls",
+                    "base cost, nested calls",
+                    true,
+                );
+                print_plot2(&mut gnuplot, op.name, "base.log", options.cost_factor);
+            }
         } else {
             let base_call_time = base_call_time_no_nest(&mut a, op, time_per_arg);
             println!("   time: base: {base_call_time:.2}ns");
@@ -826,86 +996,66 @@ pub fn main() {
                     base_call_time * cost_scale
                 );
             }
-            base_call_time
         };
 
-        // we adjust the base_call_time here to make the curve fitting match
-        let base_call_time = if op.root != 1 {
-            base_call_time.powf(1.0 / (op.root as f64))
-        } else {
-            base_call_time
-        };
-        if (op.flags & PER_ARG_COST) != 0 {
+        if (op.flags & TREE_ARG) != 0 {
+            // This measures the timing of tree parameters along 2 dimensions.
+            // 1. The size of the leaf atoms (i)
+            // 2. The shape of the tree (left-list, right-list, complete-tree)
+            // for non-zero atom sizes, the time-per-byte is subtracted to
+            // attempt to measure the remaining factors. These timings measure
+            // the cost of one pair and one atom (but not the cost of hashing
+            // the bytes of the atoms.
+
+            let mut combined_plot = vec![];
+
+            for (tree_shape, name) in [
+                (TreeShape::Complete, "complete"),
+                (TreeShape::RightList, "right"),
+                (TreeShape::LeftList, "left"),
+                (TreeShape::Random, "random"),
+            ] {
+                let log_name = format!("{name}-tree.log");
+                let mut output = maybe_open(options.plot, op.name, &log_name);
+
+                let time = tree_call_time(
+                    &mut a,
+                    op,
+                    tree_shape,
+                    0, // atom size
+                    time_per_byte,
+                    &mut *output,
+                );
+                println!("   time: {name}-tree: {time:.2}ns/leaf");
+
+                if let Some(cost_scale) = options.cost_factor {
+                    println!("   estimated-cost: per leaf: {:.2}", time * cost_scale);
+                }
+
+                if (op.flags & PLOT_COST) != 0 {
+                    let title = format!("tree cost per leaf {name}");
+                    write_gnuplot_header(
+                        &mut *gnuplot,
+                        op,
+                        &title,
+                        "num nested leaves",
+                        "cost per leaf (+pair)",
+                        true,
+                    );
+                    print_plot2(&mut gnuplot, op.name, &log_name, options.cost_factor);
+                }
+                combined_plot.push((time, 0.0, log_name));
+            }
+
             write_gnuplot_header(
                 &mut *gnuplot,
                 op,
-                "per-arg",
-                "num arguments",
-                "timing per argument",
+                "per-leaf",
+                "num leafs",
+                "cost per leaf",
                 false,
             );
-            print_plot(
-                &mut *gnuplot,
-                &time_per_arg,
-                &base_call_time,
-                op.name,
-                "per-arg",
-            );
-        }
-        if (op.flags & PER_BYTE_COST) != 0 {
-            write_gnuplot_header(
-                &mut *gnuplot,
-                op,
-                "per-byte",
-                "num bytes",
-                "timing per byte",
-                false,
-            );
-            print_plot(
-                &mut *gnuplot,
-                &time_per_byte,
-                &base_call_time,
-                op.name,
-                "per-byte",
-            );
-        }
-
-        // This is for plotting similar graphs, along with the actual cost
-        // reported by CLVM
-        if (op.flags & PLOT_COST) != 0 {
-            if (op.flags & PER_ARG_COST) != 0 {
-                write_gnuplot_header(
-                    &mut *gnuplot,
-                    op,
-                    "per-arg-cost",
-                    "num arguments",
-                    "per argument",
-                    true,
-                );
-                print_plot2(&mut gnuplot, op.name, "per-arg", options.cost_factor);
-            }
-            if (op.flags & NESTING_BASE_COST) != 0 {
-                write_gnuplot_header(
-                    &mut *gnuplot,
-                    op,
-                    "base-cost",
-                    "num nested calls",
-                    "base cost, nested calls",
-                    true,
-                );
-                print_plot2(&mut gnuplot, op.name, "base", options.cost_factor);
-            }
-            if (op.flags & PER_BYTE_COST) != 0 {
-                write_gnuplot_header(
-                    &mut *gnuplot,
-                    op,
-                    "per-byte-cost",
-                    "num bytes",
-                    "per byte",
-                    true,
-                );
-                print_plot2(&mut gnuplot, op.name, "per-byte", options.cost_factor);
-            }
+            print_multiplot(&mut *gnuplot, op.name, combined_plot.into_iter());
         }
     }
     if options.plot {

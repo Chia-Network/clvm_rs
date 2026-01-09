@@ -15,13 +15,17 @@ pub mod run_program;
 pub mod runtime_dialect;
 pub mod secp_ops;
 pub mod serde;
+pub mod sha_tree_op;
 pub mod traverse_path;
+pub mod treehash;
 
 pub use allocator::{Allocator, Atom, NodePtr, ObjectType, SExp};
 pub use chia_dialect::ChiaDialect;
 pub use run_program::run_program;
 
-pub use chia_dialect::{ENABLE_KECCAK_OPS_OUTSIDE_GUARD, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS};
+pub use chia_dialect::{
+    ENABLE_KECCAK_OPS_OUTSIDE_GUARD, ENABLE_SHA256_TREE, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS,
+};
 
 #[cfg(feature = "counters")]
 pub use run_program::run_program_with_counters;

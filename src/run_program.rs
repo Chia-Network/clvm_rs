@@ -543,6 +543,7 @@ pub fn run_program_with_counters<'a, D: Dialect>(
 mod tests {
     use super::*;
 
+    use crate::chia_dialect::ENABLE_SHA256_TREE;
     use crate::chia_dialect::{ENABLE_KECCAK_OPS_OUTSIDE_GUARD, NO_UNKNOWN_OPS};
     use crate::test_ops::parse_exp;
 
@@ -1278,6 +1279,22 @@ mod tests {
             result: None,
             cost: 0,
             err: "Secp256 Verify Error: failed",
+        },
+        RunProgramTest {
+            prg: "(sha256tree (q . 10))",
+            args: "()",
+            flags: NO_UNKNOWN_OPS | ENABLE_SHA256_TREE,
+            result: Some("0xc04b5bb1a5b2eb3e9cd4805420dba5a9d133da5b7adeeafb5474c4adae9faa80"),
+            cost: 615,
+            err: "",
+        },
+        RunProgramTest {
+            prg: "(sha256tree (q . 10))",
+            args: "()",
+            flags: NO_UNKNOWN_OPS,
+            result: None,
+            cost: 0,
+            err: "unimplemented operator",
         },
     ];
 
