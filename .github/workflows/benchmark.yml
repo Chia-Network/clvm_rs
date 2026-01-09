@@ -26,9 +26,9 @@ jobs:
           fetch-depth: 1
 
       - uses: chia-network/actions/setup-python@main
-        name: Install Python 3.9
+        name: Install Python 3.12
         with:
-          python-version: 3.9
+          python-version: 3.12
 
       - name: Update pip
         run: |
@@ -50,9 +50,9 @@ jobs:
           fetch-depth: 1
 
       - uses: chia-network/actions/setup-python@main
-        name: Install Python 3.9
+        name: Install Python 3.12
         with:
-          python-version: 3.9
+          python-version: 3.12
 
       - name: Update pip
         run: |
