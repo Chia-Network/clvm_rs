@@ -40,7 +40,7 @@ enum TreeOp {
 
 // this function costs but does not cache
 // we can use it to check that the cache is properly remembering costs
-pub fn tree_hash_costed(a: &mut Allocator, node: NodePtr, cost_left: Cost) -> Response {
+pub fn tree_hash_costed(a: &mut Allocator, node: NodePtr, cost_remaining: Cost) -> Response {
     let mut hashes = Vec::new();
     let mut ops = vec![TreeOp::SExp(node)];
 
@@ -53,15 +53,19 @@ pub fn tree_hash_costed(a: &mut Allocator, node: NodePtr, cost_left: Cost) -> Re
                     NodeVisitor::Buffer(bytes) => {
                         // +1 byte to length because of prefix before atoms
                         cost += (bytes.len() + 1) as u64 * SHA256TREE_COST_PER_BYTE;
-                        check_cost(cost, cost_left)?;
+                        check_cost(cost, cost_remaining)?;
                         let hash = tree_hash_atom(bytes);
                         hashes.push(hash);
                     }
                     NodeVisitor::U32(val) => {
-                        // +1 byte to length because of prefix before atoms
+                        // This is the case for atoms subject to the small value
+                        // optimization. The atom value is stored directly in
+                        // the NodePtr, and not on the heap.                        // +1 byte to length because of prefix before atoms
                         cost += (a.atom_len(node) + 1) as u64 * SHA256TREE_COST_PER_BYTE;
-                        check_cost(cost, cost_left)?;
+                        check_cost(cost, cost_remaining)?;
                         if (val as usize) < PRECOMPUTED_HASHES.len() {
+                            //  In this case we save time by not needing to
+                            //  allocate a buffer to store the atom in.
                             hashes.push(PRECOMPUTED_HASHES[val as usize]);
                         } else {
                             hashes.push(tree_hash_atom(a.atom(node).as_ref()));
@@ -69,7 +73,7 @@ pub fn tree_hash_costed(a: &mut Allocator, node: NodePtr, cost_left: Cost) -> Re
                     }
                     NodeVisitor::Pair(left, right) => {
                         cost += SHA256TREE_PAIR_COST;
-                        check_cost(cost, cost_left)?;
+                        check_cost(cost, cost_remaining)?;
                         ops.push(TreeOp::Cons);
                         ops.push(TreeOp::SExp(left));
                         ops.push(TreeOp::SExp(right));
@@ -86,45 +90,8 @@ pub fn tree_hash_costed(a: &mut Allocator, node: NodePtr, cost_left: Cost) -> Re
 
     assert!(hashes.len() == 1);
     cost += MALLOC_COST_PER_BYTE * 32;
-    check_cost(cost, cost_left)?;
+    check_cost(cost, cost_remaining)?;
     Ok(Reduction(cost, a.new_atom(&hashes[0])?))
-}
-
-// this function neither costs, nor caches
-// and it also returns bytes, rather than an Atom
-pub fn tree_hash(a: &Allocator, node: NodePtr) -> [u8; 32] {
-    let mut hashes = Vec::new();
-    let mut ops = vec![TreeOp::SExp(node)];
-
-    while let Some(op) = ops.pop() {
-        match op {
-            TreeOp::SExp(node) => match a.node(node) {
-                NodeVisitor::Buffer(bytes) => {
-                    hashes.push(tree_hash_atom(bytes));
-                }
-                NodeVisitor::U32(val) => {
-                    if (val as usize) < PRECOMPUTED_HASHES.len() {
-                        hashes.push(PRECOMPUTED_HASHES[val as usize]);
-                    } else {
-                        hashes.push(tree_hash_atom(a.atom(node).as_ref()));
-                    }
-                }
-                NodeVisitor::Pair(left, right) => {
-                    ops.push(TreeOp::Cons);
-                    ops.push(TreeOp::SExp(left));
-                    ops.push(TreeOp::SExp(right));
-                }
-            },
-            TreeOp::Cons => {
-                let first = hashes.pop().unwrap();
-                let rest = hashes.pop().unwrap();
-                hashes.push(tree_hash_pair(&first, &rest));
-            }
-        }
-    }
-
-    assert!(hashes.len() == 1);
-    hashes[0]
 }
 
 #[cfg(test)]

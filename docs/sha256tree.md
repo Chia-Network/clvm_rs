@@ -61,7 +61,7 @@ differ, some trees (e.g. one very large atom) would have a lower cost for the
 CLVM implementation than the native operator. Which would violate one of the
 goals.
 
-The `PAIR_COST` measured generating many trees of differnt shapes, and observing
+The `PAIR_COST` measured generating many trees of different shapes, and observing
 that the cost scales linearly by the number of pairs, where every atom has a
 constant size. The per-byte cost is subtracted for all the leaf atoms. The slope
 of the plot is the approximate cost per pair + atom.
