@@ -15,6 +15,7 @@ use crate::more_ops::{
 use crate::number::Number;
 use crate::reduction::{Reduction, Response};
 use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
+use crate::sha_tree_op::op_sha256_tree;
 
 use crate::error::EvalErr;
 use hex::FromHex;
@@ -106,6 +107,7 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
             "secp256k1_verify" => a.new_atom(&[0x13, 0xd6, 0x1f, 0x00]).unwrap(),
             "secp256r1_verify" => a.new_atom(&[0x1c, 0x3a, 0x8f, 0x00]).unwrap(),
             "keccak256" => a.new_atom(&[62]).unwrap(),
+            "sha256tree" => a.new_atom(&[63]).unwrap(),
             _ => {
                 panic!("atom not supported \"{v}\"");
             }
@@ -264,6 +266,8 @@ mod tests {
     #[case("test-secp256r1")]
     #[case("test-modpow")]
     #[case("test-sha256")]
+    #[case("test-sha256tree")]
+    #[case("test-sha256tree-hash")]
     #[case("test-keccak256")]
     #[case("test-keccak256-generated")]
     fn test_ops(#[case] filename: &str) {
@@ -320,6 +324,8 @@ mod tests {
             ("secp256r1_verify", op_secp256r1_verify as Opf),
             ("modpow", op_modpow as Opf),
             ("keccak256", op_keccak256 as Opf),
+            // 3.0 hard fork
+            ("sha256tree", op_sha256_tree as Opf),
         ]);
 
         println!("Test cases from: {filename}");
