@@ -10,9 +10,10 @@ use crate::dialect::{Dialect, OperatorSet};
 use crate::error::EvalErr;
 use crate::keccak256_ops::op_keccak256;
 use crate::more_ops::{
-    op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
-    op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not,
-    op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract, op_unknown,
+    op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_div_limit, op_divmod,
+    op_divmod_limit, op_gr, op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh,
+    op_mod, op_mod_limit, op_modpow, op_multiply, op_not, op_point_add, op_pubkey_for_exp,
+    op_sha256, op_strlen, op_substr, op_subtract, op_unknown,
 };
 use crate::reduction::Response;
 use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
@@ -138,8 +139,20 @@ impl Dialect for ChiaDialect {
             16 => op_add,
             17 => op_subtract,
             18 => op_multiply,
-            19 => op_div,
-            20 => op_divmod,
+            19 => {
+                if (flags & DISABLE_OP) != 0 {
+                    op_div_limit
+                } else {
+                    op_div
+                }
+            }
+            20 => {
+                if (flags & DISABLE_OP) != 0 {
+                    op_divmod_limit
+                } else {
+                    op_divmod
+                }
+            }
             21 => op_gr,
             22 => op_ash,
             23 => op_lsh,
@@ -175,7 +188,13 @@ impl Dialect for ChiaDialect {
                     op_modpow
                 }
             }
-            61 => op_mod,
+            61 => {
+                if (flags & DISABLE_OP) != 0 {
+                    op_mod_limit
+                } else {
+                    op_mod
+                }
+            }
             62 if (flags & ENABLE_KECCAK_OPS_OUTSIDE_GUARD) != 0 => op_keccak256,
             63 if (flags & ENABLE_SHA256_TREE) != 0 => op_sha256_tree,
             _ => {
