@@ -311,8 +311,8 @@ impl Allocator {
 
         let mut r = Self {
             u8_vec: Vec::new(),
-            pair_vec: Vec::new(),
-            atom_vec: Vec::new(),
+            pair_vec: Vec::with_capacity(MAX_NUM_PAIRS),
+            atom_vec: Vec::with_capacity(MAX_NUM_ATOMS - 2),
             // subtract 1 to compensate for the one() we used to allocate unconfitionally
             heap_limit: heap_limit - 1,
             // initialize this to 2 to behave as if we had allocated atoms for
