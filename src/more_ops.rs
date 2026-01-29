@@ -240,15 +240,14 @@ pub fn op_unknown(
         }
         3 => {
             let mut cost = CONCAT_BASE_COST;
-            let mut total_size: u64 = 0;
             while let Some((arg, rest)) = allocator.next(args) {
                 args = rest;
-                cost += CONCAT_COST_PER_ARG;
                 let len = atom_len(allocator, arg, "unknown op")?;
-                total_size += len as u64;
-                check_cost(cost + total_size as Cost * CONCAT_COST_PER_BYTE, max_cost)?;
+                cost += CONCAT_COST_PER_ARG;
+                cost += CONCAT_COST_PER_BYTE * (len as Cost);
+                check_cost(cost, max_cost)?;
             }
-            cost + total_size * CONCAT_COST_PER_BYTE
+            cost
         }
         _ => 1,
     };
@@ -382,7 +381,7 @@ pub fn op_sha256(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
         // in this case, we're hashing 1 concatenated with a small
         // integer, we may have a pre-computed hash for this
         if (val as usize) < PRECOMPUTED_HASHES.len() {
-            let num_bytes = if val > 0 { 2 } else { 1 };
+            let num_bytes: Cost = if val > 0 { 2 } else { 1 };
             cost += num_bytes * SHA256_COST_PER_BYTE + 2 as Cost * SHA256_COST_PER_ARG;
             check_cost(cost, max_cost)?;
             return new_atom_and_cost(a, cost, &PRECOMPUTED_HASHES[val as usize]);
@@ -403,22 +402,23 @@ pub fn op_sha256(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
 
 pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response {
     let mut cost = ARITH_BASE_COST;
-    let mut byte_count: usize = 0;
     let mut total: Number = 0.into();
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += ARITH_COST_PER_ARG;
-        check_cost(cost + (byte_count as Cost * ARITH_COST_PER_BYTE), max_cost)?;
 
         match a.node(arg) {
             NodeVisitor::Buffer(buf) => {
+                cost += ARITH_COST_PER_BYTE * (buf.len() as Cost);
+                check_cost(cost, max_cost)?;
+
                 use crate::number::number_from_u8;
                 total += number_from_u8(buf);
-                byte_count += buf.len();
             }
             NodeVisitor::U32(val) => {
+                cost += len_for_value(val) as Cost * ARITH_COST_PER_BYTE;
+                check_cost(cost, max_cost)?;
                 total += val;
-                byte_count += len_for_value(val);
             }
             NodeVisitor::Pair(_, _) => {
                 Err(EvalErr::InvalidOpArg(
@@ -429,33 +429,44 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
         }
     }
     let total = a.new_number(total)?;
-    cost += byte_count as Cost * ARITH_COST_PER_BYTE;
     Ok(malloc_cost(a, cost, total))
 }
 
 pub fn op_subtract(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response {
     let mut cost = ARITH_BASE_COST;
-    let mut byte_count: usize = 0;
     let mut total: Number = 0.into();
     let mut is_first = true;
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += ARITH_COST_PER_ARG;
-        check_cost(cost + byte_count as Cost * ARITH_COST_PER_BYTE, max_cost)?;
+        if matches!(a.sexp(arg), SExp::Pair(_, _)) {
+            return Err(EvalErr::InvalidOpArg(
+                arg,
+                "Requires Int Argument: -".to_string(),
+            ));
+        }
+        check_cost(cost, max_cost)?;
         if is_first {
-            let (v, len) = int_atom(a, arg, "-")?;
-            byte_count = len;
+            let len = a.atom_len(arg);
+            cost += len as Cost * ARITH_COST_PER_BYTE;
+            check_cost(cost, max_cost)?;
+            let v = a.number(arg);
             total = v;
         } else {
             match a.node(arg) {
                 NodeVisitor::Buffer(buf) => {
+                    cost += buf.len() as Cost * ARITH_COST_PER_BYTE;
+                    check_cost(cost, max_cost)?;
+
                     use crate::number::number_from_u8;
                     total -= number_from_u8(buf);
-                    byte_count += buf.len();
                 }
                 NodeVisitor::U32(val) => {
+                    let len = len_for_value(val);
+                    cost += len as Cost * ARITH_COST_PER_BYTE;
+                    check_cost(cost, max_cost)?;
+
                     total -= val;
-                    byte_count += len_for_value(val);
                 }
                 NodeVisitor::Pair(_, _) => {
                     Err(EvalErr::InvalidOpArg(
@@ -468,7 +479,6 @@ pub fn op_subtract(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
         is_first = false;
     }
     let total = a.new_number(total)?;
-    cost += byte_count as Cost * ARITH_COST_PER_BYTE;
     Ok(malloc_cost(a, cost, total))
 }
 
@@ -479,34 +489,38 @@ pub fn op_multiply(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Res
     let mut l0: usize = 0;
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
-        check_cost(cost, max_cost)?;
         if first_iter {
             (total, l0) = int_atom(a, arg, "*")?;
             first_iter = false;
             continue;
         }
 
-        let l1 = match a.node(arg) {
+        cost += MUL_COST_PER_OP;
+        match a.node(arg) {
             NodeVisitor::Buffer(buf) => {
+                let l1 = buf.len() as u64;
+                cost += (l0 as Cost + l1) * MUL_LINEAR_COST_PER_BYTE;
+                cost += (l0 as Cost * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
+                check_cost(cost, max_cost)?;
+
                 use crate::number::number_from_u8;
                 total *= number_from_u8(buf);
-                buf.len()
             }
             NodeVisitor::U32(val) => {
+                let l1 = len_for_value(val) as u64;
+                cost += (l0 as Cost + l1) * MUL_LINEAR_COST_PER_BYTE;
+                cost += (l0 as Cost * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
+                check_cost(cost, max_cost)?;
+
                 total *= val;
-                len_for_value(val)
             }
             NodeVisitor::Pair(_, _) => {
-                return Err(EvalErr::InvalidOpArg(
+                Err(EvalErr::InvalidOpArg(
                     arg,
                     "Requires Int Argument: *".to_string(),
                 ))?;
             }
-        };
-
-        cost += MUL_COST_PER_OP;
-        cost += (l0 + l1) as Cost * MUL_LINEAR_COST_PER_BYTE;
-        cost += (l0 * l1) as Cost / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
+        }
         l0 = limbs_for_int(&total);
     }
     let total = a.new_number(total)?;
@@ -662,14 +676,15 @@ pub fn op_concat(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
     let mut terms = Vec::<NodePtr>::new();
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
-        cost += CONCAT_COST_PER_ARG;
-        check_cost(cost + total_size as Cost * CONCAT_COST_PER_BYTE, max_cost)?;
         let len = match a.sexp(arg) {
             SExp::Pair(_, _) => {
                 return Err(EvalErr::InvalidOpArg(arg, "concat on list".to_string()))?;
             }
             SExp::Atom => a.atom_len(arg),
         };
+        cost += CONCAT_COST_PER_ARG;
+        cost += len as Cost * (CONCAT_COST_PER_BYTE + MALLOC_COST_PER_BYTE);
+        check_cost(cost, max_cost)?;
         if len > 0 {
             // skip NIL arguments, as an optimization
             total_size += len;
@@ -677,9 +692,6 @@ pub fn op_concat(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
         }
     }
 
-    cost += total_size as Cost * CONCAT_COST_PER_BYTE;
-    cost += total_size as Cost * MALLOC_COST_PER_BYTE;
-    check_cost(cost, max_cost)?;
     let new_atom = a.new_concat(total_size, &terms)?;
     Ok(Reduction(cost, new_atom))
 }
@@ -894,14 +906,15 @@ pub fn op_all(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
     Ok(Reduction(cost, if is_all { a.one() } else { a.nil() }))
 }
 
-pub fn op_pubkey_for_exp(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+pub fn op_pubkey_for_exp(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let [n] = get_args::<1>(a, input, "pubkey_for_exp")?;
     let (v0, v0_len) = int_atom(a, n, "pubkey_for_exp")?;
+    let cost = PUBKEY_BASE_COST + (v0_len as Cost) * PUBKEY_COST_PER_BYTE;
+    check_cost(cost, max_cost)?;
     let bytes = mod_group_order(v0).to_bytes_be().1;
 
     let point = G1Element::from_integer(&bytes);
 
-    let cost = PUBKEY_BASE_COST + (v0_len as Cost) * PUBKEY_COST_PER_BYTE;
     Ok(Reduction(
         cost + 48 * MALLOC_COST_PER_BYTE,
         a.new_g1(point)?,
@@ -913,9 +926,9 @@ pub fn op_point_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Re
     let mut total = G1Element::default();
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
-        let point = a.g1(arg)?;
         cost += POINT_ADD_COST_PER_ARG;
         check_cost(cost, max_cost)?;
+        let point = a.g1(arg)?;
         total += &point;
     }
     Ok(Reduction(
@@ -1011,6 +1024,7 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
     fn test_sha256_atom(buf: &[u8]) {
         let mut a = Allocator::new();
@@ -1050,6 +1064,75 @@ mod tests {
 
         for val in 0..255 {
             test_sha256_atom(&[0xff, val]);
+        }
+    }
+
+    #[rstest]
+    #[case::sha(op_sha256, 28, 11, None)]
+    #[case::sha(op_sha256, 28, 12, Some(EvalErr::CostExceeded))]
+    #[case::add(op_add, 27, 3, None)]
+    #[case::add(op_add, 28, 20, Some(EvalErr::CostExceeded))]
+    #[case::sub(op_subtract, 27, 3, None)]
+    #[case::sub(op_subtract, 28, 20, Some(EvalErr::CostExceeded))]
+    #[case::mul(op_multiply, 19, 2, None)]
+    #[case::mul(op_multiply, 19, 3, Some(EvalErr::CostExceeded))]
+    #[case::mul(op_multiply, 21, 2, Some(EvalErr::CostExceeded))]
+    #[case::mul(op_multiply, 27, 2, Some(EvalErr::CostExceeded))]
+    #[case::div(op_div_limit, 9, 2, None)]
+    #[case::divmod(op_divmod_limit, 9, 2, None)]
+    #[case::modulus(op_mod_limit, 9, 2, None)]
+    #[case::gr(op_gr, 30, 2, None)]
+    #[case::gr_bytes(op_gr_bytes, 30, 2, None)]
+    #[case::strlen(op_strlen, 30, 1, None)]
+    #[case::strlen(op_strlen, 31, 1, Some(EvalErr::OutOfMemory))]
+    #[case::cat(op_concat, 27, 3, None)]
+    #[case::cat(op_concat, 27, 4, Some(EvalErr::CostExceeded))]
+    #[case::cat(op_concat, 28, 4, Some(EvalErr::CostExceeded))]
+    //    #[case::ash(op_ash, 27, 2, Some(EvalErr::ShiftTooLarge(_)))]
+    //    #[case::lsh(op_lsh, 27, 2, Some(EvalErr::ShiftTooLarge(_)))]
+    #[case::logand(op_logand, 27, 2, None)]
+    #[case::logior(op_logior, 27, 2, None)]
+    #[case::logxor(op_logxor, 27, 2, None)]
+    #[case::lognot(op_lognot, 27, 1, None)]
+    #[case::not(op_not, 27, 1, None)]
+    #[case::any(op_any, 27, 1, None)]
+    #[case::all(op_all, 27, 1, None)]
+    #[case::pubkey(op_pubkey_for_exp, 27, 1, None)]
+    #[case::pubkey(op_pubkey_for_exp, 28, 1, Some(EvalErr::CostExceeded))]
+    #[case::modpow(op_modpow, 27, 3, Some(EvalErr::CostExceeded))]
+    fn test_large_operand(
+        #[case] op: fn(&mut Allocator, NodePtr, Cost) -> Response,
+        #[case] arg_size: u32,
+        #[case] num_args: u32,
+        #[case] expect: Option<EvalErr>,
+    ) {
+        let mut a = Allocator::new();
+        let mut atom = a.one();
+        let mut size = 1;
+        for _ in 0..arg_size {
+            size += size;
+            atom = a.new_concat(size, &[atom, atom]).expect("concat");
+        }
+        if size > 1000000 {
+            println!("atom size: {} MB", size / 1000000);
+        } else {
+            println!("atom size: {} kB", size / 1000);
+        }
+        println!("{num_args} arguments");
+
+        let mut args = a.nil();
+        for _ in 0..num_args {
+            args = a.new_pair(atom, args).expect("new_pair");
+        }
+        // in order to have a very large atom, you need to spend quite a lot of
+        // cost. 6 billion is a generous expected cost left (based on the 11
+        // billion limit)
+        let result = op(&mut a, args, 6_000_000_000);
+        if let Some(expect) = expect {
+            assert_eq!(result.unwrap_err(), expect);
+        } else {
+            assert!(result.is_ok());
+            println!("cost: {}", result.unwrap().0);
         }
     }
 }
