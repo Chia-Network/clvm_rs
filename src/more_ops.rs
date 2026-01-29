@@ -244,7 +244,7 @@ pub fn op_unknown(
                 args = rest;
                 let len = atom_len(allocator, arg, "unknown op")?;
                 cost += CONCAT_COST_PER_ARG;
-                cost += len as Cost * CONCAT_COST_PER_BYTE;
+                cost += CONCAT_COST_PER_BYTE * (len as Cost);
                 check_cost(cost, max_cost)?;
             }
             cost
@@ -409,7 +409,7 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
 
         match a.node(arg) {
             NodeVisitor::Buffer(buf) => {
-                cost += buf.len() as Cost * ARITH_COST_PER_BYTE;
+                cost += ARITH_COST_PER_BYTE * (buf.len() as Cost);
                 check_cost(cost, max_cost)?;
 
                 use crate::number::number_from_u8;
