@@ -325,9 +325,12 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     fn parse_softfork_arguments(&self, args: NodePtr) -> Result<(OperatorSet, NodePtr, NodePtr)> {
         let [_cost, extension, program, env] = get_args::<4>(self.allocator, args, "softfork")?;
 
-        let extension =
-            self.dialect
-                .softfork_extension(uint_atom::<4>(self.allocator, extension, "softfork")? as u32);
+        let extension = self.dialect.softfork_extension(uint_atom::<4>(
+            self.allocator,
+            extension,
+            "softfork",
+            self.dialect.flags(),
+        )? as u32);
         if extension == OperatorSet::Default {
             Err(EvalErr::UnknownSoftforkExtension)
         } else {
@@ -354,6 +357,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 self.allocator,
                 first(self.allocator, operand_list)?,
                 "softfork",
+                self.dialect.flags(),
             )?;
             if expected_cost > max_cost {
                 return Err(EvalErr::CostExceeded);

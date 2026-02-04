@@ -5,12 +5,14 @@ use super::lazy_node::LazyNode;
 use crate::adapt_response::adapt_response;
 use clvmr::allocator::Allocator;
 use clvmr::chia_dialect::ChiaDialect;
+use clvmr::chia_dialect::{
+    CANONICAL_INTS, DISABLE_OP, ENABLE_SHA256_TREE, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS,
+};
 use clvmr::cost::Cost;
 use clvmr::error::EvalErr;
 use clvmr::reduction::Response;
 use clvmr::run_program::run_program;
 use clvmr::serde::{ParsedTriple, node_from_bytes, parse_triples, serialized_length_from_bytes};
-use clvmr::{ENABLE_SHA256_TREE, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
 use pyo3::wrap_pyfunction;
@@ -92,6 +94,8 @@ fn clvm_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("LIMIT_HEAP", LIMIT_HEAP)?;
     m.add("MEMPOOL_MODE", MEMPOOL_MODE)?;
     m.add("ENABLE_SHA256_TREE", ENABLE_SHA256_TREE)?;
+    m.add("DISABLE_OP", DISABLE_OP)?;
+    m.add("CANONICAL_INTS", CANONICAL_INTS)?;
     m.add_class::<LazyNode>()?;
 
     Ok(())

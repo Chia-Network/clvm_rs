@@ -74,4 +74,8 @@ impl Dialect for RuntimeDialect {
     fn allow_unknown_ops(&self) -> bool {
         (self.flags & NO_UNKNOWN_OPS) == 0
     }
+
+    fn flags(&self) -> u32 {
+        self.flags
+    }
 }
