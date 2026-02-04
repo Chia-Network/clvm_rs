@@ -19,6 +19,10 @@ use crate::reduction::Response;
 use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
 use crate::sha_tree_op::op_sha256_tree;
 
+// require integers passed to operators use canonical representation, meaning no
+// unnecessary leading zeros
+pub const CANONICAL_INTS: u32 = 0x0001;
+
 // unknown operators are disallowed
 // (otherwise they are no-ops with well defined cost)
 pub const NO_UNKNOWN_OPS: u32 = 0x0002;
@@ -39,7 +43,7 @@ pub const ENABLE_SHA256_TREE: u32 = 0x0400;
 
 // The default mode when running generators in mempool-mode (i.e. the stricter
 // mode)
-pub const MEMPOOL_MODE: u32 = NO_UNKNOWN_OPS | LIMIT_HEAP | DISABLE_OP;
+pub const MEMPOOL_MODE: u32 = NO_UNKNOWN_OPS | LIMIT_HEAP | DISABLE_OP | CANONICAL_INTS;
 
 fn unknown_operator(
     allocator: &mut Allocator,
@@ -234,5 +238,9 @@ impl Dialect for ChiaDialect {
 
     fn allow_unknown_ops(&self) -> bool {
         (self.flags & NO_UNKNOWN_OPS) == 0
+    }
+
+    fn flags(&self) -> u32 {
+        self.flags
     }
 }

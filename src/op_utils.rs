@@ -1,6 +1,7 @@
 use crate::allocator::{Allocator, Atom, NodePtr, NodeVisitor, SExp};
 use crate::cost::Cost;
 
+use crate::chia_dialect::CANONICAL_INTS;
 use crate::error::{EvalErr, Result};
 use crate::number::Number;
 use crate::reduction::{Reduction, Response};
@@ -43,7 +44,12 @@ pub fn atom_len(a: &Allocator, args: NodePtr, op_name: &str) -> Result<usize> {
     }
 }
 
-pub fn uint_atom<const SIZE: usize>(a: &Allocator, args: NodePtr, op_name: &str) -> Result<u64> {
+pub fn uint_atom<const SIZE: usize>(
+    a: &Allocator,
+    args: NodePtr,
+    op_name: &str,
+    flags: u32,
+) -> Result<u64> {
     match a.node(args) {
         NodeVisitor::Buffer(bytes) => {
             if bytes.is_empty() {
@@ -57,10 +63,26 @@ pub fn uint_atom<const SIZE: usize>(a: &Allocator, args: NodePtr, op_name: &str)
                 ))?;
             }
 
-            // strip leading zeros
             let mut buf: &[u8] = bytes;
-            while !buf.is_empty() && buf[0] == 0 {
-                buf = &buf[1..];
+            if (flags & CANONICAL_INTS) != 0 {
+                // strip potential zero
+                if buf[0] == 0 {
+                    if buf.len() < 2 || (buf[1] & 0x80) == 0 {
+                        return Err(EvalErr::InvalidOpArg(
+                            args,
+                            format!(
+                                "{op_name} requires u{0} arg with no leading zeros",
+                                SIZE * 8
+                            ),
+                        ));
+                    }
+                    buf = &buf[1..];
+                }
+            } else {
+                // strip leading zeros
+                while !buf.is_empty() && buf[0] == 0 {
+                    buf = &buf[1..];
+                }
             }
 
             if buf.len() > SIZE {
@@ -436,7 +458,7 @@ mod tests {
         use crate::allocator::Allocator;
         let mut a = Allocator::new();
         let n = a.new_atom(buf).unwrap();
-        assert!(uint_atom::<4>(&a, n, "test") == Ok(expected));
+        assert!(uint_atom::<4>(&a, n, "test", 0) == Ok(expected));
     }
 
     // u32, 4 bytes
@@ -451,7 +473,26 @@ mod tests {
         let mut a = Allocator::new();
         let n = a.new_atom(buf).unwrap();
         assert_eq!(
-            uint_atom::<4>(&a, n, "test"),
+            uint_atom::<4>(&a, n, "test", 0),
+            Err(EvalErr::InvalidOpArg(n, expected.to_string()))
+        );
+    }
+
+    // u32, 4 bytes
+    #[rstest]
+    #[case(&[0x00,0x7f,0xff,0xff], "test requires u32 arg with no leading zeros")]
+    #[case(&[0x00, 0x00, 0x01], "test requires u32 arg with no leading zeros")]
+    #[case(&[0xff,0xff,0xff,0xff], "test requires positive int arg")]
+    #[case(&[0xff], "test requires positive int arg")]
+    #[case(&[0x80], "test requires positive int arg")]
+    #[case(&[0x80,0,0,0], "test requires positive int arg")]
+    #[case(&[1, 0xff,0xff,0xff,0xff], "test requires u32 arg (with no leading zeros)")]
+    fn test_uint_atom_4_non_canonical(#[case] buf: &[u8], #[case] expected: &str) {
+        use crate::allocator::Allocator;
+        let mut a = Allocator::new();
+        let n = a.new_atom(buf).unwrap();
+        assert_eq!(
+            uint_atom::<4>(&a, n, "test", CANONICAL_INTS),
             Err(EvalErr::InvalidOpArg(n, expected.to_string()))
         );
     }
@@ -463,7 +504,7 @@ mod tests {
         let n = a.new_atom(&[0, 0]).unwrap();
         let p = a.new_pair(n, n).unwrap();
         assert_eq!(
-            uint_atom::<4>(&a, p, "test"),
+            uint_atom::<4>(&a, p, "test", 0),
             Err(EvalErr::InvalidOpArg(
                 p,
                 "Requires Int Argument: test".to_string(),
@@ -490,7 +531,7 @@ mod tests {
         use crate::allocator::Allocator;
         let mut a = Allocator::new();
         let n = a.new_atom(buf).unwrap();
-        assert!(uint_atom::<8>(&a, n, "test") == Ok(expected));
+        assert!(uint_atom::<8>(&a, n, "test", 0) == Ok(expected));
     }
 
     // u64, 8 bytes
@@ -506,7 +547,7 @@ mod tests {
         let mut a = Allocator::new();
         let n = a.new_atom(buf).unwrap();
         assert_eq!(
-            uint_atom::<8>(&a, n, "test"),
+            uint_atom::<8>(&a, n, "test", 0),
             Err(EvalErr::InvalidOpArg(n, fmt_string.to_string()))
         );
     }
@@ -518,7 +559,7 @@ mod tests {
         let n = a.new_atom(&[0, 0]).unwrap();
         let p = a.new_pair(n, n).unwrap();
         assert_eq!(
-            uint_atom::<8>(&a, p, "test"),
+            uint_atom::<8>(&a, p, "test", 0),
             Err(EvalErr::InvalidOpArg(
                 p,
                 "Requires Int Argument: test".to_string(),
