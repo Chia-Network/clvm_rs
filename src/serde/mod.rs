@@ -21,7 +21,7 @@ pub mod write_atom;
 mod test;
 
 pub use bitset::BitSet;
-pub use de::node_from_bytes;
+pub use de::{node_from_bytes, node_from_stream};
 pub use de_br::{node_from_bytes_backrefs, node_from_bytes_backrefs_old};
 pub use de_tree::{ParsedTriple, parse_triples};
 pub use identity_hash::RandomState;
