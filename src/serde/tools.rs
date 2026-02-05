@@ -188,7 +188,16 @@ fn is_canonical_atom(f: &mut Cursor<&[u8]>, first_byte: u8) -> bool {
         6 => 1 << (4 + 8 + 8 + 8 + 8),
         _ => panic!("unexpected atom length prefix {prefix_len}"),
     };
-    if f.seek(SeekFrom::Current(atom_len as i64)).is_err() {
+
+    if atom_len == 1 {
+        let mut value = [0_u8];
+        if f.read_exact(&mut value).is_err() {
+            return false;
+        }
+        if value[0] < 0x80 {
+            return false;
+        }
+    } else if f.seek(SeekFrom::Current(atom_len as i64)).is_err() {
         return false;
     }
     atom_len >= min_value
@@ -598,6 +607,8 @@ ae5c3c40c50832a7aecc0b3ba4646568a00c01289c45e1f03b2b488080808080"
     #[case("fc0000000000")]
     #[case("fc03ffffffff")]
     #[case("ff808080")]
+    #[case("8101")]
+    #[case("817f")]
     fn test_clvm_not_canonical(#[case] input: &str) {
         assert!(!is_canonical_serialization(
             &hex::decode(input).expect("invalid hex in test case")
