@@ -1,4 +1,4 @@
-use arbitrary::{Arbitrary, Unstructured};
+use arbitrary::{Arbitrary, Result, Unstructured};
 use clvmr::{Allocator, NodePtr};
 
 enum Op {
@@ -14,6 +14,28 @@ enum NodeType {
     U16,
     U32,
     Previous,
+}
+
+#[derive(Debug)]
+pub struct ArbitraryClvmTree<const MAX_NODES: i64 = 600_000, const REUSE_NODES: bool = true> {
+    pub allocator: Allocator,
+    pub tree: NodePtr,
+    pub num_nodes: u32,
+}
+
+impl<'a, const MAX_NODES: i64, const REUSE_NODES: bool> Arbitrary<'a>
+    for ArbitraryClvmTree<MAX_NODES, REUSE_NODES>
+{
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        let mut a = Allocator::new();
+        let (tree, num_nodes) =
+            make_tree_limits(&mut a, u, MAX_NODES, REUSE_NODES).expect("make_tree");
+        Ok(Self {
+            allocator: a,
+            tree,
+            num_nodes,
+        })
+    }
 }
 
 pub fn make_tree(a: &mut Allocator, unstructured: &mut Unstructured<'_>) -> (NodePtr, u32) {

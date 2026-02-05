@@ -1,6 +1,6 @@
 #![no_main]
 
-use clvm_fuzzing::{make_tree, node_eq};
+use clvm_fuzzing::{ArbitraryClvmTree, node_eq};
 use clvmr::allocator::{Allocator, NodePtr, SExp};
 use clvmr::error::Result;
 use clvmr::serde::ReadCacheLookup;
@@ -137,12 +137,9 @@ pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> Result<V
 
 // serializing with the regular compressed serializer should yield the same
 // result as using the incremental one (as long as it's in a single add() call).
-fuzz_target!(|data: &[u8]| {
-    let mut unstructured = arbitrary::Unstructured::new(data);
-    let mut allocator = Allocator::new();
-    let (program, _) = make_tree(&mut allocator, &mut unstructured);
-
-    let b1 = compare_back_references(&allocator, program).unwrap();
-    let b2 = node_from_bytes_backrefs(&mut allocator, &b1).unwrap();
-    assert!(node_eq(&allocator, b2, program));
+fuzz_target!(|program: ArbitraryClvmTree| {
+    let mut a = program.allocator;
+    let b1 = compare_back_references(&a, program.tree).unwrap();
+    let b2 = node_from_bytes_backrefs(&mut a, &b1).unwrap();
+    assert!(node_eq(&a, b2, program.tree));
 });
