@@ -1,19 +1,14 @@
 #![no_main]
 
-use clvm_fuzzing::{make_tree, node_eq};
+use clvm_fuzzing::{ArbitraryClvmTree, node_eq};
 use clvmr::allocator::Allocator;
 use clvmr::serde::{
     node_from_bytes_backrefs, node_from_bytes_backrefs_old, node_to_bytes_backrefs,
 };
 use libfuzzer_sys::fuzz_target;
 
-fuzz_target!(|data: &[u8]| {
-    let mut allocator = Allocator::new();
-    let mut unstructured = arbitrary::Unstructured::new(data);
-
-    let (program, _) = make_tree(&mut allocator, &mut unstructured);
-
-    let b1 = node_to_bytes_backrefs(&allocator, program).unwrap();
+fuzz_target!(|program: ArbitraryClvmTree| {
+    let b1 = node_to_bytes_backrefs(&program.allocator, program.tree).unwrap();
 
     let mut allocator = Allocator::new();
     let program = node_from_bytes_backrefs(&mut allocator, &b1).expect("node_from_bytes_backrefs");
