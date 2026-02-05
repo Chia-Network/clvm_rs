@@ -294,7 +294,7 @@ checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
 name = "clvm-fuzzing"
-version = "0.16.4"
+version = "0.16.5"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -304,7 +304,7 @@ dependencies = [
 
 [[package]]
 name = "clvm-rs-test-tools"
-version = "0.16.4"
+version = "0.16.5"
 dependencies = [
  "chia-bls",
  "clap",
@@ -323,7 +323,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_rs"
-version = "0.16.4"
+version = "0.16.5"
 dependencies = [
  "clvmr",
  "pyo3",
@@ -331,7 +331,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_rs-fuzz"
-version = "0.16.4"
+version = "0.16.5"
 dependencies = [
  "arbitrary",
  "clvm-fuzzing",
@@ -341,7 +341,7 @@ dependencies = [
 
 [[package]]
 name = "clvmr"
-version = "0.16.4"
+version = "0.16.5"
 dependencies = [
  "bitvec",
  "bumpalo",
