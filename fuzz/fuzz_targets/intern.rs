@@ -1,6 +1,6 @@
 #![no_main]
 
-use clvm_fuzzing::make_tree;
+use clvm_fuzzing::make_tree_limits;
 use clvmr::allocator::Allocator;
 use clvmr::serde::{ObjectCache, intern, node_to_bytes, treehash};
 use libfuzzer_sys::fuzz_target;
@@ -16,7 +16,8 @@ use libfuzzer_sys::fuzz_target;
 fuzz_target!(|data: &[u8]| {
     let mut unstructured = arbitrary::Unstructured::new(data);
     let mut allocator = Allocator::new();
-    let (program, _) = make_tree(&mut allocator, &mut unstructured);
+    let (program, _) =
+        make_tree_limits(&mut allocator, &mut unstructured, 600_000, false).expect("out of memory");
 
     // Serialize the original node
     let original_serialized = match node_to_bytes(&allocator, program) {
