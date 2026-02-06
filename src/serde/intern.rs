@@ -6,6 +6,7 @@
 //! - Compute tree hash efficiently over the interned structure
 
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 
 use crate::allocator::{Allocator, Atom, NodePtr, SExp};
 use crate::error::Result;
@@ -176,13 +177,14 @@ pub fn intern(allocator: &Allocator, node: NodePtr) -> Result<InternedTree> {
         match allocator.sexp(current) {
             SExp::Atom => {
                 let atom = allocator.atom(current);
-                let interned = if let Some(&existing) = atom_to_interned.get(atom.as_ref()) {
-                    existing
-                } else {
-                    let new_node = new_allocator.new_atom(atom.as_ref())?;
-                    atom_to_interned.insert(atom, new_node);
-                    atoms.push(new_node);
-                    new_node
+                let interned = match atom_to_interned.entry(atom) {
+                    Entry::Occupied(o) => *o.get(),
+                    Entry::Vacant(v) => {
+                        let new_node = new_allocator.new_atom(atom.as_ref())?;
+                        v.insert(new_node);
+                        atoms.push(new_node);
+                        new_node
+                    }
                 };
                 node_to_interned.insert(current, interned);
             }
@@ -194,13 +196,14 @@ pub fn intern(allocator: &Allocator, node: NodePtr) -> Result<InternedTree> {
                 match (left_interned, right_interned) {
                     (Some(&l), Some(&r)) => {
                         // Both children processed, create or reuse pair
-                        let interned = if let Some(&existing) = pair_to_interned.get(&(l, r)) {
-                            existing
-                        } else {
-                            let new_node = new_allocator.new_pair(l, r)?;
-                            pair_to_interned.insert((l, r), new_node);
-                            pairs.push(new_node);
-                            new_node
+                        let interned = match pair_to_interned.entry((l, r)) {
+                            Entry::Occupied(o) => *o.get(),
+                            Entry::Vacant(v) => {
+                                let new_node = new_allocator.new_pair(l, r)?;
+                                v.insert(new_node);
+                                pairs.push(new_node);
+                                new_node
+                            }
                         };
                         node_to_interned.insert(current, interned);
                     }
