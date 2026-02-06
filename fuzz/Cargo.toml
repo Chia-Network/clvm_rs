@@ -10,7 +10,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = { workspace = true }
-clvmr = { workspace = true, features = ["counters"] }
+clvmr = { workspace = true, features = ["counters", "allocator-debug"] }
 arbitrary = { workspace = true }
 clvm-fuzzing = { workspace = true }
 
