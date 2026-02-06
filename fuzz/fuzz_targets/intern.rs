@@ -5,7 +5,9 @@ use clvmr::allocator::Allocator;
 use clvmr::serde::{ObjectCache, intern, node_to_bytes, treehash};
 use libfuzzer_sys::fuzz_target;
 
-// Fuzzer for the interning functionality
+// Fuzzer for the interning functionality.
+// Build and run with allocator-debug enabled (default for this fuzz crate) so NodePtr
+// don't get mixed up between the source and interned allocators.
 // Verifies that:
 // 1. Interning succeeds on valid nodes
 // 2. The interned node serializes to the same bytes as the original
