@@ -5,6 +5,7 @@ use crate::serde::intern::intern;
 use crate::serde::node_from_bytes_backrefs;
 use crate::serde::node_to_bytes;
 use crate::serde::object_cache::{ObjectCache, treehash};
+use rstest::rstest;
 
 fn treehash_for_node(allocator: &Allocator, node: NodePtr) -> Bytes32 {
     let mut object_cache = ObjectCache::new(treehash);
@@ -13,23 +14,9 @@ fn treehash_for_node(allocator: &Allocator, node: NodePtr) -> Bytes32 {
         .unwrap()
 }
 
-/// Helper to convert hex string to bytes
-fn hex_to_bytes(hex: &str) -> Vec<u8> {
-    let hex_clean = hex.trim().replace([' ', '\n'], "");
-    hex_clean
-        .chars()
-        .collect::<Vec<_>>()
-        .chunks(2)
-        .map(|chunk| {
-            let s: String = chunk.iter().collect();
-            u8::from_str_radix(&s, 16).expect("invalid hex")
-        })
-        .collect()
-}
-
 /// Helper to convert hex string directly to a node
 fn hex_to_node(allocator: &mut Allocator, hex: &str) -> Result<crate::allocator::NodePtr> {
-    let bytes = hex_to_bytes(hex);
+    let bytes = hex::decode(hex.trim().replace([' ', '\n'], "")).expect("invalid hex");
     node_from_bytes_backrefs(allocator, &bytes)
 }
 
@@ -79,40 +66,24 @@ fn test_hex_interning(hex: &str, expected_atoms: usize, expected_pairs: usize) -
 }
 
 // ============================================================================
-// Hex-based test cases with intern statistics verification
+// Hex-based test cases with intern statistics verification (parameterized via rstest)
 // ============================================================================
 
-#[test]
-fn test_interning() -> Result<()> {
-    // Simple atom with value 1: 1 atom, 0 pairs
-    test_hex_interning("01", 1, 0)?;
-
-    // Atom with value 10: 1 atom, 0 pairs
-    test_hex_interning("0a", 1, 0)?;
-
-    // Pair of identical atoms (1 . 1): 1 atom (deduplicated), 1 pair
-    test_hex_interning("ff0101", 1, 1)?;
-
-    // Pair of different atoms (1 . 10): 2 atoms, 1 pair
-    test_hex_interning("ff010a", 2, 1)?;
-
-    // Nested structure (1 . (1 . 1)): 1 atom (deduplicated), 2 pairs
-    test_hex_interning("ff01ff0101", 1, 2)?;
-
-    // Nested structure ((42 . 42) . 42): 1 atom (42 deduplicated), 2 pairs
-    test_hex_interning("ffff2a2a2a", 1, 2)?;
-
-    // Deep nesting: (1 . (2 . (3 . 1))): 3 atoms (1,2,3 with 1 repeated), 3 pairs
-    test_hex_interning("ff01ff02ff0301", 3, 3)?;
-
-    // Three-element chain: (1 . (2 . (3 . nil))): 4 atoms (1,2,3,nil), 3 pairs
-    test_hex_interning("ff01ff02ff0300", 4, 3)?;
-
-    // Pair of different atoms at each level: (1 . (2 . (3 . 4)))
-    test_hex_interning("ff01ff02ff0304", 4, 3)?;
-
-    // Mixed atoms with one repeated: (1 . (2 . (1 . 3)))
-    test_hex_interning("ff01ff02ff0103", 3, 3)?;
-
-    Ok(())
+#[rstest]
+#[case("01", 1, 0)]           // Simple atom 1: 1 atom, 0 pairs
+#[case("0a", 1, 0)]           // Atom 10: 1 atom, 0 pairs
+#[case("ff0101", 1, 1)]       // (1 . 1): 1 atom (deduplicated), 1 pair
+#[case("ff010a", 2, 1)]       // (1 . 10): 2 atoms, 1 pair
+#[case("ff01ff0101", 1, 2)]   // (1 . (1 . 1)): 1 atom (deduplicated), 2 pairs
+#[case("ffff2a2a2a", 1, 2)]   // ((42 . 42) . 42): 1 atom (deduplicated), 2 pairs
+#[case("ff01ff02ff0301", 3, 3)]   // (1 . (2 . (3 . 1))): 3 atoms, 3 pairs
+#[case("ff01ff02ff0300", 4, 3)]   // (1 . (2 . (3 . nil))): 4 atoms (1,2,3,nil), 3 pairs
+#[case("ff01ff02ff0304", 4, 3)]   // (1 . (2 . (3 . 4))): 4 atoms, 3 pairs
+#[case("ff01ff02ff0103", 3, 3)]   // (1 . (2 . (1 . 3))): 3 atoms (1 repeated), 3 pairs
+fn test_interning(
+    #[case] hex: &str,
+    #[case] expected_atoms: usize,
+    #[case] expected_pairs: usize,
+) -> Result<()> {
+    test_hex_interning(hex, expected_atoms, expected_pairs)
 }
