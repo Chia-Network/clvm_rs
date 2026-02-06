@@ -70,16 +70,16 @@ fn test_hex_interning(hex: &str, expected_atoms: usize, expected_pairs: usize) -
 // ============================================================================
 
 #[rstest]
-#[case("01", 1, 0)]           // Simple atom 1: 1 atom, 0 pairs
-#[case("0a", 1, 0)]           // Atom 10: 1 atom, 0 pairs
-#[case("ff0101", 1, 1)]       // (1 . 1): 1 atom (deduplicated), 1 pair
-#[case("ff010a", 2, 1)]       // (1 . 10): 2 atoms, 1 pair
-#[case("ff01ff0101", 1, 2)]   // (1 . (1 . 1)): 1 atom (deduplicated), 2 pairs
-#[case("ffff2a2a2a", 1, 2)]   // ((42 . 42) . 42): 1 atom (deduplicated), 2 pairs
-#[case("ff01ff02ff0301", 3, 3)]   // (1 . (2 . (3 . 1))): 3 atoms, 3 pairs
-#[case("ff01ff02ff0300", 4, 3)]   // (1 . (2 . (3 . nil))): 4 atoms (1,2,3,nil), 3 pairs
-#[case("ff01ff02ff0304", 4, 3)]   // (1 . (2 . (3 . 4))): 4 atoms, 3 pairs
-#[case("ff01ff02ff0103", 3, 3)]   // (1 . (2 . (1 . 3))): 3 atoms (1 repeated), 3 pairs
+#[case("01", 1, 0)] // Simple atom 1: 1 atom, 0 pairs
+#[case("0a", 1, 0)] // Atom 10: 1 atom, 0 pairs
+#[case("ff0101", 1, 1)] // (1 . 1): 1 atom (deduplicated), 1 pair
+#[case("ff010a", 2, 1)] // (1 . 10): 2 atoms, 1 pair
+#[case("ff01ff0101", 1, 2)] // (1 . (1 . 1)): 1 atom (deduplicated), 2 pairs
+#[case("ffff2a2a2a", 1, 2)] // ((42 . 42) . 42): 1 atom (deduplicated), 2 pairs
+#[case("ff01ff02ff0301", 3, 3)] // (1 . (2 . (3 . 1))): 3 atoms, 3 pairs
+#[case("ff01ff02ff0300", 4, 3)] // (1 . (2 . (3 . nil))): 4 atoms (1,2,3,nil), 3 pairs
+#[case("ff01ff02ff0304", 4, 3)] // (1 . (2 . (3 . 4))): 4 atoms, 3 pairs
+#[case("ff01ff02ff0103", 3, 3)] // (1 . (2 . (1 . 3))): 3 atoms (1 repeated), 3 pairs
 fn test_interning(
     #[case] hex: &str,
     #[case] expected_atoms: usize,
