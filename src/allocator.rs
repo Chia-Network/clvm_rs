@@ -342,8 +342,7 @@ impl Allocator {
         }
 
         assert_eq!(
-            n.1.fingerprint,
-            self.fingerprint,
+            n.1.fingerprint, self.fingerprint,
             "using a NodePtr on the wrong Allocator"
         );
         // if n.1.version is equal to self.versions.len() it means no
