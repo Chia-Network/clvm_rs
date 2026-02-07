@@ -17,4 +17,4 @@ arbitrary = { workspace = true, features = ["derive"] }
 clvmr = { workspace = true }
 chia-sha2 = { workspace = true }
 anyhow = { workspace = true }
-
+chia-bls = { workspace = true, features = ["arbitrary"] }
