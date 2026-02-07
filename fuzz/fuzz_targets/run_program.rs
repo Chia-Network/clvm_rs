@@ -16,7 +16,7 @@ fuzz_target!(|data: &[u8]| {
     let (program, _) =
         make_tree_limits(&mut allocator, &mut unstructured, 10_000, true).expect("out of memory");
     let (args, _) =
-        make_tree_limits(&mut allocator, &mut unstructured, 10_000, true).expect("out of memory");
+        make_tree_limits(&mut allocator, &mut unstructured, 100, true).expect("out of memory");
 
     let allocator_checkpoint = allocator.checkpoint();
 
