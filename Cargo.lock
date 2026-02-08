@@ -301,7 +301,10 @@ dependencies = [
  "arbitrary",
  "chia-bls",
  "chia-sha2 0.34.0",
+ "clap",
  "clvmr",
+ "hex",
+ "rand",
 ]
 
 [[package]]
