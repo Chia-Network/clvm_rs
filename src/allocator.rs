@@ -21,9 +21,8 @@ const NODE_PTR_IDX_MASK: u32 = (1 << NODE_PTR_IDX_BITS) - 1;
 #[cfg(feature = "allocator-debug")]
 #[derive(Clone, Copy)]
 struct AllocatorReference {
-    // the low 24 bits are fingerprint
-    // the top 8 bits are version
     fingerprint: u32,
+    version: u32,
 }
 
 #[cfg(feature = "allocator-debug")]
@@ -87,6 +86,7 @@ impl NodePtr {
             ((object_type as u32) << NODE_PTR_IDX_BITS) | (index as u32),
             AllocatorReference {
                 fingerprint: u32::MAX,
+                version: 0,
             },
         )
     }
@@ -342,13 +342,12 @@ impl Allocator {
         }
 
         assert_eq!(
-            n.1.fingerprint & 0xffffff,
-            self.fingerprint,
+            n.1.fingerprint, self.fingerprint,
             "using a NodePtr on the wrong Allocator"
         );
         // if n.1.version is equal to self.versions.len() it means no
         // restore_checkpoint() has been called since this NodePtr was created
-        let version = (n.1.fingerprint >> 24) as usize;
+        let version = n.1.version as usize;
         if version < self.versions.len() {
             // self.versions contains the number of atoms (.0) and pairs (.1) at
             // the specific version
@@ -380,12 +379,12 @@ impl Allocator {
     #[cfg(feature = "allocator-debug")]
     fn mk_node(&self, t: ObjectType, idx: usize) -> NodePtr {
         assert!((self.fingerprint & 0xff000000) == 0);
-        assert!(self.versions.len() <= 255);
         NodePtr::new_debug(
             t,
             idx,
             AllocatorReference {
-                fingerprint: self.fingerprint | (self.versions.len() as u32) << 24,
+                fingerprint: self.fingerprint,
+                version: self.versions.len() as u32,
             },
         )
     }
