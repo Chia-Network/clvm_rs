@@ -65,9 +65,9 @@ fn test_hex_interning(hex: &str, expected_atoms: usize, expected_pairs: usize) -
     Ok(())
 }
 
-// ============================================================================
-// Hex-based test cases with intern statistics verification (parameterized via rstest)
-// ============================================================================
+// ========================================================
+// Hex-based test cases with intern statistics verification
+// ========================================================
 
 #[rstest]
 #[case("01", 1, 0)] // Simple atom 1: 1 atom, 0 pairs
