@@ -1,12 +1,12 @@
 mod bitset;
-pub(crate) mod bytes32;
+mod bytes32;
 mod de;
 mod de_br;
 mod de_tree;
 mod identity_hash;
 mod incremental;
-pub mod intern;
-pub(crate) mod object_cache;
+mod intern;
+mod object_cache;
 mod parse_atom;
 mod path_builder;
 mod read_cache_lookup;
