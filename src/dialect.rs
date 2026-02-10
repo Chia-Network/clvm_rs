@@ -25,6 +25,7 @@ pub trait Dialect {
     fn softfork_kw(&self) -> u32;
     fn softfork_extension(&self, ext: u32) -> OperatorSet;
     fn flags(&self) -> ClvmFlags;
+    fn gc_candidate(&self, allocator: &Allocator, op: NodePtr) -> bool;
     fn op(
         &self,
         allocator: &mut Allocator,

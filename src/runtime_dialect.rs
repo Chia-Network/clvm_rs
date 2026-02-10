@@ -34,6 +34,9 @@ impl RuntimeDialect {
 }
 
 impl Dialect for RuntimeDialect {
+    fn gc_candidate(&self, _allocator: &Allocator, _op: NodePtr) -> bool {
+        false
+    }
     fn op(
         &self,
         allocator: &mut Allocator,
