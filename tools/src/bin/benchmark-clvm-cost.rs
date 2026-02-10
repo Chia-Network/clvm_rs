@@ -1,14 +1,14 @@
 use clap::Parser;
 use clvmr::allocator::{Allocator, NodePtr};
 use clvmr::run_program::run_program;
-use clvmr::{ChiaDialect, ENABLE_SHA256_TREE};
+use clvmr::{ChiaDialect, ClvmFlags};
 use linreg::linear_regression_of;
 use rand::{Rng, RngCore, SeedableRng, rngs::StdRng};
 use std::fs::{File, create_dir_all};
 use std::io::{Write, sink};
 use std::time::Instant;
 
-const DIALECT_FLAGS: u32 = ENABLE_SHA256_TREE;
+const DIALECT_FLAGS: ClvmFlags = ClvmFlags::ENABLE_SHA256_TREE;
 
 // When specifying the signature of operators, some arguments may be fixed
 // constants. The None argument slots will be replaced by the benchmark for the

@@ -1,7 +1,7 @@
 use crate::allocator::{Allocator, Atom, NodePtr, NodeVisitor, SExp};
 use crate::cost::Cost;
 
-use crate::chia_dialect::CANONICAL_INTS;
+use crate::chia_dialect::ClvmFlags;
 use crate::error::{EvalErr, Result};
 use crate::number::Number;
 use crate::reduction::{Reduction, Response};
@@ -48,7 +48,7 @@ pub fn uint_atom<const SIZE: usize>(
     a: &Allocator,
     args: NodePtr,
     op_name: &str,
-    flags: u32,
+    flags: ClvmFlags,
 ) -> Result<u64> {
     match a.node(args) {
         NodeVisitor::Buffer(bytes) => {
@@ -64,7 +64,7 @@ pub fn uint_atom<const SIZE: usize>(
             }
 
             let mut buf: &[u8] = bytes;
-            if (flags & CANONICAL_INTS) != 0 {
+            if flags.contains(ClvmFlags::CANONICAL_INTS) {
                 // strip potential zero
                 if buf[0] == 0 {
                     if buf.len() < 2 || (buf[1] & 0x80) == 0 {
@@ -458,7 +458,7 @@ mod tests {
         use crate::allocator::Allocator;
         let mut a = Allocator::new();
         let n = a.new_atom(buf).unwrap();
-        assert!(uint_atom::<4>(&a, n, "test", 0) == Ok(expected));
+        assert!(uint_atom::<4>(&a, n, "test", ClvmFlags::empty()) == Ok(expected));
     }
 
     // u32, 4 bytes
@@ -473,7 +473,7 @@ mod tests {
         let mut a = Allocator::new();
         let n = a.new_atom(buf).unwrap();
         assert_eq!(
-            uint_atom::<4>(&a, n, "test", 0),
+            uint_atom::<4>(&a, n, "test", ClvmFlags::empty()),
             Err(EvalErr::InvalidOpArg(n, expected.to_string()))
         );
     }
@@ -492,7 +492,7 @@ mod tests {
         let mut a = Allocator::new();
         let n = a.new_atom(buf).unwrap();
         assert_eq!(
-            uint_atom::<4>(&a, n, "test", CANONICAL_INTS),
+            uint_atom::<4>(&a, n, "test", ClvmFlags::CANONICAL_INTS),
             Err(EvalErr::InvalidOpArg(n, expected.to_string()))
         );
     }
@@ -504,7 +504,7 @@ mod tests {
         let n = a.new_atom(&[0, 0]).unwrap();
         let p = a.new_pair(n, n).unwrap();
         assert_eq!(
-            uint_atom::<4>(&a, p, "test", 0),
+            uint_atom::<4>(&a, p, "test", ClvmFlags::empty()),
             Err(EvalErr::InvalidOpArg(
                 p,
                 "Requires Int Argument: test".to_string(),
@@ -531,7 +531,7 @@ mod tests {
         use crate::allocator::Allocator;
         let mut a = Allocator::new();
         let n = a.new_atom(buf).unwrap();
-        assert!(uint_atom::<8>(&a, n, "test", 0) == Ok(expected));
+        assert!(uint_atom::<8>(&a, n, "test", ClvmFlags::empty()) == Ok(expected));
     }
 
     // u64, 8 bytes
@@ -547,7 +547,7 @@ mod tests {
         let mut a = Allocator::new();
         let n = a.new_atom(buf).unwrap();
         assert_eq!(
-            uint_atom::<8>(&a, n, "test", 0),
+            uint_atom::<8>(&a, n, "test", ClvmFlags::empty()),
             Err(EvalErr::InvalidOpArg(n, fmt_string.to_string()))
         );
     }
@@ -559,7 +559,7 @@ mod tests {
         let n = a.new_atom(&[0, 0]).unwrap();
         let p = a.new_pair(n, n).unwrap();
         assert_eq!(
-            uint_atom::<8>(&a, p, "test", 0),
+            uint_atom::<8>(&a, p, "test", ClvmFlags::empty()),
             Err(EvalErr::InvalidOpArg(
                 p,
                 "Requires Int Argument: test".to_string(),

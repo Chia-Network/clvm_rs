@@ -1,5 +1,5 @@
 use clvmr::allocator::{Allocator, NodePtr};
-use clvmr::chia_dialect::ChiaDialect;
+use clvmr::chia_dialect::{ChiaDialect, ClvmFlags};
 use clvmr::serde::node_from_bytes_backrefs;
 use criterion::{Criterion, SamplingMode, criterion_group, criterion_main};
 use std::fs::read_to_string;
@@ -192,7 +192,7 @@ type EnvFn = fn(&mut Allocator) -> NodePtr;
 
 fn run_program_benchmark(c: &mut Criterion) {
     let mut a = Allocator::new();
-    let dialect = ChiaDialect::new(0);
+    let dialect = ChiaDialect::new(ClvmFlags::empty());
 
     let test_case_checkpoint = a.checkpoint();
 
