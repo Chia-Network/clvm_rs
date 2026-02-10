@@ -54,21 +54,20 @@ fuzz_target!(|data: &[u8]| {
         "Serialized bytes differ after interning"
     );
 
-    // Get stats and verify deduplication
-    let stats = tree.stats();
-
-    // Interning should not increase atom/pair counts (deduplication)
+    // Verify deduplication: interned unique counts should not exceed original
+    let interned_atoms = tree.atoms.len();
+    let interned_pairs = tree.pairs.len();
     assert!(
-        stats.atom_count as usize <= original_atoms,
+        interned_atoms <= original_atoms,
         "Interning increased atoms: {} -> {}",
         original_atoms,
-        stats.atom_count
+        interned_atoms
     );
     assert!(
-        stats.pair_count as usize <= original_pairs,
+        interned_pairs <= original_pairs,
         "Interning increased pairs: {} -> {}",
         original_pairs,
-        stats.pair_count
+        interned_pairs
     );
 
     // Verify tree hash is preserved

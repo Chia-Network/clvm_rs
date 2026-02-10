@@ -14,51 +14,6 @@ use crate::error::Result;
 use super::bytes32::Bytes32;
 use super::object_cache::{ObjectCache, treehash};
 
-/// Statistics from an interned tree - the building blocks for cost formulas.
-///
-/// These components can be combined in different ways depending on the cost
-/// formula being used. The struct provides helper methods for common formulas.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct InternedStats {
-    /// Number of unique atoms
-    pub atom_count: u64,
-    /// Number of unique pairs
-    pub pair_count: u64,
-    /// Sum of all unique atom byte lengths: Σ(atom_len)
-    pub atom_bytes: u64,
-    /// SHA256 blocks for atoms: Σ(⌈(atom_len + 10) / 64⌉)
-    /// The +10 accounts for: 0x01 prefix (1 byte) + SHA256 padding overhead (9 bytes)
-    pub sha_atom_blocks: u64,
-}
-
-impl InternedStats {
-    /// Total unique nodes (atoms + pairs)
-    #[inline]
-    pub fn node_count(&self) -> u64 {
-        self.atom_count + self.pair_count
-    }
-
-    /// SHA256 blocks for pairs: always 2 per pair.
-    /// Each pair hashes: 0x02 (1) + left_hash (32) + right_hash (32) = 65 bytes
-    /// With padding: 74 bytes → always 2 SHA256 blocks
-    #[inline]
-    pub fn sha_pair_blocks(&self) -> u64 {
-        2 * self.pair_count
-    }
-
-    /// Total SHA256 blocks needed for tree hashing (atom blocks + pair blocks)
-    #[inline]
-    pub fn sha_blocks(&self) -> u64 {
-        self.sha_atom_blocks + self.sha_pair_blocks()
-    }
-
-    /// Total SHA256 invocations needed (one per unique node)
-    #[inline]
-    pub fn sha_invocations(&self) -> u64 {
-        self.atom_count + self.pair_count
-    }
-}
-
 /// Result of interning a CLVM tree.
 ///
 /// Contains the deduplicated tree structure and lists of unique nodes,
@@ -76,27 +31,6 @@ pub struct InternedTree {
 }
 
 impl InternedTree {
-    /// Compute statistics for this interned tree.
-    ///
-    /// This is O(atoms.len()) - it iterates the atom list once to sum byte lengths.
-    pub fn stats(&self) -> InternedStats {
-        let mut stats = InternedStats {
-            atom_count: self.atoms.len() as u64,
-            pair_count: self.pairs.len() as u64,
-            atom_bytes: 0,
-            sha_atom_blocks: 0,
-        };
-
-        for &atom in &self.atoms {
-            let len = self.allocator.atom_len(atom) as u64;
-            stats.atom_bytes += len;
-            // SHA256 blocks: ceil((len + 10) / 64) = (len + 73) / 64
-            stats.sha_atom_blocks += (len + 73) / 64;
-        }
-
-        stats
-    }
-
     /// Compute SHA256 tree hash for the interned tree.
     ///
     /// This is efficient because each unique node is only hashed once,
@@ -233,7 +167,6 @@ pub fn intern(allocator: &Allocator, node: NodePtr) -> Result<InternedTree> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::serde::node_from_bytes;
 
     #[test]
     fn test_intern_single_atom() {
@@ -290,22 +223,6 @@ mod tests {
         // Should have 2 atoms, 2 pairs (inner pair deduplicated)
         assert_eq!(tree.atoms.len(), 2);
         assert_eq!(tree.pairs.len(), 2); // (A . B) and ((A.B) . (A.B))
-    }
-
-    #[test]
-    fn test_stats() {
-        let mut allocator = Allocator::new();
-        let a = allocator.new_atom(&[1, 2, 3, 4, 5]).unwrap(); // 5 bytes
-        let b = allocator.new_atom(&[6, 7, 8]).unwrap(); // 3 bytes
-        let node = allocator.new_pair(a, b).unwrap();
-
-        let tree = intern(&allocator, node).unwrap();
-        let stats = tree.stats();
-
-        assert_eq!(stats.atom_count, 2);
-        assert_eq!(stats.pair_count, 1);
-        assert_eq!(stats.atom_bytes, 8);
-        assert_eq!(stats.sha_pair_blocks(), 2);
     }
 
     #[test]
@@ -367,40 +284,5 @@ mod tests {
             }
             _ => panic!("Expected outer_pair to be a pair"),
         }
-    }
-
-    #[test]
-    fn test_stats_values() {
-        let mut allocator = Allocator::new();
-        // 2 atoms (10 bytes total) and 3 pairs
-        let a = allocator.new_atom(&[1, 2, 3, 4, 5]).unwrap();
-        let b = allocator.new_atom(&[6, 7, 8, 9, 10]).unwrap();
-        let p1 = allocator.new_pair(a, b).unwrap();
-        let p2 = allocator.new_pair(p1, a).unwrap();
-        let p3 = allocator.new_pair(p2, b).unwrap();
-
-        let tree = intern(&allocator, p3).unwrap();
-        let stats = tree.stats();
-
-        assert_eq!(stats.atom_count, 2);
-        assert_eq!(stats.pair_count, 3);
-        assert_eq!(stats.atom_bytes, 10);
-        assert_eq!(stats.node_count(), 5);
-        assert_eq!(stats.sha_invocations(), 5);
-    }
-
-    #[test]
-    fn test_from_serialized_bytes() {
-        // ff8568656c6c6f85776f726c64 = ("hello" . "world")
-        let bytes = hex::decode("ff8568656c6c6f85776f726c64").unwrap();
-        let mut allocator = Allocator::new();
-        let node = node_from_bytes(&mut allocator, &bytes).unwrap();
-
-        let tree = intern(&allocator, node).unwrap();
-        let stats = tree.stats();
-
-        assert_eq!(stats.atom_count, 2);
-        assert_eq!(stats.pair_count, 1);
-        assert_eq!(stats.atom_bytes, 10); // "hello" (5) + "world" (5)
     }
 }

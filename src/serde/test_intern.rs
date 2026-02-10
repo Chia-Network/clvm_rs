@@ -84,9 +84,9 @@ fn test_hex_interning(hex: &str, expected_atoms: usize, expected_pairs: usize) -
 #[case("ffff0102ffff0102ff0102", 2, 3)] // ((1 . 2) . ((1 . 2) . (1 . 2))): same pair 3×, 2 atoms, 3 pairs
 #[case("ffff0102ffff010200", 3, 3)] // ((1 . 2) . ((1 . 2) . nil)): list with repeated pair, 3 atoms, 3 pairs
 #[case("ffff010aff010a", 2, 2)] // ((1 . 10) . (1 . 10)): repeated pair (different atoms), 2 atoms, 2 pairs
-#[case("00", 1, 0)]             // nil: single nil atom, 0 pairs
-#[case("ff0100", 2, 1)]         // (1 . nil): minimal list of one element, 2 atoms, 1 pair
-#[case("ff0000", 1, 1)]         // (nil . nil): pair of nils, 1 atom (nil), 1 pair
+#[case("00", 1, 0)] // nil: single nil atom, 0 pairs
+#[case("ff0100", 2, 1)] // (1 . nil): minimal list of one element, 2 atoms, 1 pair
+#[case("ff0000", 1, 1)] // (nil . nil): pair of nils, 1 atom (nil), 1 pair
 #[case("ff01ff01ff0100", 2, 3)] // (1 . (1 . (1 . nil))): list [1,1,1], 2 atoms, 3 pairs
 #[case("ff01ff01ff0101", 1, 3)] // (1 . (1 . (1 . 1))): atom 1 repeated 3× in pairs, 1 atom, 3 pairs
 #[case("ffff01ff0203ff01ff0203", 3, 3)] // ((1.(2.3)) . (1.(2.3))): nested pair repeated, 3 atoms, 3 pairs
