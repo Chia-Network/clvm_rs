@@ -1,9 +1,4 @@
-//! CLVM tree interning - deduplicate atoms and pairs in a single pass.
-//!
-//! This module provides the core interning functionality for CLVM trees:
-//! - Deduplicate identical atoms and pairs
-//! - Collect unique nodes for cost calculation and serialization
-//! - Compute tree hash efficiently over the interned structure
+//! CLVM tree interning: deduplicate atoms and pairs in a single pass.
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -14,10 +9,7 @@ use crate::error::Result;
 use super::bytes32::Bytes32;
 use super::object_cache::{ObjectCache, treehash};
 
-/// Result of interning a CLVM tree.
-///
-/// Contains the deduplicated tree structure and lists of unique nodes,
-/// enabling efficient cost calculation, tree hashing, and serialization.
+/// Result of interning a CLVM tree (deduplicated nodes, unique atoms/pairs).
 #[derive(Debug)]
 pub struct InternedTree {
     /// Allocator containing only unique (deduplicated) nodes
@@ -31,10 +23,7 @@ pub struct InternedTree {
 }
 
 impl InternedTree {
-    /// Compute SHA256 tree hash for the interned tree.
-    ///
-    /// This is efficient because each unique node is only hashed once,
-    /// and the ObjectCache handles memoization automatically.
+    /// SHA256 tree hash (each unique node hashed once via ObjectCache).
     pub fn tree_hash(&self) -> [u8; 32] {
         let mut cache: ObjectCache<Bytes32> = ObjectCache::new(treehash);
         *cache
