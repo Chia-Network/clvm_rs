@@ -281,13 +281,13 @@ mod tests {
         let buf = Vec::from_hex("0a").unwrap();
         let _node = node_from_bytes_backrefs(&mut a, &buf).unwrap();
         let pair_count = a.pair_count();
-        let pair_count_no_ghosts = a.pair_count_no_ghosts();
+        let allocated_pair_count = a.allocated_pair_count();
         a.restore_checkpoint(&cp);
         let _old_node = node_from_bytes_backrefs_old(&mut a, &buf).unwrap();
         let old_pair_count = a.pair_count();
-        let old_pair_count_no_ghosts = a.pair_count_no_ghosts();
-        assert_eq!(pair_count_no_ghosts, 0);
-        assert_eq!(old_pair_count_no_ghosts, 1);
+        let old_allocated_pair_count = a.allocated_pair_count();
+        assert_eq!(allocated_pair_count, 0);
+        assert_eq!(old_allocated_pair_count, 1);
         assert_eq!(pair_count, old_pair_count);
     }
 
