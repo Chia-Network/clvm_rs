@@ -24,7 +24,6 @@ mod test;
 mod test_intern;
 
 pub use bitset::BitSet;
-pub use bytes32::Bytes32;
 pub use de::{node_from_bytes, node_from_stream};
 pub use de_br::{node_from_bytes_backrefs, node_from_bytes_backrefs_old};
 pub use de_tree::{ParsedTriple, parse_triples};

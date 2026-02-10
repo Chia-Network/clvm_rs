@@ -35,7 +35,7 @@ impl InternedTree {
     ///
     /// This is efficient because each unique node is only hashed once,
     /// and the ObjectCache handles memoization automatically.
-    pub fn tree_hash(&self) -> Bytes32 {
+    pub fn tree_hash(&self) -> [u8; 32] {
         let mut cache: ObjectCache<Bytes32> = ObjectCache::new(treehash);
         *cache
             .get_or_calculate(&self.allocator, &self.root, None)
