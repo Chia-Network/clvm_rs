@@ -43,8 +43,9 @@ pub struct Counters {
     pub env_stack_usage: usize,
     pub op_stack_usage: usize,
     pub atom_count: u32,
-    pub small_atom_count: u32,
+    pub allocated_atom_count: u32,
     pub pair_count: u32,
+    pub allocated_pair_count: u32,
     pub heap_size: u32,
 }
 
@@ -56,8 +57,9 @@ impl Counters {
             env_stack_usage: 0,
             op_stack_usage: 0,
             atom_count: 0,
-            small_atom_count: 0,
+            allocated_atom_count: 0,
             pair_count: 0,
+            allocated_pair_count: 0,
             heap_size: 0,
         }
     }
@@ -537,8 +539,9 @@ pub fn run_program_with_counters<'a, D: Dialect>(
     let mut rpc = RunProgramContext::new(allocator, dialect);
     let ret = rpc.run_program(program, env, max_cost);
     rpc.counters.atom_count = rpc.allocator.atom_count() as u32;
-    rpc.counters.small_atom_count = rpc.allocator.small_atom_count() as u32;
+    rpc.counters.allocated_atom_count = rpc.allocator.allocated_atom_count() as u32;
     rpc.counters.pair_count = rpc.allocator.pair_count() as u32;
+    rpc.counters.allocated_pair_count = rpc.allocator.allocated_pair_count() as u32;
     rpc.counters.heap_size = rpc.allocator.heap_size() as u32;
     (rpc.counters, ret)
 }
@@ -1570,8 +1573,9 @@ mod tests {
         assert_eq!(counters.val_stack_usage, 3015);
         assert_eq!(counters.env_stack_usage, 1005);
         assert_eq!(counters.op_stack_usage, 3014);
-        assert_eq!(counters.atom_count, 998);
-        assert_eq!(counters.small_atom_count, 1042);
+        assert_eq!(counters.allocated_atom_count, 998);
+        assert_eq!(counters.atom_count, 2040);
+        assert_eq!(counters.allocated_pair_count, 22077);
         assert_eq!(counters.pair_count, 22077);
         assert_eq!(counters.heap_size, 769963);
 

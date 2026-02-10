@@ -936,18 +936,18 @@ impl Allocator {
     }
 
     pub fn atom_count(&self) -> usize {
-        self.atom_vec.len()
+        self.atom_vec.len() + self.ghost_atoms
     }
 
-    pub fn small_atom_count(&self) -> usize {
-        self.ghost_atoms
+    pub fn allocated_atom_count(&self) -> usize {
+        self.atom_vec.len()
     }
 
     pub fn pair_count(&self) -> usize {
         self.pair_vec.len() + self.ghost_pairs
     }
 
-    pub fn pair_count_no_ghosts(&self) -> usize {
+    pub fn allocated_pair_count(&self) -> usize {
         self.pair_vec.len()
     }
 
