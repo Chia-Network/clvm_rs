@@ -90,7 +90,7 @@ fn test_hex_interning(hex: &str, expected_atoms: usize, expected_pairs: usize) -
 #[case("ff01ff01ff0100", 2, 3)] // (1 . (1 . (1 . nil))): list [1,1,1], 2 atoms, 3 pairs
 #[case("ff01ff01ff0101", 1, 3)] // (1 . (1 . (1 . 1))): atom 1 repeated 3× in pairs, 1 atom, 3 pairs
 #[case("ffff01ff0203ff01ff0203", 3, 3)] // ((1.(2.3)) . (1.(2.3))): nested pair repeated, 3 atoms, 3 pairs
-#[case("ffff0102ffff0102ff010200", 2, 3)] // ((1.2) . ((1.2) . ((1.2) . nil))): list of 3× (1.2); 2 atoms, 3 unique pairs
+#[case("ffff0102ffff0102ffff010200", 3, 4)] // ((1.2) . ((1.2) . ((1.2) . nil))): list of 3× (1.2); 3 atoms (1, 2, nil), 4 unique pairs
 fn test_interning(
     #[case] hex: &str,
     #[case] expected_atoms: usize,
