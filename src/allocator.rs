@@ -450,8 +450,6 @@ impl Allocator {
         self.check_atom_limit()?;
         if let Some(ret) = fits_in_small_atom(v) {
             self.ghost_atoms += 1;
-            #[cfg(feature = "counters")]
-            self.update_max_counts();
             Ok(self.mk_node(ObjectType::SmallAtom, ret as usize))
         } else {
             self.u8_vec.extend_from_slice(v);
@@ -467,8 +465,6 @@ impl Allocator {
         debug_assert!(v <= NODE_PTR_IDX_MASK);
         self.check_atom_limit()?;
         self.ghost_atoms += 1;
-        #[cfg(feature = "counters")]
-        self.update_max_counts();
         Ok(self.mk_node(ObjectType::SmallAtom, v as usize))
     }
 
@@ -524,8 +520,6 @@ impl Allocator {
             return Err(EvalErr::TooManyPairs);
         }
         self.ghost_pairs += amount;
-        #[cfg(feature = "counters")]
-        self.update_max_counts();
         Ok(())
     }
 
@@ -542,8 +536,6 @@ impl Allocator {
             return Err(EvalErr::TooManyAtoms);
         }
         self.ghost_atoms += amount;
-        #[cfg(feature = "counters")]
-        self.update_max_counts();
         Ok(())
     }
     pub fn new_substr(&mut self, node: NodePtr, start: u32, end: u32) -> Result<NodePtr> {
@@ -601,8 +593,6 @@ impl Allocator {
                 let substr = &buf[start as usize..end as usize];
                 if let Some(new_val) = fits_in_small_atom(substr) {
                     self.ghost_atoms += 1;
-                    #[cfg(feature = "counters")]
-                    self.update_max_counts();
                     Ok(self.mk_node(ObjectType::SmallAtom, new_val as usize))
                 } else {
                     let start = self.u8_vec.len();
@@ -644,8 +634,6 @@ impl Allocator {
             }
             // pretend that we created a new atom and allocated new_size bytes on the heap
             self.ghost_atoms += 1;
-            #[cfg(feature = "counters")]
-            self.update_max_counts();
             return Ok(self.nil());
         }
 
@@ -659,8 +647,6 @@ impl Allocator {
             // pretend that we created a new atom and allocated new_size bytes on the heap
             self.ghost_heap += new_size;
             self.ghost_atoms += 1;
-            #[cfg(feature = "counters")]
-            self.update_max_counts();
             return Ok(nodes[0]);
         }
 
