@@ -47,6 +47,9 @@ pub struct Counters {
     pub pair_count: u32,
     pub allocated_pair_count: u32,
     pub heap_size: u32,
+    pub max_atom_count: u32,
+    pub max_pair_count: u32,
+    pub max_heap_size: u32,
 }
 
 #[cfg(feature = "counters")]
@@ -61,6 +64,9 @@ impl Counters {
             pair_count: 0,
             allocated_pair_count: 0,
             heap_size: 0,
+            max_atom_count: 0,
+            max_pair_count: 0,
+            max_heap_size: 0,
         }
     }
 }
@@ -543,6 +549,9 @@ pub fn run_program_with_counters<'a, D: Dialect>(
     rpc.counters.pair_count = rpc.allocator.pair_count() as u32;
     rpc.counters.allocated_pair_count = rpc.allocator.allocated_pair_count() as u32;
     rpc.counters.heap_size = rpc.allocator.heap_size() as u32;
+    rpc.counters.max_atom_count = rpc.allocator.max_atom_count() as u32;
+    rpc.counters.max_pair_count = rpc.allocator.max_pair_count() as u32;
+    rpc.counters.max_heap_size = rpc.allocator.max_heap_size() as u32;
     (rpc.counters, ret)
 }
 
