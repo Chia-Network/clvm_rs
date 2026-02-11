@@ -27,6 +27,12 @@ Follow this checklist when adding operators:
 - Extend the benchmark-clvm-cost.rs to include benchmarks for the new operator,
   to establish its cost.
 - The opcode decoding and dispatching happens in `src/chia_dialect.rs`
+- The ChiaDialect trait also has a function called gc_candidate(). If the new
+  operator is likely to return a small atom (say 48 bytes or less), this
+  function should return `true` for the new opcode. This allows the interpreter to
+  free all memory allocated by the opcode and any arguments computed for its
+  invocation. As long as the return value is a small atom and can easily be put
+  back in the allocator.
 - Add support for the new operators in `src/test_ops.rs` `parse_atom()`, to
   compile the name of the operator to its corresponding opcode.
 - If the operator(s) are part of an extension to `softfork`, add another value
