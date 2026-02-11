@@ -244,6 +244,16 @@ pub struct Allocator {
     ghost_pairs: usize,
     ghost_heap: usize,
 
+    // these counters track the largest number of allocations. It's used to
+    // indicate the memory pressure caused by running a CLVM program. They don't
+    // take "ghost" atoms and pairs into account for this reason.
+    #[cfg(feature = "counters")]
+    max_atom_count: usize,
+    #[cfg(feature = "counters")]
+    max_pair_count: usize,
+    #[cfg(feature = "counters")]
+    max_heap_size: usize,
+
     #[cfg(feature = "allocator-debug")]
     // fingerprints are 24 bits
     fingerprint: u32,
@@ -320,6 +330,12 @@ impl Allocator {
             ghost_atoms: 2,
             ghost_pairs: 0,
             ghost_heap: 0,
+            #[cfg(feature = "counters")]
+            max_atom_count: 0,
+            #[cfg(feature = "counters")]
+            max_pair_count: 0,
+            #[cfg(feature = "counters")]
+            max_heap_size: 0,
 
             // fingerprints are 24 bits
             #[cfg(feature = "allocator-debug")]
@@ -439,6 +455,8 @@ impl Allocator {
             self.u8_vec.extend_from_slice(v);
             let end = self.u8_vec.len() as u32;
             self.atom_vec.push(AtomBuf { start, end });
+            #[cfg(feature = "counters")]
+            self.update_max_counts();
             Ok(self.mk_node(ObjectType::Bytes, idx))
         }
     }
@@ -489,6 +507,8 @@ impl Allocator {
             return Err(EvalErr::TooManyPairs);
         }
         self.pair_vec.push(IntPair { first, rest });
+        #[cfg(feature = "counters")]
+        self.update_max_counts();
         Ok(self.mk_node(ObjectType::Pair, idx))
     }
 
@@ -560,6 +580,8 @@ impl Allocator {
                     start: atom.start + start,
                     end: atom.start + end,
                 });
+                #[cfg(feature = "counters")]
+                self.update_max_counts();
                 Ok(self.mk_node(ObjectType::Bytes, idx))
             }
             ObjectType::SmallAtom => {
@@ -581,6 +603,8 @@ impl Allocator {
                         start: start as u32,
                         end: end as u32,
                     });
+                    #[cfg(feature = "counters")]
+                    self.update_max_counts();
                     Ok(self.mk_node(ObjectType::Bytes, idx))
                 }
             }
@@ -674,6 +698,8 @@ impl Allocator {
             start: start as u32,
             end,
         });
+        #[cfg(feature = "counters")]
+        self.update_max_counts();
         Ok(self.mk_node(ObjectType::Bytes, idx))
     }
 
@@ -953,6 +979,31 @@ impl Allocator {
 
     pub fn heap_size(&self) -> usize {
         self.u8_vec.len()
+    }
+
+    #[cfg(feature = "counters")]
+    pub fn max_atom_count(&self) -> usize {
+        self.max_atom_count
+    }
+
+    #[cfg(feature = "counters")]
+    pub fn max_pair_count(&self) -> usize {
+        self.max_pair_count
+    }
+
+    #[cfg(feature = "counters")]
+    pub fn max_heap_size(&self) -> usize {
+        self.max_heap_size
+    }
+
+    #[cfg(feature = "counters")]
+    fn update_max_counts(&mut self) {
+        let atom_count = self.atom_vec.len();
+        self.max_atom_count = std::cmp::max(self.max_atom_count, atom_count);
+        let pair_count = self.pair_vec.len();
+        self.max_pair_count = std::cmp::max(self.max_pair_count, pair_count);
+        let heap_size = self.u8_vec.len();
+        self.max_heap_size = std::cmp::max(self.max_heap_size, heap_size);
     }
 }
 
@@ -1578,8 +1629,12 @@ mod tests {
         let checkpoint = a.checkpoint();
 
         let atom2 = a.new_atom(&[6, 5, 4, 3]).unwrap();
+        let _pair1 = a.new_pair(atom1, atom2).unwrap();
         assert!(a.atom(atom1).as_ref() == [4, 3, 2, 1]);
         assert!(a.atom(atom2).as_ref() == [6, 5, 4, 3]);
+
+        #[cfg(feature = "counters")]
+        let prev_counters = (a.max_atom_count(), a.max_pair_count(), a.max_heap_size());
 
         // at this point we have two atoms and a checkpoint from before the second
         // atom was created
@@ -1587,6 +1642,12 @@ mod tests {
         // now, restoring the checkpoint state will make atom2 disappear
 
         a.restore_checkpoint(&checkpoint);
+
+        #[cfg(feature = "counters")]
+        assert_eq!(
+            (a.max_atom_count(), a.max_pair_count(), a.max_heap_size()),
+            prev_counters
+        );
 
         assert!(a.atom(atom1).as_ref() == [4, 3, 2, 1]);
         let atom3 = a.new_atom(&[6, 5, 4, 3]).unwrap();
