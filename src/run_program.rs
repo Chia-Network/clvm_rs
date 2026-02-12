@@ -1295,6 +1295,42 @@ mod tests {
             cost: 0,
             err: "Secp256 Verify Error: failed",
         },
+        // Opcode 64 (secp256k1_verify) with ENABLE_SECP_OPS
+        RunProgramTest {
+            prg: "(secp256k1_verify_64 (q . 0x02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439) (q . 0x74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668) (q . 0x1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c018))",
+            args: "()",
+            flags: ClvmFlags::ENABLE_SECP_OPS,
+            result: Some("0"),
+            cost: 1300061,
+            err: "",
+        },
+        // Opcode 65 (secp256r1_verify) with ENABLE_SECP_OPS
+        RunProgramTest {
+            prg: "(secp256r1_verify_65 (q . 0x0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9) (q . 0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08) (q . 0xe8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffc))",
+            args: "()",
+            flags: ClvmFlags::ENABLE_SECP_OPS,
+            result: Some("0"),
+            cost: 1850061,
+            err: "",
+        },
+        // Opcode 64 without ENABLE_SECP_OPS is unimplemented
+        RunProgramTest {
+            prg: "(secp256k1_verify_64 (q . 0x02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439) (q . 0x74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668) (q . 0x1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c018))",
+            args: "()",
+            flags: ClvmFlags::NO_UNKNOWN_OPS,
+            result: None,
+            cost: 0,
+            err: "unimplemented operator",
+        },
+        // Opcode 65 without ENABLE_SECP_OPS is unimplemented
+        RunProgramTest {
+            prg: "(secp256r1_verify_65 (q . 0x0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9) (q . 0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08) (q . 0xe8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffc))",
+            args: "()",
+            flags: ClvmFlags::NO_UNKNOWN_OPS,
+            result: None,
+            cost: 0,
+            err: "unimplemented operator",
+        },
         RunProgramTest {
             prg: "(sha256tree (q . 10))",
             args: "()",

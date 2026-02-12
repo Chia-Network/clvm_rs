@@ -106,6 +106,8 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
             "%" => a.new_atom(&[61]).unwrap(),
             "secp256k1_verify" => a.new_atom(&[0x13, 0xd6, 0x1f, 0x00]).unwrap(),
             "secp256r1_verify" => a.new_atom(&[0x1c, 0x3a, 0x8f, 0x00]).unwrap(),
+            "secp256k1_verify_64" => a.new_atom(&[64]).unwrap(),
+            "secp256r1_verify_65" => a.new_atom(&[65]).unwrap(),
             "keccak256" => a.new_atom(&[62]).unwrap(),
             "sha256tree" => a.new_atom(&[63]).unwrap(),
             _ => {
@@ -322,6 +324,8 @@ mod tests {
             ("bls_verify", op_bls_verify as Opf),
             ("secp256k1_verify", op_secp256k1_verify as Opf),
             ("secp256r1_verify", op_secp256r1_verify as Opf),
+            ("secp256k1_verify_64", op_secp256k1_verify as Opf),
+            ("secp256r1_verify_65", op_secp256r1_verify as Opf),
             ("modpow", op_modpow as Opf),
             ("keccak256", op_keccak256 as Opf),
             // 3.0 hard fork

@@ -93,6 +93,7 @@ fn clvm_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("LIMIT_HEAP", ClvmFlags::LIMIT_HEAP.bits())?;
     m.add("MEMPOOL_MODE", MEMPOOL_MODE.bits())?;
     m.add("ENABLE_SHA256_TREE", ClvmFlags::ENABLE_SHA256_TREE.bits())?;
+    m.add("ENABLE_SECP_OPS", ClvmFlags::ENABLE_SECP_OPS.bits())?;
     m.add("DISABLE_OP", ClvmFlags::DISABLE_OP.bits())?;
     m.add("CANONICAL_INTS", ClvmFlags::CANONICAL_INTS.bits())?;
     m.add_class::<LazyNode>()?;
