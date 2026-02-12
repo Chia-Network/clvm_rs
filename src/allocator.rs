@@ -39,6 +39,12 @@ impl Hash for NodePtr {
 #[cfg(feature = "allocator-debug")]
 impl PartialEq for NodePtr {
     fn eq(&self, other: &Self) -> bool {
+        if self.1.fingerprint != u32::MAX && other.1.fingerprint != u32::MAX {
+            assert_eq!(
+                self.1.fingerprint, other.1.fingerprint,
+                "NodePtr from different allocators are not allowed be be compared"
+            );
+        }
         self.0.eq(&other.0)
     }
 }
@@ -255,7 +261,6 @@ pub struct Allocator {
     max_heap_size: usize,
 
     #[cfg(feature = "allocator-debug")]
-    // fingerprints are 24 bits
     fingerprint: u32,
 
     // the number of atoms and pairs at different versions
@@ -337,9 +342,8 @@ impl Allocator {
             #[cfg(feature = "counters")]
             max_heap_size: 0,
 
-            // fingerprints are 24 bits
             #[cfg(feature = "allocator-debug")]
-            fingerprint: rand::thread_rng().next_u32() & 0xffffff,
+            fingerprint: rand::thread_rng().next_u32() & 0x7fffffff,
 
             #[cfg(feature = "allocator-debug")]
             versions: Vec::new(),
@@ -394,7 +398,6 @@ impl Allocator {
     #[inline(always)]
     #[cfg(feature = "allocator-debug")]
     fn mk_node(&self, t: ObjectType, idx: usize) -> NodePtr {
-        assert!((self.fingerprint & 0xff000000) == 0);
         NodePtr::new_debug(
             t,
             idx,
