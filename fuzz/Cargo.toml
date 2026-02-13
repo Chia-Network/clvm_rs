@@ -15,49 +15,49 @@ arbitrary = { workspace = true }
 clvm-fuzzing = { workspace = true }
 
 [[bin]]
-name = "fuzz_run_program"
+name = "run-program"
 path = "fuzz_targets/run_program.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "fuzz_serialized_length"
+name = "serialized-length"
 path = "fuzz_targets/serialized_length.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "fuzz_serialized_length_trusted"
+name = "serialized-length-trusted"
 path = "fuzz_targets/serialized_length_trusted.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "fuzz_deserialize"
+name = "deserialize"
 path = "fuzz_targets/deserialize.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "fuzz_deserialize_br"
+name = "deserialize-br"
 path = "fuzz_targets/deserialize_br.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "fuzz_tree_hash"
+name = "tree-hash"
 path = "fuzz_targets/tree_hash.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "fuzz_deserialize_br_rand_tree"
+name = "deserialize-br-rand-tree"
 path = "fuzz_targets/deserialize_br_rand_tree.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "fuzz_parse_triples"
+name = "parse-triples"
 path = "fuzz_targets/parse_triples.rs"
 test = false
 doc = false
