@@ -1,6 +1,6 @@
 [package]
 name = "clvm-fuzzing"
-version = "0.16.5"
+version = "0.17.0"
 edition = "2024"
 license = "Apache-2.0"
 description = "Fuzzing tools for clvm Projects on Rust"

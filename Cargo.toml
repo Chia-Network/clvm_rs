@@ -3,7 +3,7 @@ members = ["fuzz", "tools", "wheel", "clvm-fuzzing"]
 
 [package]
 name = "clvmr"
-version = "0.16.5"
+version = "0.17.0"
 authors = ["Richard Kiss <him@richardkiss.com>"]
 edition = "2024"
 license = "Apache-2.0"
@@ -39,8 +39,8 @@ lto = "thin"
 
 [workspace.dependencies]
 bitflags = "2.10"
-clvmr = { path = ".", version = "0.16.1" }
-clvm-fuzzing = { path = "./clvm-fuzzing", version = "0.16.1" }
+clvmr = { path = ".", version = "0.17.0" }
+clvm-fuzzing = { path = "./clvm-fuzzing", version = "0.17.0" }
 lazy_static = "1.5.0"
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
