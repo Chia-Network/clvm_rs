@@ -46,6 +46,9 @@ bitflags! {
         /// Enables the sha256tree op *outside* the softfork guard. Hard-fork;
         /// enable only when it activates.
         const ENABLE_SHA256_TREE = 0x0400;
+
+        /// Enables secp opcodes 64 (secp256k1_verify) and 65 (secp256r1_verify).
+        const ENABLE_SECP_OPS = 0x0800;
     }
 }
 
@@ -220,6 +223,8 @@ impl Dialect for ChiaDialect {
             }
             62 if flags.contains(ClvmFlags::ENABLE_KECCAK_OPS_OUTSIDE_GUARD) => op_keccak256,
             63 if flags.contains(ClvmFlags::ENABLE_SHA256_TREE) => op_sha256_tree,
+            64 if flags.contains(ClvmFlags::ENABLE_SECP_OPS) => op_secp256k1_verify,
+            65 if flags.contains(ClvmFlags::ENABLE_SECP_OPS) => op_secp256r1_verify,
             _ => {
                 return unknown_operator(allocator, o, argument_list, flags, max_cost);
             }
@@ -269,13 +274,14 @@ mod tests {
     use super::*;
 
     /// All single-flag constants. Add new flags here so we can assert no overlap.
-    const ALL_FLAGS: [ClvmFlags; 6] = [
+    const ALL_FLAGS: [ClvmFlags; 7] = [
         ClvmFlags::CANONICAL_INTS,
         ClvmFlags::NO_UNKNOWN_OPS,
         ClvmFlags::LIMIT_HEAP,
         ClvmFlags::ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
         ClvmFlags::DISABLE_OP,
         ClvmFlags::ENABLE_SHA256_TREE,
+        ClvmFlags::ENABLE_SECP_OPS,
     ];
 
     #[test]
