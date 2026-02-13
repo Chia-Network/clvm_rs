@@ -194,9 +194,9 @@ dependencies = [
 
 [[package]]
 name = "chia-sha2"
-version = "0.34.0"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f06500dc809a916fa0c70f5219b8b79a598462382a4ddca91ef1a3cb32b826ce"
+checksum = "65e815790507cd67c682955e9964919c6794e49889e859528d1a0bba795b3478"
 dependencies = [
  "openssl",
  "sha2",
@@ -298,7 +298,7 @@ version = "0.17.0"
 dependencies = [
  "anyhow",
  "arbitrary",
- "chia-sha2 0.34.0",
+ "chia-sha2 0.35.0",
  "clvmr",
 ]
 
@@ -347,7 +347,7 @@ dependencies = [
  "bitvec",
  "bumpalo",
  "chia-bls",
- "chia-sha2 0.34.0",
+ "chia-sha2 0.35.0",
  "criterion",
  "hex",
  "hex-literal",
