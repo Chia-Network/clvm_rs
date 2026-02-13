@@ -1399,7 +1399,7 @@ mod tests {
         let args = check(parse_exp(&mut allocator, t.args));
         let expected_result = &t.result.map(|v| check(parse_exp(&mut allocator, v)));
 
-        let dialect = ChiaDialect::new(t.flags);
+        let dialect = ChiaDialect::new(t.flags.union(ClvmFlags::ENABLE_GC));
         println!("prg: {}", t.prg);
         match run_program(&mut allocator, &dialect, program, args, t.cost) {
             Ok(Reduction(cost, prg_result)) => {
@@ -1654,7 +1654,7 @@ mod tests {
 
         let (counters, result) = run_program_with_counters(
             &mut a,
-            &ChiaDialect::new(ClvmFlags::empty()),
+            &ChiaDialect::new(ClvmFlags::ENABLE_GC),
             program,
             args,
             cost,

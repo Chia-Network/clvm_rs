@@ -55,6 +55,10 @@ bitflags! {
         /// Enables secp opcodes 64 (secp256k1_verify) and 65 (secp256r1_verify).
         const ENABLE_SECP_OPS = 0x0800;
 
+        /// When set, operators that return nil/one may be treated as GC
+        /// candidates (allocator checkpoint/restore). When not set,
+        /// gc_candidate() always returns false.
+        const ENABLE_GC = 0x1000;
     }
 }
 
@@ -102,6 +106,9 @@ impl Dialect for ChiaDialect {
     // collection, meaning we save the state of the Allocator and potentially
     // restore it once the operator returns
     fn gc_candidate(&self, allocator: &Allocator, op: NodePtr) -> bool {
+        if !self.flags.contains(ClvmFlags::ENABLE_GC) {
+            return false;
+        }
         // apply listp eq gr_bytes sha256 strlen add subtract multiply
         // div divmod gr ash lsh logand logior logxor lognot point_add
         // pubkey_for_exp not any all coinid bls_g1_subtract

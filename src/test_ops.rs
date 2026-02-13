@@ -495,7 +495,7 @@ mod tests {
 
         let result = run_program_with_pre_eval(
             &mut allocator,
-            &ChiaDialect::new(ClvmFlags::NO_UNKNOWN_OPS),
+            &ChiaDialect::new(ClvmFlags::NO_UNKNOWN_OPS.union(ClvmFlags::ENABLE_GC)),
             program,
             NodePtr::NIL,
             COST_LIMIT,
