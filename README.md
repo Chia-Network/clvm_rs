@@ -36,7 +36,7 @@ cargo run generate-fuzz-corpus
 To get started, run:
 
 ```
-cargo fuzz run fuzz_run_program --jobs=32 -- -rss_limit_mb=4096
+cargo fuzz run run-program --jobs=32 -- -rss_limit_mb=4096
 ```
 
 But with whatever number of jobs works best for you.
