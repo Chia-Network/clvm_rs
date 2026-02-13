@@ -1,4 +1,4 @@
-use crate::allocator::{Allocator, NodePtr};
+use crate::allocator::{Allocator, NodePtr, NodeVisitor};
 use crate::bls_ops::{
     op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
     op_bls_g2_negate, op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
@@ -46,6 +46,11 @@ bitflags! {
         /// Enables the sha256tree op *outside* the softfork guard. Hard-fork;
         /// enable only when it activates.
         const ENABLE_SHA256_TREE = 0x0400;
+
+        /// When set, operators that return nil/one may be treated as GC
+        /// candidates (allocator checkpoint/restore). When not set,
+        /// gc_candidate() always returns false.
+        const ENABLE_GC = 0x0800;
     }
 }
 
@@ -89,6 +94,60 @@ impl Default for ChiaDialect {
 }
 
 impl Dialect for ChiaDialect {
+    // determine whether the specified operator is a candidate for garbage
+    // collection, meaning we save the state of the Allocator and potentially
+    // restore it once the operator returns
+    fn gc_candidate(&self, allocator: &Allocator, op: NodePtr) -> bool {
+        if !self.flags.contains(ClvmFlags::ENABLE_GC) {
+            return false;
+        }
+        if let NodeVisitor::U32(op) = allocator.node(op) {
+            match op {
+                2 => true,  // apply
+                7 => true,  // listp
+                9 => true,  // eq
+                10 => true, // gr_bytes
+                11 => true, // sha256
+                13 => true, // strlen
+                16 => true, // add
+                17 => true, // subtract
+                18 => true, // multiply
+                19 => true, // div
+                20 => true, // divmod
+                21 => true, // gr
+                22 => true, // ash
+                23 => true, // lsh
+                24 => true, // logand
+                25 => true, // logior
+                26 => true, // logxor
+                27 => true, // lognot
+                29 => true, // point_add
+                30 => true, // pubkey_for_exp
+                32 => true, // not
+                33 => true, // any
+                34 => true, // all
+                48 => true, // coinid
+                49 => true, // bls_g1_subtract
+                50 => true, // bls_g1_multiply
+                51 => true, // bls_g1_negate
+                52 => true, // bls_g2_add
+                53 => true, // bls_g2_subtract
+                54 => true, // bls_g2_multiply
+                55 => true, // bls_g2_negate
+                56 => true, // bls_map_to_g1
+                58 => true, // bls_pairing_identity
+                59 => true, // bls_verify
+                60 => true, // modpow
+                61 => true, // mod
+                62 => true, // keccak256
+                63 => true, // sha256_tree
+                _ => false,
+            }
+        } else {
+            false
+        }
+    }
+
     fn op(
         &self,
         allocator: &mut Allocator,
@@ -269,13 +328,14 @@ mod tests {
     use super::*;
 
     /// All single-flag constants. Add new flags here so we can assert no overlap.
-    const ALL_FLAGS: [ClvmFlags; 6] = [
+    const ALL_FLAGS: [ClvmFlags; 7] = [
         ClvmFlags::CANONICAL_INTS,
         ClvmFlags::NO_UNKNOWN_OPS,
         ClvmFlags::LIMIT_HEAP,
         ClvmFlags::ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
         ClvmFlags::DISABLE_OP,
         ClvmFlags::ENABLE_SHA256_TREE,
+        ClvmFlags::ENABLE_GC,
     ];
 
     #[test]
