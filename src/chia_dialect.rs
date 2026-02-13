@@ -46,6 +46,11 @@ bitflags! {
         /// Enables the sha256tree op *outside* the softfork guard. Hard-fork;
         /// enable only when it activates.
         const ENABLE_SHA256_TREE = 0x0400;
+
+        /// When set, operators that return nil/one may be treated as GC
+        /// candidates (allocator checkpoint/restore). When not set,
+        /// gc_candidate() always returns false.
+        const ENABLE_GC = 0x0800;
     }
 }
 
@@ -93,6 +98,9 @@ impl Dialect for ChiaDialect {
     // collection, meaning we save the state of the Allocator and potentially
     // restore it once the operator returns
     fn gc_candidate(&self, allocator: &Allocator, op: NodePtr) -> bool {
+        if !self.flags.contains(ClvmFlags::ENABLE_GC) {
+            return false;
+        }
         if let NodeVisitor::U32(op) = allocator.node(op) {
             match op {
                 2 => true,  // apply
@@ -320,13 +328,14 @@ mod tests {
     use super::*;
 
     /// All single-flag constants. Add new flags here so we can assert no overlap.
-    const ALL_FLAGS: [ClvmFlags; 6] = [
+    const ALL_FLAGS: [ClvmFlags; 7] = [
         ClvmFlags::CANONICAL_INTS,
         ClvmFlags::NO_UNKNOWN_OPS,
         ClvmFlags::LIMIT_HEAP,
         ClvmFlags::ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
         ClvmFlags::DISABLE_OP,
         ClvmFlags::ENABLE_SHA256_TREE,
+        ClvmFlags::ENABLE_GC,
     ];
 
     #[test]
