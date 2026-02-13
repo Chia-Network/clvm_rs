@@ -537,7 +537,7 @@ pub fn main() {
     let mut buffer = Vec::<u8>::new();
     let mut rng = StdRng::seed_from_u64(0x1337);
 
-    create_dir_all("../fuzz/corpus/fuzz_run_program").expect("failed to create directory");
+    create_dir_all("../fuzz/corpus/run-program").expect("failed to create directory");
     create_dir_all("../fuzz/corpus/operators").expect("failed to create directory");
 
     for i in 0..40000 {
@@ -545,11 +545,8 @@ pub fn main() {
 
         let op = &OPERATORS[i % OPERATORS.len()];
         generate_program(op, &mut rng, &mut buffer);
-        let mut out = File::create(format!(
-            "../fuzz/corpus/fuzz_run_program/{}",
-            filename(&buffer)
-        ))
-        .expect("failed to open file");
+        let mut out = File::create(format!("../fuzz/corpus/run-program/{}", filename(&buffer)))
+            .expect("failed to open file");
         out.write_all(&buffer).expect("failed to write file");
     }
 
