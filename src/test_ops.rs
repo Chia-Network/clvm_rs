@@ -208,7 +208,7 @@ mod tests {
     use super::*;
 
     #[cfg(feature = "pre-eval")]
-    use crate::chia_dialect::{ChiaDialect, NO_UNKNOWN_OPS};
+    use crate::chia_dialect::{ChiaDialect, ClvmFlags};
 
     #[cfg(feature = "pre-eval")]
     use crate::run_program::run_program_with_pre_eval;
@@ -481,7 +481,7 @@ mod tests {
 
         let result = run_program_with_pre_eval(
             &mut allocator,
-            &ChiaDialect::new(NO_UNKNOWN_OPS),
+            &ChiaDialect::new(ClvmFlags::NO_UNKNOWN_OPS),
             program,
             NodePtr::NIL,
             COST_LIMIT,

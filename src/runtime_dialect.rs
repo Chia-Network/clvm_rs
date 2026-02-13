@@ -1,5 +1,5 @@
 use crate::allocator::{Allocator, NodePtr};
-use crate::chia_dialect::NO_UNKNOWN_OPS;
+use crate::chia_dialect::ClvmFlags;
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::error::EvalErr;
@@ -13,7 +13,7 @@ pub struct RuntimeDialect {
     quote_kw: Vec<u8>,
     apply_kw: Vec<u8>,
     softfork_kw: Vec<u8>,
-    flags: u32,
+    flags: ClvmFlags,
 }
 
 impl RuntimeDialect {
@@ -21,7 +21,7 @@ impl RuntimeDialect {
         op_map: HashMap<String, Vec<u8>>,
         quote_kw: Vec<u8>,
         apply_kw: Vec<u8>,
-        flags: u32,
+        flags: ClvmFlags,
     ) -> RuntimeDialect {
         RuntimeDialect {
             f_lookup: f_lookup_for_hashmap(op_map),
@@ -50,7 +50,7 @@ impl Dialect for RuntimeDialect {
         {
             return f(allocator, argument_list, max_cost);
         }
-        if (self.flags & NO_UNKNOWN_OPS) != 0 {
+        if self.flags.contains(ClvmFlags::NO_UNKNOWN_OPS) {
             Err(EvalErr::Unimplemented(o))?
         } else {
             op_unknown(allocator, o, argument_list, max_cost)
@@ -72,10 +72,10 @@ impl Dialect for RuntimeDialect {
     }
 
     fn allow_unknown_ops(&self) -> bool {
-        (self.flags & NO_UNKNOWN_OPS) == 0
+        !self.flags.contains(ClvmFlags::NO_UNKNOWN_OPS)
     }
 
-    fn flags(&self) -> u32 {
+    fn flags(&self) -> ClvmFlags {
         self.flags
     }
 }

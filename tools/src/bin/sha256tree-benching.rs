@@ -1,5 +1,5 @@
 use clvmr::allocator::{Allocator, NodePtr};
-use clvmr::chia_dialect::{ChiaDialect, ENABLE_SHA256_TREE};
+use clvmr::chia_dialect::{ChiaDialect, ClvmFlags};
 use clvmr::reduction::Reduction;
 use clvmr::run_program::run_program;
 use clvmr::serde::{node_from_bytes, node_to_bytes};
@@ -20,7 +20,7 @@ CPU.
 // this function calculates the cost per node theoretically
 // for a perfectly balanced binary tree
 fn time_complete_tree(a: &mut Allocator, sha_prog: NodePtr, leaf_size: usize, output_file: &str) {
-    let dialect = ChiaDialect::new(ENABLE_SHA256_TREE);
+    let dialect = ChiaDialect::new(ClvmFlags::ENABLE_SHA256_TREE);
     let op_code = a.new_small_number(63).unwrap();
     let quote = a.one();
 
