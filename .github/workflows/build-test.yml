@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-15-intel, ubuntu-latest, windows-latest]
-        python: [3.8]
+        python: ["3.10"]
 
     steps:
       - uses: actions/checkout@v5
@@ -61,10 +61,8 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/ws --workdir=/ws \
-            quay.io/pypa/manylinux_2_28_x86_64 \
+            ghcr.io/chia-network/build-images/centos-pypa-rust-x86_64 \
             bash -exc '\
-              curl -L https://sh.rustup.rs > rustup-init.sh && \
-              sh rustup-init.sh -y && \
               yum -y install perl-IPC-Cmd && \
               yum -y --disablerepo=epel install openssl-devel && \
               source $HOME/.cargo/env && \
@@ -72,12 +70,8 @@ jobs:
               PY_VERSION=${{ matrix.python }}
               PY_VERSION=${PY_VERSION/.} && \
               echo "Python version with dot removed is $PY_VERSION" && \
-              if [ "$PY_VERSION" = "38" ]; \
-              then export SCND_VERSION="${PY_VERSION}m"; \
-              else export SCND_VERSION="$PY_VERSION"; fi && \
-              echo "Exporting path /opt/python/cp$PY_VERSION-cp$SCND_VERSION/bin" && \
-              export PATH=/opt/python/cp$PY_VERSION-cp$SCND_VERSION/bin/:$PATH && \
-              /opt/python/cp38-cp38/bin/python -m venv /venv && \
+              export PATH=/opt/python/cp$PY_VERSION-cp$PY_VERSION/bin/:$PATH && \
+              python -m venv /venv && \
               . /venv/bin/activate && \
               pip install --upgrade pip && \
               pip install maturin && \
@@ -145,7 +139,7 @@ jobs:
       - name: Install python
         uses: Chia-Network/actions/setup-python@main
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
       - name: Download artifacts
         uses: actions/download-artifact@v6
@@ -184,7 +178,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-15-intel, ubuntu-latest]
-        python: [3.8]
+        python: ["3.10"]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -216,13 +210,18 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-15-intel, ubuntu-latest, windows-latest]
-        python: [3.8]
+        python: ["3.10"]
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 1
       - name: Set up rusts
         uses: dtolnay/rust-toolchain@1.92.0
+
+      - uses: chia-network/actions/setup-python@main
+        name: Install Python ${{ matrix.python }}
+        with:
+          python-version: ${{ matrix.python }}
 
       - name: build
         run: cargo build --workspace --exclude clvm_rs-fuzz
