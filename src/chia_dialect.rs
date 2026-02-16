@@ -272,28 +272,18 @@ impl Dialect for ChiaDialect {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// All single-flag constants. Add new flags here so we can assert no overlap.
-    const ALL_FLAGS: [ClvmFlags; 7] = [
-        ClvmFlags::CANONICAL_INTS,
-        ClvmFlags::NO_UNKNOWN_OPS,
-        ClvmFlags::LIMIT_HEAP,
-        ClvmFlags::ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
-        ClvmFlags::DISABLE_OP,
-        ClvmFlags::ENABLE_SHA256_TREE,
-        ClvmFlags::ENABLE_SECP_OPS,
-    ];
+    use bitflags::Flags;
 
     #[test]
     fn no_overlapping_flags() {
-        for (i, a) in ALL_FLAGS.iter().enumerate() {
-            for b in &ALL_FLAGS[i + 1..] {
+        for (i, a) in ClvmFlags::FLAGS.iter().enumerate() {
+            for b in &ClvmFlags::FLAGS[i + 1..] {
                 assert_eq!(
-                    a.bits() & b.bits(),
+                    a.value().bits() & b.value().bits(),
                     0,
-                    "flags {:08x} and {:08x} overlap",
-                    a.bits(),
-                    b.bits()
+                    "flags {} and {} overlap",
+                    a.name(),
+                    b.name()
                 );
             }
         }
