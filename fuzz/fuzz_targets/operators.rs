@@ -5,9 +5,9 @@ use libfuzzer_sys::fuzz_target;
 
 use clvmr::allocator::{Allocator, NodePtr};
 use clvmr::bls_ops::{
-    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
-    op_bls_g2_negate, op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
-    op_bls_pairing_identity, op_bls_verify,
+    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_negate_strict, op_bls_g1_subtract,
+    op_bls_g2_add, op_bls_g2_multiply, op_bls_g2_negate, op_bls_g2_negate_strict,
+    op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2, op_bls_pairing_identity, op_bls_verify,
 };
 use clvmr::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use clvmr::cost::Cost;
@@ -24,7 +24,7 @@ use clvmr::sha_tree_op::op_sha256_tree;
 
 type Opf = fn(&mut Allocator, NodePtr, Cost) -> Response;
 
-const FUNS: [Opf; 47] = [
+const FUNS: [Opf; 49] = [
     op_if as Opf,
     op_cons as Opf,
     op_first as Opf,
@@ -59,10 +59,12 @@ const FUNS: [Opf; 47] = [
     op_bls_g1_subtract as Opf,
     op_bls_g1_multiply as Opf,
     op_bls_g1_negate as Opf,
+    op_bls_g1_negate_strict as Opf,
     op_bls_g2_add as Opf,
     op_bls_g2_subtract as Opf,
     op_bls_g2_multiply as Opf,
     op_bls_g2_negate as Opf,
+    op_bls_g2_negate_strict as Opf,
     op_bls_map_to_g1 as Opf,
     op_bls_map_to_g2 as Opf,
     op_bls_pairing_identity as Opf,

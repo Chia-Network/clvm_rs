@@ -1,8 +1,8 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::bls_ops::{
-    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
-    op_bls_g2_negate, op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
-    op_bls_pairing_identity, op_bls_verify,
+    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_negate_strict, op_bls_g1_subtract,
+    op_bls_g2_add, op_bls_g2_multiply, op_bls_g2_negate, op_bls_g2_negate_strict,
+    op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2, op_bls_pairing_identity, op_bls_verify,
 };
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
@@ -314,10 +314,12 @@ mod tests {
             ("g1_subtract", op_bls_g1_subtract as Opf),
             ("g1_multiply", op_bls_g1_multiply as Opf),
             ("g1_negate", op_bls_g1_negate as Opf),
+            ("g1_negate_strict", op_bls_g1_negate_strict as Opf),
             ("g2_add", op_bls_g2_add as Opf),
             ("g2_subtract", op_bls_g2_subtract as Opf),
             ("g2_multiply", op_bls_g2_multiply as Opf),
             ("g2_negate", op_bls_g2_negate as Opf),
+            ("g2_negate_strict", op_bls_g2_negate_strict as Opf),
             ("g1_map", op_bls_map_to_g1 as Opf),
             ("g2_map", op_bls_map_to_g2 as Opf),
             ("bls_pairing_identity", op_bls_pairing_identity as Opf),
