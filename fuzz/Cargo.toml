@@ -21,6 +21,12 @@ test = false
 doc = false
 
 [[bin]]
+name = "garbage-collection"
+path = "fuzz_targets/garbage_collection.rs"
+test = false
+doc = false
+
+[[bin]]
 name = "serialized-length"
 path = "fuzz_targets/serialized_length.rs"
 test = false
