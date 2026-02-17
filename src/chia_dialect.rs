@@ -1,8 +1,8 @@
 use crate::allocator::{Allocator, NodePtr};
 use crate::bls_ops::{
-    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
-    op_bls_g2_negate, op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
-    op_bls_pairing_identity, op_bls_verify,
+    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_negate_strict, op_bls_g1_subtract,
+    op_bls_g2_add, op_bls_g2_multiply, op_bls_g2_negate, op_bls_g2_negate_strict,
+    op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2, op_bls_pairing_identity, op_bls_verify,
 };
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
@@ -37,6 +37,11 @@ bitflags! {
         /// as well as the number of pairs.
         const LIMIT_HEAP = 0x0004;
 
+        /// Make bls_g1_negate and bls_g2_negate accept invalid points, as long
+        /// as they at least have the right number of bytes in the atoms.
+        /// Hard-fork; enable only when it activates.
+        const RELAXED_BLS = 0x0008;
+
         /// Enables the keccak256 op *outside* the softfork guard. Hard-fork;
         /// enable only when it activates.
         const ENABLE_KECCAK_OPS_OUTSIDE_GUARD = 0x0100;
@@ -49,6 +54,7 @@ bitflags! {
 
         /// Enables secp opcodes 64 (secp256k1_verify) and 65 (secp256r1_verify).
         const ENABLE_SECP_OPS = 0x0800;
+
     }
 }
 
@@ -198,11 +204,13 @@ impl Dialect for ChiaDialect {
             48 => op_coinid,
             49 => op_bls_g1_subtract,
             50 => op_bls_g1_multiply,
-            51 => op_bls_g1_negate,
+            51 if flags.contains(ClvmFlags::RELAXED_BLS) => op_bls_g1_negate,
+            51 if !flags.contains(ClvmFlags::RELAXED_BLS) => op_bls_g1_negate_strict,
             52 => op_bls_g2_add,
             53 => op_bls_g2_subtract,
             54 => op_bls_g2_multiply,
-            55 => op_bls_g2_negate,
+            55 if flags.contains(ClvmFlags::RELAXED_BLS) => op_bls_g2_negate,
+            55 if !flags.contains(ClvmFlags::RELAXED_BLS) => op_bls_g2_negate_strict,
             56 => op_bls_map_to_g1,
             57 => op_bls_map_to_g2,
             58 => op_bls_pairing_identity,

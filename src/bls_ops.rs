@@ -92,16 +92,29 @@ pub fn op_bls_g1_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
 }
 
 pub fn op_bls_g1_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+    op_bls_g1_negate_impl(a, input, false)
+}
+
+pub fn op_bls_g1_negate_strict(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+    op_bls_g1_negate_impl(a, input, true)
+}
+
+fn op_bls_g1_negate_impl(a: &mut Allocator, input: NodePtr, strict: bool) -> Response {
     let [point] = get_args::<1>(a, input, "g1_negate")?;
 
     let blob = atom(a, point, "G1 atom")?;
     // this is here to validate the point
-    let _g1 = G1Element::from_bytes(
-        blob.as_ref()
-            .try_into()
-            .map_err(|_| EvalErr::InvalidOpArg(point, "atom is not a G1 point".to_string()))?,
-    )
-    .map_err(|_| EvalErr::InvalidOpArg(point, "atom is not a G1 point".to_string()))?;
+    if strict {
+        let _g1 = G1Element::from_bytes(blob.as_ref().try_into().map_err(|_| {
+            EvalErr::InvalidOpArg(point, "atom is not a G1 size, 48 bytes".to_string())
+        })?)
+        .map_err(|_| EvalErr::InvalidOpArg(point, "atom is not a G1 point".to_string()))?;
+    } else if blob.len() != 48 {
+        return Err(EvalErr::InvalidOpArg(
+            point,
+            "atom is not G1 size, 48 bytes".to_string(),
+        ));
+    }
 
     if (blob.as_ref()[0] & 0xe0) == 0xc0 {
         // This is compressed infinity. negating it is a no-op
@@ -179,6 +192,14 @@ pub fn op_bls_g2_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
 }
 
 pub fn op_bls_g2_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+    op_bls_g2_negate_impl(a, input, false)
+}
+
+pub fn op_bls_g2_negate_strict(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+    op_bls_g2_negate_impl(a, input, true)
+}
+
+fn op_bls_g2_negate_impl(a: &mut Allocator, input: NodePtr, strict: bool) -> Response {
     let [point] = get_args::<1>(a, input, "g2_negate")?;
 
     // we don't validate the point. We may want to soft fork-in validating the
@@ -187,11 +208,17 @@ pub fn op_bls_g2_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
     let blob = blob_atom.as_ref();
 
     // this is here to validate the point
-    let _g2 =
-        G2Element::from_bytes(blob.as_ref().try_into().map_err(|_| {
+    if strict {
+        let _g2 = G2Element::from_bytes(blob.as_ref().try_into().map_err(|_| {
             EvalErr::InvalidOpArg(point, "atom is not G2 size, 96 bytes".to_string())
         })?)
         .map_err(|_| EvalErr::InvalidOpArg(point, "atom is not a G2 point".to_string()))?;
+    } else if blob.len() != 96 {
+        return Err(EvalErr::InvalidOpArg(
+            point,
+            "atom is not G2 size, 96 bytes".to_string(),
+        ));
+    }
 
     if (blob[0] & 0xe0) == 0xc0 {
         // This is compressed infinity. negating it is a no-op
