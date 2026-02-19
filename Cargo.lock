@@ -173,6 +173,7 @@ version = "0.28.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cabdd13a5884c10ed6c445e8ae858d50e16152c9ab1eeddee5ff659fe70f0915"
 dependencies = [
+ "arbitrary",
  "blst",
  "chia-sha2 0.28.2",
  "chia-traits",
@@ -298,8 +299,12 @@ version = "0.17.0"
 dependencies = [
  "anyhow",
  "arbitrary",
+ "chia-bls",
  "chia-sha2 0.34.0",
+ "clap",
  "clvmr",
+ "hex",
+ "rand",
 ]
 
 [[package]]
