@@ -35,20 +35,16 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/ws --workdir=/ws \
-            quay.io/pypa/manylinux_2_28_aarch64 \
+            ghcr.io/chia-network/build-images/centos-pypa-rust-aarch64 \
             bash -exc '\
               echo $PATH && \
-              curl -L https://sh.rustup.rs > rustup-init.sh && \
-              sh rustup-init.sh -y && \
               yum -y install perl-IPC-Cmd && \
-              yum -y install openssl-devel && \
+              yum -y --disablerepo=epel install openssl-devel && \
               source $HOME/.cargo/env && \
               rustup target add aarch64-unknown-linux-musl && \
               rm -rf venv && \
               export PATH=/opt/python/cp310-cp310/bin/:$PATH && \
-              export PATH=/opt/python/cp39-cp39/bin/:$PATH && \
-              export PATH=/opt/python/cp38-cp38/bin/:$PATH && \
-              /opt/python/cp38-cp38/bin/python -m venv venv && \
+              /opt/python/cp310-cp310/bin/python -m venv venv && \
               if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
               . ./activate && \
               pip install maturin && \
@@ -61,7 +57,7 @@ jobs:
           name: wheels
           path: target/wheels/
 
-      - name: Install Twine
+      - name: Install setuptools_rust
         run: |
           if [ ! -f "venv" ]; then sudo rm -rf venv; fi
           sudo apt-get install python3-venv python3-pip -y
