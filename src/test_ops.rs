@@ -405,15 +405,17 @@ mod tests {
 
     #[cfg(feature = "pre-eval")]
     use crate::error::Result;
+    #[cfg(feature = "pre-eval")]
+    use crate::serde::node_to_bytes;
 
     #[cfg(feature = "pre-eval")]
     const COST_LIMIT: u64 = 1000000000;
 
     #[cfg(feature = "pre-eval")]
     struct EvalFTracker {
-        pub prog: NodePtr,
-        pub args: NodePtr,
-        pub outcome: Option<NodePtr>,
+        pub prog: Vec<u8>,
+        pub args: Vec<u8>,
+        pub outcome: Option<Vec<u8>>,
     }
 
     #[cfg(feature = "pre-eval")]
@@ -455,8 +457,12 @@ mod tests {
 
         let tracking = Rc::new(RefCell::new(HashMap::new()));
         let pre_eval_tracking = tracking.clone();
-        let pre_eval_f: PreEvalF = Box::new(move |_allocator, prog, args| {
+        let pre_eval_f: PreEvalF = Box::new(move |a, prog, args| {
             let tracking_key = pre_eval_tracking.borrow().len();
+            let prog = node_to_bytes(a, prog).expect("node_to_bytes prog");
+            let args = node_to_bytes(a, args).expect("node_to_bytes args");
+            let post_prog = prog.clone();
+            let post_args = args.clone();
             // Ensure lifetime of mutable borrow is contained.
             // It must end before the lifetime of the following closure.
             {
@@ -471,14 +477,16 @@ mod tests {
                 );
             }
             let post_eval_tracking = pre_eval_tracking.clone();
-            let post_eval_f: Callback = Box::new(move |_a, outcome| {
+            let post_eval_f: Callback = Box::new(move |a, outcome| {
+                let outcome_bytes =
+                    outcome.map(|node| node_to_bytes(a, node).expect("node_to_bytes outcome"));
                 let mut tracking_mutable = post_eval_tracking.borrow_mut();
                 tracking_mutable.insert(
                     tracking_key,
                     EvalFTracker {
-                        prog,
-                        args,
-                        outcome,
+                        prog: post_prog.clone(),
+                        args: post_args.clone(),
+                        outcome: outcome_bytes,
                     },
                 );
             });
@@ -487,7 +495,7 @@ mod tests {
 
         let result = run_program_with_pre_eval(
             &mut allocator,
-            &ChiaDialect::new(ClvmFlags::NO_UNKNOWN_OPS),
+            &ChiaDialect::new(ClvmFlags::NO_UNKNOWN_OPS.union(ClvmFlags::ENABLE_GC)),
             program,
             NodePtr::NIL,
             COST_LIMIT,
@@ -509,23 +517,30 @@ mod tests {
         // args consed
         let args_consed = allocator.new_pair(a99, a101).unwrap();
 
+        let serialize = |node| node_to_bytes(&allocator, node).expect("serialize expected");
         let desired_outcomes = [
-            (args, NodePtr::NIL, arg_mid),
-            (f_quoted, NodePtr::NIL, f_expr),
-            (a2, arg_mid, a99),
-            (a5, arg_mid, a101),
-            (cons_expr, arg_mid, args_consed),
-            (f_expr, arg_mid, a99),
-            (program, NodePtr::NIL, a99),
+            (serialize(args), serialize(NodePtr::NIL), serialize(arg_mid)),
+            (
+                serialize(f_quoted),
+                serialize(NodePtr::NIL),
+                serialize(f_expr),
+            ),
+            (serialize(a2), serialize(arg_mid), serialize(a99)),
+            (serialize(a5), serialize(arg_mid), serialize(a101)),
+            (
+                serialize(cons_expr),
+                serialize(arg_mid),
+                serialize(args_consed),
+            ),
+            (serialize(f_expr), serialize(arg_mid), serialize(a99)),
+            (serialize(program), serialize(NodePtr::NIL), serialize(a99)),
         ];
 
         let mut found_outcomes = HashSet::new();
         let tracking_examine = tracking.borrow();
         for (_, v) in tracking_examine.iter() {
             let found = desired_outcomes.iter().position(|(p, a, o)| {
-                node_eq(&allocator, *p, v.prog)
-                    && node_eq(&allocator, *a, v.args)
-                    && node_eq(&allocator, v.outcome.unwrap(), *o)
+                *p == v.prog && *a == v.args && v.outcome.as_ref() == Some(o)
             });
             found_outcomes.insert(found);
             assert!(found.is_some());

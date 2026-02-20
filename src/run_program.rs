@@ -1,5 +1,7 @@
 use super::traverse_path::{traverse_path, traverse_path_fast};
-use crate::allocator::{Allocator, Checkpoint, NodePtr, NodeVisitor, SExp};
+use crate::allocator::{
+    Allocator, Checkpoint, MaybeRestore, NodePtr, NodeVisitor, SExp, TransparentCheckpoint,
+};
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::error::{EvalErr, Result};
@@ -31,6 +33,7 @@ enum Operation {
     Cons,
     ExitGuard,
     SwapEval,
+    RestoreAllocator,
 
     #[cfg(feature = "pre-eval")]
     PostEval,
@@ -104,6 +107,7 @@ struct RunProgramContext<'a, D> {
     env_stack: Vec<NodePtr>,
     op_stack: Vec<Operation>,
     softfork_stack: Vec<SoftforkGuard>,
+    allocator_stack: Vec<TransparentCheckpoint>,
     #[cfg(feature = "counters")]
     pub counters: Counters,
 
@@ -188,6 +192,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             env_stack: Vec::new(),
             op_stack: Vec::new(),
             softfork_stack: Vec::new(),
+            allocator_stack: Vec::new(),
             #[cfg(feature = "counters")]
             counters: Counters::new(),
             pre_eval,
@@ -203,6 +208,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             env_stack: Vec::new(),
             op_stack: Vec::new(),
             softfork_stack: Vec::new(),
+            allocator_stack: Vec::new(),
             #[cfg(feature = "counters")]
             counters: Counters::new(),
             #[cfg(feature = "pre-eval")]
@@ -232,6 +238,13 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             self.push(operand_list)?;
             Ok(QUOTE_COST)
         } else {
+            if self.dialect.gc_candidate(self.allocator, operator_node) {
+                self.allocator_stack
+                    .push(self.allocator.transparent_checkpoint());
+                self.op_stack.push(Operation::RestoreAllocator);
+                self.account_op_push();
+            }
+
             self.push_env(env)?;
             self.op_stack.push(Operation::Apply);
             self.account_op_push();
@@ -245,7 +258,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 // evaluated.
                 //
                 // each evaluation pops both, pushes the result list
-                // back, evaluates and the executes the Cons operation
+                // back, evaluates and then executes the Cons operation
                 // to add the most recent result to the list. Leaving
                 // the new list at the top of the stack for the next
                 // pair to be evaluated.
@@ -497,6 +510,29 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 Operation::ExitGuard => self.exit_guard(cost)?,
                 Operation::Cons => self.cons_op()?,
                 Operation::SwapEval => self.swap_eval_op()?,
+                Operation::RestoreAllocator => {
+                    let Some(checkpoint) = self.allocator_stack.pop() else {
+                        return Err(EvalErr::InternalError(
+                            NodePtr::NIL,
+                            "allocator checkpoint stack empty".to_string(),
+                        ));
+                    };
+                    let Some(&top) = self.val_stack.last() else {
+                        return Err(EvalErr::InternalError(
+                            NodePtr::NIL,
+                            "value stack empty".to_string(),
+                        ));
+                    };
+                    match self.allocator.maybe_restore_with_node(&checkpoint, top)? {
+                        MaybeRestore::NoReplace => {}
+                        MaybeRestore::Replace(new_node) => {
+                            self.val_stack.pop().unwrap();
+                            self.val_stack.push(new_node);
+                        }
+                        MaybeRestore::Aborted => {}
+                    }
+                    0
+                }
                 #[cfg(feature = "pre-eval")]
                 Operation::PostEval => {
                     let f = self.posteval_stack.pop().unwrap();
@@ -1363,7 +1399,7 @@ mod tests {
         let args = check(parse_exp(&mut allocator, t.args));
         let expected_result = &t.result.map(|v| check(parse_exp(&mut allocator, v)));
 
-        let dialect = ChiaDialect::new(t.flags);
+        let dialect = ChiaDialect::new(t.flags.union(ClvmFlags::ENABLE_GC));
         println!("prg: {}", t.prg);
         match run_program(&mut allocator, &dialect, program, args, t.cost) {
             Ok(Reduction(cost, prg_result)) => {
@@ -1618,7 +1654,7 @@ mod tests {
 
         let (counters, result) = run_program_with_counters(
             &mut a,
-            &ChiaDialect::new(ClvmFlags::empty()),
+            &ChiaDialect::new(ClvmFlags::ENABLE_GC),
             program,
             args,
             cost,
@@ -1626,12 +1662,12 @@ mod tests {
 
         assert_eq!(counters.val_stack_usage, 3015);
         assert_eq!(counters.env_stack_usage, 1005);
-        assert_eq!(counters.op_stack_usage, 3014);
-        assert_eq!(counters.allocated_atom_count, 998);
+        assert_eq!(counters.op_stack_usage, 6017);
+        assert_eq!(counters.allocated_atom_count, 972);
         assert_eq!(counters.atom_count, 2040);
-        assert_eq!(counters.allocated_pair_count, 22077);
+        assert_eq!(counters.allocated_pair_count, 17501);
         assert_eq!(counters.pair_count, 22077);
-        assert_eq!(counters.heap_size, 769963);
+        assert_eq!(counters.heap_size, 769235);
 
         assert_eq!(result.unwrap().0, cost);
     }

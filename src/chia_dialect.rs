@@ -1,4 +1,4 @@
-use crate::allocator::{Allocator, NodePtr};
+use crate::allocator::{Allocator, NodePtr, NodeVisitor};
 use crate::bls_ops::{
     op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_negate_strict, op_bls_g1_subtract,
     op_bls_g2_add, op_bls_g2_multiply, op_bls_g2_negate, op_bls_g2_negate_strict,
@@ -55,6 +55,10 @@ bitflags! {
         /// Enables secp opcodes 64 (secp256k1_verify) and 65 (secp256r1_verify).
         const ENABLE_SECP_OPS = 0x0800;
 
+        /// When set, operators that return nil/one may be treated as GC
+        /// candidates (allocator checkpoint/restore). When not set,
+        /// gc_candidate() always returns false.
+        const ENABLE_GC = 0x1000;
     }
 }
 
@@ -98,6 +102,31 @@ impl Default for ChiaDialect {
 }
 
 impl Dialect for ChiaDialect {
+    // determine whether the specified operator is a candidate for garbage
+    // collection, meaning we save the state of the Allocator and potentially
+    // restore it once the operator returns
+    fn gc_candidate(&self, allocator: &Allocator, op: NodePtr) -> bool {
+        if !self.flags.contains(ClvmFlags::ENABLE_GC) {
+            return false;
+        }
+        // apply listp eq gr_bytes sha256 strlen add subtract multiply
+        // div divmod gr ash lsh logand logior logxor lognot point_add
+        // pubkey_for_exp not any all coinid bls_g1_subtract
+        // bls_g1_multiply bls_g1_negate bls_g2_add bls_g2_subtract
+        // bls_g2_multiply bls_g2_negate bls_map_to_g1
+        // bls_pairing_identity bls_verify modpow mod keccak256
+        // sha256_tree
+        #[allow(clippy::match_like_matches_macro)]
+        match allocator.node(op) {
+            NodeVisitor::U32(
+                2 | 7 | 9 | 10 | 11 | 13 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26
+                | 27 | 29 | 30 | 32 | 33 | 34 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 58
+                | 59 | 60 | 61 | 62 | 63,
+            ) => true,
+            _ => false,
+        }
+    }
+
     fn op(
         &self,
         allocator: &mut Allocator,

@@ -169,12 +169,45 @@ pub struct IntPair {
 // to restore an allocator to a previous state. It cannot be used to re-create
 // the state from some other allocator.
 pub struct Checkpoint {
-    u8s: usize,
-    pairs: usize,
-    atoms: usize,
+    inner: TransparentCheckpoint,
     ghost_atoms: usize,
     ghost_pairs: usize,
     ghost_heap: usize,
+}
+
+pub struct TransparentCheckpoint {
+    u8s: u32,
+    pairs: u32,
+    atoms: u32,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum NodeStatus {
+    /// The node was created before we took the checkpoint, it will still be
+    /// valid after restoring the allocator state to the checkpoint.
+    Before,
+    /// This node was created after we took the checkpoint. It also refers to
+    /// data that was created after the checkpoint. Every aspect of this node will
+    /// become invalid after restoring the allocator to the checkpoint.
+    AfterNewBytes,
+    /// This node was created after the checkpoint, but it's referencing data
+    /// from the heap that was allocated before the checkpoint. This is a case
+    /// that can happen with substr() on a value from the environment. The node
+    /// will become invalid, but the underlying data won't, so we could create a
+    /// new node referencing the same data, after restoring the allocator to the
+    /// checkpoint.
+    AfterOldBytes { start: u32, end: u32 },
+}
+
+/// Result of restoring to a transparent checkpoint while considering a return value.
+#[derive(Debug)]
+pub enum MaybeRestore {
+    /// Restore performed; return value unchanged (still valid).
+    NoReplace,
+    /// Restore performed; caller must replace stack top with this node.
+    Replace(NodePtr),
+    /// Restore not performed (return value not materializable); checkpoint still valid.
+    Aborted,
 }
 
 pub enum NodeVisitor<'a> {
@@ -408,14 +441,12 @@ impl Allocator {
         )
     }
 
-    // create a checkpoint for the current state of the allocator. This can be
-    // used to go back to an earlier allocator state by passing the Checkpoint
-    // to restore_checkpoint().
+    /// create a checkpoint for the current state of the allocator. This can be
+    /// used to go back to an earlier allocator state by passing the Checkpoint
+    /// to restore_checkpoint().
     pub fn checkpoint(&self) -> Checkpoint {
         Checkpoint {
-            u8s: self.u8_vec.len(),
-            pairs: self.pair_vec.len(),
-            atoms: self.atom_vec.len(),
+            inner: self.transparent_checkpoint(),
             ghost_atoms: self.ghost_atoms,
             ghost_pairs: self.ghost_pairs,
             ghost_heap: self.ghost_heap,
@@ -423,25 +454,157 @@ impl Allocator {
     }
 
     pub fn restore_checkpoint(&mut self, cp: &Checkpoint) {
+        self.restore_transparent_checkpoint(&cp.inner);
+        self.ghost_atoms = cp.ghost_atoms;
+        self.ghost_pairs = cp.ghost_pairs;
+        self.ghost_heap = cp.ghost_heap;
+    }
+
+    /// create a checkpoint for the current state of the allocator. This is used
+    /// to free all atoms and pairs allocated after this point, without
+    /// affecting counters. i.e. as if they are still allocated
+    pub fn transparent_checkpoint(&self) -> TransparentCheckpoint {
+        TransparentCheckpoint {
+            u8s: self.u8_vec.len() as u32,
+            pairs: self.pair_vec.len() as u32,
+            atoms: self.atom_vec.len() as u32,
+        }
+    }
+
+    /// A transparent checkpoint works the same as a regular one but it doesn't
+    /// restore the counters. The atoms and pair being removed are still counted.
+    pub fn restore_transparent_checkpoint(&mut self, cp: &TransparentCheckpoint) {
         // if any of these asserts fire, it means we're trying to restore to
         // a state that has already been "long-jumped" passed (via another
         // restore to an earlier state). You can only restore backwards in time,
         // not forwards.
-        assert!(self.u8_vec.len() >= cp.u8s);
-        assert!(self.pair_vec.len() >= cp.pairs);
-        assert!(self.atom_vec.len() >= cp.atoms);
-        self.u8_vec.truncate(cp.u8s);
-        self.pair_vec.truncate(cp.pairs);
-        self.atom_vec.truncate(cp.atoms);
-        self.ghost_atoms = cp.ghost_atoms;
-        self.ghost_pairs = cp.ghost_pairs;
-        self.ghost_heap = cp.ghost_heap;
+        assert!(self.u8_vec.len() >= cp.u8s as usize);
+        assert!(self.pair_vec.len() >= cp.pairs as usize);
+        assert!(self.atom_vec.len() >= cp.atoms as usize);
+        self.ghost_heap += self.u8_vec.len() - cp.u8s as usize;
+        self.ghost_pairs += self.pair_vec.len() - cp.pairs as usize;
+        self.ghost_atoms += self.atom_vec.len() - cp.atoms as usize;
+        self.u8_vec.truncate(cp.u8s as usize);
+        self.pair_vec.truncate(cp.pairs as usize);
+        self.atom_vec.truncate(cp.atoms as usize);
 
         // This invalidates all NodePtrs with higher index than this, with a
         // lower version than self.versions.len()
         #[cfg(feature = "allocator-debug")]
         self.versions
             .push((self.atom_vec.len() as u32, self.pair_vec.len() as u32));
+    }
+
+    /// classify whether a node survives a restore to the checkpoint, and
+    /// whether it references bytes allocated before or after that checkpoint.
+    pub fn checkpoint_node_status(
+        &self,
+        checkpoint: &TransparentCheckpoint,
+        node: NodePtr,
+    ) -> NodeStatus {
+        match node.object_type() {
+            ObjectType::Pair => {
+                if node.index() < checkpoint.pairs {
+                    NodeStatus::Before
+                } else {
+                    NodeStatus::AfterNewBytes
+                }
+            }
+            ObjectType::Bytes => {
+                if node.index() < checkpoint.atoms {
+                    NodeStatus::Before
+                } else {
+                    let atom = self.atom_vec[node.index() as usize];
+                    if atom.start < checkpoint.u8s {
+                        NodeStatus::AfterOldBytes {
+                            start: atom.start,
+                            end: atom.end,
+                        }
+                    } else {
+                        NodeStatus::AfterNewBytes
+                    }
+                }
+            }
+            ObjectType::SmallAtom => NodeStatus::Before,
+        }
+    }
+
+    /// Attempt to restore the checkpoint, and preserve the value of the /
+    /// specified node. If the node was allocated after the checkpoint, it will
+    /// be invalidated. Fix up accounting and optionally produce a replacement
+    /// node. Caller must replace the value stack top when `Replace(node)` is
+    /// returned, If the node is a tree or too large to be restored, the
+    /// allocator will not be restored to the checkpoint and Aborted will be
+    /// returned.
+    pub fn maybe_restore_with_node(
+        &mut self,
+        checkpoint: &TransparentCheckpoint,
+        ret: NodePtr,
+    ) -> Result<MaybeRestore> {
+        const CLONE_ATOM_LIMIT: usize = 48;
+        const MIN_SAVINGS: usize = 1024;
+
+        let saved_bytes = (self.u8_vec.len() - checkpoint.u8s as usize)
+            + (self.atom_vec.len() - checkpoint.atoms as usize) * 8
+            + (self.pair_vec.len() - checkpoint.pairs as usize) * 8;
+        if saved_bytes < MIN_SAVINGS {
+            return Ok(MaybeRestore::Aborted);
+        }
+
+        match self.checkpoint_node_status(checkpoint, ret) {
+            NodeStatus::Before => {
+                self.restore_transparent_checkpoint(checkpoint);
+                Ok(MaybeRestore::NoReplace)
+            }
+            NodeStatus::AfterOldBytes { start, end } => {
+                self.restore_transparent_checkpoint(checkpoint);
+                if self.ghost_atoms == 0 {
+                    return Err(EvalErr::InternalError(
+                        NodePtr::NIL,
+                        "ghost atom accounting error".to_string(),
+                    ));
+                }
+                self.ghost_atoms -= 1;
+                if end < start || end as usize > self.u8_vec.len() {
+                    return Err(EvalErr::InternalError(
+                        self.nil(),
+                        "invalid atom byte range".to_string(),
+                    ));
+                }
+                let idx = self.atom_vec.len();
+                self.atom_vec.push(AtomBuf { start, end });
+                let new_ret = self.mk_node(ObjectType::Bytes, idx);
+                Ok(MaybeRestore::Replace(new_ret))
+            }
+            NodeStatus::AfterNewBytes => {
+                let NodeVisitor::Buffer(buf) = self.node(ret) else {
+                    return Ok(MaybeRestore::Aborted);
+                };
+
+                if buf.len() > CLONE_ATOM_LIMIT {
+                    return Ok(MaybeRestore::Aborted);
+                }
+                let mut saved_bytes = [0u8; CLONE_ATOM_LIMIT];
+                let len = buf.len();
+                saved_bytes[..len].copy_from_slice(buf);
+                self.restore_transparent_checkpoint(checkpoint);
+                if self.ghost_atoms == 0 {
+                    return Err(EvalErr::InternalError(
+                        NodePtr::NIL,
+                        "ghost atom accounting error".to_string(),
+                    ));
+                }
+                self.ghost_atoms -= 1;
+                if self.ghost_heap < len {
+                    return Err(EvalErr::InternalError(
+                        NodePtr::NIL,
+                        "ghost heap accounting error".to_string(),
+                    ));
+                }
+                self.ghost_heap -= len;
+                Ok(MaybeRestore::Replace(self.new_atom(&saved_bytes[..len])?))
+            }
+        }
     }
 
     pub fn new_atom(&mut self, v: &[u8]) -> Result<NodePtr> {
@@ -541,6 +704,7 @@ impl Allocator {
         self.ghost_atoms += amount;
         Ok(())
     }
+
     pub fn new_substr(&mut self, node: NodePtr, start: u32, end: u32) -> Result<NodePtr> {
         #[cfg(feature = "allocator-debug")]
         self.validate_node(node);
@@ -1353,6 +1517,149 @@ mod tests {
 
         assert_eq!(a.new_pair(atom, atom).unwrap_err(), EvalErr::TooManyPairs);
         assert_eq!(a.add_ghost_pair(1).unwrap_err(), EvalErr::TooManyPairs);
+    }
+
+    #[test]
+    fn test_transparent_checkpoint() {
+        let mut a = Allocator::new();
+
+        let atom1 = a.new_atom(&[4, 3, 2, 1]).unwrap();
+        assert!(a.atom(atom1).as_ref() == [4, 3, 2, 1]);
+
+        let checkpoint = a.transparent_checkpoint();
+
+        let atom2 = a.new_atom(&[6, 5, 4, 3]).unwrap();
+        let _pair1 = a.new_pair(atom1, atom2).unwrap();
+        assert!(a.atom(atom1).as_ref() == [4, 3, 2, 1]);
+        assert!(a.atom(atom2).as_ref() == [6, 5, 4, 3]);
+
+        let atom_count_before = a.atom_count();
+        let pair_count_before = a.pair_count();
+
+        // at this point we have two atoms and a checkpoint from before the second
+        // atom was created
+
+        // now, restoring the checkpoint state will make atom2 disappear
+
+        a.restore_transparent_checkpoint(&checkpoint);
+
+        assert_eq!(a.atom_count(), atom_count_before);
+        assert_eq!(a.pair_count(), pair_count_before);
+
+        assert!(a.atom(atom1).as_ref() == [4, 3, 2, 1]);
+        let atom3 = a.new_atom(&[6, 5, 4, 3]).unwrap();
+        assert!(a.atom(atom3).as_ref() == [6, 5, 4, 3]);
+
+        // since atom2 was removed, atom3 should actually be using that slot
+        assert_eq!(atom2, atom3);
+    }
+
+    #[test]
+    fn test_transparent_checkpoint_contains() {
+        let mut a = Allocator::new();
+
+        let atom_before = a.new_atom(b"hello").unwrap();
+        let pair_before = a.new_pair(atom_before, atom_before).unwrap();
+        let small_before = a.new_small_number(1).unwrap();
+
+        let checkpoint = a.transparent_checkpoint();
+
+        let atom_after_new = a.new_atom(b"world").unwrap();
+        let pair_after = a.new_pair(atom_after_new, atom_before).unwrap();
+        let small_after = a.new_small_number(2).unwrap();
+        let atom_after_old = a.new_substr(atom_before, 0, 5).unwrap();
+
+        assert_eq!(
+            a.checkpoint_node_status(&checkpoint, atom_before),
+            NodeStatus::Before
+        );
+        assert_eq!(
+            a.checkpoint_node_status(&checkpoint, pair_before),
+            NodeStatus::Before
+        );
+        assert_eq!(
+            a.checkpoint_node_status(&checkpoint, small_before),
+            NodeStatus::Before
+        );
+        assert_eq!(
+            a.checkpoint_node_status(&checkpoint, small_after),
+            NodeStatus::Before
+        );
+        assert_eq!(
+            a.checkpoint_node_status(&checkpoint, atom_after_new),
+            NodeStatus::AfterNewBytes
+        );
+        assert_eq!(
+            a.checkpoint_node_status(&checkpoint, pair_after),
+            NodeStatus::AfterNewBytes
+        );
+        assert!(matches!(
+            a.checkpoint_node_status(&checkpoint, atom_after_old),
+            NodeStatus::AfterOldBytes { .. }
+        ));
+    }
+
+    fn alloc_filler(a: &mut Allocator) {
+        a.new_atom(&[0u8; 1024]).unwrap();
+    }
+
+    #[test]
+    fn test_restore_node_before_checkpoint() {
+        let mut a = Allocator::new();
+        let atom1 = a.new_atom(&[4, 3, 2, 1]).unwrap();
+        let cp = a.transparent_checkpoint();
+        alloc_filler(&mut a);
+        let out = a.maybe_restore_with_node(&cp, atom1).unwrap();
+        assert!(matches!(out, MaybeRestore::NoReplace));
+        assert_eq!(a.atom(atom1).as_ref(), [4, 3, 2, 1]);
+    }
+
+    #[test]
+    fn test_restore_node_after_old_bytes() {
+        let mut a = Allocator::new();
+        let atom_hello = a.new_atom(b"hello").unwrap();
+        let cp = a.transparent_checkpoint();
+        alloc_filler(&mut a);
+        let substr = a.new_substr(atom_hello, 0, 5).unwrap();
+        assert_eq!(a.atom(substr).as_ref(), b"hello");
+        let out = a.maybe_restore_with_node(&cp, substr).unwrap();
+        let MaybeRestore::Replace(new_node) = out else {
+            panic!("expected Replace");
+        };
+        assert_eq!(a.atom(new_node).as_ref(), b"hello");
+    }
+
+    #[test]
+    fn test_restore_node_after_new_bytes() {
+        let mut a = Allocator::new();
+        let cp = a.transparent_checkpoint();
+        alloc_filler(&mut a);
+        let atom_x = a.new_atom(b"foobar").unwrap();
+        let out = a.maybe_restore_with_node(&cp, atom_x).unwrap();
+        let MaybeRestore::Replace(new_node) = out else {
+            panic!("expected Replace");
+        };
+        assert_eq!(a.atom(new_node).as_ref(), b"foobar");
+    }
+
+    #[test]
+    fn test_restore_aborted_atom_too_large() {
+        let mut a = Allocator::new();
+        let cp = a.transparent_checkpoint();
+        alloc_filler(&mut a);
+        let big: Vec<u8> = (0..49).collect();
+        let atom_big = a.new_atom(&big).unwrap();
+        let out = a.maybe_restore_with_node(&cp, atom_big).unwrap();
+        assert!(matches!(out, MaybeRestore::Aborted));
+    }
+
+    #[test]
+    fn test_restore_aborted_savings_too_small() {
+        let mut a = Allocator::new();
+        let cp = a.transparent_checkpoint();
+        let tiny = a.new_atom(b"x").unwrap();
+        let out = a.maybe_restore_with_node(&cp, tiny).unwrap();
+        assert!(matches!(out, MaybeRestore::Aborted));
     }
 
     #[test]

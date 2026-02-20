@@ -21,7 +21,12 @@ fuzz_target!(|data: &[u8]| -> Corpus {
 
     let allocator_checkpoint = allocator.checkpoint();
 
-    for flags in [ClvmFlags::empty(), ClvmFlags::NO_UNKNOWN_OPS, MEMPOOL_MODE] {
+    for flags in [
+        ClvmFlags::ENABLE_GC,
+        ClvmFlags::empty(),
+        ClvmFlags::NO_UNKNOWN_OPS,
+        MEMPOOL_MODE,
+    ] {
         let dialect = ChiaDialect::new(flags.union(ClvmFlags::DISABLE_OP));
         allocator.restore_checkpoint(&allocator_checkpoint);
 

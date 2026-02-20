@@ -20,7 +20,7 @@ CPU.
 // this function calculates the cost per node theoretically
 // for a perfectly balanced binary tree
 fn time_complete_tree(a: &mut Allocator, sha_prog: NodePtr, leaf_size: usize, output_file: &str) {
-    let dialect = ChiaDialect::new(ClvmFlags::ENABLE_SHA256_TREE);
+    let dialect = ChiaDialect::new(ClvmFlags::ENABLE_SHA256_TREE.union(ClvmFlags::ENABLE_GC));
     let op_code = a.new_small_number(63).unwrap();
     let quote = a.one();
 
