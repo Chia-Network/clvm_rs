@@ -52,6 +52,21 @@ updates:
       - "Changed"
     reviewers: ["cmmarslender", "Starttoaster", "pmaslana"]
 
+  - package-ecosystem: "npm"
+    directory: /
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 10
+    rebase-strategy: auto
+    labels:
+      - dependencies
+      - javascript
+      - "Changed"
+    reviewers: ["cmmarslender", "ChiaMineJP"]
+
   - package-ecosystem: cargo
     directory: /
     schedule:
