@@ -4,6 +4,8 @@ use clvmr::serde::{
     node_to_bytes_backrefs, serialized_length_from_bytes, serialized_length_from_bytes_trusted,
     tree_hash_from_stream,
 };
+#[cfg(feature = "ser-2026")]
+use clvmr::serde_2026::{deserialize_2026, serialize_2026};
 use criterion::{Criterion, criterion_group, criterion_main};
 use std::include_bytes;
 use std::time::Instant;
@@ -74,6 +76,34 @@ fn deserialize_benchmark(c: &mut Criterion) {
                 start.elapsed()
             })
         });
+    }
+
+    #[cfg(feature = "ser-2026")]
+    {
+        let mut a = Allocator::new();
+        let node = node_from_bytes(&mut a, block).expect("node_from_bytes");
+        let serialized_2026 = serialize_2026(&a, node).expect("serialize_2026");
+
+        let mut a = Allocator::new();
+        let node = node_from_bytes_backrefs(&mut a, compressed_block.as_ref())
+            .expect("node_from_bytes_backrefs");
+        let serialized_2026_compressed = serialize_2026(&a, node).expect("serialize_2026");
+
+        for (data, name_suffix) in &[
+            (serialized_2026.as_slice(), ""),
+            (serialized_2026_compressed.as_slice(), "-compressed-src"),
+        ] {
+            let mut a = Allocator::new();
+            let iter_checkpoint = a.checkpoint();
+            group.bench_function(format!("deserialize_2026{name_suffix}"), |b| {
+                b.iter(|| {
+                    a.restore_checkpoint(&iter_checkpoint);
+                    let start = Instant::now();
+                    deserialize_2026(&mut a, data).expect("deserialize_2026");
+                    start.elapsed()
+                })
+            });
+        }
     }
 
     let mut a = Allocator::new();
