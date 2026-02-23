@@ -34,6 +34,10 @@ allocator-debug = []
 # with OpenSSL when enabled
 openssl = ["chia-sha2/openssl"]
 
+# Experimental 2026 serialization format (intern-based)
+# This format is not yet finalized and may change
+ser-2026 = []
+
 [profile.release]
 lto = "thin"
 
