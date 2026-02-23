@@ -1,4 +1,5 @@
 use crate::allocator::{Allocator, NodePtr};
+use crate::chia_dialect::ClvmFlags;
 use crate::cost::Cost;
 use crate::reduction::Response;
 
@@ -23,6 +24,7 @@ pub trait Dialect {
     fn apply_kw(&self) -> u32;
     fn softfork_kw(&self) -> u32;
     fn softfork_extension(&self, ext: u32) -> OperatorSet;
+    fn flags(&self) -> ClvmFlags;
     fn op(
         &self,
         allocator: &mut Allocator,

@@ -1,0 +1,3985 @@
+<?xml version="1.0" encoding="utf-8"  standalone="no"?>
+<svg 
+ width="600" height="480"
+ viewBox="0 0 600 480"
+ xmlns="http://www.w3.org/2000/svg"
+ xmlns:xlink="http://www.w3.org/1999/xlink"
+>
+
+<title>Gnuplot</title>
+<desc>Produced by GNUPLOT 6.0 patchlevel 2 </desc>
+
+<g id="gnuplot_canvas">
+
+<rect x="0" y="0" width="600" height="480" fill="none"/>
+<defs>
+
+	<circle id='gpDot' r='0.5' stroke-width='0.5' stroke='currentColor'/>
+	<path id='gpPt0' stroke-width='0.222' stroke='currentColor' d='M-1,0 h2 M0,-1 v2'/>
+	<path id='gpPt1' stroke-width='0.222' stroke='currentColor' d='M-1,-1 L1,1 M1,-1 L-1,1'/>
+	<path id='gpPt2' stroke-width='0.222' stroke='currentColor' d='M-1,0 L1,0 M0,-1 L0,1 M-1,-1 L1,1 M-1,1 L1,-1'/>
+	<rect id='gpPt3' stroke-width='0.222' stroke='currentColor' x='-1' y='-1' width='2' height='2'/>
+	<rect id='gpPt4' stroke-width='0.222' stroke='currentColor' fill='currentColor' x='-1' y='-1' width='2' height='2'/>
+	<circle id='gpPt5' stroke-width='0.222' stroke='currentColor' cx='0' cy='0' r='1'/>
+	<use xlink:href='#gpPt5' id='gpPt6' fill='currentColor' stroke='none'/>
+	<path id='gpPt7' stroke-width='0.222' stroke='currentColor' d='M0,-1.33 L-1.33,0.67 L1.33,0.67 z'/>
+	<use xlink:href='#gpPt7' id='gpPt8' fill='currentColor' stroke='none'/>
+	<use xlink:href='#gpPt7' id='gpPt9' stroke='currentColor' transform='rotate(180)'/>
+	<use xlink:href='#gpPt9' id='gpPt10' fill='currentColor' stroke='none'/>
+	<use xlink:href='#gpPt3' id='gpPt11' stroke='currentColor' transform='rotate(45)'/>
+	<use xlink:href='#gpPt11' id='gpPt12' fill='currentColor' stroke='none'/>
+	<path id='gpPt13' stroke-width='0.222' stroke='currentColor' d='M0,1.330 L1.265,0.411 L0.782,-1.067 L-0.782,-1.076 L-1.265,0.411 z'/>
+	<use xlink:href='#gpPt13' id='gpPt14' fill='currentColor' stroke='none'/>
+	<filter id='textbox' filterUnits='objectBoundingBox' x='0' y='0' height='1' width='1'>
+	  <feFlood flood-color='white' flood-opacity='1' result='bgnd'/>
+	  <feComposite in='SourceGraphic' in2='bgnd' operator='atop'/>
+	</filter>
+	<filter id='greybox' filterUnits='objectBoundingBox' x='0' y='0' height='1' width='1'>
+	  <feFlood flood-color='lightgrey' flood-opacity='1' result='grey'/>
+	  <feComposite in='SourceGraphic' in2='grey' operator='atop'/>
+	</filter>
+</defs>
+<g fill="none" color="white" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M89.31,422.40 L98.31,422.40  '/>	<g transform="translate(80.92,426.30)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="end">
+		<text><tspan font-family="Arial" > 0</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M89.31,369.77 L98.31,369.77  '/>	<g transform="translate(80.92,373.67)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="end">
+		<text><tspan font-family="Arial" > 1x10</tspan><tspan font-family="Arial"  font-size="9.6" dy="-6.00px">6</tspan><tspan font-size="12.0" dy="6.00"></tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M89.31,317.15 L98.31,317.15  '/>	<g transform="translate(80.92,321.05)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="end">
+		<text><tspan font-family="Arial" > 2x10</tspan><tspan font-family="Arial"  font-size="9.6" dy="-6.00px">6</tspan><tspan font-size="12.0" dy="6.00"></tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M89.31,264.52 L98.31,264.52  '/>	<g transform="translate(80.92,268.42)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="end">
+		<text><tspan font-family="Arial" > 3x10</tspan><tspan font-family="Arial"  font-size="9.6" dy="-6.00px">6</tspan><tspan font-size="12.0" dy="6.00"></tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M89.31,211.89 L98.31,211.89  '/>	<g transform="translate(80.92,215.79)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="end">
+		<text><tspan font-family="Arial" > 4x10</tspan><tspan font-family="Arial"  font-size="9.6" dy="-6.00px">6</tspan><tspan font-size="12.0" dy="6.00"></tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M89.31,159.26 L98.31,159.26  '/>	<g transform="translate(80.92,163.16)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="end">
+		<text><tspan font-family="Arial" > 5x10</tspan><tspan font-family="Arial"  font-size="9.6" dy="-6.00px">6</tspan><tspan font-size="12.0" dy="6.00"></tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M89.31,106.64 L98.31,106.64  '/>	<g transform="translate(80.92,110.54)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="end">
+		<text><tspan font-family="Arial" > 6x10</tspan><tspan font-family="Arial"  font-size="9.6" dy="-6.00px">6</tspan><tspan font-size="12.0" dy="6.00"></tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M89.31,54.01 L98.31,54.01  '/>	<g transform="translate(80.92,57.91)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="end">
+		<text><tspan font-family="Arial" > 7x10</tspan><tspan font-family="Arial"  font-size="9.6" dy="-6.00px">6</tspan><tspan font-size="12.0" dy="6.00"></tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M89.31,422.40 L89.31,413.40 M89.31,54.01 L89.31,63.01  '/>	<g transform="translate(89.31,444.30)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="middle">
+		<text><tspan font-family="Arial" > 0</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M143.26,422.40 L143.26,413.40 M143.26,54.01 L143.26,63.01  '/>	<g transform="translate(143.26,444.30)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="middle">
+		<text><tspan font-family="Arial" > 2000</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M197.20,422.40 L197.20,413.40 M197.20,54.01 L197.20,63.01  '/>	<g transform="translate(197.20,444.30)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="middle">
+		<text><tspan font-family="Arial" > 4000</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M251.15,422.40 L251.15,413.40 M251.15,54.01 L251.15,63.01  '/>	<g transform="translate(251.15,444.30)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="middle">
+		<text><tspan font-family="Arial" > 6000</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M305.09,422.40 L305.09,413.40 M305.09,54.01 L305.09,63.01  '/>	<g transform="translate(305.09,444.30)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="middle">
+		<text><tspan font-family="Arial" > 8000</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M359.04,422.40 L359.04,413.40 M359.04,54.01 L359.04,63.01  '/>	<g transform="translate(359.04,444.30)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="middle">
+		<text><tspan font-family="Arial" > 10000</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M412.98,422.40 L412.98,413.40 M412.98,54.01 L412.98,63.01  '/>	<g transform="translate(412.98,444.30)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="middle">
+		<text><tspan font-family="Arial" > 12000</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M466.93,422.40 L466.93,413.40 M466.93,54.01 L466.93,63.01  '/>	<g transform="translate(466.93,444.30)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="middle">
+		<text><tspan font-family="Arial" > 14000</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M520.87,422.40 L520.87,413.40 M520.87,54.01 L520.87,63.01  '/>	<g transform="translate(520.87,444.30)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="middle">
+		<text><tspan font-family="Arial" > 16000</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M574.82,422.40 L574.82,413.40 M574.82,54.01 L574.82,63.01  '/>	<g transform="translate(574.82,444.30)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="middle">
+		<text><tspan font-family="Arial" > 18000</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M89.31,54.01 L89.31,422.40 L574.82,422.40 L574.82,54.01 L89.31,54.01 Z  '/></g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+</g>
+	<g id="gnuplot_plot_1" ><title>complete-tree.log (measured)</title>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<g transform="translate(332.62,75.91)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="end">
+		<text><tspan font-family="Arial" >complete-tree.log (measured)</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<use xlink:href='#gpDot' x='89.34' y='422.38' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='89.36' y='422.34' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='89.42' y='422.32' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='89.53' y='422.24' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='89.74' y='422.06' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='90.17' y='421.74' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='91.04' y='421.08' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='92.76' y='419.77' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='96.22' y='417.11' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='103.12' y='412.05' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='116.93' y='401.70' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='144.55' y='381.04' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='199.79' y='339.71' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='310.27' y='256.45' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='531.23' y='91.54' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='89.34' y='422.39' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='89.36' y='422.37' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='89.42' y='422.33' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='89.53' y='422.24' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='89.74' y='422.08' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='90.17' y='421.75' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='91.04' y='421.11' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='92.76' y='419.82' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='96.22' y='417.23' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='103.12' y='412.05' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='116.93' y='401.54' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='144.55' y='380.82' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='199.79' y='339.55' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='310.27' y='257.04' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='531.23' y='91.57' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='89.34' y='422.39' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='89.36' y='422.37' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='89.42' y='422.33' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='89.53' y='422.24' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='89.74' y='422.08' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='90.17' y='421.76' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='91.04' y='421.11' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='92.76' y='419.83' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='96.22' y='417.22' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='103.12' y='411.98' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='116.93' y='401.72' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='144.55' y='381.04' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='199.79' y='339.63' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='310.27' y='256.95' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='531.23' y='91.41' color='rgb(148,   0, 211)'/>
+
+	<use xlink:href='#gpDot' x='362.29' y='72.01' color='rgb(148,   0, 211)'/>
+
+</g>
+	</g>
+	<g id="gnuplot_plot_2" ><title>complete-tree.log (fitted)</title>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<g transform="translate(332.62,93.91)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="end">
+		<text><tspan font-family="Arial" >complete-tree.log (fitted)</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='rgb(  0, 158, 115)'  d='M341.01,90.01 L383.57,90.01 M89.34,422.38 L93.80,419.04 L98.26,415.69 L102.73,412.35 L107.19,409.01 L111.65,405.67
+		L116.12,402.32 L120.58,398.98 L125.05,395.64 L129.51,392.30 L133.97,388.95 L138.44,385.61 L142.90,382.27 L147.36,378.93
+		L151.83,375.58 L156.29,372.24 L160.75,368.90 L165.22,365.56 L169.68,362.21 L174.15,358.87 L178.61,355.53 L183.07,352.19
+		L187.54,348.84 L192.00,345.50 L196.46,342.16 L200.93,338.82 L205.39,335.47 L209.85,332.13 L214.32,328.79 L218.78,325.44
+		L223.24,322.10 L227.71,318.76 L232.17,315.42 L236.64,312.07 L241.10,308.73 L245.56,305.39 L250.03,302.05 L254.49,298.70
+		L258.95,295.36 L263.42,292.02 L267.88,288.68 L272.34,285.33 L276.81,281.99 L281.27,278.65 L285.73,275.31 L290.20,271.96
+		L294.66,268.62 L299.13,265.28 L303.59,261.94 L308.05,258.59 L312.52,255.25 L316.98,251.91 L321.44,248.57 L325.91,245.22
+		L330.37,241.88 L334.83,238.54 L339.30,235.19 L343.76,231.85 L348.22,228.51 L352.69,225.17 L357.15,221.82 L361.62,218.48
+		L366.08,215.14 L370.54,211.80 L375.01,208.45 L379.47,205.11 L383.93,201.77 L388.40,198.43 L392.86,195.08 L397.32,191.74
+		L401.79,188.40 L406.25,185.06 L410.72,181.71 L415.18,178.37 L419.64,175.03 L424.11,171.69 L428.57,168.34 L433.03,165.00
+		L437.50,161.66 L441.96,158.32 L446.42,154.97 L450.89,151.63 L455.35,148.29 L459.81,144.94 L464.28,141.60 L468.74,138.26
+		L473.21,134.92 L477.67,131.57 L482.13,128.23 L486.60,124.89 L491.06,121.55 L495.52,118.20 L499.99,114.86 L504.45,111.52
+		L508.91,108.18 L513.38,104.83 L517.84,101.49 L522.30,98.15 L526.77,94.81 L531.23,91.46  '/></g>
+	</g>
+	<g id="gnuplot_plot_3" ><title>right-tree.log (measured)</title>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<g transform="translate(332.62,111.91)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="end">
+		<text><tspan font-family="Arial" >right-tree.log (measured)</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<use xlink:href='#gpDot' x='89.34' y='422.39' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.36' y='422.36' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.39' y='422.34' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.42' y='422.33' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.44' y='422.30' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.47' y='422.28' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.50' y='422.26' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.53' y='422.24' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.55' y='422.22' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.58' y='422.20' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.61' y='422.19' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.63' y='422.16' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.66' y='422.15' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.69' y='422.13' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.71' y='422.10' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.74' y='422.08' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.77' y='422.05' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.80' y='422.03' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.82' y='422.02' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.85' y='422.00' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.88' y='421.98' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.90' y='421.96' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.93' y='421.94' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.96' y='421.92' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.98' y='421.90' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.01' y='421.88' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.04' y='421.86' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.07' y='421.85' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.09' y='421.82' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.12' y='421.80' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.15' y='421.78' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.17' y='421.77' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.20' y='421.73' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.23' y='421.71' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.25' y='421.70' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.28' y='421.68' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.31' y='421.66' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.33' y='421.64' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.36' y='421.62' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.39' y='421.60' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.42' y='421.58' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.44' y='421.56' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.47' y='421.54' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.50' y='421.52' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.52' y='421.50' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.55' y='421.48' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.58' y='421.46' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.60' y='421.44' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.63' y='421.42' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.66' y='421.40' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.69' y='421.38' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.71' y='421.36' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.74' y='421.34' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.77' y='421.32' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.79' y='421.31' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.82' y='421.28' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.85' y='421.26' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.87' y='421.24' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.90' y='421.22' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.93' y='421.20' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.96' y='421.18' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.98' y='421.15' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.01' y='421.14' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.04' y='421.13' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.06' y='421.09' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.09' y='421.07' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.12' y='421.06' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.14' y='421.04' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.17' y='421.01' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.20' y='420.99' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.23' y='420.97' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.25' y='420.95' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.28' y='420.94' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.31' y='420.91' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.33' y='420.90' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.36' y='420.88' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.39' y='420.86' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.41' y='420.83' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.44' y='420.81' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.47' y='420.79' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.49' y='420.79' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.52' y='420.76' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.55' y='420.74' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.58' y='420.72' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.60' y='420.69' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.63' y='420.68' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.66' y='420.65' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.68' y='420.63' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.71' y='420.62' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.74' y='420.60' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.76' y='420.58' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.79' y='420.56' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.82' y='420.54' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.85' y='420.52' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.87' y='420.50' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.90' y='420.48' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.93' y='420.46' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.95' y='420.44' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.98' y='420.41' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.01' y='420.39' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.03' y='420.37' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.06' y='420.36' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.09' y='420.34' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.12' y='420.33' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.14' y='420.30' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.17' y='420.28' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.20' y='420.26' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.22' y='420.24' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.25' y='420.22' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.28' y='420.19' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.30' y='420.18' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.33' y='420.15' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.36' y='420.14' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.38' y='420.12' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.41' y='420.10' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.44' y='420.09' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.47' y='420.06' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.49' y='420.04' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.52' y='420.02' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.55' y='420.00' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.57' y='419.98' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.60' y='419.96' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.63' y='419.94' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.65' y='419.92' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.68' y='419.90' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.71' y='419.68' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.74' y='419.86' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.76' y='419.84' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.79' y='419.78' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.82' y='419.67' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.84' y='419.72' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.87' y='419.72' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.90' y='419.69' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.92' y='419.67' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.95' y='419.69' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.98' y='419.68' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.01' y='419.65' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.03' y='419.64' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.06' y='419.62' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.09' y='419.60' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.11' y='419.58' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.14' y='419.55' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.17' y='419.53' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.19' y='419.51' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.22' y='419.50' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.25' y='419.48' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.27' y='419.46' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.30' y='419.44' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.33' y='419.41' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.36' y='419.40' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.38' y='419.38' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.41' y='419.36' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.44' y='419.33' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.46' y='419.33' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.49' y='419.30' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.52' y='419.28' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.54' y='419.26' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.57' y='419.24' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.60' y='419.23' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.63' y='419.21' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.65' y='419.19' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.68' y='419.17' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.71' y='419.14' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.73' y='419.13' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.76' y='419.10' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.79' y='419.08' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.81' y='419.06' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.84' y='419.04' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.87' y='419.02' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.90' y='419.00' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.92' y='418.98' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.95' y='418.96' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.98' y='418.94' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.00' y='418.92' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.03' y='418.90' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.06' y='418.88' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.08' y='418.87' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.11' y='418.84' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.14' y='418.81' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.17' y='418.80' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.19' y='418.78' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.22' y='418.77' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.25' y='418.74' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.27' y='418.72' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.30' y='418.70' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.33' y='418.68' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.35' y='418.66' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.38' y='418.65' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.41' y='418.62' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.43' y='418.59' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.46' y='418.58' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.49' y='418.56' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.52' y='418.55' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.54' y='418.52' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.57' y='418.50' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.60' y='418.47' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.62' y='418.46' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.65' y='418.45' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.68' y='418.43' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.70' y='418.40' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.34' y='422.39' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.36' y='422.37' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.39' y='422.35' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.42' y='422.33' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.44' y='422.31' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.47' y='422.29' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.50' y='422.27' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.53' y='422.25' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.55' y='422.22' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.58' y='422.21' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.61' y='422.19' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.63' y='422.17' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.66' y='422.15' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.69' y='422.13' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.71' y='422.11' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.74' y='422.09' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.77' y='422.06' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.80' y='422.04' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.82' y='422.02' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.85' y='422.00' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.88' y='421.98' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.90' y='421.96' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.93' y='421.94' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.96' y='421.92' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.98' y='421.90' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.01' y='421.88' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.04' y='421.86' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.07' y='421.85' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.09' y='421.82' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.12' y='421.81' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.15' y='421.78' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.17' y='421.76' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.20' y='421.73' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.23' y='421.72' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.25' y='421.70' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.28' y='421.68' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.31' y='421.66' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.33' y='421.64' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.36' y='421.62' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.39' y='421.60' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.42' y='421.58' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.44' y='421.56' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.47' y='421.54' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.50' y='421.52' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.52' y='421.50' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.55' y='421.48' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.58' y='421.46' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.60' y='421.44' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.63' y='421.42' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.66' y='421.40' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.69' y='421.38' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.71' y='421.36' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.74' y='421.34' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.77' y='421.32' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.79' y='421.30' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.82' y='421.28' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.85' y='421.26' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.87' y='421.24' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.90' y='421.22' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.93' y='421.20' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.96' y='421.18' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.98' y='421.16' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.01' y='421.14' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.04' y='421.12' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.06' y='421.10' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.09' y='421.08' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.12' y='421.06' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.14' y='421.03' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.17' y='421.02' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.20' y='421.00' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.23' y='420.98' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.25' y='420.95' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.28' y='420.93' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.31' y='420.92' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.33' y='420.89' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.36' y='420.88' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.39' y='420.86' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.41' y='420.84' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.44' y='420.82' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.47' y='420.80' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.49' y='420.78' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.52' y='420.76' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.55' y='420.74' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.58' y='420.72' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.60' y='420.70' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.63' y='420.67' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.66' y='420.65' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.68' y='420.64' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.71' y='420.62' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.74' y='420.59' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.76' y='420.58' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.79' y='420.55' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.82' y='420.54' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.85' y='420.52' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.87' y='420.50' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.90' y='420.47' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.93' y='420.46' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.95' y='420.44' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.98' y='420.41' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.01' y='420.40' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.03' y='420.37' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.06' y='420.36' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.09' y='420.34' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.12' y='420.32' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.14' y='420.29' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.17' y='420.28' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.20' y='420.22' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.22' y='420.23' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.25' y='420.22' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.28' y='420.20' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.30' y='420.18' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.33' y='420.16' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.36' y='420.14' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.38' y='420.12' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.41' y='420.10' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.44' y='420.08' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.47' y='420.06' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.49' y='420.04' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.52' y='420.02' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.55' y='420.01' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.57' y='419.98' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.60' y='419.97' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.63' y='419.94' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.65' y='419.92' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.68' y='419.90' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.71' y='419.88' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.74' y='419.86' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.76' y='419.85' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.79' y='419.82' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.82' y='419.79' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.84' y='419.78' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.87' y='419.76' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.90' y='419.74' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.92' y='419.72' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.95' y='419.70' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.98' y='419.67' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.01' y='419.66' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.03' y='419.64' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.06' y='419.62' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.09' y='419.60' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.11' y='419.58' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.14' y='419.56' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.17' y='419.53' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.19' y='419.51' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.22' y='419.50' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.25' y='419.48' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.27' y='419.45' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.30' y='419.44' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.33' y='419.41' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.36' y='419.39' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.38' y='419.38' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.41' y='419.35' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.44' y='419.34' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.46' y='419.32' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.49' y='419.29' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.52' y='419.27' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.54' y='419.26' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.57' y='419.24' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.60' y='419.22' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.63' y='419.21' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.65' y='419.18' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.68' y='419.16' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.71' y='419.15' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.73' y='419.11' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.76' y='419.10' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.79' y='419.08' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.81' y='419.06' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.84' y='419.04' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.87' y='419.01' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.90' y='419.00' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.92' y='418.98' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.95' y='418.96' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.98' y='418.94' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.00' y='418.92' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.03' y='418.90' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.06' y='418.88' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.08' y='418.86' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.11' y='418.84' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.14' y='418.82' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.17' y='418.80' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.19' y='418.78' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.22' y='418.76' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.25' y='418.74' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.27' y='418.72' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.30' y='418.70' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.33' y='418.68' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.35' y='418.66' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.38' y='418.64' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.41' y='418.61' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.43' y='418.60' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.46' y='418.57' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.49' y='418.56' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.52' y='418.54' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.54' y='418.52' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.57' y='418.50' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.60' y='418.48' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.62' y='418.46' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.65' y='418.44' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.68' y='418.42' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.70' y='418.40' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.34' y='422.39' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.36' y='422.37' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.39' y='422.35' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.42' y='422.33' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.44' y='422.30' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.47' y='422.28' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.50' y='422.26' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.53' y='422.25' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.55' y='422.22' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.58' y='422.20' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.61' y='422.18' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.63' y='422.17' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.66' y='422.14' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.69' y='422.13' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.71' y='422.11' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.74' y='422.08' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.77' y='422.06' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.80' y='422.04' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.82' y='422.02' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.85' y='422.00' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.88' y='421.95' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.90' y='421.95' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.93' y='421.94' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.96' y='421.92' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='89.98' y='421.90' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.01' y='421.88' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.04' y='421.86' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.07' y='421.84' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.09' y='421.83' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.12' y='421.80' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.15' y='421.78' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.17' y='421.76' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.20' y='421.73' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.23' y='421.72' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.25' y='421.70' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.28' y='421.68' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.31' y='421.66' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.33' y='421.64' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.36' y='421.61' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.39' y='421.60' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.42' y='421.58' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.44' y='421.56' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.47' y='421.54' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.50' y='421.52' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.52' y='421.50' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.55' y='421.48' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.58' y='421.46' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.60' y='421.44' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.63' y='421.42' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.66' y='421.40' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.69' y='421.38' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.71' y='421.36' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.74' y='421.34' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.77' y='421.32' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.79' y='421.30' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.82' y='421.28' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.85' y='421.26' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.87' y='421.24' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.90' y='421.22' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.93' y='421.20' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.96' y='421.18' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='90.98' y='421.16' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.01' y='421.14' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.04' y='421.12' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.06' y='421.10' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.09' y='421.08' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.12' y='421.06' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.14' y='421.03' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.17' y='421.01' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.20' y='421.00' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.23' y='420.97' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.25' y='420.95' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.28' y='420.93' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.31' y='420.92' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.33' y='420.89' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.36' y='420.87' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.39' y='420.85' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.41' y='420.83' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.44' y='420.82' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.47' y='420.80' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.49' y='420.78' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.52' y='420.76' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.55' y='420.74' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.58' y='420.71' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.60' y='420.70' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.63' y='420.68' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.66' y='420.66' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.68' y='420.64' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.71' y='420.62' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.74' y='420.60' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.76' y='420.58' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.79' y='420.56' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.82' y='420.54' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.85' y='420.52' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.87' y='420.50' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.90' y='420.48' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.93' y='420.46' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.95' y='420.44' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='91.98' y='420.42' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.01' y='420.39' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.03' y='420.37' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.06' y='420.36' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.09' y='420.33' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.12' y='420.31' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.14' y='420.30' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.17' y='420.28' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.20' y='420.26' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.22' y='420.23' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.25' y='420.22' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.28' y='420.20' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.30' y='420.17' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.33' y='420.16' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.36' y='420.13' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.38' y='420.11' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.41' y='420.10' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.44' y='420.08' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.47' y='420.06' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.49' y='420.04' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.52' y='420.02' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.55' y='420.00' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.57' y='419.98' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.60' y='419.96' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.63' y='419.94' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.65' y='419.92' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.68' y='419.89' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.71' y='419.88' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.74' y='419.87' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.76' y='419.83' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.79' y='419.81' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.82' y='419.80' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.84' y='419.78' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.87' y='419.76' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.90' y='419.74' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.92' y='419.72' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.95' y='419.70' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='92.98' y='419.68' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.01' y='419.66' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.03' y='419.64' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.06' y='419.62' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.09' y='419.59' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.11' y='419.58' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.14' y='419.56' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.17' y='419.54' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.19' y='419.52' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.22' y='419.49' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.25' y='419.48' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.27' y='419.46' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.30' y='419.44' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.33' y='419.42' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.36' y='419.40' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.38' y='419.38' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.41' y='419.36' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.44' y='419.34' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.46' y='419.32' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.49' y='419.30' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.52' y='419.28' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.54' y='419.26' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.57' y='419.23' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.60' y='419.22' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.63' y='419.21' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.65' y='419.19' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.68' y='419.16' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.71' y='419.15' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.73' y='419.12' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.76' y='419.10' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.79' y='419.08' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.81' y='419.05' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.84' y='419.04' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.87' y='419.02' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.90' y='419.00' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.92' y='418.98' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.95' y='418.96' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='93.98' y='418.95' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.00' y='418.92' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.03' y='418.90' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.06' y='418.88' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.08' y='418.86' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.11' y='418.83' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.14' y='418.83' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.17' y='418.81' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.19' y='418.78' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.22' y='418.77' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.25' y='418.74' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.27' y='418.72' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.30' y='418.70' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.33' y='418.68' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.35' y='418.66' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.38' y='418.64' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.41' y='418.62' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.43' y='418.52' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.46' y='418.58' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.49' y='418.57' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.52' y='418.54' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.54' y='418.53' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.57' y='418.51' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.60' y='418.48' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.62' y='418.47' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.65' y='418.44' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.68' y='418.43' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='94.70' y='418.40' color='rgb( 86, 180, 233)'/>
+
+	<use xlink:href='#gpDot' x='362.29' y='108.01' color='rgb( 86, 180, 233)'/>
+
+</g>
+	</g>
+	<g id="gnuplot_plot_4" ><title>right-tree.log (fitted)</title>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<g transform="translate(332.62,129.91)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="end">
+		<text><tspan font-family="Arial" >right-tree.log (fitted)</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='rgb(230, 159,   0)'  d='M341.01,126.01 L383.57,126.01 M89.34,422.38 L93.80,419.07 L98.26,415.75 L102.73,412.44 L107.19,409.13 L111.65,405.82
+		L116.12,402.50 L120.58,399.19 L125.05,395.88 L129.51,392.57 L133.97,389.25 L138.44,385.94 L142.90,382.63 L147.36,379.31
+		L151.83,376.00 L156.29,372.69 L160.75,369.38 L165.22,366.06 L169.68,362.75 L174.15,359.44 L178.61,356.13 L183.07,352.81
+		L187.54,349.50 L192.00,346.19 L196.46,342.87 L200.93,339.56 L205.39,336.25 L209.85,332.94 L214.32,329.62 L218.78,326.31
+		L223.24,323.00 L227.71,319.69 L232.17,316.37 L236.64,313.06 L241.10,309.75 L245.56,306.44 L250.03,303.12 L254.49,299.81
+		L258.95,296.50 L263.42,293.18 L267.88,289.87 L272.34,286.56 L276.81,283.25 L281.27,279.93 L285.73,276.62 L290.20,273.31
+		L294.66,270.00 L299.13,266.68 L303.59,263.37 L308.05,260.06 L312.52,256.74 L316.98,253.43 L321.44,250.12 L325.91,246.81
+		L330.37,243.49 L334.83,240.18 L339.30,236.87 L343.76,233.56 L348.22,230.24 L352.69,226.93 L357.15,223.62 L361.62,220.30
+		L366.08,216.99 L370.54,213.68 L375.01,210.37 L379.47,207.05 L383.93,203.74 L388.40,200.43 L392.86,197.12 L397.32,193.80
+		L401.79,190.49 L406.25,187.18 L410.72,183.86 L415.18,180.55 L419.64,177.24 L424.11,173.93 L428.57,170.61 L433.03,167.30
+		L437.50,163.99 L441.96,160.68 L446.42,157.36 L450.89,154.05 L455.35,150.74 L459.81,147.43 L464.28,144.11 L468.74,140.80
+		L473.21,137.49 L477.67,134.17 L482.13,130.86 L486.60,127.55 L491.06,124.24 L495.52,120.92 L499.99,117.61 L504.45,114.30
+		L508.91,110.99 L513.38,107.67 L517.84,104.36 L522.30,101.05 L526.77,97.73 L531.23,94.42  '/></g>
+	</g>
+	<g id="gnuplot_plot_5" ><title>left-tree.log (measured)</title>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<g transform="translate(332.62,147.91)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="end">
+		<text><tspan font-family="Arial" >left-tree.log (measured)</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<use xlink:href='#gpDot' x='89.34' y='422.39' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.36' y='422.36' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.39' y='422.35' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.42' y='422.33' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.44' y='422.29' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.47' y='422.28' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.50' y='422.26' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.53' y='422.23' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.55' y='422.20' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.58' y='422.19' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.61' y='422.17' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.63' y='422.15' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.66' y='422.14' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.69' y='422.11' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.71' y='422.10' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.74' y='422.07' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.77' y='422.04' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.80' y='422.02' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.82' y='422.01' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.85' y='421.98' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.88' y='421.96' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.90' y='421.95' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.93' y='421.93' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.96' y='421.91' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.98' y='421.89' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.01' y='421.86' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.04' y='421.85' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.07' y='421.83' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.09' y='421.80' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.12' y='421.79' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.15' y='421.77' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.17' y='421.74' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.20' y='421.71' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.23' y='421.69' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.25' y='421.67' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.28' y='421.65' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.31' y='421.63' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.33' y='421.61' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.36' y='421.59' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.39' y='421.57' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.42' y='421.55' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.44' y='421.53' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.47' y='421.51' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.50' y='421.49' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.52' y='421.47' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.55' y='421.45' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.58' y='421.43' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.60' y='421.41' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.63' y='421.38' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.66' y='421.37' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.69' y='421.35' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.71' y='421.33' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.74' y='421.31' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.77' y='421.29' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.79' y='421.27' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.82' y='421.25' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.85' y='421.23' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.87' y='421.21' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.90' y='421.19' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.93' y='421.17' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.96' y='421.08' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.98' y='421.12' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.01' y='421.10' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.04' y='421.07' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.06' y='421.05' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.09' y='421.03' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.12' y='421.01' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.14' y='420.99' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.17' y='420.97' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.20' y='420.94' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.23' y='420.94' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.25' y='420.91' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.28' y='420.90' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.31' y='420.87' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.33' y='420.86' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.36' y='420.82' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.39' y='420.81' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.41' y='420.79' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.44' y='420.76' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.47' y='420.75' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.49' y='420.72' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.52' y='420.70' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.55' y='420.68' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.58' y='420.66' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.60' y='420.65' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.63' y='420.63' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.66' y='420.61' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.68' y='420.58' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.71' y='420.56' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.74' y='420.54' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.76' y='420.53' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.79' y='420.51' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.82' y='420.49' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.85' y='420.46' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.87' y='420.44' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.90' y='420.42' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.93' y='420.40' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.95' y='420.38' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.98' y='420.36' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.01' y='420.34' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.03' y='420.32' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.06' y='420.31' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.09' y='420.27' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.12' y='420.26' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.14' y='420.24' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.17' y='420.22' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.20' y='420.20' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.22' y='420.17' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.25' y='420.15' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.28' y='420.13' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.30' y='420.12' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.33' y='420.09' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.36' y='420.08' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.38' y='420.06' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.41' y='420.03' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.44' y='420.01' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.47' y='419.99' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.49' y='419.97' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.52' y='419.95' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.55' y='419.93' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.57' y='419.91' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.60' y='419.90' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.63' y='419.88' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.65' y='419.86' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.68' y='419.83' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.71' y='419.82' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.74' y='419.79' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.76' y='419.77' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.79' y='419.69' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.82' y='419.72' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.84' y='419.70' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.87' y='419.68' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.90' y='419.65' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.92' y='419.64' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.95' y='419.62' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.98' y='419.60' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.01' y='419.58' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.03' y='419.56' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.06' y='419.54' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.09' y='419.51' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.11' y='419.49' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.14' y='419.44' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.17' y='419.41' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.19' y='419.39' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.22' y='419.37' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.25' y='419.34' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.27' y='419.38' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.30' y='419.35' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.33' y='419.34' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.36' y='419.31' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.38' y='419.29' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.41' y='419.28' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.44' y='419.25' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.46' y='419.23' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.49' y='419.21' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.52' y='419.19' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.54' y='419.18' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.57' y='419.15' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.60' y='419.13' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.63' y='419.11' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.65' y='419.09' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.68' y='419.07' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.71' y='419.05' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.73' y='419.03' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.76' y='419.01' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.79' y='419.00' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.81' y='418.97' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.84' y='418.96' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.87' y='418.92' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.90' y='418.91' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.92' y='418.89' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.95' y='418.86' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.98' y='418.85' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.00' y='418.83' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.03' y='418.81' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.06' y='418.79' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.08' y='418.76' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.11' y='418.74' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.14' y='418.72' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.17' y='418.71' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.19' y='418.68' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.22' y='418.67' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.25' y='418.64' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.27' y='418.63' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.30' y='418.60' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.33' y='418.59' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.35' y='418.56' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.38' y='418.55' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.41' y='418.53' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.43' y='418.49' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.46' y='418.48' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.49' y='418.46' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.52' y='418.44' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.54' y='418.43' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.57' y='418.40' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.60' y='418.37' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.62' y='418.36' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.65' y='418.35' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.68' y='418.32' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.70' y='418.31' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.34' y='422.39' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.36' y='422.37' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.39' y='422.35' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.42' y='422.33' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.44' y='422.30' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.47' y='422.28' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.50' y='422.26' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.53' y='422.24' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.55' y='422.21' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.58' y='422.20' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.61' y='422.18' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.63' y='422.16' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.66' y='422.14' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.69' y='422.11' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.71' y='422.10' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.74' y='422.07' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.77' y='422.04' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.80' y='422.03' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.82' y='422.00' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.85' y='421.99' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.88' y='421.97' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.90' y='421.95' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.93' y='421.92' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.96' y='421.90' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.98' y='421.88' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.01' y='421.87' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.04' y='421.84' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.07' y='421.82' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.09' y='421.80' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.12' y='421.78' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.15' y='421.77' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.17' y='421.74' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.20' y='421.71' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.23' y='421.69' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.25' y='421.67' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.28' y='421.65' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.31' y='421.63' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.33' y='421.62' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.36' y='421.59' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.39' y='421.57' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.42' y='421.55' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.44' y='421.53' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.47' y='421.51' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.50' y='421.49' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.52' y='421.47' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.55' y='421.42' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.58' y='421.40' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.60' y='421.40' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.63' y='421.39' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.66' y='421.33' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.69' y='421.33' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.71' y='421.33' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.74' y='421.29' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.77' y='421.27' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.79' y='421.27' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.82' y='421.24' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.85' y='421.23' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.87' y='421.20' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.90' y='421.18' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.93' y='421.16' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.96' y='421.11' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.98' y='421.12' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.01' y='421.11' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.04' y='421.08' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.06' y='421.05' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.09' y='421.03' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.12' y='420.99' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.14' y='420.96' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.17' y='420.97' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.20' y='420.95' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.23' y='420.90' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.25' y='420.92' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.28' y='420.90' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.31' y='420.87' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.33' y='420.86' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.36' y='420.83' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.39' y='420.80' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.41' y='420.79' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.44' y='420.78' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.47' y='420.75' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.49' y='420.73' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.52' y='420.70' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.55' y='420.69' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.58' y='420.67' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.60' y='420.65' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.63' y='420.63' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.66' y='420.60' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.68' y='420.58' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.71' y='420.56' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.74' y='420.54' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.76' y='420.53' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.79' y='420.51' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.82' y='420.48' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.85' y='420.46' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.87' y='420.44' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.90' y='420.42' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.93' y='420.40' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.95' y='420.38' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.98' y='420.36' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.01' y='420.34' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.03' y='420.32' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.06' y='420.29' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.09' y='420.28' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.12' y='420.21' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.14' y='420.18' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.17' y='420.21' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.20' y='420.19' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.22' y='420.17' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.25' y='420.16' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.28' y='420.13' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.30' y='420.11' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.33' y='420.10' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.36' y='420.08' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.38' y='420.06' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.41' y='420.04' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.44' y='420.02' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.47' y='420.00' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.49' y='419.98' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.52' y='419.96' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.55' y='419.94' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.57' y='419.92' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.60' y='419.89' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.63' y='419.88' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.65' y='419.85' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.68' y='419.84' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.71' y='419.82' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.74' y='419.75' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.76' y='419.76' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.79' y='419.75' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.82' y='419.71' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.84' y='419.70' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.87' y='419.68' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.90' y='419.65' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.92' y='419.62' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.95' y='419.61' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.98' y='419.60' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.01' y='419.58' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.03' y='419.56' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.06' y='419.54' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.09' y='419.52' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.11' y='419.50' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.14' y='419.47' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.17' y='419.45' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.19' y='419.43' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.22' y='419.42' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.25' y='419.39' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.27' y='419.38' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.30' y='419.34' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.33' y='419.33' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.36' y='419.32' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.38' y='419.29' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.41' y='419.25' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.44' y='419.25' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.46' y='419.24' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.49' y='419.21' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.52' y='419.19' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.54' y='419.17' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.57' y='419.15' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.60' y='419.13' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.63' y='419.11' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.65' y='419.08' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.68' y='419.07' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.71' y='419.05' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.73' y='419.03' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.76' y='419.01' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.79' y='418.98' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.81' y='418.96' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.84' y='418.94' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.87' y='418.92' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.90' y='418.89' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.92' y='418.88' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.95' y='418.85' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.98' y='418.83' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.00' y='418.82' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.03' y='418.80' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.06' y='418.78' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.08' y='418.76' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.11' y='418.74' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.14' y='418.64' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.17' y='418.70' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.19' y='418.67' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.22' y='418.65' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.25' y='418.63' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.27' y='418.62' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.30' y='418.59' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.33' y='418.58' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.35' y='418.56' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.38' y='418.53' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.41' y='418.51' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.43' y='418.50' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.46' y='418.47' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.49' y='418.45' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.52' y='418.44' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.54' y='418.41' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.57' y='418.39' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.60' y='418.37' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.62' y='418.35' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.65' y='418.32' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.68' y='418.31' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.70' y='418.28' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.34' y='422.39' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.36' y='422.37' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.39' y='422.35' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.42' y='422.33' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.44' y='422.30' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.47' y='422.28' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.50' y='422.26' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.53' y='422.24' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.55' y='422.22' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.58' y='422.20' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.61' y='422.17' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.63' y='422.15' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.66' y='422.14' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.69' y='422.11' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.71' y='422.10' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.74' y='422.07' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.77' y='422.04' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.80' y='422.03' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.82' y='422.00' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.85' y='421.99' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.88' y='421.97' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.90' y='421.95' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.93' y='421.92' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.96' y='421.90' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='89.98' y='421.89' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.01' y='421.86' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.04' y='421.85' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.07' y='421.83' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.09' y='421.80' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.12' y='421.78' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.15' y='421.76' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.17' y='421.73' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.20' y='421.71' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.23' y='421.69' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.25' y='421.67' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.28' y='421.65' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.31' y='421.63' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.33' y='421.61' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.36' y='421.59' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.39' y='421.57' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.42' y='421.55' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.44' y='421.53' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.47' y='421.51' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.50' y='421.49' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.52' y='421.47' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.55' y='421.45' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.58' y='421.43' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.60' y='421.41' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.63' y='421.38' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.66' y='421.36' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.69' y='421.34' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.71' y='421.33' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.74' y='421.30' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.77' y='421.28' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.79' y='421.26' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.82' y='421.25' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.85' y='421.22' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.87' y='421.21' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.90' y='421.19' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.93' y='421.17' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.96' y='421.14' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='90.98' y='421.13' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.01' y='421.10' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.04' y='421.07' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.06' y='421.04' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.09' y='421.03' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.12' y='421.01' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.14' y='420.99' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.17' y='420.97' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.20' y='420.94' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.23' y='420.92' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.25' y='420.90' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.28' y='420.90' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.31' y='420.87' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.33' y='420.84' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.36' y='420.83' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.39' y='420.78' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.41' y='420.76' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.44' y='420.77' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.47' y='420.74' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.49' y='420.73' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.52' y='420.71' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.55' y='420.69' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.58' y='420.67' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.60' y='420.65' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.63' y='420.62' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.66' y='420.61' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.68' y='420.58' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.71' y='420.56' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.74' y='420.54' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.76' y='420.52' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.79' y='420.51' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.82' y='420.48' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.85' y='420.46' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.87' y='420.44' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.90' y='420.42' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.93' y='420.40' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.95' y='420.38' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='91.98' y='420.31' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.01' y='420.29' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.03' y='420.31' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.06' y='420.30' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.09' y='420.28' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.12' y='420.25' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.14' y='420.23' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.17' y='420.21' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.20' y='420.20' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.22' y='420.17' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.25' y='420.15' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.28' y='420.09' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.30' y='420.12' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.33' y='420.10' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.36' y='420.07' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.38' y='420.04' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.41' y='420.02' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.44' y='420.01' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.47' y='419.98' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.49' y='419.97' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.52' y='419.96' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.55' y='419.92' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.57' y='419.91' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.60' y='419.88' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.63' y='419.87' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.65' y='419.84' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.68' y='419.82' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.71' y='419.80' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.74' y='419.78' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.76' y='419.75' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.79' y='419.74' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.82' y='419.71' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.84' y='419.70' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.87' y='419.67' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.90' y='419.65' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.92' y='419.63' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.95' y='419.61' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='92.98' y='419.60' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.01' y='419.57' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.03' y='419.56' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.06' y='419.54' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.09' y='419.52' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.11' y='419.49' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.14' y='419.47' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.17' y='419.45' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.19' y='419.43' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.22' y='419.41' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.25' y='419.38' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.27' y='419.37' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.30' y='419.34' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.33' y='419.33' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.36' y='419.31' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.38' y='419.28' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.41' y='419.26' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.44' y='419.24' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.46' y='419.21' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.49' y='419.20' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.52' y='419.10' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.54' y='419.16' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.57' y='419.14' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.60' y='419.13' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.63' y='419.10' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.65' y='419.07' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.68' y='419.05' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.71' y='419.04' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.73' y='419.01' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.76' y='419.00' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.79' y='418.97' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.81' y='418.96' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.84' y='418.94' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.87' y='418.91' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.90' y='418.89' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.92' y='418.89' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.95' y='418.85' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='93.98' y='418.84' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.00' y='418.81' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.03' y='418.81' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.06' y='418.78' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.08' y='418.77' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.11' y='418.75' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.14' y='418.73' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.17' y='418.70' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.19' y='418.67' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.22' y='418.65' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.25' y='418.64' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.27' y='418.61' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.30' y='418.58' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.33' y='418.57' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.35' y='418.55' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.38' y='418.53' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.41' y='418.51' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.43' y='418.50' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.46' y='418.47' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.49' y='418.46' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.52' y='418.43' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.54' y='418.42' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.57' y='418.40' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.60' y='418.37' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.62' y='418.36' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.65' y='418.32' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.68' y='418.32' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='94.70' y='418.30' color='rgb(240, 228,  66)'/>
+
+	<use xlink:href='#gpDot' x='362.29' y='144.01' color='rgb(240, 228,  66)'/>
+
+</g>
+	</g>
+	<g id="gnuplot_plot_6" ><title>left-tree.log (fitted)</title>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<g transform="translate(332.62,165.91)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="end">
+		<text><tspan font-family="Arial" >left-tree.log (fitted)</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='rgb(  0, 114, 178)'  d='M341.01,162.01 L383.57,162.01 M89.34,422.38 L93.80,418.98 L98.26,415.58 L102.73,412.17 L107.19,408.77 L111.65,405.37
+		L116.12,401.97 L120.58,398.57 L125.05,395.16 L129.51,391.76 L133.97,388.36 L138.44,384.96 L142.90,381.56 L147.36,378.15
+		L151.83,374.75 L156.29,371.35 L160.75,367.95 L165.22,364.55 L169.68,361.14 L174.15,357.74 L178.61,354.34 L183.07,350.94
+		L187.54,347.54 L192.00,344.13 L196.46,340.73 L200.93,337.33 L205.39,333.93 L209.85,330.53 L214.32,327.12 L218.78,323.72
+		L223.24,320.32 L227.71,316.92 L232.17,313.52 L236.64,310.11 L241.10,306.71 L245.56,303.31 L250.03,299.91 L254.49,296.51
+		L258.95,293.10 L263.42,289.70 L267.88,286.30 L272.34,282.90 L276.81,279.50 L281.27,276.09 L285.73,272.69 L290.20,269.29
+		L294.66,265.89 L299.13,262.49 L303.59,259.08 L308.05,255.68 L312.52,252.28 L316.98,248.88 L321.44,245.48 L325.91,242.07
+		L330.37,238.67 L334.83,235.27 L339.30,231.87 L343.76,228.47 L348.22,225.06 L352.69,221.66 L357.15,218.26 L361.62,214.86
+		L366.08,211.46 L370.54,208.05 L375.01,204.65 L379.47,201.25 L383.93,197.85 L388.40,194.45 L392.86,191.04 L397.32,187.64
+		L401.79,184.24 L406.25,180.84 L410.72,177.44 L415.18,174.03 L419.64,170.63 L424.11,167.23 L428.57,163.83 L433.03,160.43
+		L437.50,157.02 L441.96,153.62 L446.42,150.22 L450.89,146.82 L455.35,143.42 L459.81,140.01 L464.28,136.61 L468.74,133.21
+		L473.21,129.81 L477.67,126.41 L482.13,123.00 L486.60,119.60 L491.06,116.20 L495.52,112.80 L499.99,109.40 L504.45,105.99
+		L508.91,102.59 L513.38,99.19 L517.84,95.79 L522.30,92.39 L526.77,88.98 L531.23,85.58  '/></g>
+	</g>
+	<g id="gnuplot_plot_7" ><title>random-tree.log (measured)</title>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<g transform="translate(332.62,183.91)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="end">
+		<text><tspan font-family="Arial" >random-tree.log (measured)</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<use xlink:href='#gpDot' x='89.34' y='422.38' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.36' y='422.36' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.39' y='422.34' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.42' y='422.32' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.44' y='422.31' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.47' y='422.28' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.50' y='422.26' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.53' y='422.24' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.55' y='422.22' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.58' y='422.19' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.61' y='422.17' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.63' y='422.16' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.66' y='422.14' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.69' y='422.11' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.71' y='422.09' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.74' y='422.07' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.77' y='422.05' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.80' y='422.04' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.82' y='422.01' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.85' y='422.00' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.88' y='421.97' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.90' y='421.95' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.93' y='421.93' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.96' y='421.90' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.98' y='421.89' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.01' y='421.87' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.04' y='421.85' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.07' y='421.82' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.09' y='421.81' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.12' y='421.79' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.15' y='421.76' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.17' y='421.75' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.20' y='421.72' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.23' y='421.70' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.25' y='421.68' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.28' y='421.65' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.31' y='421.65' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.33' y='421.61' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.36' y='421.61' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.39' y='421.58' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.42' y='421.55' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.44' y='421.54' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.47' y='421.52' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.50' y='421.50' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.52' y='421.48' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.55' y='421.46' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.58' y='421.43' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.60' y='421.42' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.63' y='421.39' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.66' y='421.38' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.69' y='421.34' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.71' y='421.32' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.74' y='421.31' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.77' y='421.29' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.79' y='421.28' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.82' y='421.25' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.85' y='421.22' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.87' y='421.20' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.90' y='421.18' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.93' y='421.16' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.96' y='421.15' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.98' y='421.12' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.01' y='421.10' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.04' y='421.08' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.06' y='421.07' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.09' y='421.04' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.12' y='421.02' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.14' y='421.00' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.17' y='420.99' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.20' y='420.96' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.23' y='420.94' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.25' y='420.91' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.28' y='420.90' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.31' y='420.88' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.33' y='420.85' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.36' y='420.84' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.39' y='420.83' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.41' y='420.79' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.44' y='420.77' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.47' y='420.75' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.49' y='420.74' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.52' y='420.71' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.55' y='420.70' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.58' y='420.67' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.60' y='420.65' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.63' y='420.64' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.66' y='420.61' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.68' y='420.60' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.71' y='420.58' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.74' y='420.56' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.76' y='420.53' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.79' y='420.51' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.82' y='420.49' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.85' y='420.47' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.87' y='420.45' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.90' y='420.44' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.93' y='420.40' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.95' y='420.38' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.98' y='420.37' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.01' y='420.34' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.03' y='420.33' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.06' y='420.31' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.09' y='420.28' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.12' y='420.26' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.14' y='420.24' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.17' y='420.23' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.20' y='420.20' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.22' y='420.18' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.25' y='420.17' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.28' y='420.14' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.30' y='420.13' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.33' y='420.11' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.36' y='420.08' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.38' y='420.06' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.41' y='420.05' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.44' y='420.01' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.47' y='420.00' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.49' y='419.99' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.52' y='419.96' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.55' y='419.94' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.57' y='419.92' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.60' y='419.90' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.63' y='419.88' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.65' y='419.86' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.68' y='419.83' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.71' y='419.82' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.74' y='419.80' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.76' y='419.77' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.79' y='419.76' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.82' y='419.74' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.84' y='419.71' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.87' y='419.71' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.90' y='419.67' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.92' y='419.65' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.95' y='419.64' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.98' y='419.63' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.01' y='419.58' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.03' y='419.57' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.06' y='419.55' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.09' y='419.52' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.11' y='419.51' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.14' y='419.49' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.17' y='419.47' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.19' y='419.45' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.22' y='419.43' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.25' y='419.41' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.27' y='419.39' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.30' y='419.36' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.33' y='419.34' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.36' y='419.33' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.38' y='419.30' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.41' y='419.28' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.44' y='419.26' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.46' y='419.24' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.49' y='419.22' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.52' y='419.21' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.54' y='419.18' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.57' y='419.15' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.60' y='419.14' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.63' y='419.12' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.65' y='419.10' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.68' y='419.08' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.71' y='419.06' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.73' y='419.04' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.76' y='419.02' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.79' y='419.01' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.81' y='418.98' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.84' y='418.95' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.87' y='418.93' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.90' y='418.92' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.92' y='418.91' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.95' y='418.87' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.98' y='418.85' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.00' y='418.83' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.03' y='418.78' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.06' y='418.80' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.08' y='418.78' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.11' y='418.76' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.14' y='418.74' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.17' y='418.71' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.19' y='418.70' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.22' y='418.68' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.25' y='418.65' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.27' y='418.62' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.30' y='418.62' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.33' y='418.60' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.35' y='418.58' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.38' y='418.55' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.41' y='418.54' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.43' y='418.51' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.46' y='418.49' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.49' y='418.47' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.52' y='418.44' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.54' y='418.43' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.57' y='418.41' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.60' y='418.38' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.62' y='418.36' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.65' y='418.34' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.68' y='418.32' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.70' y='418.30' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.34' y='422.39' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.36' y='422.37' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.39' y='422.35' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.42' y='422.33' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.44' y='422.31' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.47' y='422.28' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.50' y='422.26' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.53' y='422.24' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.55' y='422.22' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.58' y='422.20' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.61' y='422.18' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.63' y='422.15' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.66' y='422.14' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.69' y='422.12' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.71' y='422.10' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.74' y='422.07' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.77' y='422.05' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.80' y='422.03' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.82' y='422.01' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.85' y='422.00' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.88' y='421.97' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.90' y='421.95' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.93' y='421.93' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.96' y='421.92' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.98' y='421.90' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.01' y='421.87' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.04' y='421.85' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.07' y='421.83' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.09' y='421.81' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.12' y='421.79' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.15' y='421.77' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.17' y='421.74' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.20' y='421.72' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.23' y='421.70' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.25' y='421.69' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.28' y='421.67' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.31' y='421.65' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.33' y='421.62' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.36' y='421.60' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.39' y='421.59' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.42' y='421.55' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.44' y='421.54' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.47' y='421.52' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.50' y='421.49' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.52' y='421.47' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.55' y='421.46' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.58' y='421.43' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.60' y='421.42' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.63' y='421.39' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.66' y='421.37' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.69' y='421.36' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.71' y='421.33' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.74' y='421.31' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.77' y='421.29' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.79' y='421.28' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.82' y='421.25' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.85' y='421.24' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.87' y='421.21' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.90' y='421.19' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.93' y='421.17' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.96' y='421.15' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.98' y='421.12' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.01' y='421.11' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.04' y='421.08' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.06' y='421.07' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.09' y='421.04' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.12' y='421.01' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.14' y='421.00' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.17' y='420.99' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.20' y='420.95' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.23' y='420.94' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.25' y='420.92' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.28' y='420.90' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.31' y='420.88' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.33' y='420.86' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.36' y='420.84' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.39' y='420.82' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.41' y='420.79' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.44' y='420.78' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.47' y='420.77' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.49' y='420.74' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.52' y='420.72' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.55' y='420.70' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.58' y='420.68' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.60' y='420.67' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.63' y='420.64' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.66' y='420.63' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.68' y='420.59' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.71' y='420.58' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.74' y='420.56' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.76' y='420.53' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.79' y='420.51' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.82' y='420.50' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.85' y='420.47' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.87' y='420.45' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.90' y='420.43' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.93' y='420.42' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.95' y='420.39' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.98' y='420.38' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.01' y='420.35' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.03' y='420.33' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.06' y='420.32' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.09' y='420.30' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.12' y='420.27' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.14' y='420.24' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.17' y='420.23' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.20' y='420.19' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.22' y='420.15' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.25' y='420.17' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.28' y='420.14' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.30' y='420.13' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.33' y='420.10' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.36' y='420.08' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.38' y='420.07' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.41' y='420.04' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.44' y='420.01' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.47' y='420.01' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.49' y='419.98' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.52' y='419.96' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.55' y='419.95' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.57' y='419.93' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.60' y='419.90' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.63' y='419.88' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.65' y='419.86' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.68' y='419.84' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.71' y='419.82' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.74' y='419.79' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.76' y='419.78' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.79' y='419.76' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.82' y='419.74' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.84' y='419.72' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.87' y='419.70' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.90' y='419.68' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.92' y='419.66' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.95' y='419.64' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.98' y='419.62' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.01' y='419.59' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.03' y='419.57' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.06' y='419.54' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.09' y='419.53' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.11' y='419.50' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.14' y='419.49' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.17' y='419.47' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.19' y='419.46' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.22' y='419.44' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.25' y='419.42' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.27' y='419.40' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.30' y='419.37' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.33' y='419.35' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.36' y='419.32' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.38' y='419.30' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.41' y='419.27' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.44' y='419.26' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.46' y='419.25' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.49' y='419.23' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.52' y='419.21' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.54' y='419.19' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.57' y='419.16' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.60' y='419.15' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.63' y='419.13' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.65' y='419.10' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.68' y='419.07' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.71' y='419.06' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.73' y='419.05' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.76' y='419.02' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.79' y='419.00' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.81' y='418.99' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.84' y='418.95' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.87' y='418.94' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.90' y='418.92' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.92' y='418.90' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.95' y='418.88' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.98' y='418.85' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.00' y='418.83' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.03' y='418.82' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.06' y='418.80' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.08' y='418.78' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.11' y='418.75' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.14' y='418.74' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.17' y='418.72' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.19' y='418.68' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.22' y='418.67' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.25' y='418.64' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.27' y='418.63' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.30' y='418.60' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.33' y='418.58' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.35' y='418.57' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.38' y='418.55' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.41' y='418.53' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.43' y='418.51' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.46' y='418.49' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.49' y='418.47' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.52' y='418.44' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.54' y='418.43' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.57' y='418.42' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.60' y='418.38' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.62' y='418.36' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.65' y='418.35' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.68' y='418.33' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.70' y='418.31' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.34' y='422.39' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.36' y='422.37' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.39' y='422.35' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.42' y='422.33' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.44' y='422.31' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.47' y='422.29' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.50' y='422.26' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.53' y='422.24' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.55' y='422.22' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.58' y='422.20' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.61' y='422.18' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.63' y='422.16' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.66' y='422.14' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.69' y='422.11' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.71' y='422.10' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.74' y='422.07' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.77' y='422.05' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.80' y='422.04' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.82' y='422.01' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.85' y='421.98' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.88' y='421.98' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.90' y='421.95' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.93' y='421.93' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.96' y='421.91' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='89.98' y='421.88' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.01' y='421.87' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.04' y='421.86' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.07' y='421.83' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.09' y='421.81' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.12' y='421.79' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.15' y='421.77' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.17' y='421.74' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.20' y='421.73' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.23' y='421.71' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.25' y='421.68' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.28' y='421.67' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.31' y='421.64' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.33' y='421.62' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.36' y='421.60' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.39' y='421.58' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.42' y='421.56' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.44' y='421.54' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.47' y='421.53' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.50' y='421.50' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.52' y='421.48' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.55' y='421.45' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.58' y='421.44' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.60' y='421.42' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.63' y='421.40' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.66' y='421.38' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.69' y='421.36' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.71' y='421.34' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.74' y='421.31' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.77' y='421.28' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.79' y='421.27' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.82' y='421.25' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.85' y='421.23' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.87' y='421.21' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.90' y='421.19' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.93' y='421.17' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.96' y='421.15' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='90.98' y='421.13' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.01' y='421.11' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.04' y='421.09' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.06' y='421.07' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.09' y='421.02' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.12' y='420.99' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.14' y='421.01' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.17' y='420.98' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.20' y='420.97' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.23' y='420.94' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.25' y='420.93' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.28' y='420.91' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.31' y='420.90' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.33' y='420.86' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.36' y='420.84' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.39' y='420.82' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.41' y='420.80' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.44' y='420.78' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.47' y='420.76' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.49' y='420.73' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.52' y='420.73' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.55' y='420.70' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.58' y='420.69' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.60' y='420.66' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.63' y='420.63' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.66' y='420.62' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.68' y='420.59' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.71' y='420.58' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.74' y='420.55' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.76' y='420.54' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.79' y='420.52' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.82' y='420.50' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.85' y='420.47' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.87' y='420.45' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.90' y='420.43' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.93' y='420.42' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.95' y='420.39' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='91.98' y='420.37' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.01' y='420.36' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.03' y='420.33' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.06' y='420.31' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.09' y='420.29' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.12' y='420.27' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.14' y='420.25' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.17' y='420.23' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.20' y='420.21' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.22' y='420.19' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.25' y='420.13' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.28' y='420.09' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.30' y='420.12' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.33' y='420.10' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.36' y='420.09' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.38' y='420.06' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.41' y='420.05' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.44' y='420.03' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.47' y='420.00' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.49' y='419.98' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.52' y='419.95' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.55' y='419.95' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.57' y='419.92' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.60' y='419.89' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.63' y='419.88' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.65' y='419.86' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.68' y='419.84' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.71' y='419.82' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.74' y='419.80' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.76' y='419.78' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.79' y='419.75' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.82' y='419.73' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.84' y='419.71' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.87' y='419.70' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.90' y='419.67' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.92' y='419.65' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.95' y='419.63' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='92.98' y='419.61' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.01' y='419.60' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.03' y='419.57' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.06' y='419.55' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.09' y='419.53' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.11' y='419.51' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.14' y='419.49' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.17' y='419.46' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.19' y='419.45' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.22' y='419.42' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.25' y='419.41' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.27' y='419.39' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.30' y='419.38' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.33' y='419.35' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.36' y='419.32' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.38' y='419.31' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.41' y='419.28' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.44' y='419.27' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.46' y='419.25' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.49' y='419.23' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.52' y='419.21' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.54' y='419.20' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.57' y='419.16' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.60' y='419.15' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.63' y='419.13' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.65' y='419.10' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.68' y='419.09' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.71' y='419.07' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.73' y='419.05' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.76' y='419.02' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.79' y='418.99' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.81' y='418.95' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.84' y='418.90' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.87' y='418.93' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.90' y='418.91' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.92' y='418.90' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.95' y='418.88' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='93.98' y='418.86' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.00' y='418.83' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.03' y='418.72' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.06' y='418.80' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.08' y='418.77' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.11' y='418.74' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.14' y='418.73' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.17' y='418.71' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.19' y='418.70' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.22' y='418.67' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.25' y='418.65' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.27' y='418.64' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.30' y='418.61' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.33' y='418.60' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.35' y='418.51' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.38' y='418.55' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.41' y='418.52' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.43' y='418.51' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.46' y='418.49' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.49' y='418.46' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.52' y='418.44' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.54' y='418.44' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.57' y='418.40' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.60' y='418.40' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.62' y='418.36' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.65' y='418.35' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.68' y='418.33' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='94.70' y='418.30' color='rgb(229,  30,  16)'/>
+
+	<use xlink:href='#gpDot' x='362.29' y='180.01' color='rgb(229,  30,  16)'/>
+
+</g>
+	</g>
+	<g id="gnuplot_plot_8" ><title>random-tree.log (fitted)</title>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<g transform="translate(332.62,201.91)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="end">
+		<text><tspan font-family="Arial" >random-tree.log (fitted)</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='rgb(  0,   0,   0)'  d='M341.01,198.01 L383.57,198.01 M89.34,422.38 L93.80,418.99 L98.26,415.59 L102.73,412.20 L107.19,408.81 L111.65,405.41
+		L116.12,402.02 L120.58,398.63 L125.05,395.23 L129.51,391.84 L133.97,388.45 L138.44,385.06 L142.90,381.66 L147.36,378.27
+		L151.83,374.88 L156.29,371.48 L160.75,368.09 L165.22,364.70 L169.68,361.30 L174.15,357.91 L178.61,354.52 L183.07,351.12
+		L187.54,347.73 L192.00,344.34 L196.46,340.95 L200.93,337.55 L205.39,334.16 L209.85,330.77 L214.32,327.37 L218.78,323.98
+		L223.24,320.59 L227.71,317.19 L232.17,313.80 L236.64,310.41 L241.10,307.01 L245.56,303.62 L250.03,300.23 L254.49,296.84
+		L258.95,293.44 L263.42,290.05 L267.88,286.66 L272.34,283.26 L276.81,279.87 L281.27,276.48 L285.73,273.08 L290.20,269.69
+		L294.66,266.30 L299.13,262.90 L303.59,259.51 L308.05,256.12 L312.52,252.73 L316.98,249.33 L321.44,245.94 L325.91,242.55
+		L330.37,239.15 L334.83,235.76 L339.30,232.37 L343.76,228.97 L348.22,225.58 L352.69,222.19 L357.15,218.79 L361.62,215.40
+		L366.08,212.01 L370.54,208.62 L375.01,205.22 L379.47,201.83 L383.93,198.44 L388.40,195.04 L392.86,191.65 L397.32,188.26
+		L401.79,184.86 L406.25,181.47 L410.72,178.08 L415.18,174.68 L419.64,171.29 L424.11,167.90 L428.57,164.51 L433.03,161.11
+		L437.50,157.72 L441.96,154.33 L446.42,150.93 L450.89,147.54 L455.35,144.15 L459.81,140.75 L464.28,137.36 L468.74,133.97
+		L473.21,130.57 L477.67,127.18 L482.13,123.79 L486.60,120.39 L491.06,117.00 L495.52,113.61 L499.99,110.22 L504.45,106.82
+		L508.91,103.43 L513.38,100.04 L517.84,96.64 L522.30,93.25 L526.77,89.86 L531.23,86.46  '/></g>
+	</g>
+<g fill="none" color="white" stroke="rgb(  0,   0,   0)" stroke-width="2.00" stroke-linecap="butt" stroke-linejoin="miter">
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="2.00" stroke-linecap="butt" stroke-linejoin="miter">
+</g>
+<g fill="none" color="black" stroke="black" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<path stroke='black'  d='M89.31,54.01 L89.31,422.40 L574.82,422.40 L574.82,54.01 L89.31,54.01 Z  '/>	<g transform="translate(19.18,238.21) rotate(270.00)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="middle">
+		<text><tspan font-family="Arial" >nanoseconds</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<g transform="translate(332.06,471.30)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="middle">
+		<text><tspan font-family="Arial" >num leafs</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+	<g transform="translate(332.06,30.91)" stroke="none" fill="black" font-family="Arial" font-size="12.00"  text-anchor="middle">
+		<text><tspan font-family="Arial" >sha256tree cost per leaf</tspan></text>
+	</g>
+</g>
+<g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
+</g>
+</g>
+</svg>
+

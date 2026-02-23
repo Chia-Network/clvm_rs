@@ -1,8 +1,8 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::bls_ops::{
-    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
-    op_bls_g2_negate, op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
-    op_bls_pairing_identity, op_bls_verify,
+    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_negate_strict, op_bls_g1_subtract,
+    op_bls_g2_add, op_bls_g2_multiply, op_bls_g2_negate, op_bls_g2_negate_strict,
+    op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2, op_bls_pairing_identity, op_bls_verify,
 };
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
@@ -15,6 +15,7 @@ use crate::more_ops::{
 use crate::number::Number;
 use crate::reduction::{Reduction, Response};
 use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
+use crate::sha_tree_op::op_sha256_tree;
 
 use crate::error::EvalErr;
 use hex::FromHex;
@@ -105,7 +106,10 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
             "%" => a.new_atom(&[61]).unwrap(),
             "secp256k1_verify" => a.new_atom(&[0x13, 0xd6, 0x1f, 0x00]).unwrap(),
             "secp256r1_verify" => a.new_atom(&[0x1c, 0x3a, 0x8f, 0x00]).unwrap(),
+            "secp256k1_verify_64" => a.new_atom(&[64]).unwrap(),
+            "secp256r1_verify_65" => a.new_atom(&[65]).unwrap(),
             "keccak256" => a.new_atom(&[62]).unwrap(),
+            "sha256tree" => a.new_atom(&[63]).unwrap(),
             _ => {
                 panic!("atom not supported \"{v}\"");
             }
@@ -206,7 +210,7 @@ mod tests {
     use super::*;
 
     #[cfg(feature = "pre-eval")]
-    use crate::chia_dialect::{ChiaDialect, NO_UNKNOWN_OPS};
+    use crate::chia_dialect::{ChiaDialect, ClvmFlags};
 
     #[cfg(feature = "pre-eval")]
     use crate::run_program::run_program_with_pre_eval;
@@ -264,6 +268,8 @@ mod tests {
     #[case("test-secp256r1")]
     #[case("test-modpow")]
     #[case("test-sha256")]
+    #[case("test-sha256tree")]
+    #[case("test-sha256tree-hash")]
     #[case("test-keccak256")]
     #[case("test-keccak256-generated")]
     fn test_ops(#[case] filename: &str) {
@@ -308,18 +314,24 @@ mod tests {
             ("g1_subtract", op_bls_g1_subtract as Opf),
             ("g1_multiply", op_bls_g1_multiply as Opf),
             ("g1_negate", op_bls_g1_negate as Opf),
+            ("g1_negate_strict", op_bls_g1_negate_strict as Opf),
             ("g2_add", op_bls_g2_add as Opf),
             ("g2_subtract", op_bls_g2_subtract as Opf),
             ("g2_multiply", op_bls_g2_multiply as Opf),
             ("g2_negate", op_bls_g2_negate as Opf),
+            ("g2_negate_strict", op_bls_g2_negate_strict as Opf),
             ("g1_map", op_bls_map_to_g1 as Opf),
             ("g2_map", op_bls_map_to_g2 as Opf),
             ("bls_pairing_identity", op_bls_pairing_identity as Opf),
             ("bls_verify", op_bls_verify as Opf),
             ("secp256k1_verify", op_secp256k1_verify as Opf),
             ("secp256r1_verify", op_secp256r1_verify as Opf),
+            ("secp256k1_verify_64", op_secp256k1_verify as Opf),
+            ("secp256r1_verify_65", op_secp256r1_verify as Opf),
             ("modpow", op_modpow as Opf),
             ("keccak256", op_keccak256 as Opf),
+            // 3.0 hard fork
+            ("sha256tree", op_sha256_tree as Opf),
         ]);
 
         println!("Test cases from: {filename}");
@@ -475,7 +487,7 @@ mod tests {
 
         let result = run_program_with_pre_eval(
             &mut allocator,
-            &ChiaDialect::new(NO_UNKNOWN_OPS),
+            &ChiaDialect::new(ClvmFlags::NO_UNKNOWN_OPS),
             program,
             NodePtr::NIL,
             COST_LIMIT,

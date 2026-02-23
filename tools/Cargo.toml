@@ -1,8 +1,8 @@
 [package]
 name = "clvm-rs-test-tools"
-version = "0.16.2"
+version = "0.17.0"
 authors = ["Arvid Norberg <arvid@chia.net>", "Cameron Cooper <cameron@chia.net>"]
-edition = "2021"
+edition = "2024"
 license = "Apache-2.0"
 description = "Developer tools for the CLVM interpreter"
 homepage = "https://github.com/Chia-Network/clvm_rs/tools/"
@@ -42,5 +42,10 @@ bench = false
 
 [[bin]]
 name = "generate-modpow-tests"
+test = false
+bench = false
+
+[[bin]]
+name = "generate-stress-tests"
 test = false
 bench = false

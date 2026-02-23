@@ -1,13 +1,13 @@
 use super::{ChildPos, PathBuilder};
 use crate::allocator::{Allocator, NodePtr, SExp};
-use crate::serde::serialized_length_atom;
 use crate::serde::BitSet;
 use crate::serde::RandomState;
+use crate::serde::serialized_length_atom;
 use bumpalo::Bump;
 use rand::prelude::*;
 use sha1::{Digest, Sha1};
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 
 const MIN_SERIALIZED_LENGTH: u64 = 4;
 
@@ -129,7 +129,7 @@ impl TreeCache {
         Self {
             sentinel_node: sentinel,
             atom_lookup: HashMap::with_hasher(RandomState::default()),
-            salt: rng.gen(),
+            salt: rng.r#gen(),
             ..Default::default()
         }
     }
@@ -276,7 +276,10 @@ impl TreeCache {
                     let right = &self.node_entries[right_idx];
                     let serialized_length =
                         if left.serialized_length > 0 && right.serialized_length > 0 {
-                            1 + left.serialized_length + right.serialized_length
+                            1_u64.saturating_add(
+                                left.serialized_length
+                                    .saturating_add(right.serialized_length),
+                            )
                         } else {
                             0
                         };

@@ -1,11 +1,11 @@
 [workspace]
-members = ["fuzz", "tools", "wasm", "wheel", "clvm-fuzzing"]
+members = ["fuzz", "tools", "wheel", "clvm-fuzzing"]
 
 [package]
 name = "clvmr"
-version = "0.16.2"
+version = "0.17.0"
 authors = ["Richard Kiss <him@richardkiss.com>"]
-edition = "2021"
+edition = "2024"
 license = "Apache-2.0"
 description = "Implementation of `clvm` for Chia Network's cryptocurrency"
 homepage = "https://github.com/Chia-Network/clvm_rs/"
@@ -38,8 +38,9 @@ openssl = ["chia-sha2/openssl"]
 lto = "thin"
 
 [workspace.dependencies]
-clvmr = { path = ".", version = "0.16.1" }
-clvm-fuzzing = { path = "./clvm-fuzzing", version = "0.16.1" }
+bitflags = "2.10"
+clvmr = { path = ".", version = "0.17.0" }
+clvm-fuzzing = { path = "./clvm-fuzzing", version = "0.17.0" }
 lazy_static = "1.5.0"
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
@@ -54,8 +55,6 @@ rstest = "0.21.0"
 criterion = "0.5.1"
 hex = "0.4.3"
 pyo3 = "0.22.6"
-wasm-bindgen = "0.2.100"
-wasm-bindgen-test = "0.3.50"
 js-sys = "0.3.77"
 getrandom = "0.2.16"
 libfuzzer-sys = "0.4.10"
@@ -72,6 +71,7 @@ bumpalo = "3.19.0"
 anyhow = "1.0.100"
 
 [dependencies]
+bitflags = { workspace = true }
 lazy_static = { workspace = true }
 num-bigint = { workspace = true }
 num-traits = { workspace = true }
@@ -111,4 +111,8 @@ harness = false
 
 [[bench]]
 name = "serialize"
+harness = false
+
+[[bench]]
+name = "intern"
 harness = false

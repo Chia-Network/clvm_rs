@@ -1,6 +1,6 @@
 #![no_main]
 use clvmr::keccak256_ops::op_keccak256;
-use clvmr::{reduction::Reduction, Allocator, NodePtr};
+use clvmr::{Allocator, NodePtr, reduction::Reduction};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

@@ -20,7 +20,7 @@ use bitvec::vec::BitVec;
 /// All hashes correspond to sha256 tree hashes.
 use std::collections::{HashMap, HashSet};
 
-use super::bytes32::{hash_blob, hash_blobs, Bytes32};
+use super::bytes32::{Bytes32, hash_blob, hash_blobs};
 use super::serialized_length::atom_length_bits;
 
 #[derive(Debug, Clone)]
@@ -160,10 +160,10 @@ impl ReadCacheLookup {
                     // also add the "terminator" bit, at the far left (MSB)
                     // if we have 8 steps to traverse, we need 9 bits to represent
                     // it as a path
-                    if let Some(path_len) = atom_length_bits(path.len() as u64 + 1) {
-                        if path_len <= max_bytes_for_path_encoding {
-                            possible_responses.push(reversed_path_to_vec_u8(path));
-                        }
+                    if let Some(path_len) = atom_length_bits(path.len() as u64 + 1)
+                        && path_len <= max_bytes_for_path_encoding
+                    {
+                        possible_responses.push(reversed_path_to_vec_u8(path));
                     }
                     continue;
                 }
@@ -242,9 +242,9 @@ mod tests {
     #[test]
     fn test_path_to_vec_u8() {
         assert_eq!(reversed_path_to_vec_u8(bits![]), vec!(0b1));
-        assert_eq!(reversed_path_to_vec_u8(bits![0]), vec!(0b10));
-        assert_eq!(reversed_path_to_vec_u8(bits![1]), vec!(0b11));
-        assert_eq!(reversed_path_to_vec_u8(bits![0, 0]), vec!(0b100));
+        assert_eq!(reversed_path_to_vec_u8(bits![0; 1]), vec!(0b10));
+        assert_eq!(reversed_path_to_vec_u8(bits![1; 1]), vec!(0b11));
+        assert_eq!(reversed_path_to_vec_u8(bits![0; 2]), vec!(0b100));
         assert_eq!(reversed_path_to_vec_u8(bits![0, 1]), vec!(0b101));
         assert_eq!(reversed_path_to_vec_u8(bits![1, 0]), vec!(0b110));
         assert_eq!(reversed_path_to_vec_u8(bits![1, 1]), vec!(0b111));
@@ -380,9 +380,10 @@ mod tests {
         assert_eq!(rcl.find_paths(&hash_of_nil, large_max), [[7]]);
 
         // `(9 . (5 . 0))` is no longer in the tree
-        assert!(rcl
-            .find_paths(&hash_of_cons_9_cons_5_nil, large_max)
-            .is_empty());
+        assert!(
+            rcl.find_paths(&hash_of_cons_9_cons_5_nil, large_max)
+                .is_empty()
+        );
 
         assert_eq!(
             rcl.count.get(&hash_of_cons_cons_9_10_cons_5_nil).unwrap(),

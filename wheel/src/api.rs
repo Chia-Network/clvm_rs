@@ -5,12 +5,12 @@ use super::lazy_node::LazyNode;
 use crate::adapt_response::adapt_response;
 use clvmr::allocator::Allocator;
 use clvmr::chia_dialect::ChiaDialect;
+use clvmr::chia_dialect::{ClvmFlags, MEMPOOL_MODE};
 use clvmr::cost::Cost;
 use clvmr::error::EvalErr;
 use clvmr::reduction::Response;
 use clvmr::run_program::run_program;
-use clvmr::serde::{node_from_bytes, parse_triples, serialized_length_from_bytes, ParsedTriple};
-use clvmr::{LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS};
+use clvmr::serde::{ParsedTriple, node_from_bytes, parse_triples, serialized_length_from_bytes};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
 use pyo3::wrap_pyfunction;
@@ -33,7 +33,8 @@ pub fn run_serialized_chia_program(
     max_cost: Cost,
     flags: u32,
 ) -> PyResult<(u64, LazyNode)> {
-    let mut allocator = if flags & LIMIT_HEAP != 0 {
+    let flags = ClvmFlags::from_bits_truncate(flags);
+    let mut allocator = if flags.contains(ClvmFlags::LIMIT_HEAP) {
         Allocator::new_limited(500000000)
     } else {
         Allocator::new()
@@ -88,9 +89,13 @@ fn clvm_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
     m.add_function(wrap_pyfunction!(deserialize_as_tree, m)?)?;
 
-    m.add("NO_UNKNOWN_OPS", NO_UNKNOWN_OPS)?;
-    m.add("LIMIT_HEAP", LIMIT_HEAP)?;
-    m.add("MEMPOOL_MODE", MEMPOOL_MODE)?;
+    m.add("NO_UNKNOWN_OPS", ClvmFlags::NO_UNKNOWN_OPS.bits())?;
+    m.add("LIMIT_HEAP", ClvmFlags::LIMIT_HEAP.bits())?;
+    m.add("MEMPOOL_MODE", MEMPOOL_MODE.bits())?;
+    m.add("ENABLE_SHA256_TREE", ClvmFlags::ENABLE_SHA256_TREE.bits())?;
+    m.add("ENABLE_SECP_OPS", ClvmFlags::ENABLE_SECP_OPS.bits())?;
+    m.add("DISABLE_OP", ClvmFlags::DISABLE_OP.bits())?;
+    m.add("CANONICAL_INTS", ClvmFlags::CANONICAL_INTS.bits())?;
     m.add_class::<LazyNode>()?;
 
     Ok(())

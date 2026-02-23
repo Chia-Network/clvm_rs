@@ -4,7 +4,7 @@ use std::io::ErrorKind;
 use std::io::Write;
 
 use super::write_atom::write_atom;
-use crate::allocator::{len_for_value, Allocator, NodePtr, NodeVisitor};
+use crate::allocator::{Allocator, NodePtr, NodeVisitor, len_for_value};
 use crate::error::Result;
 
 const CONS_BOX_MARKER: u8 = 0xff;

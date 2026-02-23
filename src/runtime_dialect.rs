@@ -1,9 +1,9 @@
 use crate::allocator::{Allocator, NodePtr};
-use crate::chia_dialect::NO_UNKNOWN_OPS;
+use crate::chia_dialect::ClvmFlags;
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::error::EvalErr;
-use crate::f_table::{f_lookup_for_hashmap, FLookup};
+use crate::f_table::{FLookup, f_lookup_for_hashmap};
 use crate::more_ops::op_unknown;
 use crate::reduction::Response;
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ pub struct RuntimeDialect {
     quote_kw: Vec<u8>,
     apply_kw: Vec<u8>,
     softfork_kw: Vec<u8>,
-    flags: u32,
+    flags: ClvmFlags,
 }
 
 impl RuntimeDialect {
@@ -21,7 +21,7 @@ impl RuntimeDialect {
         op_map: HashMap<String, Vec<u8>>,
         quote_kw: Vec<u8>,
         apply_kw: Vec<u8>,
-        flags: u32,
+        flags: ClvmFlags,
     ) -> RuntimeDialect {
         RuntimeDialect {
             f_lookup: f_lookup_for_hashmap(op_map),
@@ -45,12 +45,12 @@ impl Dialect for RuntimeDialect {
         let atom = allocator.atom(o);
         let b = atom.as_ref();
 
-        if b.len() == 1 {
-            if let Some(f) = self.f_lookup[b[0] as usize] {
-                return f(allocator, argument_list, max_cost);
-            }
+        if b.len() == 1
+            && let Some(f) = self.f_lookup[b[0] as usize]
+        {
+            return f(allocator, argument_list, max_cost);
         }
-        if (self.flags & NO_UNKNOWN_OPS) != 0 {
+        if self.flags.contains(ClvmFlags::NO_UNKNOWN_OPS) {
             Err(EvalErr::Unimplemented(o))?
         } else {
             op_unknown(allocator, o, argument_list, max_cost)
@@ -72,6 +72,10 @@ impl Dialect for RuntimeDialect {
     }
 
     fn allow_unknown_ops(&self) -> bool {
-        (self.flags & NO_UNKNOWN_OPS) == 0
+        !self.flags.contains(ClvmFlags::NO_UNKNOWN_OPS)
+    }
+
+    fn flags(&self) -> ClvmFlags {
+        self.flags
     }
 }

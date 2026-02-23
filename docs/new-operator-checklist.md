@@ -43,3 +43,5 @@ Follow this checklist when adding operators:
   with all soft-forks), all logic surrounding activating or deactivating the
   soft-fork should be removed.
 - Expose the new flag(s) to python in chia_rs.
+- clvm-fuzzing/src/make_tree.rs has a list of operators, their argument types
+  and return types. Add the new operator to this list.

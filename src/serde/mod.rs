@@ -5,6 +5,7 @@ mod de_br;
 mod de_tree;
 mod identity_hash;
 mod incremental;
+mod intern;
 mod object_cache;
 mod parse_atom;
 mod path_builder;
@@ -19,14 +20,17 @@ pub mod write_atom;
 
 #[cfg(test)]
 mod test;
+#[cfg(test)]
+mod test_intern;
 
 pub use bitset::BitSet;
-pub use de::node_from_bytes;
+pub use de::{node_from_bytes, node_from_stream};
 pub use de_br::{node_from_bytes_backrefs, node_from_bytes_backrefs_old};
-pub use de_tree::{parse_triples, ParsedTriple};
+pub use de_tree::{ParsedTriple, parse_triples};
 pub use identity_hash::RandomState;
 pub use incremental::{Serializer, UndoState};
-pub use object_cache::{serialized_length, treehash, ObjectCache};
+pub use intern::{InternedTree, intern};
+pub use object_cache::{ObjectCache, serialized_length, treehash};
 pub use path_builder::{ChildPos, PathBuilder};
 pub use read_cache_lookup::ReadCacheLookup;
 pub use ser::{node_to_bytes, node_to_bytes_limit};

@@ -3,7 +3,7 @@
 use std::io;
 use std::io::Cursor;
 
-use super::object_cache::{serialized_length, treehash, ObjectCache};
+use super::object_cache::{ObjectCache, serialized_length, treehash};
 use super::read_cache_lookup::ReadCacheLookup;
 use super::write_atom::write_atom;
 use crate::allocator::{Allocator, NodePtr, SExp};

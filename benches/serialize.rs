@@ -1,10 +1,10 @@
 use clvmr::allocator::Allocator;
 use clvmr::serde::{
-    node_from_bytes, node_from_bytes_backrefs, node_to_bytes_backrefs, node_to_bytes_limit,
-    Serializer,
+    Serializer, node_from_bytes, node_from_bytes_backrefs, node_to_bytes_backrefs,
+    node_to_bytes_limit,
 };
 use criterion::black_box;
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use std::include_bytes;
 use std::time::Instant;
 

@@ -1,6 +1,6 @@
 use crate::allocator::{Allocator, NodePtr};
-use crate::cost::check_cost;
 use crate::cost::Cost;
+use crate::cost::check_cost;
 use crate::op_utils::atom;
 use crate::op_utils::new_atom_and_cost;
 use crate::reduction::Response;

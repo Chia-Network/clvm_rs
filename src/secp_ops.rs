@@ -1,5 +1,5 @@
 use crate::allocator::{Allocator, NodePtr};
-use crate::cost::{check_cost, Cost};
+use crate::cost::{Cost, check_cost};
 use crate::error::EvalErr;
 use crate::op_utils::{atom, get_args};
 use crate::reduction::{Reduction, Response};

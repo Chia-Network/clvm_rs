@@ -1,7 +1,7 @@
 [package]
 name = "clvm-fuzzing"
-version = "0.16.2"
-edition = "2021"
+version = "0.17.0"
+edition = "2024"
 license = "Apache-2.0"
 description = "Fuzzing tools for clvm Projects on Rust"
 authors = ["Jack Nelson <j.nelson@chia.net>"]
@@ -17,4 +17,7 @@ arbitrary = { workspace = true, features = ["derive"] }
 clvmr = { workspace = true }
 chia-sha2 = { workspace = true }
 anyhow = { workspace = true }
-
+chia-bls = { workspace = true, features = ["arbitrary"] }
+clap = { workspace = true, features = ["derive"] }
+hex = { workspace = true }
+rand = { workspace = true }

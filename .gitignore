@@ -23,3 +23,6 @@ target/
 # Node.js
 /target
 /node_modules
+
+# Mac generates these with the benchmarking tools
+.DS_Store

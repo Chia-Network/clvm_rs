@@ -1,5 +1,5 @@
 use crate::error::{EvalErr, Result};
-use crate::number::{number_from_u8, Number};
+use crate::number::{Number, number_from_u8};
 use chia_bls::{G1Element, G2Element};
 use std::borrow::Borrow;
 use std::fmt;
@@ -21,9 +21,8 @@ const NODE_PTR_IDX_MASK: u32 = (1 << NODE_PTR_IDX_BITS) - 1;
 #[cfg(feature = "allocator-debug")]
 #[derive(Clone, Copy)]
 struct AllocatorReference {
-    // the low 24 bits are fingerprint
-    // the top 8 bits are version
     fingerprint: u32,
+    version: u32,
 }
 
 #[cfg(feature = "allocator-debug")]
@@ -40,6 +39,12 @@ impl Hash for NodePtr {
 #[cfg(feature = "allocator-debug")]
 impl PartialEq for NodePtr {
     fn eq(&self, other: &Self) -> bool {
+        if self.1.fingerprint != u32::MAX && other.1.fingerprint != u32::MAX {
+            assert_eq!(
+                self.1.fingerprint, other.1.fingerprint,
+                "NodePtr from different allocators are not allowed be be compared"
+            );
+        }
         self.0.eq(&other.0)
     }
 }
@@ -87,6 +92,7 @@ impl NodePtr {
             ((object_type as u32) << NODE_PTR_IDX_BITS) | (index as u32),
             AllocatorReference {
                 fingerprint: u32::MAX,
+                version: 0,
             },
         )
     }
@@ -244,8 +250,17 @@ pub struct Allocator {
     ghost_pairs: usize,
     ghost_heap: usize,
 
+    // these counters track the largest number of allocations. It's used to
+    // indicate the memory pressure caused by running a CLVM program. They don't
+    // take "ghost" atoms and pairs into account for this reason.
+    #[cfg(feature = "counters")]
+    max_atom_count: usize,
+    #[cfg(feature = "counters")]
+    max_pair_count: usize,
+    #[cfg(feature = "counters")]
+    max_heap_size: usize,
+
     #[cfg(feature = "allocator-debug")]
-    // fingerprints are 24 bits
     fingerprint: u32,
 
     // the number of atoms and pairs at different versions
@@ -320,10 +335,15 @@ impl Allocator {
             ghost_atoms: 2,
             ghost_pairs: 0,
             ghost_heap: 0,
+            #[cfg(feature = "counters")]
+            max_atom_count: 0,
+            #[cfg(feature = "counters")]
+            max_pair_count: 0,
+            #[cfg(feature = "counters")]
+            max_heap_size: 0,
 
-            // fingerprints are 24 bits
             #[cfg(feature = "allocator-debug")]
-            fingerprint: rand::thread_rng().next_u32() & 0xffffff,
+            fingerprint: rand::thread_rng().next_u32() & 0x7fffffff,
 
             #[cfg(feature = "allocator-debug")]
             versions: Vec::new(),
@@ -342,13 +362,12 @@ impl Allocator {
         }
 
         assert_eq!(
-            n.1.fingerprint & 0xffffff,
-            self.fingerprint,
+            n.1.fingerprint, self.fingerprint,
             "using a NodePtr on the wrong Allocator"
         );
         // if n.1.version is equal to self.versions.len() it means no
         // restore_checkpoint() has been called since this NodePtr was created
-        let version = (n.1.fingerprint >> 24) as usize;
+        let version = n.1.version as usize;
         if version < self.versions.len() {
             // self.versions contains the number of atoms (.0) and pairs (.1) at
             // the specific version
@@ -379,13 +398,12 @@ impl Allocator {
     #[inline(always)]
     #[cfg(feature = "allocator-debug")]
     fn mk_node(&self, t: ObjectType, idx: usize) -> NodePtr {
-        assert!((self.fingerprint & 0xff000000) == 0);
-        assert!(self.versions.len() <= 255);
         NodePtr::new_debug(
             t,
             idx,
             AllocatorReference {
-                fingerprint: self.fingerprint | (self.versions.len() as u32) << 24,
+                fingerprint: self.fingerprint,
+                version: self.versions.len() as u32,
             },
         )
     }
@@ -440,6 +458,8 @@ impl Allocator {
             self.u8_vec.extend_from_slice(v);
             let end = self.u8_vec.len() as u32;
             self.atom_vec.push(AtomBuf { start, end });
+            #[cfg(feature = "counters")]
+            self.update_max_counts();
             Ok(self.mk_node(ObjectType::Bytes, idx))
         }
     }
@@ -453,10 +473,10 @@ impl Allocator {
 
     pub fn new_number(&mut self, v: Number) -> Result<NodePtr> {
         use num_traits::ToPrimitive;
-        if let Some(val) = v.to_u32() {
-            if val <= NODE_PTR_IDX_MASK {
-                return self.new_small_number(val);
-            }
+        if let Some(val) = v.to_u32()
+            && val <= NODE_PTR_IDX_MASK
+        {
+            return self.new_small_number(val);
         }
         let bytes: Vec<u8> = v.to_signed_bytes_be();
         let mut slice = bytes.as_slice();
@@ -490,6 +510,8 @@ impl Allocator {
             return Err(EvalErr::TooManyPairs);
         }
         self.pair_vec.push(IntPair { first, rest });
+        #[cfg(feature = "counters")]
+        self.update_max_counts();
         Ok(self.mk_node(ObjectType::Pair, idx))
     }
 
@@ -561,6 +583,8 @@ impl Allocator {
                     start: atom.start + start,
                     end: atom.start + end,
                 });
+                #[cfg(feature = "counters")]
+                self.update_max_counts();
                 Ok(self.mk_node(ObjectType::Bytes, idx))
             }
             ObjectType::SmallAtom => {
@@ -582,6 +606,8 @@ impl Allocator {
                         start: start as u32,
                         end: end as u32,
                     });
+                    #[cfg(feature = "counters")]
+                    self.update_max_counts();
                     Ok(self.mk_node(ObjectType::Bytes, idx))
                 }
             }
@@ -675,6 +701,8 @@ impl Allocator {
             start: start as u32,
             end,
         });
+        #[cfg(feature = "counters")]
+        self.update_max_counts();
         Ok(self.mk_node(ObjectType::Bytes, idx))
     }
 
@@ -937,23 +965,48 @@ impl Allocator {
     }
 
     pub fn atom_count(&self) -> usize {
-        self.atom_vec.len()
+        self.atom_vec.len() + self.ghost_atoms
     }
 
-    pub fn small_atom_count(&self) -> usize {
-        self.ghost_atoms
+    pub fn allocated_atom_count(&self) -> usize {
+        self.atom_vec.len()
     }
 
     pub fn pair_count(&self) -> usize {
         self.pair_vec.len() + self.ghost_pairs
     }
 
-    pub fn pair_count_no_ghosts(&self) -> usize {
+    pub fn allocated_pair_count(&self) -> usize {
         self.pair_vec.len()
     }
 
     pub fn heap_size(&self) -> usize {
         self.u8_vec.len()
+    }
+
+    #[cfg(feature = "counters")]
+    pub fn max_atom_count(&self) -> usize {
+        self.max_atom_count
+    }
+
+    #[cfg(feature = "counters")]
+    pub fn max_pair_count(&self) -> usize {
+        self.max_pair_count
+    }
+
+    #[cfg(feature = "counters")]
+    pub fn max_heap_size(&self) -> usize {
+        self.max_heap_size
+    }
+
+    #[cfg(feature = "counters")]
+    fn update_max_counts(&mut self) {
+        let atom_count = self.atom_vec.len();
+        self.max_atom_count = std::cmp::max(self.max_atom_count, atom_count);
+        let pair_count = self.pair_vec.len();
+        self.max_pair_count = std::cmp::max(self.max_pair_count, pair_count);
+        let heap_size = self.u8_vec.len();
+        self.max_heap_size = std::cmp::max(self.max_heap_size, heap_size);
     }
 }
 
@@ -1579,8 +1632,12 @@ mod tests {
         let checkpoint = a.checkpoint();
 
         let atom2 = a.new_atom(&[6, 5, 4, 3]).unwrap();
+        let _pair1 = a.new_pair(atom1, atom2).unwrap();
         assert!(a.atom(atom1).as_ref() == [4, 3, 2, 1]);
         assert!(a.atom(atom2).as_ref() == [6, 5, 4, 3]);
+
+        #[cfg(feature = "counters")]
+        let prev_counters = (a.max_atom_count(), a.max_pair_count(), a.max_heap_size());
 
         // at this point we have two atoms and a checkpoint from before the second
         // atom was created
@@ -1588,6 +1645,12 @@ mod tests {
         // now, restoring the checkpoint state will make atom2 disappear
 
         a.restore_checkpoint(&checkpoint);
+
+        #[cfg(feature = "counters")]
+        assert_eq!(
+            (a.max_atom_count(), a.max_pair_count(), a.max_heap_size()),
+            prev_counters
+        );
 
         assert!(a.atom(atom1).as_ref() == [4, 3, 2, 1]);
         let atom3 = a.new_atom(&[6, 5, 4, 3]).unwrap();
