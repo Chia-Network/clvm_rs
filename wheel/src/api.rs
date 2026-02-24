@@ -1,5 +1,6 @@
 #![allow(clippy::useless_conversion)]
 use std::io;
+use std::rc::Rc;
 
 use super::lazy_node::LazyNode;
 use crate::adapt_response::adapt_response;
@@ -10,7 +11,11 @@ use clvmr::cost::Cost;
 use clvmr::error::EvalErr;
 use clvmr::reduction::Response;
 use clvmr::run_program::run_program;
-use clvmr::serde::{ParsedTriple, node_from_bytes, parse_triples, serialized_length_from_bytes};
+use clvmr::serde::{
+    ParsedTriple, node_from_bytes, node_from_bytes_backrefs, node_to_bytes, node_to_bytes_backrefs,
+    parse_triples, serialized_length_from_bytes,
+};
+use clvmr::serde_2026::{deserialize_2026, serialize_2026};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
 
@@ -86,11 +91,60 @@ fn deserialize_as_tree(
     Ok((r, s))
 }
 
+// --- Deserialize functions: bytes -> LazyNode ---
+
+#[pyfunction]
+fn deser_legacy(blob: &[u8]) -> PyResult<LazyNode> {
+    let mut a = Allocator::new();
+    let node = node_from_bytes(&mut a, blob).map_err(eval_to_py)?;
+    Ok(LazyNode::new(Rc::new(a), node))
+}
+
+#[pyfunction]
+fn deser_backrefs(blob: &[u8]) -> PyResult<LazyNode> {
+    let mut a = Allocator::new();
+    let node = node_from_bytes_backrefs(&mut a, blob).map_err(eval_to_py)?;
+    Ok(LazyNode::new(Rc::new(a), node))
+}
+
+#[pyfunction]
+fn deser_2026(blob: &[u8]) -> PyResult<LazyNode> {
+    let mut a = Allocator::new();
+    let node = deserialize_2026(&mut a, blob, None).map_err(eval_to_py)?;
+    Ok(LazyNode::new(Rc::new(a), node))
+}
+
+// --- Serialize functions: LazyNode -> bytes ---
+
+#[pyfunction]
+fn ser_legacy(py: Python, node: &LazyNode) -> PyResult<PyObject> {
+    let bytes = node_to_bytes(node.allocator(), node.node()).map_err(eval_to_py)?;
+    Ok(PyBytes::new_bound(py, &bytes).into())
+}
+
+#[pyfunction]
+fn ser_backrefs(py: Python, node: &LazyNode) -> PyResult<PyObject> {
+    let bytes = node_to_bytes_backrefs(node.allocator(), node.node()).map_err(eval_to_py)?;
+    Ok(PyBytes::new_bound(py, &bytes).into())
+}
+
+#[pyfunction]
+fn ser_2026(py: Python, node: &LazyNode) -> PyResult<PyObject> {
+    let bytes = serialize_2026(node.allocator(), node.node()).map_err(eval_to_py)?;
+    Ok(PyBytes::new_bound(py, &bytes).into())
+}
+
 #[pymodule]
 fn clvm_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run_serialized_chia_program, m)?)?;
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
     m.add_function(wrap_pyfunction!(deserialize_as_tree, m)?)?;
+    m.add_function(wrap_pyfunction!(deser_legacy, m)?)?;
+    m.add_function(wrap_pyfunction!(deser_backrefs, m)?)?;
+    m.add_function(wrap_pyfunction!(deser_2026, m)?)?;
+    m.add_function(wrap_pyfunction!(ser_legacy, m)?)?;
+    m.add_function(wrap_pyfunction!(ser_backrefs, m)?)?;
+    m.add_function(wrap_pyfunction!(ser_2026, m)?)?;
 
     m.add("NO_UNKNOWN_OPS", ClvmFlags::NO_UNKNOWN_OPS.bits())?;
     m.add("LIMIT_HEAP", ClvmFlags::LIMIT_HEAP.bits())?;
