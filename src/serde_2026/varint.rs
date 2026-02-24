@@ -1,17 +1,17 @@
 //! Variable-length integer encoding for the 2026 serialization format.
 
-use std::io::{Cursor, Read};
+use std::io::{Cursor, Read, Write};
 
 use crate::error::{EvalErr, Result};
 
-/// Encode a signed integer using variable-length encoding (varint).
+/// Write a signed integer to `w` using variable-length encoding (varint).
 ///
 /// Format: [leading 1s][0 separator][two's complement value]
 /// - Single byte (0 leading 1s): 0[7-bit two's complement] → range [-64, 63]
 /// - Two bytes (1 leading 1):   10[14-bit two's complement] → range [-8192, 8191]
 /// - Three bytes (2 leading 1s): 110[21-bit two's complement] → range [-1048576, 1048575]
 /// - etc.
-pub fn encode_varint(value: i64) -> Vec<u8> {
+pub fn write_varint<W: Write>(w: &mut W, value: i64) -> std::io::Result<()> {
     // Find the smallest encoding size that can represent the value
     for leading_ones in 0..8 {
         let total_value_bits = 7 + 7 * leading_ones;
@@ -44,17 +44,23 @@ pub fn encode_varint(value: i64) -> Vec<u8> {
         let high_bits = (unsigned_value >> (leading_ones * 8)) as u8;
         let first_byte = first_byte | high_bits;
 
-        // Build result
-        let mut result = vec![first_byte];
+        w.write_all(&[first_byte])?;
         for i in (0..leading_ones).rev() {
             let byte_val = (unsigned_value >> (i * 8)) as u8;
-            result.push(byte_val);
+            w.write_all(&[byte_val])?;
         }
 
-        return result;
+        return Ok(());
     }
 
     panic!("Value too large to encode: {}", value);
+}
+
+/// Encode a signed integer to bytes using variable-length encoding (varint).
+pub fn encode_varint(value: i64) -> Vec<u8> {
+    let mut buf = Vec::new();
+    write_varint(&mut buf, value).unwrap();
+    buf
 }
 
 /// Decode a signed integer from a byte stream using variable-length encoding.
@@ -67,6 +73,11 @@ pub fn decode_varint(cursor: &mut Cursor<&[u8]>) -> Result<i64> {
 
     // Count leading ones using leading_zeros (faster than loop)
     let leading_ones = (!first_byte).leading_zeros() as usize;
+
+    // Reject invalid prefix: 8 leading ones (e.g. 0xFF) is not a valid varint encoding
+    if leading_ones >= 8 {
+        return Err(EvalErr::SerializationError);
+    }
 
     // After leading 1s and separator 0, remaining bits are the two's complement value
     let bits_in_first_byte = 7 - leading_ones;
@@ -135,5 +146,11 @@ mod tests {
             decode_varint(&mut Cursor::new(&[0xbf, 0xbf][..])).unwrap(),
             -65
         );
+    }
+
+    #[test]
+    fn test_decode_rejects_invalid_prefix() {
+        // 0xFF (8 leading ones) is invalid - should return error, not panic
+        assert!(decode_varint(&mut Cursor::new(&[0xff][..])).is_err());
     }
 }

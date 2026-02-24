@@ -18,7 +18,7 @@ hex = { workspace = true }
 rand = { workspace = true }
 linreg = { workspace = true }
 bitflags = { workspace = true }
-clvmr = { workspace = true, features = ["counters"] }
+clvmr = { workspace = true, features = ["counters", "ser-2026"] }
 chia-bls = { workspace = true }
 num-bigint = { workspace = true }
 num-integer = { workspace = true }
@@ -49,5 +49,10 @@ bench = false
 
 [[bin]]
 name = "run-clvm"
+test = false
+bench = false
+
+[[bin]]
+name = "serde-summary"
 test = false
 bench = false
