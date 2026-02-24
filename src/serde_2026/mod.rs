@@ -30,7 +30,7 @@ use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::error::{EvalErr, Result};
 use crate::serde::intern;
 
-use varint::{decode_varint, encode_varint};
+use varint::{decode_varint, write_varint};
 
 /// Serialize a node using the 2026 serialization format.
 ///
@@ -38,9 +38,16 @@ use varint::{decode_varint, encode_varint};
 /// 1. Interns the node to deduplicate atoms and pairs
 /// 2. Renumbers atoms and pairs for optimal compression
 /// 3. Serializes using the 2026 format with varints
+/// Maximum atoms/pairs that fit in i32 indices (used by instruction stream).
+const MAX_INDEX: usize = i32::MAX as usize;
+
 pub fn serialize_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
     // Step 1: Intern the node (single pass)
     let tree = intern(allocator, node)?;
+
+    if tree.atoms.len() > MAX_INDEX || tree.pairs.len() > MAX_INDEX {
+        return Err(EvalErr::SerializationError);
+    }
 
     // Step 2: Build node-to-index mappings
     // Atoms: 0, 1, 2, ... (non-negative)
@@ -106,7 +113,7 @@ pub fn serialize_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
     let mut output = Vec::new();
 
     // Write number of unique lengths
-    output.write_all(&encode_varint(atoms_by_length.len() as i64))?;
+    write_varint(&mut output, atoms_by_length.len() as i64)?;
 
     // Write each length group
     let mut sorted_lengths: Vec<usize> = atoms_by_length.keys().copied().collect();
@@ -118,12 +125,12 @@ pub fn serialize_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
 
         if count == 1 {
             // Single atom: write positive length, then bytes
-            output.write_all(&encode_varint(length as i64))?;
+            write_varint(&mut output, length as i64)?;
             output.write_all(tree.allocator.atom(atoms_of_length[0]).as_ref())?;
         } else {
             // Multiple atoms: write negative length, then count, then all bytes
-            output.write_all(&encode_varint(-(length as i64)))?;
-            output.write_all(&encode_varint(count as i64))?;
+            write_varint(&mut output, -(length as i64))?;
+            write_varint(&mut output, count as i64)?;
             for &atom_node in atoms_of_length {
                 output.write_all(tree.allocator.atom(atom_node).as_ref())?;
             }
@@ -136,8 +143,8 @@ pub fn serialize_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
     if pair_count == 0 {
         // No pairs, root is an atom - just push it
         let remapped_root_idx = atom_remap[&root_index];
-        output.write_all(&encode_varint(1))?; // One instruction
-        output.write_all(&encode_varint(remapped_root_idx as i64 + 1))?; // Push the atom
+        write_varint(&mut output, 1)?; // One instruction
+        write_varint(&mut output, remapped_root_idx as i64 + 1)?; // Push the atom
     } else {
         // Generate instruction stream using stack-based traversal
         let mut construction_order: HashMap<i32, i32> = HashMap::new();
@@ -185,32 +192,65 @@ pub fn serialize_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
         }
 
         // Write instruction count and instructions
-        output.write_all(&encode_varint(instructions.len() as i64))?;
+        write_varint(&mut output, instructions.len() as i64)?;
         for instruction in instructions {
-            output.write_all(&encode_varint(instruction))?;
+            write_varint(&mut output, instruction)?;
         }
     }
 
     Ok(output)
 }
 
+/// Default maximum atom length (1 MB) when not specified.
+const DEFAULT_MAX_ATOM_LEN: usize = 1 << 20;
+
+/// Maximum number of length groups / instructions to prevent DoS.
+const MAX_COUNT: usize = 256 * 1024 * 1024; // 256M
+
+/// Convert i64 to usize, rejecting negatives and values exceeding max.
+fn checked_usize(value: i64, max: usize) -> Result<usize> {
+    if value < 0 {
+        return Err(EvalErr::SerializationError);
+    }
+    if value as u64 > usize::MAX as u64 {
+        return Err(EvalErr::SerializationError); // doesn't fit in usize (e.g. 32-bit)
+    }
+    let u = value as usize;
+    if u > max {
+        return Err(EvalErr::SerializationError);
+    }
+    Ok(u)
+}
+
 /// Deserialize a node from bytes using the 2026 serialization format.
-pub fn deserialize_2026(allocator: &mut Allocator, data: &[u8]) -> Result<NodePtr> {
+///
+/// `max_atom_len` limits the size of any single atom to prevent DoS. Pass `None` to use
+/// the default of 1 MiB (2^20 bytes).
+pub fn deserialize_2026(
+    allocator: &mut Allocator,
+    data: &[u8],
+    max_atom_len: Option<usize>,
+) -> Result<NodePtr> {
+    let max_atom_len = max_atom_len.unwrap_or(DEFAULT_MAX_ATOM_LEN);
     let mut cursor = Cursor::new(data);
 
     // Read atoms - reuse a single buffer for reading
     let mut atoms: Vec<NodePtr> = Vec::new();
-    let atom_lengths_count = decode_varint(&mut cursor)? as usize;
+    let atom_lengths_count = checked_usize(decode_varint(&mut cursor)?, MAX_COUNT)?;
     let mut atom_buffer: Vec<u8> = Vec::new();
 
     for _ in 0..atom_lengths_count {
         let atom_length = decode_varint(&mut cursor)?;
         let (actual_length, atom_count) = if atom_length < 0 {
-            let len = (-atom_length) as usize;
-            let count = decode_varint(&mut cursor)? as usize;
+            if atom_length == i64::MIN {
+                return Err(EvalErr::SerializationError); // -i64::MIN overflows
+            }
+            let len = checked_usize(-atom_length, max_atom_len)?;
+            let count = checked_usize(decode_varint(&mut cursor)?, MAX_COUNT)?;
             (len, count)
         } else {
-            (atom_length as usize, 1)
+            let len = checked_usize(atom_length, max_atom_len)?;
+            (len, 1)
         };
 
         // Resize buffer once per length group
@@ -225,7 +265,7 @@ pub fn deserialize_2026(allocator: &mut Allocator, data: &[u8]) -> Result<NodePt
         }
     }
 
-    let instruction_count = decode_varint(&mut cursor)? as usize;
+    let instruction_count = checked_usize(decode_varint(&mut cursor)?, MAX_COUNT)?;
     if instruction_count == 0 {
         // No pairs, just return the single atom
         return if atoms.is_empty() {
