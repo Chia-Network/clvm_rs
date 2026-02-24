@@ -1,22 +1,49 @@
-use num_bigint::BigInt;
+use rug::integer::Order;
+use rug::Integer;
 
-pub type Number = BigInt;
+pub type Number = Integer;
 
-// This low-level conversion function is meant to be used by the Allocator, for
-// logic interacting with the CLVM heap/allocator, use new_number() and number()
-// instead.
+/// Convert big-endian signed (two's complement) bytes to Number.
 pub fn number_from_u8(v: &[u8]) -> Number {
-    let len = v.len();
-    if len == 0 {
-        0.into()
+    if v.is_empty() {
+        return Number::new();
+    }
+    let n = Number::from_digits(v, Order::MsfBe);
+    if (v[0] & 0x80) != 0 {
+        n - (Number::from(1) << (8 * v.len()))
     } else {
-        Number::from_signed_bytes_be(v)
+        n
+    }
+}
+
+/// Serialize Number to minimal big-endian signed (two's complement) bytes.
+pub fn number_to_signed_bytes_be(n: &Number) -> Vec<u8> {
+    if *n == 0 {
+        return vec![];
+    }
+    if *n > 0 {
+        let mut d = n.to_digits::<u8>(Order::MsfBe);
+        if !d.is_empty() && (d[0] & 0x80) != 0 {
+            d.insert(0, 0);
+        }
+        d
+    } else {
+        let bits = n.signed_bits();
+        let n_bytes = ((bits as usize) + 8) / 8;
+        let mod_val = Number::from(1) << (8 * n_bytes);
+        let complement = mod_val + n.clone();
+        let mut d = complement.to_digits::<u8>(Order::MsfBe);
+        while d.len() > 1 && d[0] == 0xff && (d[1] & 0x80) != 0 {
+            d.remove(0);
+        }
+        d
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use num_bigint::{BigUint, Sign};
+    use rug::integer::Order;
+    use rug::Integer;
 
     use super::*;
 
@@ -25,70 +52,64 @@ mod tests {
         let zero = b.is_empty() || (b.len() == 1 && b[0] == 0);
 
         {
-            let num = Number::from_signed_bytes_be(b);
+            let num = number_from_u8(b);
 
             if negative {
-                assert!(num.sign() == Sign::Minus);
+                assert!(num < 0);
             } else if zero {
-                assert!(num.sign() == Sign::NoSign);
+                assert!(num == 0);
             } else {
-                assert!(num.sign() == Sign::Plus);
+                assert!(num > 0);
             }
 
-            let round_trip = num.to_signed_bytes_be();
-            // num-bigin produces a single 0 byte for the value 0. We expect an
-            // empty array
+            let round_trip = number_to_signed_bytes_be(&num);
             let round_trip = if round_trip == [0] {
                 &round_trip[1..]
             } else {
-                &round_trip
+                &round_trip[..]
             };
 
             assert_eq!(round_trip, b);
 
-            // test to_bytes_le()
-            let (sign, mut buf_le) = num.to_bytes_le();
-
-            // there's a special case for empty input buffers, which will result in
-            // a single 0 byte here
+            // test to_digits LE (magnitude)
+            let (sign_neg, mut buf_le): (bool, Vec<u8>) = if num == 0 {
+                (false, vec![0])
+            } else if num < 0 {
+                let abs = (-num.clone()).to_digits::<u8>(Order::Lsf);
+                (true, abs)
+            } else {
+                (false, num.to_digits::<u8>(Order::Lsf))
+            };
             if b.is_empty() {
                 assert_eq!(buf_le, &[0]);
-                buf_le.remove(0);
+                buf_le.clear();
             }
-            assert!(sign == num.sign());
+            assert_eq!(sign_neg, num < 0);
 
-            // the buffer we get from to_bytes_le() is unsigned (since the sign is
-            // returned separately). This means it doesn't ever need to prepend a 0
-            // byte when the MSB is set. When we're comparing this against the input
-            // buffer, we need to add such 0 byte to buf_le to make them compare
-            // equal.
-            // the 0 prefix has to be added to the end though, since it's little
-            // endian
             if !buf_le.is_empty() && (buf_le.last().unwrap() & 0x80) != 0 {
                 buf_le.push(0);
             }
 
-            if sign != Sign::Minus {
+            if !sign_neg {
                 assert!(buf_le.iter().eq(b.iter().rev()));
             } else {
                 let negated = -num;
-                let magnitude = negated.to_signed_bytes_be();
+                let magnitude = number_to_signed_bytes_be(&negated);
                 assert!(buf_le.iter().eq(magnitude.iter().rev()));
             }
         }
 
         // test parsing unsigned bytes
         {
-            let unsigned_num: Number = BigUint::from_bytes_be(b).into();
-            assert!(unsigned_num.sign() != Sign::Minus);
-            let unsigned_round_trip = unsigned_num.to_signed_bytes_be();
+            let unsigned_num: Number = Integer::from_digits(b, Order::MsfBe);
+            assert!(unsigned_num >= 0);
+            let unsigned_round_trip = number_to_signed_bytes_be(&unsigned_num);
             let unsigned_round_trip = if unsigned_round_trip == [0] {
                 &unsigned_round_trip[1..]
             } else {
-                &unsigned_round_trip
+                &unsigned_round_trip[..]
             };
             if !b.is_empty() && (b[0] & 0x80) != 0 {
-                // we expect a new leading zero here, to keep the value positive
                 assert!(unsigned_round_trip[0] == 0);
                 assert_eq!(&unsigned_round_trip[1..], b);
             } else {
@@ -136,11 +157,11 @@ mod tests {
 
     fn roundtrip_u64(v: u64) {
         let num: Number = v.into();
-        assert!(num.sign() != Sign::Minus);
+        assert!(num >= 0);
 
-        assert!(num.bits() <= 64);
+        assert!(num.significant_bits() <= 64);
 
-        let round_trip: u64 = TryFrom::try_from(num).unwrap();
+        let round_trip: u64 = num.to_u64().unwrap();
         assert_eq!(round_trip, v);
     }
 
@@ -180,14 +201,14 @@ mod tests {
         let num: Number = v.into();
 
         match v.cmp(&0) {
-            Ordering::Equal => assert!(num.sign() == Sign::NoSign),
-            Ordering::Less => assert!(num.sign() == Sign::Minus),
-            Ordering::Greater => assert!(num.sign() == Sign::Plus),
+            Ordering::Equal => assert!(num == 0),
+            Ordering::Less => assert!(num < 0),
+            Ordering::Greater => assert!(num > 0),
         }
 
-        assert!(num.bits() <= 64);
+        assert!(num.significant_bits() <= 64);
 
-        let round_trip: i64 = TryFrom::try_from(num).unwrap();
+        let round_trip: i64 = num.to_i64().unwrap();
         assert_eq!(round_trip, v);
     }
 
@@ -238,8 +259,8 @@ mod tests {
         }
     }
 
-    fn bits(b: &[u8]) -> u64 {
-        Number::from_signed_bytes_be(b).bits()
+    fn bits(b: &[u8]) -> u32 {
+        number_from_u8(b).significant_bits()
     }
 
     #[test]

@@ -42,9 +42,7 @@ bitflags = "2.10"
 clvmr = { path = ".", version = "0.17.0" }
 clvm-fuzzing = { path = "./clvm-fuzzing", version = "0.17.0" }
 lazy_static = "1.5.0"
-num-bigint = "0.4.6"
-num-traits = "0.2.19"
-num-integer = "0.1.46"
+rug = "1.28"
 chia-bls = "0.28.1"
 chia-sha2 = "0.34.0"
 hex-literal = "0.4.1"
@@ -73,9 +71,7 @@ anyhow = "1.0.100"
 [dependencies]
 bitflags = { workspace = true }
 lazy_static = { workspace = true }
-num-bigint = { workspace = true }
-num-traits = { workspace = true }
-num-integer = { workspace = true }
+rug = { workspace = true }
 chia-bls = { workspace = true }
 chia-sha2 = { workspace = true }
 hex-literal = { workspace = true }

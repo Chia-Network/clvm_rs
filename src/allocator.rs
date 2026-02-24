@@ -1,5 +1,5 @@
 use crate::error::{EvalErr, Result};
-use crate::number::{Number, number_from_u8};
+use crate::number::{Number, number_from_u8, number_to_signed_bytes_be};
 use chia_bls::{G1Element, G2Element};
 use std::borrow::Borrow;
 use std::fmt;
@@ -472,13 +472,12 @@ impl Allocator {
     }
 
     pub fn new_number(&mut self, v: Number) -> Result<NodePtr> {
-        use num_traits::ToPrimitive;
         if let Some(val) = v.to_u32()
             && val <= NODE_PTR_IDX_MASK
         {
             return self.new_small_number(val);
         }
-        let bytes: Vec<u8> = v.to_signed_bytes_be();
+        let bytes: Vec<u8> = number_to_signed_bytes_be(&v);
         let mut slice = bytes.as_slice();
 
         // make number minimal by removing leading zeros
@@ -2153,7 +2152,6 @@ c6c886f6b57ec72a6178288c47c33577\
         let atom = a.new_number(value.clone()).expect("new_number()");
         assert_eq!(a.small_number(atom).is_some(), expect_small);
         if let Some(v) = a.small_number(atom) {
-            use num_traits::ToPrimitive;
             assert_eq!(v, value.to_u32().unwrap());
         }
         assert_eq!(a.number(atom), value);
@@ -2183,7 +2181,6 @@ c6c886f6b57ec72a6178288c47c33577\
         let atom = a.new_atom(buf).expect("new_atom()");
         assert_eq!(a.small_number(atom).is_some(), expect_small);
         if let Some(v) = a.small_number(atom) {
-            use num_traits::ToPrimitive;
             assert_eq!(v, a.number(atom).to_u32().expect("to_u32()"));
         }
         assert_eq!(buf, a.atom(atom).as_ref());

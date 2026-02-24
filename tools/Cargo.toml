@@ -18,8 +18,7 @@ sha1 = { workspace = true }
 linreg = { workspace = true }
 clvmr = { workspace = true }
 chia-bls = { workspace = true }
-num-bigint = { workspace = true }
-num-integer = { workspace = true }
+rug = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 clap = { workspace = true, features = ["derive"] }

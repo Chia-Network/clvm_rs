@@ -1,5 +1,6 @@
 use crate::allocator::{Allocator, Atom, NodePtr};
 use crate::cost::{Cost, check_cost};
+use rug::integer::Order;
 use crate::error::EvalErr;
 use crate::op_utils::{
     MALLOC_COST_PER_BYTE, atom, first, get_args, get_varargs, int_atom, mod_group_order,
@@ -83,7 +84,8 @@ pub fn op_bls_g1_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
     check_cost(cost, max_cost)?;
 
     let scalar = mod_group_order(scalar);
-    total.scalar_multiply(scalar.to_bytes_be().1.as_slice());
+    let scalar_bytes = scalar.to_digits::<u8>(Order::MsfBe);
+    total.scalar_multiply(&scalar_bytes);
 
     Ok(Reduction(
         cost + 48 * MALLOC_COST_PER_BYTE,
@@ -183,7 +185,8 @@ pub fn op_bls_g2_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
     check_cost(cost, max_cost)?;
 
     let scalar = mod_group_order(scalar);
-    total.scalar_multiply(scalar.to_bytes_be().1.as_slice());
+    let scalar_bytes = scalar.to_digits::<u8>(Order::MsfBe);
+    total.scalar_multiply(&scalar_bytes);
 
     Ok(Reduction(
         cost + 96 * MALLOC_COST_PER_BYTE,

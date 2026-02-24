@@ -6,8 +6,8 @@ use crate::error::{EvalErr, Result};
 use crate::number::Number;
 use crate::reduction::{Reduction, Response};
 use lazy_static::lazy_static;
-use num_bigint::{BigUint, Sign};
-use num_integer::Integer;
+use rug::integer::Order;
+use rug::Complete;
 
 // We ascribe some additional cost per byte for operations that allocate new atoms
 pub const MALLOC_COST_PER_BYTE: Cost = 10;
@@ -181,22 +181,21 @@ pub fn new_atom_and_cost(a: &mut Allocator, cost: Cost, buf: &[u8]) -> Response 
 
 pub fn mod_group_order(n: Number) -> Number {
     let order = GROUP_ORDER.clone();
-    let mut remainder = n.mod_floor(&order);
-    if remainder.sign() == Sign::Minus {
-        remainder += order;
+    let (_, mut remainder) = n.div_rem_floor_ref(&order).complete();
+    if remainder < 0 {
+        remainder += &order;
     }
     remainder
 }
 
 lazy_static! {
     static ref GROUP_ORDER: Number = {
-        let order_as_bytes = &[
+        let order_as_bytes: &[u8] = &[
             0x73, 0xed, 0xa7, 0x53, 0x29, 0x9d, 0x7d, 0x48, 0x33, 0x39, 0xd8, 0x08, 0x09, 0xa1,
             0xd8, 0x05, 0x53, 0xbd, 0xa4, 0x02, 0xff, 0xfe, 0x5b, 0xfe, 0xff, 0xff, 0xff, 0xff,
             0x00, 0x00, 0x00, 0x01,
         ];
-        let n = BigUint::from_bytes_be(order_as_bytes);
-        n.into()
+        Number::from_digits(order_as_bytes, Order::MsfBe)
     };
 }
 

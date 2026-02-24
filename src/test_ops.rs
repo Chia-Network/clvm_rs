@@ -19,7 +19,6 @@ use crate::sha_tree_op::op_sha256_tree;
 
 use crate::error::EvalErr;
 use hex::FromHex;
-use num_traits::Num;
 use std::cmp::min;
 use std::collections::HashMap;
 
