@@ -99,7 +99,7 @@ fn deserialize_benchmark(c: &mut Criterion) {
                 b.iter(|| {
                     a.restore_checkpoint(&iter_checkpoint);
                     let start = Instant::now();
-                    deserialize_2026(&mut a, data).expect("deserialize_2026");
+                    deserialize_2026(&mut a, data, None).expect("deserialize_2026");
                     start.elapsed()
                 })
             });
