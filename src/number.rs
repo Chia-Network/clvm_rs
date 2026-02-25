@@ -51,11 +51,9 @@ mod tests {
 
             // depending on bigint backend/version, empty input buffers may
             // round-trip as either [] or [0]
-            if b.is_empty() {
-                if !buf_le.is_empty() {
-                    assert_eq!(buf_le, &[0]);
-                    buf_le.remove(0);
-                }
+            if b.is_empty() && !buf_le.is_empty() {
+                assert_eq!(buf_le, &[0]);
+                buf_le.remove(0);
             }
             assert!(sign == num.sign());
 
