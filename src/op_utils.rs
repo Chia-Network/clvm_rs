@@ -6,7 +6,7 @@ use crate::error::{EvalErr, Result};
 use crate::number::Number;
 use crate::reduction::{Reduction, Response};
 use lazy_static::lazy_static;
-use num_bigint::{BigUint, Sign};
+use malachite_bigint::{BigUint, Sign};
 use num_integer::Integer;
 
 // We ascribe some additional cost per byte for operations that allocate new atoms

@@ -1,4 +1,4 @@
-use num_bigint::BigInt;
+use malachite_bigint::BigInt;
 
 pub type Number = BigInt;
 
@@ -16,7 +16,7 @@ pub fn number_from_u8(v: &[u8]) -> Number {
 
 #[cfg(test)]
 mod tests {
-    use num_bigint::{BigUint, Sign};
+    use malachite_bigint::{BigUint, Sign};
 
     use super::*;
 

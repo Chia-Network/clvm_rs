@@ -1,5 +1,5 @@
 use hex_literal::hex;
-use num_bigint::{BigUint, Sign};
+use malachite_bigint::{BigUint, Sign};
 use num_integer::Integer;
 use std::ops::BitAndAssign;
 use std::ops::BitOrAssign;
@@ -740,7 +740,7 @@ fn test_op_ash() {
     ));
 
     let node = test_shift(op_ash, &mut a, &[1], &[0x80, 0]).unwrap().1;
-    assert_eq!(a.atom(node).as_ref(), &[]);
+    assert!(a.atom(node).as_ref().is_empty());
 
     assert!(matches!(
         test_shift(op_ash, &mut a, &[1], &[0x7f, 0, 0, 0]).unwrap_err(),
@@ -795,7 +795,7 @@ fn test_op_lsh() {
     ));
 
     let node = test_shift(op_lsh, &mut a, &[1], &[0x80, 0]).unwrap().1;
-    assert_eq!(a.atom(node).as_ref(), &[]);
+    assert!(a.atom(node).as_ref().is_empty());
 
     assert!(matches!(
         test_shift(op_lsh, &mut a, &[1], &[0x7f, 0, 0, 0]).unwrap_err(),

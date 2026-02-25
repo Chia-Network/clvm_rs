@@ -1,5 +1,5 @@
 use chia_bls::{G1Element, G2Element, aggregate_pairing};
-use num_bigint::BigInt;
+use malachite_bigint::BigInt;
 use serde::Deserialize;
 
 use std::fs::File;

@@ -18,7 +18,7 @@ sha1 = { workspace = true }
 linreg = { workspace = true }
 clvmr = { workspace = true }
 chia-bls = { workspace = true }
-num-bigint = { workspace = true }
+malachite-bigint = { workspace = true }
 num-integer = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

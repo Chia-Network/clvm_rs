@@ -1,7 +1,7 @@
 use std::fs;
 
 use clvmr::Allocator;
-use num_bigint::{BigInt, Sign};
+use malachite_bigint::{BigInt, Sign};
 use num_integer::Integer;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -29,7 +29,7 @@ fn main() {
 
         // Generate a random modulus, but ensure it's non-zero.
         let mut modulus = BigInt::from_signed_bytes_be(&bytes(0, 32));
-        if modulus == BigInt::ZERO {
+        if modulus == 0.into() {
             modulus += 1;
         }
 
@@ -55,7 +55,7 @@ fn main() {
 
         // Generate a random exponent, but ensure it's positive.
         let mut modulus = BigInt::from_signed_bytes_be(&bytes(0, 16));
-        if modulus == BigInt::ZERO {
+        if modulus == 0.into() {
             modulus += 1;
         }
 
