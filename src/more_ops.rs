@@ -911,7 +911,10 @@ pub fn op_pubkey_for_exp(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> R
     let (v0, v0_len) = int_atom(a, n, "pubkey_for_exp")?;
     let cost = PUBKEY_BASE_COST + (v0_len as Cost) * PUBKEY_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
-    let bytes = mod_group_order(v0).to_digits::<u8>(Order::MsfBe);
+    let mut bytes = mod_group_order(v0).to_digits::<u8>(Order::MsfBe);
+    if bytes.is_empty() {
+        bytes.push(0);
+    }
 
     let point = G1Element::from_integer(&bytes);
 

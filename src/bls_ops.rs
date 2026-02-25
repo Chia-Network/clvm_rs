@@ -84,7 +84,10 @@ pub fn op_bls_g1_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
     check_cost(cost, max_cost)?;
 
     let scalar = mod_group_order(scalar);
-    let scalar_bytes = scalar.to_digits::<u8>(Order::MsfBe);
+    let mut scalar_bytes = scalar.to_digits::<u8>(Order::MsfBe);
+    if scalar_bytes.is_empty() {
+        scalar_bytes.push(0);
+    }
     total.scalar_multiply(&scalar_bytes);
 
     Ok(Reduction(
@@ -185,7 +188,10 @@ pub fn op_bls_g2_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
     check_cost(cost, max_cost)?;
 
     let scalar = mod_group_order(scalar);
-    let scalar_bytes = scalar.to_digits::<u8>(Order::MsfBe);
+    let mut scalar_bytes = scalar.to_digits::<u8>(Order::MsfBe);
+    if scalar_bytes.is_empty() {
+        scalar_bytes.push(0);
+    }
     total.scalar_multiply(&scalar_bytes);
 
     Ok(Reduction(
