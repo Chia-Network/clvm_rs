@@ -1021,7 +1021,7 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
 
     let mut ret = base.pow_mod(&exponent, &modulus).map_err(|_| EvalErr::DivisionByZero(input))?;
     if modulus < 0 && ret > 0 {
-        ret = ret + modulus;
+        ret += modulus;
     }
 
     let ret = a.new_number(ret)?;
