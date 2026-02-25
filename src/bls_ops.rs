@@ -3,7 +3,7 @@ use crate::cost::{Cost, check_cost};
 use crate::error::EvalErr;
 use crate::op_utils::{
     MALLOC_COST_PER_BYTE, atom, first, get_args, get_varargs, int_atom, mod_group_order,
-    new_atom_and_cost, nilp, rest,
+    new_atom_and_cost, nilp, non_empty_be_bytes, rest,
 };
 use crate::reduction::{Reduction, Response};
 use chia_bls::{
@@ -82,8 +82,8 @@ pub fn op_bls_g1_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
     cost += scalar_len as Cost * BLS_G1_MULTIPLY_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
 
-    let scalar = mod_group_order(scalar);
-    total.scalar_multiply(scalar.to_bytes_be().1.as_slice());
+    let scalar = non_empty_be_bytes(mod_group_order(scalar));
+    total.scalar_multiply(scalar.as_slice());
 
     Ok(Reduction(
         cost + 48 * MALLOC_COST_PER_BYTE,
@@ -182,8 +182,8 @@ pub fn op_bls_g2_multiply(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> 
     cost += scalar_len as Cost * BLS_G2_MULTIPLY_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
 
-    let scalar = mod_group_order(scalar);
-    total.scalar_multiply(scalar.to_bytes_be().1.as_slice());
+    let scalar = non_empty_be_bytes(mod_group_order(scalar));
+    total.scalar_multiply(scalar.as_slice());
 
     Ok(Reduction(
         cost + 96 * MALLOC_COST_PER_BYTE,

@@ -11,7 +11,7 @@ use crate::error::EvalErr;
 use crate::number::Number;
 use crate::op_utils::{
     MALLOC_COST_PER_BYTE, atom, atom_len, get_args, get_varargs, i32_atom, int_atom, match_args,
-    mod_group_order, new_atom_and_cost, nilp, u32_from_u8,
+    mod_group_order, new_atom_and_cost, nilp, non_empty_be_bytes, u32_from_u8,
 };
 use crate::reduction::{Reduction, Response};
 use chia_bls::G1Element;
@@ -911,7 +911,7 @@ pub fn op_pubkey_for_exp(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> R
     let (v0, v0_len) = int_atom(a, n, "pubkey_for_exp")?;
     let cost = PUBKEY_BASE_COST + (v0_len as Cost) * PUBKEY_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
-    let bytes = mod_group_order(v0).to_bytes_be().1;
+    let bytes = non_empty_be_bytes(mod_group_order(v0));
 
     let point = G1Element::from_integer(&bytes);
 

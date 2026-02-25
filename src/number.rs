@@ -49,11 +49,13 @@ mod tests {
             // test to_bytes_le()
             let (sign, mut buf_le) = num.to_bytes_le();
 
-            // there's a special case for empty input buffers, which will result in
-            // a single 0 byte here
+            // depending on bigint backend/version, empty input buffers may
+            // round-trip as either [] or [0]
             if b.is_empty() {
-                assert_eq!(buf_le, &[0]);
-                buf_le.remove(0);
+                if !buf_le.is_empty() {
+                    assert_eq!(buf_le, &[0]);
+                    buf_le.remove(0);
+                }
             }
             assert!(sign == num.sign());
 

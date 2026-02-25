@@ -188,6 +188,14 @@ pub fn mod_group_order(n: Number) -> Number {
     remainder
 }
 
+pub fn non_empty_be_bytes(n: Number) -> Vec<u8> {
+    let mut bytes = n.to_bytes_be().1;
+    if bytes.is_empty() {
+        bytes.push(0);
+    }
+    bytes
+}
+
 lazy_static! {
     static ref GROUP_ORDER: Number = {
         let order_as_bytes = &[
