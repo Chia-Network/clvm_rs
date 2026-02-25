@@ -1,6 +1,6 @@
 [package]
 name = "clvm_rs-fuzz"
-version = "0.17.0"
+version = "0.17.1"
 authors = ["Arvid Norberg <arvid@chia.net>"]
 publish = false
 edition = "2024"
@@ -95,12 +95,6 @@ doc = false
 [[bin]]
 name = "incremental-serializer"
 path = "fuzz_targets/incremental_serializer.rs"
-test = false
-doc = false
-
-[[bin]]
-name = "serializer-cmp"
-path = "fuzz_targets/serializer_cmp.rs"
 test = false
 doc = false
 
