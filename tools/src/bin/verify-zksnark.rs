@@ -43,6 +43,14 @@ fn bigint_to_48bytes(i: &BigInt) -> [u8; 48] {
     out.try_into().unwrap()
 }
 
+fn non_empty_be_bytes(i: &BigInt) -> Vec<u8> {
+    let mut out: Vec<u8> = i.to_bytes_be().1;
+    if out.is_empty() {
+        out.push(0);
+    }
+    out
+}
+
 fn vec_pair(arr: &[String]) -> ([u8; 48], [u8; 48]) {
     (
         bigint_to_48bytes(&arr[0].clone().parse::<BigInt>().unwrap()),
@@ -97,7 +105,7 @@ pub fn main() {
     let mut cpub = G1Element::default();
     for (i, public_i) in public.iter().enumerate() {
         let mut ic = vec_pair_g1(&verification_key.ic[i + 1]);
-        let scalar = public_i.parse::<BigInt>().unwrap().to_bytes_be().1;
+        let scalar = non_empty_be_bytes(&public_i.parse::<BigInt>().unwrap());
         ic.scalar_multiply(&scalar);
         cpub += &ic;
     }
