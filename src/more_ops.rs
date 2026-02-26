@@ -1,5 +1,5 @@
 use hex_literal::hex;
-use malachite_bigint::BigUint;
+use malachite_bigint::{BigInt as MBigInt, BigUint, Sign as MSign};
 use num_integer::Integer;
 use std::ops::BitAndAssign;
 use std::ops::BitOrAssign;
@@ -552,10 +552,12 @@ fn op_div_impl(a: &mut Allocator, input: NodePtr, max_cost: Cost, limit: bool) -
     }
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
-    if a1.sign() == num_bigint::Sign::NoSign {
+    let a0 = MBigInt::from_signed_bytes_be(&a0.to_signed_bytes_be());
+    let a1 = MBigInt::from_signed_bytes_be(&a1.to_signed_bytes_be());
+    if a1.sign() == MSign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
     }
-    let q = a0.div_floor(&a1);
+    let q = Number::from_signed_bytes_be(&a0.div_floor(&a1).to_signed_bytes_be());
     let q = a.new_number(q)?;
     Ok(malloc_cost(a, cost, q))
 }
@@ -569,12 +571,14 @@ fn op_divmod_impl(a: &mut Allocator, input: NodePtr, max_cost: Cost, limit: bool
     }
     let cost = DIVMOD_BASE_COST + ((a0_len + a1_len) as Cost) * DIVMOD_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
-    if a1.sign() == num_bigint::Sign::NoSign {
+    let a0 = MBigInt::from_signed_bytes_be(&a0.to_signed_bytes_be());
+    let a1 = MBigInt::from_signed_bytes_be(&a1.to_signed_bytes_be());
+    if a1.sign() == MSign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
     }
     let (q, r) = a0.div_mod_floor(&a1);
-    let q1 = a.new_number(q)?;
-    let r1 = a.new_number(r)?;
+    let q1 = a.new_number(Number::from_signed_bytes_be(&q.to_signed_bytes_be()))?;
+    let r1 = a.new_number(Number::from_signed_bytes_be(&r.to_signed_bytes_be()))?;
 
     let c = (a.atom_len(q1) + a.atom_len(r1)) as Cost * MALLOC_COST_PER_BYTE;
     let r: NodePtr = a.new_pair(q1, r1)?;
@@ -598,10 +602,12 @@ fn op_mod_impl(a: &mut Allocator, input: NodePtr, max_cost: Cost, limit: bool) -
     }
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
-    if a1.sign() == num_bigint::Sign::NoSign {
+    let a0 = MBigInt::from_signed_bytes_be(&a0.to_signed_bytes_be());
+    let a1 = MBigInt::from_signed_bytes_be(&a1.to_signed_bytes_be());
+    if a1.sign() == MSign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
     }
-    let q = a.new_number(a0.mod_floor(&a1))?;
+    let q = a.new_number(Number::from_signed_bytes_be(&a0.mod_floor(&a1).to_signed_bytes_be()))?;
     let c = a.atom_len(q) as Cost * MALLOC_COST_PER_BYTE;
     Ok(Reduction(cost + c, q))
 }
@@ -1013,18 +1019,23 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
     cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
     check_cost(cost, max_cost)?;
 
-    if exponent.sign() == num_bigint::Sign::Minus {
+    let base = MBigInt::from_signed_bytes_be(&base.to_signed_bytes_be());
+    let exponent = MBigInt::from_signed_bytes_be(&exponent.to_signed_bytes_be());
+    let modulus = MBigInt::from_signed_bytes_be(&modulus.to_signed_bytes_be());
+
+    if exponent.sign() == MSign::Minus {
         return Err(EvalErr::InvalidOpArg(
             input,
             "ModPow with Negative Exponent".to_string(),
         ));
     }
 
-    if modulus.sign() == num_bigint::Sign::NoSign {
+    if modulus.sign() == MSign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
     }
 
     let ret = base.modpow(&exponent, &modulus);
+    let ret = Number::from_signed_bytes_be(&ret.to_signed_bytes_be());
     let ret = a.new_number(ret)?;
     Ok(malloc_cost(a, cost, ret))
 }
