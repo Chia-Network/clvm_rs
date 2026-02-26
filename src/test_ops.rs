@@ -8,9 +8,10 @@ use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_re
 use crate::cost::Cost;
 use crate::keccak256_ops::op_keccak256;
 use crate::more_ops::{
-    op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
-    op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not,
-    op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
+    op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_div_malachite, op_divmod,
+    op_divmod_malachite, op_gr, op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh,
+    op_mod, op_mod_malachite, op_modpow, op_modpow_malachite, op_multiply, op_not, op_point_add,
+    op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
 };
 use crate::number::Number;
 use crate::reduction::{Reduction, Response};
@@ -254,30 +255,32 @@ mod tests {
     }
 
     #[rstest]
-    #[case("test-core-ops")]
-    #[case("test-more-ops")]
-    #[case("test-bls-ops")]
-    #[case("test-blspy-g1")]
-    #[case("test-blspy-g2")]
-    #[case("test-blspy-hash")]
-    #[case("test-blspy-pairing")]
-    #[case("test-blspy-verify")]
-    #[case("test-bls-zk")]
-    #[case("test-secp-verify")]
-    #[case("test-secp256k1")]
-    #[case("test-secp256r1")]
-    #[case("test-modpow")]
-    #[case("test-sha256")]
-    #[case("test-sha256tree")]
-    #[case("test-sha256tree-hash")]
-    #[case("test-keccak256")]
-    #[case("test-keccak256-generated")]
-    fn test_ops(#[case] filename: &str) {
+    #[case("test-core-ops", false)]
+    #[case("test-more-ops", false)]
+    #[case("test-bls-ops", false)]
+    #[case("test-blspy-g1", false)]
+    #[case("test-blspy-g2", false)]
+    #[case("test-blspy-hash", false)]
+    #[case("test-blspy-pairing", false)]
+    #[case("test-blspy-verify", false)]
+    #[case("test-bls-zk", false)]
+    #[case("test-secp-verify", false)]
+    #[case("test-secp256k1", false)]
+    #[case("test-secp256r1", false)]
+    #[case("test-modpow", false)]
+    #[case("test-sha256", false)]
+    #[case("test-sha256tree", false)]
+    #[case("test-sha256tree-hash", false)]
+    #[case("test-keccak256", false)]
+    #[case("test-keccak256-generated", false)]
+    #[case("test-more-ops", true)]
+    #[case("test-modpow", true)]
+    fn test_ops(#[case] filename: &str, #[case] malachite: bool) {
         use std::fs::read_to_string;
 
         let filename = format!("op-tests/{filename}.txt");
 
-        let funs = HashMap::from([
+        let mut funs = HashMap::from([
             ("i", op_if as Opf),
             ("c", op_cons as Opf),
             ("f", op_first as Opf),
@@ -333,6 +336,13 @@ mod tests {
             // 3.0 hard fork
             ("sha256tree", op_sha256_tree as Opf),
         ]);
+
+        if malachite {
+            funs.insert("/", op_div_malachite as Opf);
+            funs.insert("divmod", op_divmod_malachite as Opf);
+            funs.insert("%", op_mod_malachite as Opf);
+            funs.insert("modpow", op_modpow_malachite as Opf);
+        }
 
         println!("Test cases from: {filename}");
         let test_cases = read_to_string(filename).expect("test file not found");

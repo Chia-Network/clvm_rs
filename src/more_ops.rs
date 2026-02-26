@@ -10,8 +10,8 @@ use crate::cost::{Cost, check_cost};
 use crate::error::EvalErr;
 use crate::number::Number;
 use crate::op_utils::{
-    MALLOC_COST_PER_BYTE, atom, atom_len, get_args, get_varargs, i32_atom, int_atom, match_args,
-    mod_group_order, new_atom_and_cost, nilp, u32_from_u8,
+    MALLOC_COST_PER_BYTE, atom, atom_len, get_args, get_varargs, i32_atom, int_atom,
+    malachite_int_atom, match_args, mod_group_order, new_atom_and_cost, nilp, u32_from_u8,
 };
 use crate::reduction::{Reduction, Response};
 use chia_bls::G1Element;
@@ -599,6 +599,14 @@ pub fn op_div_limit(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respon
     op_div_impl(a, input, max_cost, true)
 }
 
+pub fn op_div_malachite(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+    op_div_impl_malachite(a, input, max_cost, false)
+}
+
+pub fn op_div_limit_malachite(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+    op_div_impl_malachite(a, input, max_cost, true)
+}
+
 fn op_div_impl(a: &mut Allocator, input: NodePtr, max_cost: Cost, limit: bool) -> Response {
     let [v0, v1] = get_args::<2>(a, input, "/")?;
     let (a0, a0_len) = int_atom(a, v0, "/")?;
@@ -613,6 +621,28 @@ fn op_div_impl(a: &mut Allocator, input: NodePtr, max_cost: Cost, limit: bool) -
     }
     let q = a0.div_floor(&a1);
     let q = a.new_number(q)?;
+    Ok(malloc_cost(a, cost, q))
+}
+
+fn op_div_impl_malachite(
+    a: &mut Allocator,
+    input: NodePtr,
+    max_cost: Cost,
+    limit: bool,
+) -> Response {
+    let [v0, v1] = get_args::<2>(a, input, "/")?;
+    let (a0, a0_len) = malachite_int_atom(a, v0, "/")?;
+    let (a1, a1_len) = malachite_int_atom(a, v1, "/")?;
+    if limit && a0_len > 2048 {
+        return Err(EvalErr::InvalidOpArg(input, "div".to_string()));
+    }
+    let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
+    check_cost(cost, max_cost)?;
+    if a1.sign() == malachite_bigint::Sign::NoSign {
+        return Err(EvalErr::DivisionByZero(input));
+    }
+    let q = a0.div_floor(&a1);
+    let q = a.new_malachite_number(q)?;
     Ok(malloc_cost(a, cost, q))
 }
 
@@ -637,12 +667,46 @@ fn op_divmod_impl(a: &mut Allocator, input: NodePtr, max_cost: Cost, limit: bool
     Ok(Reduction(cost + c, r))
 }
 
+fn op_divmod_impl_malachite(
+    a: &mut Allocator,
+    input: NodePtr,
+    max_cost: Cost,
+    limit: bool,
+) -> Response {
+    let [v0, v1] = get_args::<2>(a, input, "divmod")?;
+    let (a0, a0_len) = malachite_int_atom(a, v0, "divmod")?;
+    let (a1, a1_len) = malachite_int_atom(a, v1, "divmod")?;
+    if limit && a0_len > 2048 {
+        return Err(EvalErr::InvalidOpArg(input, "divmod".to_string()));
+    }
+    let cost = DIVMOD_BASE_COST + ((a0_len + a1_len) as Cost) * DIVMOD_COST_PER_BYTE;
+    check_cost(cost, max_cost)?;
+    if a1.sign() == malachite_bigint::Sign::NoSign {
+        return Err(EvalErr::DivisionByZero(input));
+    }
+    let (q, r) = a0.div_mod_floor(&a1);
+    let q1 = a.new_malachite_number(q)?;
+    let r1 = a.new_malachite_number(r)?;
+
+    let c = (a.atom_len(q1) + a.atom_len(r1)) as Cost * MALLOC_COST_PER_BYTE;
+    let r: NodePtr = a.new_pair(q1, r1)?;
+    Ok(Reduction(cost + c, r))
+}
+
 pub fn op_divmod(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     op_divmod_impl(a, input, max_cost, false)
 }
 
 pub fn op_divmod_limit(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     op_divmod_impl(a, input, max_cost, true)
+}
+
+pub fn op_divmod_malachite(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+    op_divmod_impl_malachite(a, input, max_cost, false)
+}
+
+pub fn op_divmod_limit_malachite(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+    op_divmod_impl_malachite(a, input, max_cost, true)
 }
 
 fn op_mod_impl(a: &mut Allocator, input: NodePtr, max_cost: Cost, limit: bool) -> Response {
@@ -662,12 +726,42 @@ fn op_mod_impl(a: &mut Allocator, input: NodePtr, max_cost: Cost, limit: bool) -
     Ok(Reduction(cost + c, q))
 }
 
+fn op_mod_impl_malachite(
+    a: &mut Allocator,
+    input: NodePtr,
+    max_cost: Cost,
+    limit: bool,
+) -> Response {
+    let [v0, v1] = get_args::<2>(a, input, "mod")?;
+    let (a0, a0_len) = malachite_int_atom(a, v0, "mod")?;
+    let (a1, a1_len) = malachite_int_atom(a, v1, "mod")?;
+    if limit && a0_len > 2048 {
+        return Err(EvalErr::InvalidOpArg(input, "mod".to_string()));
+    }
+    let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
+    check_cost(cost, max_cost)?;
+    if a1.sign() == malachite_bigint::Sign::NoSign {
+        return Err(EvalErr::DivisionByZero(input));
+    }
+    let q = a.new_malachite_number(a0.mod_floor(&a1))?;
+    let c = a.atom_len(q) as Cost * MALLOC_COST_PER_BYTE;
+    Ok(Reduction(cost + c, q))
+}
+
 pub fn op_mod(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     op_mod_impl(a, input, max_cost, false)
 }
 
 pub fn op_mod_limit(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     op_mod_impl(a, input, max_cost, true)
+}
+
+pub fn op_mod_malachite(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+    op_mod_impl_malachite(a, input, max_cost, false)
+}
+
+pub fn op_mod_limit_malachite(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+    op_mod_impl_malachite(a, input, max_cost, true)
 }
 
 pub fn op_gr(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
@@ -804,7 +898,7 @@ fn test_op_ash() {
     ));
 
     let node = test_shift(op_ash, &mut a, &[1], &[0x80, 0]).unwrap().1;
-    assert_eq!(a.atom(node).as_ref(), &[]);
+    assert_eq!(a.atom(node).as_ref(), &[0; 0]);
 
     assert!(matches!(
         test_shift(op_ash, &mut a, &[1], &[0x7f, 0, 0, 0]).unwrap_err(),
@@ -859,7 +953,7 @@ fn test_op_lsh() {
     ));
 
     let node = test_shift(op_lsh, &mut a, &[1], &[0x80, 0]).unwrap().1;
-    assert_eq!(a.atom(node).as_ref(), &[]);
+    assert_eq!(a.atom(node).as_ref(), &[0; 0]);
 
     assert!(matches!(
         test_shift(op_lsh, &mut a, &[1], &[0x7f, 0, 0, 0]).unwrap_err(),
@@ -1082,6 +1176,35 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
 
     let ret = base.modpow(&exponent, &modulus);
     let ret = a.new_number(ret)?;
+    Ok(malloc_cost(a, cost, ret))
+}
+
+pub fn op_modpow_malachite(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+    let [base, exponent, modulus] = get_args::<3>(a, input, "modpow")?;
+
+    let mut cost = MODPOW_BASE_COST;
+    let (base, bsize) = malachite_int_atom(a, base, "modpow")?;
+    cost += bsize as Cost * MODPOW_COST_PER_BYTE_BASE_VALUE;
+    let (exponent, esize) = malachite_int_atom(a, exponent, "modpow")?;
+    cost += (esize * esize) as Cost * MODPOW_COST_PER_BYTE_EXPONENT;
+    check_cost(cost, max_cost)?;
+    let (modulus, msize) = malachite_int_atom(a, modulus, "modpow")?;
+    cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
+    check_cost(cost, max_cost)?;
+
+    if exponent.sign() == malachite_bigint::Sign::Minus {
+        return Err(EvalErr::InvalidOpArg(
+            input,
+            "ModPow with Negative Exponent".to_string(),
+        ));
+    }
+
+    if modulus.sign() == malachite_bigint::Sign::NoSign {
+        return Err(EvalErr::DivisionByZero(input));
+    }
+
+    let ret = base.modpow(&exponent, &modulus);
+    let ret = a.new_malachite_number(ret)?;
     Ok(malloc_cost(a, cost, ret))
 }
 

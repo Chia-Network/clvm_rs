@@ -1,6 +1,7 @@
 use num_bigint::BigInt;
 
 pub type Number = BigInt;
+pub type Malachite = malachite_bigint::BigInt;
 
 // This low-level conversion function is meant to be used by the Allocator, for
 // logic interacting with the CLVM heap/allocator, use new_number() and number()
@@ -11,6 +12,15 @@ pub fn number_from_u8(v: &[u8]) -> Number {
         0.into()
     } else {
         Number::from_signed_bytes_be(v)
+    }
+}
+
+pub fn malachite_number_from_u8(v: &[u8]) -> Malachite {
+    let len = v.len();
+    if len == 0 {
+        0.into()
+    } else {
+        Malachite::from_signed_bytes_be(v)
     }
 }
 
