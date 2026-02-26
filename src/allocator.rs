@@ -1,6 +1,7 @@
 use crate::error::{EvalErr, Result};
-use crate::number::{Number, number_from_u8};
+use crate::number::{Malachite, Number, malachite_number_from_u8, number_from_u8};
 use chia_bls::{G1Element, G2Element};
+use num_traits::ToPrimitive;
 use std::borrow::Borrow;
 use std::fmt;
 use std::hash::Hash;
@@ -472,15 +473,39 @@ impl Allocator {
     }
 
     pub fn new_number(&mut self, v: Number) -> Result<NodePtr> {
-        use num_traits::ToPrimitive;
-        if let Some(val) = v.to_u32()
+        if let Some(ptr) = self.new_small_number_from_bigint(&v)? {
+            return Ok(ptr);
+        }
+
+        let bytes = v.to_signed_bytes_be();
+
+        self.new_atom_from_bigint_bytes(bytes.as_slice())
+    }
+
+    pub fn new_malachite_number(&mut self, v: Malachite) -> Result<NodePtr> {
+        if let Some(ptr) = self.new_small_number_from_bigint(&v)? {
+            return Ok(ptr);
+        }
+
+        let bytes = v.to_signed_bytes_be();
+
+        self.new_atom_from_bigint_bytes(bytes.as_slice())
+    }
+
+    fn new_small_number_from_bigint(
+        &mut self,
+        value: &impl ToPrimitive,
+    ) -> Result<Option<NodePtr>> {
+        if let Some(val) = value.to_u32()
             && val <= NODE_PTR_IDX_MASK
         {
-            return self.new_small_number(val);
+            return Ok(Some(self.new_small_number(val)?));
         }
-        let bytes: Vec<u8> = v.to_signed_bytes_be();
-        let mut slice = bytes.as_slice();
 
+        Ok(None)
+    }
+
+    fn new_atom_from_bigint_bytes(&mut self, mut slice: &[u8]) -> Result<NodePtr> {
         // make number minimal by removing leading zeros
         while (!slice.is_empty()) && (slice[0] == 0) {
             if slice.len() > 1 && (slice[1] & 0x80 == 0x80) {
@@ -488,6 +513,7 @@ impl Allocator {
             }
             slice = &slice[1..];
         }
+
         self.new_atom(slice)
     }
 
@@ -825,6 +851,24 @@ impl Allocator {
                 number_from_u8(&self.u8_vec[atom.start as usize..atom.end as usize])
             }
             ObjectType::SmallAtom => Number::from(index),
+            _ => {
+                panic!("number() called on pair");
+            }
+        }
+    }
+
+    pub fn malachite_number(&self, node: NodePtr) -> Malachite {
+        #[cfg(feature = "allocator-debug")]
+        self.validate_node(node);
+
+        let index = node.index();
+
+        match node.object_type() {
+            ObjectType::Bytes => {
+                let atom = self.atom_vec[index as usize];
+                malachite_number_from_u8(&self.u8_vec[atom.start as usize..atom.end as usize])
+            }
+            ObjectType::SmallAtom => Malachite::from(index),
             _ => {
                 panic!("number() called on pair");
             }

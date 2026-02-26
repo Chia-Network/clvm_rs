@@ -70,7 +70,7 @@ mod tests {
         for v in 0..0x7f {
             let mut buf = Vec::<u8>::new();
             assert!(write_atom_encoding_prefix_with_size(&mut buf, v, 1).is_ok());
-            assert_eq!(buf, vec![]);
+            assert_eq!(buf, vec![0; 0]);
         }
 
         for v in 0x80..0xff {
