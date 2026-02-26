@@ -90,6 +90,7 @@ hex = { workspace = true }
 sha1 = { workspace = true }
 bumpalo = { workspace = true }
 thiserror = "1.0.69"
+malachite-bigint = "0.7.0"
 
 
 [dev-dependencies]

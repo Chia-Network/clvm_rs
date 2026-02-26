@@ -1,5 +1,5 @@
 use hex_literal::hex;
-use num_bigint::{BigUint, Sign};
+use malachite_bigint::BigUint;
 use num_integer::Integer;
 use std::ops::BitAndAssign;
 use std::ops::BitOrAssign;
@@ -147,6 +147,14 @@ fn test_limbs_for_int() {
     limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0, 0]);
     limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0]);
+}
+
+pub fn non_empty_be_bytes(n: Number) -> Vec<u8> {
+    let mut bytes = n.to_bytes_be().1;
+    if bytes.is_empty() {
+        bytes.push(0);
+    }
+    bytes
 }
 
 fn malloc_cost(a: &Allocator, cost: Cost, ptr: NodePtr) -> Reduction {
@@ -544,7 +552,7 @@ fn op_div_impl(a: &mut Allocator, input: NodePtr, max_cost: Cost, limit: bool) -
     }
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
-    if a1.sign() == Sign::NoSign {
+    if a1.sign() == num_bigint::Sign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
     }
     let q = a0.div_floor(&a1);
@@ -561,7 +569,7 @@ fn op_divmod_impl(a: &mut Allocator, input: NodePtr, max_cost: Cost, limit: bool
     }
     let cost = DIVMOD_BASE_COST + ((a0_len + a1_len) as Cost) * DIVMOD_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
-    if a1.sign() == Sign::NoSign {
+    if a1.sign() == num_bigint::Sign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
     }
     let (q, r) = a0.div_mod_floor(&a1);
@@ -590,7 +598,7 @@ fn op_mod_impl(a: &mut Allocator, input: NodePtr, max_cost: Cost, limit: bool) -
     }
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
-    if a1.sign() == Sign::NoSign {
+    if a1.sign() == num_bigint::Sign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
     }
     let q = a.new_number(a0.mod_floor(&a1))?;
@@ -740,7 +748,7 @@ fn test_op_ash() {
     ));
 
     let node = test_shift(op_ash, &mut a, &[1], &[0x80, 0]).unwrap().1;
-    assert_eq!(a.atom(node).as_ref(), &[]);
+    assert!(a.atom(node).as_ref().is_empty());
 
     assert!(matches!(
         test_shift(op_ash, &mut a, &[1], &[0x7f, 0, 0, 0]).unwrap_err(),
@@ -770,7 +778,7 @@ pub fn op_lsh(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     }
     let i0 = BigUint::from_bytes_be(b0);
     let l0 = b0.len();
-    let i0: Number = i0.into();
+    let i0: Number = Number::from_bytes_be(num_bigint::Sign::Plus, &i0.to_bytes_be());
 
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
 
@@ -795,7 +803,7 @@ fn test_op_lsh() {
     ));
 
     let node = test_shift(op_lsh, &mut a, &[1], &[0x80, 0]).unwrap().1;
-    assert_eq!(a.atom(node).as_ref(), &[]);
+    assert!(a.atom(node).as_ref().is_empty());
 
     assert!(matches!(
         test_shift(op_lsh, &mut a, &[1], &[0x7f, 0, 0, 0]).unwrap_err(),
@@ -911,7 +919,7 @@ pub fn op_pubkey_for_exp(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> R
     let (v0, v0_len) = int_atom(a, n, "pubkey_for_exp")?;
     let cost = PUBKEY_BASE_COST + (v0_len as Cost) * PUBKEY_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
-    let bytes = mod_group_order(v0).to_bytes_be().1;
+    let bytes = non_empty_be_bytes(mod_group_order(v0));
 
     let point = G1Element::from_integer(&bytes);
 
@@ -1005,14 +1013,14 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
     cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
     check_cost(cost, max_cost)?;
 
-    if exponent.sign() == Sign::Minus {
+    if exponent.sign() == num_bigint::Sign::Minus {
         return Err(EvalErr::InvalidOpArg(
             input,
             "ModPow with Negative Exponent".to_string(),
         ));
     }
 
-    if modulus.sign() == Sign::NoSign {
+    if modulus.sign() == num_bigint::Sign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
     }
 
