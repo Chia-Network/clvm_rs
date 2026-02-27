@@ -1,5 +1,5 @@
 use hex_literal::hex;
-use num_bigint::{BigUint};
+use num_bigint::BigUint;
 use num_integer::Integer;
 use std::ops::BitAndAssign;
 use std::ops::BitOrAssign;
