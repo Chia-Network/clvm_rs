@@ -255,7 +255,11 @@ pub fn int_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<(Number, 
     }
 }
 
-pub fn malachite_int_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<(Malachite, usize)> {
+pub fn malachite_int_atom(
+    a: &Allocator,
+    args: NodePtr,
+    op_name: &str,
+) -> Result<(Malachite, usize)> {
     match a.node(args) {
         NodeVisitor::Buffer(buf) => Ok((malachite_number_from_u8(buf), buf.len())),
         NodeVisitor::U32(val) => Ok((val.into(), len_for_value(val))),
