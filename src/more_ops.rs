@@ -8,7 +8,6 @@ use std::ops::BitXorAssign;
 use crate::allocator::{Allocator, NodePtr, NodeVisitor, SExp, len_for_value};
 use crate::cost::{Cost, check_cost};
 use crate::error::EvalErr;
-use crate::number::Malachite;
 use crate::number::Number;
 use crate::op_utils::{
     MALLOC_COST_PER_BYTE, atom, atom_len, get_args, get_varargs, i32_atom, int_atom,
@@ -545,7 +544,7 @@ fn op_div_impl(a: &mut Allocator, input: NodePtr, max_cost: Cost, limit: bool) -
     }
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
-    if a1 == Malachite::from(0_u8) {
+    if a1.sign() == malachite_bigint::Sign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
     }
     let q = a0.div_floor(&a1);
@@ -562,7 +561,7 @@ fn op_divmod_impl(a: &mut Allocator, input: NodePtr, max_cost: Cost, limit: bool
     }
     let cost = DIVMOD_BASE_COST + ((a0_len + a1_len) as Cost) * DIVMOD_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
-    if a1 == Malachite::from(0_u8) {
+    if a1.sign() == malachite_bigint::Sign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
     }
     let (q, r) = a0.div_mod_floor(&a1);
@@ -1006,14 +1005,14 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
     cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
     check_cost(cost, max_cost)?;
 
-    if exponent < Malachite::from(0_u8) {
+    if exponent.sign() == malachite_bigint::Sign::Minus {
         return Err(EvalErr::InvalidOpArg(
             input,
             "ModPow with Negative Exponent".to_string(),
         ));
     }
 
-    if modulus == Malachite::from(0_u8) {
+    if modulus.sign() == malachite_bigint::Sign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
     }
 
