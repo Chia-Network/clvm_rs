@@ -10,7 +10,6 @@ use crate::cost::{Cost, check_cost};
 use crate::error::EvalErr;
 use crate::number::Malachite;
 use crate::number::Number;
-use crate::number::malachite_number_from_u8;
 use crate::op_utils::{
     MALLOC_COST_PER_BYTE, atom, atom_len, get_args, get_varargs, i32_atom, int_atom,
     malachite_int_atom, match_args, mod_group_order, new_atom_and_cost, nilp, u32_from_u8,
@@ -404,7 +403,7 @@ pub fn op_sha256(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
 
 pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response {
     let mut cost = ARITH_BASE_COST;
-    let mut total: Malachite = 0.into();
+    let mut total: Number = 0.into();
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += ARITH_COST_PER_ARG;
@@ -414,7 +413,8 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
                 cost += ARITH_COST_PER_BYTE * (buf.len() as Cost);
                 check_cost(cost, max_cost)?;
 
-                total += malachite_number_from_u8(buf);
+                use crate::number::number_from_u8;
+                total += number_from_u8(buf);
             }
             NodeVisitor::U32(val) => {
                 cost += len_for_value(val) as Cost * ARITH_COST_PER_BYTE;
@@ -429,7 +429,7 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
             }
         }
     }
-    let total = a.new_malachite_number(total)?;
+    let total = a.new_number(total)?;
     Ok(malloc_cost(a, cost, total))
 }
 
