@@ -12,8 +12,8 @@ use crate::number::Malachite;
 use crate::number::Number;
 use crate::number::malachite_number_from_u8;
 use crate::op_utils::{
-    MALLOC_COST_PER_BYTE, atom, atom_len, get_args, get_varargs, i32_atom, int_atom, match_args,
-    mod_group_order, new_atom_and_cost, nilp, u32_from_u8,
+    MALLOC_COST_PER_BYTE, atom, atom_len, get_args, get_varargs, i32_atom, int_atom,
+    malachite_int_atom, match_args, mod_group_order, new_atom_and_cost, nilp, u32_from_u8,
 };
 use crate::reduction::{Reduction, Response};
 use chia_bls::G1Element;
@@ -555,18 +555,8 @@ fn op_div_impl(a: &mut Allocator, input: NodePtr, max_cost: Cost, limit: bool) -
 
 fn op_divmod_impl(a: &mut Allocator, input: NodePtr, max_cost: Cost, limit: bool) -> Response {
     let [v0, v1] = get_args::<2>(a, input, "divmod")?;
-    let parse_arg = |arg: NodePtr| -> Result<(Malachite, usize), EvalErr> {
-        match a.node(arg) {
-            NodeVisitor::Buffer(buf) => Ok((malachite_number_from_u8(buf), buf.len())),
-            NodeVisitor::U32(val) => Ok((val.into(), len_for_value(val))),
-            NodeVisitor::Pair(_, _) => Err(EvalErr::InvalidOpArg(
-                arg,
-                "Requires Int Argument: divmod".to_string(),
-            )),
-        }
-    };
-    let (a0, a0_len) = parse_arg(v0)?;
-    let (a1, a1_len) = parse_arg(v1)?;
+    let (a0, a0_len) = malachite_int_atom(a, v0, "divmod")?;
+    let (a1, a1_len) = malachite_int_atom(a, v1, "divmod")?;
     if limit && a0_len > 2048 {
         return Err(EvalErr::InvalidOpArg(input, "divmod".to_string()));
     }
@@ -1006,24 +996,13 @@ pub fn op_coinid(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response
 pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
     let [base, exponent, modulus] = get_args::<3>(a, input, "modpow")?;
 
-    let parse_arg = |arg: NodePtr| -> Result<(Malachite, usize), EvalErr> {
-        match a.node(arg) {
-            NodeVisitor::Buffer(buf) => Ok((malachite_number_from_u8(buf), buf.len())),
-            NodeVisitor::U32(val) => Ok((val.into(), len_for_value(val))),
-            NodeVisitor::Pair(_, _) => Err(EvalErr::InvalidOpArg(
-                arg,
-                "Requires Int Argument: modpow".to_string(),
-            )),
-        }
-    };
-
     let mut cost = MODPOW_BASE_COST;
-    let (base, bsize) = parse_arg(base)?;
+    let (base, bsize) = malachite_int_atom(a, base, "modpow")?;
     cost += bsize as Cost * MODPOW_COST_PER_BYTE_BASE_VALUE;
-    let (exponent, esize) = parse_arg(exponent)?;
+    let (exponent, esize) = malachite_int_atom(a, exponent, "modpow")?;
     cost += (esize * esize) as Cost * MODPOW_COST_PER_BYTE_EXPONENT;
     check_cost(cost, max_cost)?;
-    let (modulus, msize) = parse_arg(modulus)?;
+    let (modulus, msize) = malachite_int_atom(a, modulus, "modpow")?;
     cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
     check_cost(cost, max_cost)?;
 

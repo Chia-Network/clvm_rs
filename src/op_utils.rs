@@ -1,9 +1,9 @@
-use crate::allocator::{Allocator, Atom, NodePtr, NodeVisitor, SExp};
+use crate::allocator::{Allocator, Atom, NodePtr, NodeVisitor, SExp, len_for_value};
 use crate::cost::Cost;
 
 use crate::chia_dialect::ClvmFlags;
 use crate::error::{EvalErr, Result};
-use crate::number::Number;
+use crate::number::{Malachite, Number, malachite_number_from_u8};
 use crate::reduction::{Reduction, Response};
 use lazy_static::lazy_static;
 use num_bigint::{BigUint, Sign};
@@ -249,6 +249,17 @@ pub fn int_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<(Number, 
     match a.sexp(args) {
         SExp::Atom => Ok((a.number(args), a.atom_len(args))),
         _ => Err(EvalErr::InvalidOpArg(
+            args,
+            format!("Requires Int Argument: {op_name}"),
+        ))?,
+    }
+}
+
+pub fn malachite_int_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<(Malachite, usize)> {
+    match a.node(args) {
+        NodeVisitor::Buffer(buf) => Ok((malachite_number_from_u8(buf), buf.len())),
+        NodeVisitor::U32(val) => Ok((val.into(), len_for_value(val))),
+        NodeVisitor::Pair(_, _) => Err(EvalErr::InvalidOpArg(
             args,
             format!("Requires Int Argument: {op_name}"),
         ))?,
