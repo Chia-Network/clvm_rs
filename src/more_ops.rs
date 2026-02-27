@@ -538,18 +538,18 @@ pub fn op_div_limit(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respon
 
 fn op_div_impl(a: &mut Allocator, input: NodePtr, max_cost: Cost, limit: bool) -> Response {
     let [v0, v1] = get_args::<2>(a, input, "/")?;
-    let (a0, a0_len) = int_atom(a, v0, "/")?;
-    let (a1, a1_len) = int_atom(a, v1, "/")?;
+    let (a0, a0_len) = malachite_int_atom(a, v0, "/")?;
+    let (a1, a1_len) = malachite_int_atom(a, v1, "/")?;
     if limit && a0_len > 2048 {
         return Err(EvalErr::InvalidOpArg(input, "div".to_string()));
     }
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
-    if a1.sign() == Sign::NoSign {
+    if a1 == Malachite::from(0_u8) {
         return Err(EvalErr::DivisionByZero(input));
     }
     let q = a0.div_floor(&a1);
-    let q = a.new_number(q)?;
+    let q = a.new_malachite_number(q)?;
     Ok(malloc_cost(a, cost, q))
 }
 
