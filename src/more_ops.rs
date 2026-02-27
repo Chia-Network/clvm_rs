@@ -1,5 +1,5 @@
 use hex_literal::hex;
-use num_bigint::{BigUint, Sign};
+use num_bigint::{BigUint};
 use num_integer::Integer;
 use std::ops::BitAndAssign;
 use std::ops::BitOrAssign;
@@ -583,17 +583,17 @@ pub fn op_divmod_limit(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Res
 
 fn op_mod_impl(a: &mut Allocator, input: NodePtr, max_cost: Cost, limit: bool) -> Response {
     let [v0, v1] = get_args::<2>(a, input, "mod")?;
-    let (a0, a0_len) = int_atom(a, v0, "mod")?;
-    let (a1, a1_len) = int_atom(a, v1, "mod")?;
+    let (a0, a0_len) = malachite_int_atom(a, v0, "mod")?;
+    let (a1, a1_len) = malachite_int_atom(a, v1, "mod")?;
     if limit && a0_len > 2048 {
         return Err(EvalErr::InvalidOpArg(input, "mod".to_string()));
     }
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
-    if a1.sign() == Sign::NoSign {
+    if a1.sign() == malachite_bigint::Sign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
     }
-    let q = a.new_number(a0.mod_floor(&a1))?;
+    let q = a.new_malachite_number(a0.mod_floor(&a1))?;
     let c = a.atom_len(q) as Cost * MALLOC_COST_PER_BYTE;
     Ok(Reduction(cost + c, q))
 }
