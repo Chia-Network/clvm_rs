@@ -2526,9 +2526,9 @@ fn main() {
 
     let num_threads = args.threads.max(1);
     let mut flags = ClvmFlags::empty();
-    //    if args.new_cost_model {
-    //        flags |= ClvmFlags::NEW_COST_MODEL;
-    //    }
+    if args.new_cost_model {
+        flags |= ClvmFlags::NEW_COST_MODEL;
+    }
     let output_dir = args.output_dir.unwrap_or_else(|| {
         if args.new_cost_model {
             "measurements-v2".to_string()
