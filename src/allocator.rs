@@ -1076,6 +1076,8 @@ impl Allocator {
 mod tests {
     use super::*;
     use rstest::rstest;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[test]
     fn test_atom_eq_1() {
@@ -2458,6 +2460,8 @@ mod debug_tests {
     use chia_bls::PublicKey;
     use chia_bls::Signature;
     use rstest::rstest;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     fn new_node(a: &mut Allocator, case: u8) -> (NodePtr, usize) {
         match case {

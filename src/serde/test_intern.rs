@@ -6,6 +6,8 @@ use crate::serde::node_from_bytes_backrefs;
 use crate::serde::node_to_bytes;
 use crate::serde::object_cache::{ObjectCache, treehash};
 use rstest::rstest;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
 
 fn treehash_for_node(allocator: &Allocator, node: NodePtr) -> Bytes32 {
     let mut object_cache = ObjectCache::new(treehash);

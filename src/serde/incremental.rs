@@ -140,6 +140,8 @@ mod tests {
         node_from_bytes, node_from_bytes_backrefs, node_to_bytes, node_to_bytes_backrefs,
     };
     use hex_literal::hex;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[test]
     fn test_simple_incremental() {

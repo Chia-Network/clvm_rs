@@ -45,6 +45,8 @@ pub fn atom_length_bits(num_bits: u64) -> Option<u64> {
 mod tests {
     use super::*;
     use rstest::rstest;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[rstest]
     #[case(&[], 1)]

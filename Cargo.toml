@@ -97,6 +97,12 @@ rstest = { workspace = true }
 criterion = { workspace = true }
 hex = { workspace = true }
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { workspace = true, features = ["js"] }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "0.3"
+
 [[bench]]
 name = "run-program"
 harness = false

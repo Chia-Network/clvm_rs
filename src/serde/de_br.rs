@@ -206,6 +206,8 @@ pub fn traverse_path_with_vec(
 #[cfg(test)]
 mod tests {
     use crate::test_ops::node_eq;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     use super::*;
     use rstest::rstest;

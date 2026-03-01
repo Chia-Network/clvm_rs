@@ -100,6 +100,8 @@ mod tests {
     use super::*;
     use crate::serde::write_atom::write_atom;
     use rstest::rstest;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[rstest]
     // single-byte length prefix

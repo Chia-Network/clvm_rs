@@ -122,6 +122,8 @@ mod tests {
     use crate::serde::serialized_length_atom;
     use hex;
     use rstest::rstest;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     fn build_path<'a>(a: &'a Bump, input: &[u8]) -> PathBuilder<'a> {
         let mut path = PathBuilder::default();

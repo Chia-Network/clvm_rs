@@ -258,6 +258,8 @@ pub fn int_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<(Number, 
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     use super::*;
 

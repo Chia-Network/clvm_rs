@@ -208,6 +208,8 @@ pub fn node_eq(allocator: &Allocator, s1: NodePtr, s2: NodePtr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[cfg(feature = "pre-eval")]
     use crate::chia_dialect::{ChiaDialect, ClvmFlags};
@@ -273,9 +275,37 @@ mod tests {
     #[case("test-keccak256")]
     #[case("test-keccak256-generated")]
     fn test_ops(#[case] filename: &str) {
-        use std::fs::read_to_string;
+        #[cfg(not(target_arch = "wasm32"))]
+        let test_cases = {
+            use std::fs::read_to_string;
+            let path = format!("op-tests/{filename}.txt");
+            read_to_string(path).expect("test file not found")
+        };
 
-        let filename = format!("op-tests/{filename}.txt");
+        #[cfg(target_arch = "wasm32")]
+        let test_cases: &str = match filename {
+            "test-core-ops" => include_str!("../op-tests/test-core-ops.txt"),
+            "test-more-ops" => include_str!("../op-tests/test-more-ops.txt"),
+            "test-bls-ops" => include_str!("../op-tests/test-bls-ops.txt"),
+            "test-blspy-g1" => include_str!("../op-tests/test-blspy-g1.txt"),
+            "test-blspy-g2" => include_str!("../op-tests/test-blspy-g2.txt"),
+            "test-blspy-hash" => include_str!("../op-tests/test-blspy-hash.txt"),
+            "test-blspy-pairing" => include_str!("../op-tests/test-blspy-pairing.txt"),
+            "test-blspy-verify" => include_str!("../op-tests/test-blspy-verify.txt"),
+            "test-bls-zk" => include_str!("../op-tests/test-bls-zk.txt"),
+            "test-secp-verify" => include_str!("../op-tests/test-secp-verify.txt"),
+            "test-secp256k1" => include_str!("../op-tests/test-secp256k1.txt"),
+            "test-secp256r1" => include_str!("../op-tests/test-secp256r1.txt"),
+            "test-modpow" => include_str!("../op-tests/test-modpow.txt"),
+            "test-sha256" => include_str!("../op-tests/test-sha256.txt"),
+            "test-sha256tree" => include_str!("../op-tests/test-sha256tree.txt"),
+            "test-sha256tree-hash" => include_str!("../op-tests/test-sha256tree-hash.txt"),
+            "test-keccak256" => include_str!("../op-tests/test-keccak256.txt"),
+            "test-keccak256-generated" => {
+                include_str!("../op-tests/test-keccak256-generated.txt")
+            }
+            _ => panic!("unknown test file: {filename}"),
+        };
 
         let funs = HashMap::from([
             ("i", op_if as Opf),
@@ -335,7 +365,6 @@ mod tests {
         ]);
 
         println!("Test cases from: {filename}");
-        let test_cases = read_to_string(filename).expect("test file not found");
         for t in test_cases.split('\n') {
             let t = t.trim();
             if t.is_empty() {

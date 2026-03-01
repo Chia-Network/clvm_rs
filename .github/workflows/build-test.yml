@@ -203,6 +203,27 @@ jobs:
       - name: build
         run: cargo +nightly fuzz list | xargs -I "%" sh -c "cargo +nightly fuzz run % -- -max_total_time=30 || exit 255"
 
+  wasm_tests:
+    name: WASM tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@1.92.0
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-bindgen-cli
+        shell: bash
+        run: |
+          WASM_BINDGEN_VERSION=$(cargo tree -p wasm-bindgen --depth 0 --target wasm32-unknown-unknown 2>/dev/null | head -1 | sed 's/.*v//')
+          cargo install wasm-bindgen-cli --version "$WASM_BINDGEN_VERSION"
+      - name: cargo test (default)
+        run: cargo test -p clvmr --target wasm32-unknown-unknown --release
+        env:
+          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER: wasm-bindgen-test-runner
+
   unit_tests:
     name: Unit tests
     runs-on: ${{ matrix.os }}

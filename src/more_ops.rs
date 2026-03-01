@@ -5,6 +5,9 @@ use std::ops::BitAndAssign;
 use std::ops::BitOrAssign;
 use std::ops::BitXorAssign;
 
+#[cfg(all(test, target_arch = "wasm32"))]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use crate::allocator::{Allocator, NodePtr, NodeVisitor, SExp, len_for_value};
 use crate::cost::{Cost, check_cost};
 use crate::error::EvalErr;
@@ -1089,6 +1092,8 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
 mod tests {
     use super::*;
     use rstest::rstest;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     fn test_sha256_atom(buf: &[u8]) {
         let mut a = Allocator::new();

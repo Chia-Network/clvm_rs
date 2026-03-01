@@ -281,6 +281,8 @@ impl Dialect for ChiaDialect {
 mod tests {
     use super::*;
     use bitflags::Flags;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[test]
     fn no_overlapping_flags() {

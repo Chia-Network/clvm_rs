@@ -221,6 +221,8 @@ pub fn parse_triples<R: io::Read>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     use hex::FromHex;
     use std::io::Cursor;

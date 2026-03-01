@@ -558,6 +558,8 @@ pub fn run_program_with_counters<'a, D: Dialect>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     use crate::chia_dialect::ClvmFlags;
     use crate::test_ops::parse_exp;

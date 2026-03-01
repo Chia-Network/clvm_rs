@@ -97,6 +97,8 @@ pub fn tree_hash_costed(a: &mut Allocator, node: NodePtr, cost_remaining: Cost) 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     fn test_sha256_atom(buf: &[u8]) {
         let hash = tree_hash_atom(buf);

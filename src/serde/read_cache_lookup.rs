@@ -238,6 +238,8 @@ fn reversed_path_to_vec_u8(path: &BitSlice) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[test]
     fn test_path_to_vec_u8() {
