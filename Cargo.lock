@@ -295,7 +295,7 @@ checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
 name = "clvm-fuzzing"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -309,7 +309,7 @@ dependencies = [
 
 [[package]]
 name = "clvm-rs-test-tools"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "chia-bls",
  "clap",
@@ -328,7 +328,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_rs"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "clvmr",
  "pyo3",
@@ -336,17 +336,20 @@ dependencies = [
 
 [[package]]
 name = "clvm_rs-fuzz"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "arbitrary",
  "clvm-fuzzing",
  "clvmr",
  "libfuzzer-sys",
+ "num-bigint",
+ "num-integer",
+ "num-traits",
 ]
 
 [[package]]
 name = "clvmr"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "bitflags",
  "bitvec",
@@ -747,9 +750,9 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.14.5"
+version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
+checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
 
 [[package]]
 name = "heck"
@@ -795,9 +798,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.2.6"
+version = "2.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "168fb715dda47215e360912c096649d23d58bf392ac62f73919e831745e40f26"
+checksum = "7714e70437a7dc3ac8eb7e6f8df75fd8eb422675fc7678aff7364301092b1017"
 dependencies = [
  "equivalent",
  "hashbrown",
@@ -876,9 +879,9 @@ dependencies = [
 
 [[package]]
 name = "keccak"
-version = "0.1.5"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecc2af9a1119c51f12a14607e783cb977bde58bc069ff0c3da1095e635d70654"
+checksum = "cb26cec98cce3a3d96cbb7bced3c4b16e3d13f27ec56dbd62cbc8f39cfb9d653"
 dependencies = [
  "cpufeatures",
 ]

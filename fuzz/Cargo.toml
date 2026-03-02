@@ -1,6 +1,6 @@
 [package]
 name = "clvm_rs-fuzz"
-version = "0.17.0"
+version = "0.17.1"
 authors = ["Arvid Norberg <arvid@chia.net>"]
 publish = false
 edition = "2024"
@@ -13,6 +13,9 @@ libfuzzer-sys = { workspace = true }
 clvmr = { workspace = true, features = ["counters", "allocator-debug"] }
 arbitrary = { workspace = true }
 clvm-fuzzing = { workspace = true }
+num-bigint = { workspace = true }
+num-integer = { workspace = true }
+num-traits = { workspace = true }
 
 [[bin]]
 name = "run-program"
@@ -99,12 +102,6 @@ test = false
 doc = false
 
 [[bin]]
-name = "serializer-cmp"
-path = "fuzz_targets/serializer_cmp.rs"
-test = false
-doc = false
-
-[[bin]]
 name = "tree-cache"
 path = "fuzz_targets/tree_cache.rs"
 test = false
@@ -125,5 +122,23 @@ doc = false
 [[bin]]
 name = "intern"
 path = "fuzz_targets/intern.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "arithmetic"
+path = "fuzz_targets/arithmetic.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "divmod"
+path = "fuzz_targets/divmod.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "modpow"
+path = "fuzz_targets/modpow.rs"
 test = false
 doc = false

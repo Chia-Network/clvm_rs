@@ -38,6 +38,20 @@ struct NodeEntry {
     pub on_stack: u32,
 }
 
+const MAX_PARENTS: usize = 8;
+
+impl NodeEntry {
+    fn add_parent(&mut self, parent: u32, pos: ChildPos) {
+        if self.parents.len() >= MAX_PARENTS {
+            // evict a "random" parent
+            let idx = parent as usize + pos as usize;
+            self.parents[idx % MAX_PARENTS] = (parent, pos);
+        } else {
+            self.parents.push((parent, pos));
+        }
+    }
+}
+
 struct PartialPath<'alloc> {
     // the path we've built so far
     path: PathBuilder<'alloc>,
@@ -304,12 +318,8 @@ impl TreeCache {
                         }
                     };
 
-                    self.node_entries[left_idx]
-                        .parents
-                        .push((idx, ChildPos::Left));
-                    self.node_entries[right_idx]
-                        .parents
-                        .push((idx, ChildPos::Right));
+                    self.node_entries[left_idx].add_parent(idx, ChildPos::Left);
+                    self.node_entries[right_idx].add_parent(idx, ChildPos::Right);
                     e.insert(idx);
                     stack.push(idx);
                 }
@@ -330,6 +340,10 @@ impl TreeCache {
         );
         let root_entry = &mut self.node_entries[root_idx as usize];
         root_entry.parents.extend(root_parents);
+        if root_entry.parents.len() > MAX_PARENTS {
+            let num_drop = root_entry.parents.len() - MAX_PARENTS;
+            root_entry.parents.drain(0..num_drop);
+        }
 
         // allocate memory to track the new nodes
         self.serialized_nodes.extend(self.node_entries.len() as u32);
