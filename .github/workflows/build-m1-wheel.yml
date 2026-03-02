@@ -22,7 +22,7 @@ permissions:
 jobs:
   build_wheels:
     name: Build wheel on Mac M1
-    runs-on: [macos-13-arm64]
+    runs-on: [macos-15]
     strategy:
       fail-fast: false
 
@@ -46,7 +46,7 @@ jobs:
 
       - name: Build m1 wheels
         env:
-          MACOSX_DEPLOYMENT_TARGET: "13.0"
+          MACOSX_DEPLOYMENT_TARGET: "15.0"
         run: |
           python3 -m venv venv
           . ./venv/bin/activate
