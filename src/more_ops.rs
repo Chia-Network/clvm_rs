@@ -402,6 +402,35 @@ pub fn op_sha256(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Respo
 
 pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response {
     let mut cost = ARITH_BASE_COST;
+
+    // Fast path: if every operand is a SmallAtom, try adding as u64
+    let saved_input = input;
+    let fast_total = (|| -> crate::error::Result<Option<u64>> {
+        let mut total: u64 = 0;
+        while let Some((arg, rest)) = a.next(input) {
+            input = rest;
+            cost += ARITH_COST_PER_ARG;
+            let NodeVisitor::U32(val) = a.node(arg) else {
+                return Ok(None);
+            };
+            cost += len_for_value(val) as Cost * ARITH_COST_PER_BYTE;
+            check_cost(cost, max_cost)?;
+            let Some(new_total) = total.checked_add(val as u64) else {
+                return Ok(None);
+            };
+            total = new_total;
+        }
+        Ok(Some(total))
+    })()?;
+
+    if let Some(fast_total) = fast_total {
+        let total = a.new_u64(fast_total)?;
+        return Ok(malloc_cost(a, cost, total));
+    }
+
+    // Slow path: fall back to bignum arithmetic
+    input = saved_input;
+    cost = ARITH_BASE_COST;
     let mut total: Number = 0.into();
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
@@ -434,6 +463,41 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response
 
 pub fn op_subtract(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response {
     let mut cost = ARITH_BASE_COST;
+
+    // Fast path: if every operand is a SmallAtom, try subtracting as i64
+    let saved_input = input;
+    let fast_total = (|| -> crate::error::Result<Option<i64>> {
+        let mut total: i64 = 0;
+        let mut is_first = true;
+        while let Some((arg, rest)) = a.next(input) {
+            input = rest;
+            cost += ARITH_COST_PER_ARG;
+            let NodeVisitor::U32(val) = a.node(arg) else {
+                return Ok(None);
+            };
+            cost += len_for_value(val) as Cost * ARITH_COST_PER_BYTE;
+            check_cost(cost, max_cost)?;
+            if is_first {
+                total = val as i64;
+                is_first = false;
+            } else {
+                let Some(new_total) = total.checked_sub(val as i64) else {
+                    return Ok(None);
+                };
+                total = new_total;
+            }
+        }
+        Ok(Some(total))
+    })()?;
+
+    if let Some(fast_total) = fast_total {
+        let total = a.new_i64(fast_total)?;
+        return Ok(malloc_cost(a, cost, total));
+    }
+
+    // Slow path: fall back to bignum arithmetic
+    input = saved_input;
+    cost = ARITH_BASE_COST;
     let mut total: Number = 0.into();
     let mut is_first = true;
     while let Some((arg, rest)) = a.next(input) {

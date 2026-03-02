@@ -471,6 +471,58 @@ impl Allocator {
         Ok(self.mk_node(ObjectType::SmallAtom, v as usize))
     }
 
+    pub fn new_u64(&mut self, val: u64) -> Result<NodePtr> {
+        let mut buf = [0u8; 9];
+        buf[1..].copy_from_slice(&val.to_be_bytes());
+        let start = if val == 0 {
+            9
+        } else if val < 0x80 {
+            8
+        } else if val < 0x8000 {
+            7
+        } else if val < 0x80_0000 {
+            6
+        } else if val < 0x8000_0000 {
+            5
+        } else if val < 0x80_0000_0000 {
+            4
+        } else if val < 0x8000_0000_0000 {
+            3
+        } else if val < 0x80_0000_0000_0000 {
+            2
+        } else if val < 0x8000_0000_0000_0000 {
+            1
+        } else {
+            0
+        };
+        self.new_atom(&buf[start..])
+    }
+
+    pub fn new_i64(&mut self, val: i64) -> Result<NodePtr> {
+        if val >= 0 {
+            return self.new_u64(val as u64);
+        }
+        let buf = val.to_be_bytes();
+        let start = if val >= -0x80 {
+            7
+        } else if val >= -0x8000 {
+            6
+        } else if val >= -0x80_0000 {
+            5
+        } else if val >= -0x8000_0000 {
+            4
+        } else if val >= -0x80_0000_0000 {
+            3
+        } else if val >= -0x8000_0000_0000 {
+            2
+        } else if val >= -0x80_0000_0000_0000 {
+            1
+        } else {
+            0
+        };
+        self.new_atom(&buf[start..])
+    }
+
     pub fn new_number(&mut self, v: Number) -> Result<NodePtr> {
         use num_traits::ToPrimitive;
         if let Some(val) = v.to_u32()
@@ -2157,6 +2209,72 @@ c6c886f6b57ec72a6178288c47c33577\
             assert_eq!(v, value.to_u32().unwrap());
         }
         assert_eq!(a.number(atom), value);
+    }
+
+    #[rstest]
+    #[case(0u64, &[])]
+    #[case(1, &[1])]
+    #[case(0x7f, &[0x7f])]
+    #[case(0x80, &[0x00, 0x80])]
+    #[case(0xff, &[0x00, 0xff])]
+    #[case(0x100, &[0x01, 0x00])]
+    #[case(0x7fff, &[0x7f, 0xff])]
+    #[case(0x8000, &[0x00, 0x80, 0x00])]
+    #[case(0xffff, &[0x00, 0xff, 0xff])]
+    #[case(0x7f_ffff, &[0x7f, 0xff, 0xff])]
+    #[case(0x80_0000, &[0x00, 0x80, 0x00, 0x00])]
+    #[case(0x7fff_ffff, &[0x7f, 0xff, 0xff, 0xff])]
+    #[case(0x8000_0000, &[0x00, 0x80, 0x00, 0x00, 0x00])]
+    #[case(0xffff_ffff, &[0x00, 0xff, 0xff, 0xff, 0xff])]
+    #[case(0x1_0000_0000, &[0x01, 0x00, 0x00, 0x00, 0x00])]
+    #[case(0x7f_ffff_ffff, &[0x7f, 0xff, 0xff, 0xff, 0xff])]
+    #[case(0x80_0000_0000, &[0x00, 0x80, 0x00, 0x00, 0x00, 0x00])]
+    #[case(0x7fff_ffff_ffff, &[0x7f, 0xff, 0xff, 0xff, 0xff, 0xff])]
+    #[case(0x8000_0000_0000, &[0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00])]
+    #[case(0x7f_ffff_ffff_ffff, &[0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])]
+    #[case(0x80_0000_0000_0000, &[0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])]
+    #[case(0x7fff_ffff_ffff_ffff, &[0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])]
+    #[case(0x8000_0000_0000_0000, &[0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])]
+    #[case(u64::MAX, &[0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])]
+    fn test_new_u64(#[case] val: u64, #[case] expected_bytes: &[u8]) {
+        let mut a = Allocator::new();
+        let atom = a.new_u64(val).expect("new_u64()");
+        assert_eq!(a.atom(atom).as_ref(), expected_bytes);
+        let expected_number: Number = val.into();
+        assert_eq!(a.number(atom), expected_number);
+    }
+
+    #[rstest]
+    #[case(0i64, &[])]
+    #[case(1, &[1])]
+    #[case(0x7f, &[0x7f])]
+    #[case(0x80, &[0x00, 0x80])]
+    #[case(-1, &[0xff])]
+    #[case(-0x7f, &[0x81])]
+    #[case(-0x80, &[0x80])]
+    #[case(-0x81, &[0xff, 0x7f])]
+    #[case(-0x100, &[0xff, 0x00])]
+    #[case(-0x7fff, &[0x80, 0x01])]
+    #[case(-0x8000, &[0x80, 0x00])]
+    #[case(-0x8001, &[0xff, 0x7f, 0xff])]
+    #[case(-0x80_0000, &[0x80, 0x00, 0x00])]
+    #[case(-0x80_0001, &[0xff, 0x7f, 0xff, 0xff])]
+    #[case(-0x8000_0000, &[0x80, 0x00, 0x00, 0x00])]
+    #[case(-0x8000_0001, &[0xff, 0x7f, 0xff, 0xff, 0xff])]
+    #[case(-0x80_0000_0000, &[0x80, 0x00, 0x00, 0x00, 0x00])]
+    #[case(-0x80_0000_0001, &[0xff, 0x7f, 0xff, 0xff, 0xff, 0xff])]
+    #[case(-0x8000_0000_0000, &[0x80, 0x00, 0x00, 0x00, 0x00, 0x00])]
+    #[case(-0x8000_0000_0001, &[0xff, 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff])]
+    #[case(-0x80_0000_0000_0000, &[0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])]
+    #[case(-0x80_0000_0000_0001, &[0xff, 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])]
+    #[case(i64::MIN, &[0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])]
+    #[case(i64::MAX, &[0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])]
+    fn test_new_i64(#[case] val: i64, #[case] expected_bytes: &[u8]) {
+        let mut a = Allocator::new();
+        let atom = a.new_i64(val).expect("new_i64()");
+        assert_eq!(a.atom(atom).as_ref(), expected_bytes);
+        let expected_number: Number = val.into();
+        assert_eq!(a.number(atom), expected_number);
     }
 
     #[rstest]
