@@ -51,7 +51,7 @@ jobs:
           python3 -m venv venv
           . ./venv/bin/activate
           export PATH=~/.cargo/bin:$PATH
-          pip install maturin
+          pip install maturin==1.12.2
           maturin build -m wheel/Cargo.toml -i python --release --strip --features=openssl
 
       - name: Install clvm_rs wheel
