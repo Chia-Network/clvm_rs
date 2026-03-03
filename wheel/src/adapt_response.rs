@@ -20,11 +20,14 @@ pub fn adapt_response(
             Ok((reduction.0, val))
         }
         Err(eval_err) => {
-            let sexp =
-                LazyNode::new(Rc::new(allocator), EvalErr::node_ptr(&eval_err)).to_object(py);
-            let msg = eval_err.to_string().to_object(py);
-            let tuple = PyTuple::new_bound(py, [msg, sexp]);
-            let value_error: PyErr = PyValueError::new_err(tuple.to_object(py));
+            let sexp: Bound<'_, PyAny> = Bound::new(
+                py,
+                LazyNode::new(Rc::new(allocator), EvalErr::node_ptr(&eval_err)),
+            )?
+            .into_any();
+            let msg: Bound<'_, PyAny> = eval_err.to_string().into_pyobject(py)?.into_any();
+            let tuple = PyTuple::new(py, [msg, sexp])?;
+            let value_error: PyErr = PyValueError::new_err(tuple.unbind().into_any());
             Err(value_error)
         }
     }
