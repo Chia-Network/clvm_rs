@@ -328,13 +328,13 @@ impl Allocator {
             u8_vec: Vec::new(),
             pair_vec: Vec::new(),
             atom_vec: Vec::new(),
-            // subtract 1 to compensate for the one() we used to allocate unconfitionally
-            heap_limit: heap_limit - 1,
+            heap_limit,
             // initialize this to 2 to behave as if we had allocated atoms for
             // nil() and one(), like we used to
             ghost_atoms: 2,
             ghost_pairs: 0,
-            ghost_heap: 0,
+            // compensate for the one() we used to allocate unconditionally
+            ghost_heap: 1,
             #[cfg(feature = "counters")]
             max_atom_count: 0,
             #[cfg(feature = "counters")]
@@ -446,13 +446,14 @@ impl Allocator {
 
     pub fn new_atom(&mut self, v: &[u8]) -> Result<NodePtr> {
         let start = self.u8_vec.len() as u32;
-        if (self.heap_limit - start as usize - self.ghost_heap) < v.len() {
+        if start as usize + self.ghost_heap + v.len() > self.heap_limit {
             return Err(EvalErr::OutOfMemory);
         }
         let idx = self.atom_vec.len();
         self.check_atom_limit()?;
         if let Some(ret) = fits_in_small_atom(v) {
             self.ghost_atoms += 1;
+            self.ghost_heap += v.len();
             Ok(self.mk_node(ObjectType::SmallAtom, ret as usize))
         } else {
             self.u8_vec.extend_from_slice(v);
@@ -466,8 +467,13 @@ impl Allocator {
 
     pub fn new_small_number(&mut self, v: u32) -> Result<NodePtr> {
         debug_assert!(v <= NODE_PTR_IDX_MASK);
+        let len = len_for_value(v);
+        if self.u8_vec.len() + self.ghost_heap + len > self.heap_limit {
+            return Err(EvalErr::OutOfMemory);
+        }
         self.check_atom_limit()?;
         self.ghost_atoms += 1;
+        self.ghost_heap += len;
         Ok(self.mk_node(ObjectType::SmallAtom, v as usize))
     }
 
@@ -624,7 +630,7 @@ impl Allocator {
 
         self.check_atom_limit()?;
         let start = self.u8_vec.len();
-        if self.heap_limit - start - self.ghost_heap < new_size {
+        if start + self.ghost_heap + new_size > self.heap_limit {
             return Err(EvalErr::OutOfMemory);
         }
 
@@ -981,6 +987,10 @@ impl Allocator {
     }
 
     pub fn heap_size(&self) -> usize {
+        self.u8_vec.len() + self.ghost_heap
+    }
+
+    pub fn allocated_heap_size(&self) -> usize {
         self.u8_vec.len()
     }
 
@@ -1272,6 +1282,81 @@ mod tests {
         assert_eq!(a.new_atom(b"foobar").unwrap_err(), EvalErr::OutOfMemory);
         // but 5 is OK
         let _atom = a.new_atom(b"fooba").unwrap();
+    }
+
+    #[test]
+    fn test_new_atom_heap_limit() {
+        let mut a = Allocator::new_limited(6);
+        assert_eq!(a.new_atom(b"foobar").unwrap_err(), EvalErr::OutOfMemory);
+        a.new_atom(b"fooba").unwrap();
+    }
+
+    #[test]
+    fn test_new_atom_small_value_heap_limit() {
+        // small-atom-eligible values still count against the heap
+        // ghost_heap starts at 1, so with limit=1 there are 0 bytes available
+        let mut a = Allocator::new_limited(1);
+        assert_eq!(a.new_atom(&[1]).unwrap_err(), EvalErr::OutOfMemory);
+    }
+
+    #[test]
+    fn test_new_small_number_heap_limit() {
+        let mut a = Allocator::new_limited(1);
+        assert_eq!(a.new_small_number(1).unwrap_err(), EvalErr::OutOfMemory);
+        // len_for_value(0) == 0, so this always fits
+        a.new_small_number(0).unwrap();
+    }
+
+    #[test]
+    fn test_new_number_small_path_heap_limit() {
+        let mut a = Allocator::new_limited(1);
+        assert_eq!(a.new_number(1.into()).unwrap_err(), EvalErr::OutOfMemory);
+    }
+
+    #[test]
+    fn test_new_number_large_path_heap_limit() {
+        // 0xff_ffff_ffff -> [0, 0xff, 0xff, 0xff, 0xff] = 5 bytes, limit allows 4
+        let mut a = Allocator::new_limited(5);
+        assert_eq!(
+            a.new_number(Number::from(0xffffffffff_u64)).unwrap_err(),
+            EvalErr::OutOfMemory
+        );
+    }
+
+    #[test]
+    fn test_new_g1_heap_limit() {
+        let g1_bytes = hex::decode(VALID_G1).unwrap();
+        let g1 = G1Element::from_bytes(g1_bytes.as_slice().try_into().unwrap()).unwrap();
+        assert_eq!(
+            Allocator::new_limited(48).new_g1(g1).unwrap_err(),
+            EvalErr::OutOfMemory
+        );
+        let g1 = G1Element::from_bytes(g1_bytes.as_slice().try_into().unwrap()).unwrap();
+        Allocator::new_limited(49).new_g1(g1).unwrap();
+    }
+
+    #[test]
+    fn test_new_g2_heap_limit() {
+        let g2_bytes = hex::decode(VALID_G2).unwrap();
+        let g2 = G2Element::from_bytes(g2_bytes.as_slice().try_into().unwrap()).unwrap();
+        assert_eq!(
+            Allocator::new_limited(96).new_g2(g2).unwrap_err(),
+            EvalErr::OutOfMemory
+        );
+        let g2 = G2Element::from_bytes(g2_bytes.as_slice().try_into().unwrap()).unwrap();
+        Allocator::new_limited(97).new_g2(g2).unwrap();
+    }
+
+    #[test]
+    fn test_new_concat_heap_limit() {
+        let mut a = Allocator::new_limited(5);
+        let atom = a.new_atom(&[0x80]).unwrap(); // 1 real heap byte (negative, not a small atom)
+        // available: 5 - 1 - 1(ghost) = 3
+        assert_eq!(
+            a.new_concat(4, &[atom, atom, atom, atom]).unwrap_err(),
+            EvalErr::OutOfMemory
+        );
+        a.new_concat(3, &[atom, atom, atom]).unwrap();
     }
 
     #[test]
@@ -1577,7 +1662,8 @@ mod tests {
 
     #[test]
     fn test_concat_limit() {
-        let mut a = Allocator::new_limited(6);
+        // the Allocator::one() is always allocated and uses 1 byte of heap
+        let mut a = Allocator::new_limited(9);
         let atom1 = a.new_atom(b"f").unwrap();
         let atom2 = a.new_atom(b"o").unwrap();
         let atom3 = a.new_atom(b"o").unwrap();
