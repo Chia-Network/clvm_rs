@@ -4,41 +4,36 @@ use std::rc::Rc;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
 
-#[pyclass(subclass, unsendable)]
+#[pyclass(subclass, unsendable, skip_from_py_object)]
 #[derive(Clone)]
 pub struct LazyNode {
     allocator: Rc<Allocator>,
     node: NodePtr,
 }
 
-impl ToPyObject for LazyNode {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        let node: Bound<LazyNode> = Bound::new(py, self.clone()).unwrap();
-        node.to_object(py)
-    }
-}
-
 #[pymethods]
 impl LazyNode {
     #[getter(pair)]
-    pub fn pair(&self, py: Python) -> PyResult<Option<PyObject>> {
+    pub fn pair(&self, py: Python) -> PyResult<Option<Py<PyAny>>> {
         match &self.allocator.sexp(self.node) {
             SExp::Pair(p1, p2) => {
                 let r1 = Self::new(self.allocator.clone(), *p1);
                 let r2 = Self::new(self.allocator.clone(), *p2);
-                let v = PyTuple::new_bound(py, &[r1, r2]);
-                Ok(Some(v.into()))
+                let v = PyTuple::new(py, [r1, r2])?;
+                Ok(Some(v.unbind().into_any()))
             }
             _ => Ok(None),
         }
     }
 
     #[getter(atom)]
-    pub fn atom(&self, py: Python) -> Option<PyObject> {
+    pub fn atom(&self, py: Python) -> Option<Py<PyAny>> {
         match &self.allocator.sexp(self.node) {
-            SExp::Atom => {
-                Some(PyBytes::new_bound(py, self.allocator.atom(self.node).as_ref()).into())
-            }
+            SExp::Atom => Some(
+                PyBytes::new(py, self.allocator.atom(self.node).as_ref())
+                    .unbind()
+                    .into_any(),
+            ),
             _ => None,
         }
     }

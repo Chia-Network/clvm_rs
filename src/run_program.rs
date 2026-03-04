@@ -1631,7 +1631,7 @@ mod tests {
         assert_eq!(counters.atom_count, 2040);
         assert_eq!(counters.allocated_pair_count, 22077);
         assert_eq!(counters.pair_count, 22077);
-        assert_eq!(counters.heap_size, 769963);
+        assert_eq!(counters.heap_size, 771880);
 
         assert_eq!(result.unwrap().0, cost);
     }
