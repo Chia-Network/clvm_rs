@@ -6,15 +6,25 @@ All functions operate on bytes or LazyNode handles backed by Rust.
 
     node = deserialize(blob, Format.BACKREFS)
     out  = serialize(node, Format.SER_2026)
+
+Auto-detecting deserialization (recommended for new code):
+
+    node = deserialize(blob, Format.AUTO)
+
+Serializing with the serde_2026 magic prefix (for use with Format.AUTO):
+
+    out = serialize(node, Format.SER_2026_PREFIXED)
 """
 
 from enum import Enum
 
 from .clvm_rs import (
     deser_2026,
+    deser_auto,
     deser_backrefs,
     deser_legacy,
     ser_2026,
+    ser_2026_prefixed,
     ser_backrefs,
     ser_legacy,
 )
@@ -26,9 +36,11 @@ __all__ = [
     "deser_legacy",
     "deser_backrefs",
     "deser_2026",
+    "deser_auto",
     "ser_legacy",
     "ser_backrefs",
     "ser_2026",
+    "ser_2026_prefixed",
 ]
 
 
@@ -36,26 +48,41 @@ class Format(Enum):
     LEGACY = "legacy"
     BACKREFS = "backrefs"
     SER_2026 = "2026"
+    # Deserialize only: auto-detect format from magic prefix.
+    AUTO = "auto"
+    # Serialize only: serde_2026 with the ff 14 1a magic prefix prepended.
+    SER_2026_PREFIXED = "2026_prefixed"
 
 
 _DESERIALIZERS = {
     Format.LEGACY: deser_legacy,
     Format.BACKREFS: deser_backrefs,
     Format.SER_2026: deser_2026,
+    Format.AUTO: deser_auto,
 }
 
 _SERIALIZERS = {
     Format.LEGACY: ser_legacy,
     Format.BACKREFS: ser_backrefs,
     Format.SER_2026: ser_2026,
+    Format.SER_2026_PREFIXED: ser_2026_prefixed,
 }
 
 
-def deserialize(blob: bytes, fmt: Format = Format.LEGACY):
-    """Deserialize bytes into a LazyNode."""
-    return _DESERIALIZERS[fmt](blob)
+def deserialize(blob: bytes, fmt: Format = Format.AUTO):
+    """Deserialize bytes into a LazyNode.
+
+    Defaults to Format.AUTO which handles classic, backrefs, and serde_2026.
+    """
+    fn = _DESERIALIZERS.get(fmt)
+    if fn is None:
+        raise ValueError(f"Format {fmt!r} cannot be used for deserialization")
+    return fn(blob)
 
 
 def serialize(node, fmt: Format = Format.LEGACY) -> bytes:
     """Serialize a LazyNode to bytes."""
-    return _SERIALIZERS[fmt](node)
+    fn = _SERIALIZERS.get(fmt)
+    if fn is None:
+        raise ValueError(f"Format {fmt!r} cannot be used for serialization")
+    return fn(node)

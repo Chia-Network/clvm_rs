@@ -29,8 +29,15 @@ use std::io::{Cursor, Read, Write};
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::error::{EvalErr, Result};
 use crate::serde::intern;
+use crate::serde::{node_from_bytes_backrefs};
 
 use varint::{decode_varint, write_varint};
+
+/// Magic prefix bytes for serde_2026 format: the serialization of `(20 . 26)` in
+/// classic CLVM.  This is `0xff` (pair marker) followed by atom `20` (`0x14`) and
+/// atom `26` (`0x1a`).  No valid real-world CLVM generator starts with this
+/// sequence, so it is used as an unambiguous format discriminator.
+pub const MAGIC_PREFIX: [u8; 3] = [0xff, 0x14, 0x1a];
 
 /// Serialize a node using the 2026 serialization format.
 ///
@@ -199,6 +206,43 @@ pub fn serialize_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
     }
 
     Ok(output)
+}
+
+/// Serialize a node to serde_2026 format **with** the `(20 . 26)` magic prefix
+/// (`ff 14 1a`).  This is the recommended wire format — use `node_from_bytes_auto`
+/// to deserialize.
+pub fn node_to_bytes_serde_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
+    let raw = serialize_2026(allocator, node)?;
+    let mut out = Vec::with_capacity(MAGIC_PREFIX.len() + raw.len());
+    out.extend_from_slice(&MAGIC_PREFIX);
+    out.extend_from_slice(&raw);
+    Ok(out)
+}
+
+/// Serialize a node to serde_2026 format **without** the magic prefix.
+/// Prefer `node_to_bytes_serde_2026` for wire use; this variant is useful for
+/// embedding the payload inside a larger framing that already carries the header.
+pub fn node_to_bytes_serde_2026_raw(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
+    serialize_2026(allocator, node)
+}
+
+/// Deserialize CLVM from any format (classic, backrefs, or serde_2026).
+///
+/// Detection logic:
+/// 1. If `bytes` starts with `ff 14 1a` (the magic prefix), strip the 3-byte
+///    header and deserialize the remainder with `deserialize_2026`.
+/// 2. Otherwise delegate to `node_from_bytes_backrefs`, which handles both the
+///    classic format and the back-reference extension (backrefs is a strict
+///    superset of classic).
+///
+/// This is the recommended entry point for new code that may encounter any of the
+/// three formats.
+pub fn node_from_bytes_auto(allocator: &mut Allocator, bytes: &[u8]) -> Result<NodePtr> {
+    if bytes.starts_with(&MAGIC_PREFIX) {
+        deserialize_2026(allocator, &bytes[MAGIC_PREFIX.len()..], None)
+    } else {
+        node_from_bytes_backrefs(allocator, bytes)
+    }
 }
 
 /// Default maximum atom length (1 MB) when not specified.

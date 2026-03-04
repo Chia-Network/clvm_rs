@@ -4,7 +4,13 @@ from typing import Iterator, List, Tuple, Optional, BinaryIO
 from .at import at
 from .casts import CastableType, to_clvm_object, int_from_bytes, int_to_bytes
 from .chia_dialect import CHIA_DIALECT
-from .clvm_rs import run_serialized_chia_program
+from .clvm_rs import (
+    deser_auto,
+    deser_backrefs,
+    deser_2026,
+    run_serialized_chia_program,
+    ser_2026_prefixed,
+)
 from .clvm_storage import CLVMStorage
 from .clvm_tree import CLVMTree
 from .curry_and_treehash import CurryTreehasher
@@ -12,6 +18,10 @@ from .eval_error import EvalError
 from .replace import replace
 from .ser import sexp_from_stream, sexp_to_stream, sexp_to_bytes
 from .tree_hash import sha256_treehash
+
+# Serialized form of the CLVM value (20 . 26) — used as the serde_2026 magic
+# prefix.  Classic encoding: 0xff (pair), 0x14 (atom 20), 0x1a (atom 26).
+_SERDE_2026_MAGIC = b"\xff\x14\x1a"
 
 
 
@@ -53,7 +63,45 @@ class Program(CLVMStorage):
         return obj, new_cursor
 
     @classmethod
-    def fromhex(cls, hexstr: str) -> Program:
+    def from_bytes_auto(cls, blob: bytes) -> "Program":
+        """Deserialize from any CLVM format (classic, backrefs, or serde_2026).
+
+        Auto-detects by inspecting the first three bytes: if they are the
+        serde_2026 magic prefix ``ff 14 1a``, the serde_2026 decoder is used;
+        otherwise the backrefs decoder is used (which also handles plain classic
+        format).  This is the recommended entry point for new code.
+        """
+        return cls.wrap(deser_auto(blob))
+
+    @classmethod
+    def from_bytes_serde_2026(cls, blob: bytes) -> "Program":
+        """Deserialize from serde_2026 format.
+
+        The blob must begin with the three-byte magic prefix ``ff 14 1a``
+        (the serialization of the CLVM pair ``(20 . 26)``).  Use
+        ``to_bytes_serde_2026`` to produce compatible output.
+        """
+        if not blob.startswith(_SERDE_2026_MAGIC):
+            raise ValueError(
+                "missing serde_2026 magic prefix (expected first bytes ff 14 1a)"
+            )
+        return cls.wrap(deser_2026(blob[len(_SERDE_2026_MAGIC):]))
+
+    def to_bytes_serde_2026(self) -> bytes:
+        """Serialize to serde_2026 format with the ``ff 14 1a`` magic prefix.
+
+        Use ``from_bytes_auto`` or ``from_bytes_serde_2026`` to deserialize the
+        result.  The returned bytes are suitable for storage or transmission
+        wherever serde_2026 is expected.
+        """
+        # Convert the Python-heap tree to classic bytes first, then load into
+        # a Rust allocator via the backrefs deserializer, and finally encode
+        # with the serde_2026 serializer (which prepends the magic prefix).
+        lazy = deser_backrefs(bytes(self))
+        return ser_2026_prefixed(lazy)
+
+    @classmethod
+    def fromhex(cls, hexstr: str) -> "Program":
         return cls.from_bytes(bytes.fromhex(hexstr))
 
     def __bytes__(self) -> bytes:
