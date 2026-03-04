@@ -582,10 +582,7 @@ impl TreeCache {
 mod tests {
     use super::*;
     use rstest::rstest;
-    #[cfg(target_arch = "wasm32")]
-    use wasm_bindgen_test::wasm_bindgen_test as test;
-
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_basic_tree() {
         let mut a = Allocator::new();
         // build this test tree:
@@ -674,6 +671,7 @@ mod tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(0, Some(vec![0b10]))]
     #[case(1, Some(vec![0b100]))]
     #[case(2, Some(vec![0b1000]))]
@@ -718,6 +716,7 @@ mod tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(0, Some(vec![0b10]))]
     #[case(1, Some(vec![0b101]))]
     #[case(2, Some(vec![0b1011]))]
@@ -763,6 +762,7 @@ mod tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(0, Some(vec![0b10]))]
     #[case(1, Some(vec![0b100]))]
     #[case(2, Some(vec![0b1000]))]

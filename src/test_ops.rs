@@ -208,9 +208,6 @@ pub fn node_eq(allocator: &Allocator, s1: NodePtr, s2: NodePtr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(target_arch = "wasm32")]
-    use wasm_bindgen_test::wasm_bindgen_test as test;
-
     #[cfg(feature = "pre-eval")]
     use crate::chia_dialect::{ChiaDialect, ClvmFlags};
 
@@ -256,6 +253,7 @@ mod tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case("test-core-ops")]
     #[case("test-more-ops")]
     #[case("test-bls-ops")]
@@ -395,7 +393,7 @@ mod tests {
         }
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_single_argument_raise_atom() {
         let mut allocator = Allocator::new();
         let a1 = allocator.new_atom(&[65]).unwrap();
@@ -404,7 +402,7 @@ mod tests {
         assert_eq!(result.unwrap_err(), EvalErr::Raise(a1));
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_single_argument_raise_pair() {
         let mut allocator = Allocator::new();
         let a1 = allocator.new_atom(&[65]).unwrap();
@@ -419,7 +417,7 @@ mod tests {
         assert_eq!(result.unwrap_err(), EvalErr::Raise(args));
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_multi_argument_raise() {
         let mut allocator = Allocator::new();
         let a1 = allocator.new_atom(&[65]).unwrap();
@@ -453,7 +451,7 @@ mod tests {
 
     // Ensure pre_eval_f and post_eval_f are working as expected.
     #[cfg(feature = "pre-eval")]
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_pre_eval_and_post_eval() {
         let mut allocator = Allocator::new();
 

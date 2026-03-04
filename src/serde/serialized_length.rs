@@ -45,10 +45,8 @@ pub fn atom_length_bits(num_bits: u64) -> Option<u64> {
 mod tests {
     use super::*;
     use rstest::rstest;
-    #[cfg(target_arch = "wasm32")]
-    use wasm_bindgen_test::wasm_bindgen_test as test;
-
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(&[], 1)]
     #[case(&[1], 1)]
     #[case(&[0x7f], 1)]
@@ -62,6 +60,7 @@ mod tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(0, 1)]
     #[case(1, 2)]
     #[case(0x7f, 2)]
@@ -77,6 +76,7 @@ mod tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(0, Some(1))]
     #[case(1, Some(1))]
     #[case(7, Some(1))]

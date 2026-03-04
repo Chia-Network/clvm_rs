@@ -102,10 +102,8 @@ mod tests {
     use super::*;
     use crate::serde::write_atom::write_atom;
     use rstest::rstest;
-    #[cfg(target_arch = "wasm32")]
-    use wasm_bindgen_test::wasm_bindgen_test as test;
-
     #[rstest]
+    #[crate::wasm_compat::test]
     // single-byte length prefix
     #[case(0b10100000, &[], (1, 0x20))]
     // two-byte length prefix
@@ -127,6 +125,7 @@ mod tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     // this is an atom length-prefix 0xffffffffffff, or (2^48 - 1).
     // We don't support atoms this large and we should fail before attempting to
     // allocate this much memory
@@ -153,7 +152,7 @@ mod tests {
     }
 
     #[cfg(debug_assertions)]
-    #[test]
+    #[crate::wasm_compat::test]
     #[should_panic]
     fn test_decode_size_panic() {
         let mut stream = Cursor::new(&[0x4, 0, 0, 0]);
@@ -161,7 +160,7 @@ mod tests {
     }
 
     #[cfg(not(debug_assertions))]
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_decode_size_panic() {
         let mut stream = Cursor::new(&[0x4, 0, 0, 0]);
         assert_eq!(
@@ -192,7 +191,7 @@ mod tests {
         check_parse_atom(&blob, expected_atom);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_parse_atom() {
         check_parse_atom_str("80", "");
         // try "00", "01", "02", ..., "7f"
@@ -218,7 +217,7 @@ mod tests {
         }
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_truncated_parse_atom() {
         // the stream is truncated
         let first = 0b11111100;

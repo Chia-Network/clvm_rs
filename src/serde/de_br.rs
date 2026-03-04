@@ -205,16 +205,14 @@ pub fn traverse_path_with_vec(
 
 #[cfg(test)]
 mod tests {
-    use crate::test_ops::node_eq;
-    #[cfg(target_arch = "wasm32")]
-    use wasm_bindgen_test::wasm_bindgen_test as test;
-
     use super::*;
+    use crate::test_ops::node_eq;
     use rstest::rstest;
 
     use hex::FromHex;
 
     #[rstest]
+    #[crate::wasm_compat::test]
     // ("foobar" "foobar")
     #[case(
         "ff86666f6f626172ff86666f6f62617280",
@@ -270,7 +268,7 @@ mod tests {
         assert_eq!(expected_hash, ch);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_counters() {
         use crate::allocator::Allocator;
 
@@ -293,7 +291,7 @@ mod tests {
         assert_eq!(pair_count, old_pair_count);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_traverse_path_with_vec() {
         use crate::allocator::Allocator;
 

@@ -558,9 +558,6 @@ pub fn run_program_with_counters<'a, D: Dialect>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(target_arch = "wasm32")]
-    use wasm_bindgen_test::wasm_bindgen_test as test;
-
     use crate::chia_dialect::ClvmFlags;
     use crate::test_ops::parse_exp;
 
@@ -1386,7 +1383,7 @@ mod tests {
         }
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_run_program() {
         for t in TEST_CASES {
             run_test_case(t);
@@ -1405,6 +1402,7 @@ mod tests {
     // raises the exception.
     // This property is relied on for the non-mempool and fork-not-activated cases.
     #[rstest]
+    #[crate::wasm_compat::test]
     // make sure we can execute the coinid operator under softfork 0
     // this program raises an exception if the computed coin ID matches the
     // expected
@@ -1605,7 +1603,7 @@ mod tests {
     }
 
     #[cfg(feature = "counters")]
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_counters() {
         use crate::chia_dialect::ChiaDialect;
 

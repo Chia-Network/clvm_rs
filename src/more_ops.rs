@@ -5,9 +5,6 @@ use std::ops::BitAndAssign;
 use std::ops::BitOrAssign;
 use std::ops::BitXorAssign;
 
-#[cfg(all(test, target_arch = "wasm32"))]
-use wasm_bindgen_test::wasm_bindgen_test as test;
-
 use crate::allocator::{Allocator, NodePtr, NodeVisitor, SExp, len_for_value};
 use crate::cost::{Cost, check_cost};
 use crate::error::EvalErr;
@@ -115,7 +112,8 @@ fn limb_test_helper(bytes: &[u8]) {
     assert_eq!(limbs_for_int(&bigint), expected);
 }
 
-#[test]
+#[cfg(test)]
+#[crate::wasm_compat::test]
 fn test_limbs_for_int() {
     limb_test_helper(&[]);
     limb_test_helper(&[0x1]);
@@ -272,7 +270,8 @@ fn test_op_unknown(buf: &[u8], a: &mut Allocator, n: NodePtr) -> Response {
     op_unknown(a, buf, n, 1000000)
 }
 
-#[test]
+#[cfg(test)]
+#[crate::wasm_compat::test]
 fn test_unknown_op_reserved() {
     let mut a = Allocator::new();
 
@@ -310,7 +309,8 @@ fn test_unknown_op_reserved() {
     );
 }
 
-#[test]
+#[cfg(test)]
+#[crate::wasm_compat::test]
 fn test_lenient_mode_last_bits() {
     let mut a = Allocator::new();
 
@@ -793,7 +793,8 @@ fn test_shift(
     op(a, args, 10000000 as Cost)
 }
 
-#[test]
+#[cfg(test)]
+#[crate::wasm_compat::test]
 fn test_op_ash() {
     let mut a = Allocator::new();
 
@@ -847,7 +848,8 @@ pub fn op_lsh(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     Ok(malloc_cost(a, cost, r))
 }
 
-#[test]
+#[cfg(test)]
+#[crate::wasm_compat::test]
 fn test_op_lsh() {
     let mut a = Allocator::new();
 
@@ -1092,9 +1094,6 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
 mod tests {
     use super::*;
     use rstest::rstest;
-    #[cfg(target_arch = "wasm32")]
-    use wasm_bindgen_test::wasm_bindgen_test as test;
-
     fn test_sha256_atom(buf: &[u8]) {
         let mut a = Allocator::new();
         let mut args = a.nil();
@@ -1120,7 +1119,7 @@ mod tests {
         assert_eq!(actual_cost, cost);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn sha256_small_values() {
         test_sha256_atom(&[]);
         for val in 0..255 {
@@ -1137,6 +1136,7 @@ mod tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case::sha(op_sha256, 28, 11, None)]
     #[case::sha(op_sha256, 28, 12, Some(EvalErr::CostExceeded))]
     #[case::add(op_add, 27, 3, None)]
