@@ -15,7 +15,9 @@ use clvmr::serde::{
     ParsedTriple, node_from_bytes, node_from_bytes_backrefs, node_to_bytes, node_to_bytes_backrefs,
     parse_triples, serialized_length_from_bytes,
 };
-use clvmr::serde_2026::{deserialize_2026, serialize_2026};
+use clvmr::serde_2026::{
+    deserialize_2026, node_from_bytes_auto, node_to_bytes_serde_2026, serialize_2026,
+};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
 
@@ -114,6 +116,17 @@ fn deser_2026(blob: &[u8]) -> PyResult<LazyNode> {
     Ok(LazyNode::new(Rc::new(a), node))
 }
 
+/// Deserialize CLVM bytes, auto-detecting the format (classic, backrefs, or
+/// serde_2026).  If the blob starts with the magic prefix `ff 14 1a`, it is
+/// treated as serde_2026; otherwise the backrefs deserializer is used (which
+/// also handles plain classic format).
+#[pyfunction]
+fn deser_auto(blob: &[u8]) -> PyResult<LazyNode> {
+    let mut a = Allocator::new();
+    let node = node_from_bytes_auto(&mut a, blob).map_err(eval_to_py)?;
+    Ok(LazyNode::new(Rc::new(a), node))
+}
+
 // --- Serialize functions: LazyNode -> bytes ---
 
 #[pyfunction]
@@ -134,6 +147,14 @@ fn ser_2026(py: Python, node: &LazyNode) -> PyResult<PyObject> {
     Ok(PyBytes::new_bound(py, &bytes).into())
 }
 
+/// Serialize to serde_2026 format **with** the `ff 14 1a` magic prefix.
+/// Use `deser_auto` to deserialize the result.
+#[pyfunction]
+fn ser_2026_prefixed(py: Python, node: &LazyNode) -> PyResult<PyObject> {
+    let bytes = node_to_bytes_serde_2026(node.allocator(), node.node()).map_err(eval_to_py)?;
+    Ok(PyBytes::new_bound(py, &bytes).into())
+}
+
 #[pymodule]
 fn clvm_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run_serialized_chia_program, m)?)?;
@@ -142,9 +163,11 @@ fn clvm_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(deser_legacy, m)?)?;
     m.add_function(wrap_pyfunction!(deser_backrefs, m)?)?;
     m.add_function(wrap_pyfunction!(deser_2026, m)?)?;
+    m.add_function(wrap_pyfunction!(deser_auto, m)?)?;
     m.add_function(wrap_pyfunction!(ser_legacy, m)?)?;
     m.add_function(wrap_pyfunction!(ser_backrefs, m)?)?;
     m.add_function(wrap_pyfunction!(ser_2026, m)?)?;
+    m.add_function(wrap_pyfunction!(ser_2026_prefixed, m)?)?;
 
     m.add("NO_UNKNOWN_OPS", ClvmFlags::NO_UNKNOWN_OPS.bits())?;
     m.add("LIMIT_HEAP", ClvmFlags::LIMIT_HEAP.bits())?;
