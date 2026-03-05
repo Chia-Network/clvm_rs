@@ -5,7 +5,7 @@ use super::{
     node_to_bytes_serde_2026_raw, serialize_2026, MAGIC_PREFIX,
 };
 use crate::allocator::{Allocator, SExp};
-use crate::serde::{node_from_bytes, node_from_bytes_backrefs, node_to_bytes};
+use crate::serde::{node_from_bytes_backrefs, node_to_bytes};
 use hex::FromHex;
 use rstest::rstest;
 
