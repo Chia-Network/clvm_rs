@@ -39,16 +39,20 @@ use varint::{decode_varint, write_varint};
 /// sequence, so it is used as an unambiguous format discriminator.
 pub const MAGIC_PREFIX: [u8; 3] = [0xff, 0x14, 0x1a];
 
-/// Serialize a node using the 2026 serialization format.
+/// Maximum atoms/pairs that fit in i32 indices (used by instruction stream).
+const MAX_INDEX: usize = i32::MAX as usize;
+
+/// Serialize a node to a stream using the 2026 serialization format.
 ///
 /// This function:
 /// 1. Interns the node to deduplicate atoms and pairs
 /// 2. Renumbers atoms and pairs for optimal compression
 /// 3. Serializes using the 2026 format with varints
-/// Maximum atoms/pairs that fit in i32 indices (used by instruction stream).
-const MAX_INDEX: usize = i32::MAX as usize;
-
-pub fn serialize_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
+pub fn serialize_2026_to_stream<W: Write>(
+    allocator: &Allocator,
+    node: NodePtr,
+    writer: &mut W,
+) -> Result<()> {
     // Step 1: Intern the node (single pass)
     let tree = intern(allocator, node)?;
 
@@ -117,10 +121,9 @@ pub fn serialize_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
     }
 
     // Step 6: Serialize
-    let mut output = Vec::new();
 
     // Write number of unique lengths
-    write_varint(&mut output, atoms_by_length.len() as i64)?;
+    write_varint(writer, atoms_by_length.len() as i64)?;
 
     // Write each length group
     let mut sorted_lengths: Vec<usize> = atoms_by_length.keys().copied().collect();
@@ -132,14 +135,14 @@ pub fn serialize_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
 
         if count == 1 {
             // Single atom: write positive length, then bytes
-            write_varint(&mut output, length as i64)?;
-            output.write_all(tree.allocator.atom(atoms_of_length[0]).as_ref())?;
+            write_varint(writer, length as i64)?;
+            writer.write_all(tree.allocator.atom(atoms_of_length[0]).as_ref())?;
         } else {
             // Multiple atoms: write negative length, then count, then all bytes
-            write_varint(&mut output, -(length as i64))?;
-            write_varint(&mut output, count as i64)?;
+            write_varint(writer, -(length as i64))?;
+            write_varint(writer, count as i64)?;
             for &atom_node in atoms_of_length {
-                output.write_all(tree.allocator.atom(atom_node).as_ref())?;
+                writer.write_all(tree.allocator.atom(atom_node).as_ref())?;
             }
         }
     }
@@ -150,8 +153,8 @@ pub fn serialize_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
     if pair_count == 0 {
         // No pairs, root is an atom - just push it
         let remapped_root_idx = atom_remap[&root_index];
-        write_varint(&mut output, 1)?; // One instruction
-        write_varint(&mut output, remapped_root_idx as i64 + 1)?; // Push the atom
+        write_varint(writer, 1)?; // One instruction
+        write_varint(writer, remapped_root_idx as i64 + 1)?; // Push the atom
     } else {
         // Generate instruction stream using stack-based traversal
         let mut construction_order: HashMap<i32, i32> = HashMap::new();
@@ -199,12 +202,24 @@ pub fn serialize_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
         }
 
         // Write instruction count and instructions
-        write_varint(&mut output, instructions.len() as i64)?;
+        write_varint(writer, instructions.len() as i64)?;
         for instruction in instructions {
-            write_varint(&mut output, instruction)?;
+            write_varint(writer, instruction)?;
         }
     }
 
+    Ok(())
+}
+
+/// Serialize a node using the 2026 serialization format.
+///
+/// This function:
+/// 1. Interns the node to deduplicate atoms and pairs
+/// 2. Renumbers atoms and pairs for optimal compression
+/// 3. Serializes using the 2026 format with varints
+pub fn serialize_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
+    let mut output = Vec::new();
+    serialize_2026_to_stream(allocator, node, &mut output)?;
     Ok(output)
 }
 
@@ -266,31 +281,30 @@ fn checked_usize(value: i64, max: usize) -> Result<usize> {
     Ok(u)
 }
 
-/// Deserialize a node from bytes using the 2026 serialization format.
+/// Deserialize a node from a stream using the 2026 serialization format.
 ///
 /// `max_atom_len` limits the size of any single atom to prevent DoS. Pass `None` to use
 /// the default of 1 MiB (2^20 bytes).
-pub fn deserialize_2026(
+pub fn deserialize_2026_from_stream<R: Read>(
     allocator: &mut Allocator,
-    data: &[u8],
+    reader: &mut R,
     max_atom_len: Option<usize>,
 ) -> Result<NodePtr> {
     let max_atom_len = max_atom_len.unwrap_or(DEFAULT_MAX_ATOM_LEN);
-    let mut cursor = Cursor::new(data);
 
     // Read atoms - reuse a single buffer for reading
     let mut atoms: Vec<NodePtr> = Vec::new();
-    let atom_lengths_count = checked_usize(decode_varint(&mut cursor)?, MAX_COUNT)?;
+    let atom_lengths_count = checked_usize(decode_varint(reader)?, MAX_COUNT)?;
     let mut atom_buffer: Vec<u8> = Vec::new();
 
     for _ in 0..atom_lengths_count {
-        let atom_length = decode_varint(&mut cursor)?;
+        let atom_length = decode_varint(reader)?;
         let (actual_length, atom_count) = if atom_length < 0 {
             if atom_length == i64::MIN {
                 return Err(EvalErr::SerializationError); // -i64::MIN overflows
             }
             let len = checked_usize(-atom_length, max_atom_len)?;
-            let count = checked_usize(decode_varint(&mut cursor)?, MAX_COUNT)?;
+            let count = checked_usize(decode_varint(reader)?, MAX_COUNT)?;
             (len, count)
         } else {
             let len = checked_usize(atom_length, max_atom_len)?;
@@ -301,7 +315,7 @@ pub fn deserialize_2026(
         atom_buffer.resize(actual_length, 0);
 
         for _ in 0..atom_count {
-            cursor
+            reader
                 .read_exact(&mut atom_buffer)
                 .map_err(|_| EvalErr::SerializationError)?;
             let atom_node = allocator.new_atom(&atom_buffer)?;
@@ -309,7 +323,7 @@ pub fn deserialize_2026(
         }
     }
 
-    let instruction_count = checked_usize(decode_varint(&mut cursor)?, MAX_COUNT)?;
+    let instruction_count = checked_usize(decode_varint(reader)?, MAX_COUNT)?;
     if instruction_count == 0 {
         // No pairs, just return the single atom
         return if atoms.is_empty() {
@@ -324,7 +338,7 @@ pub fn deserialize_2026(
     let mut stack: Vec<NodePtr> = Vec::with_capacity(64);
 
     for _ in 0..instruction_count {
-        let instruction = decode_varint(&mut cursor)?;
+        let instruction = decode_varint(reader)?;
         if instruction == 0 {
             // Cons: pop two items, create pair, push it
             if stack.len() < 2 {
@@ -354,4 +368,16 @@ pub fn deserialize_2026(
     }
 
     Ok(stack[0])
+}
+
+/// Deserialize a node from bytes using the 2026 serialization format.
+///
+/// `max_atom_len` limits the size of any single atom to prevent DoS. Pass `None` to use
+/// the default of 1 MiB (2^20 bytes).
+pub fn deserialize_2026(
+    allocator: &mut Allocator,
+    data: &[u8],
+    max_atom_len: Option<usize>,
+) -> Result<NodePtr> {
+    deserialize_2026_from_stream(allocator, &mut Cursor::new(data), max_atom_len)
 }
