@@ -1,6 +1,6 @@
 //! Variable-length integer encoding for the 2026 serialization format.
 
-use std::io::{Cursor, Read, Write};
+use std::io::{Read, Write};
 
 use crate::error::{EvalErr, Result};
 
@@ -65,10 +65,9 @@ pub fn encode_varint(value: i64) -> Vec<u8> {
 }
 
 /// Decode a signed integer from a byte stream using variable-length encoding.
-pub fn decode_varint(cursor: &mut Cursor<&[u8]>) -> Result<i64> {
+pub fn decode_varint<R: Read>(r: &mut R) -> Result<i64> {
     let mut first_byte_buf = [0u8; 1];
-    cursor
-        .read_exact(&mut first_byte_buf)
+    r.read_exact(&mut first_byte_buf)
         .map_err(|_| EvalErr::SerializationError)?;
     let first_byte = first_byte_buf[0];
 
@@ -91,8 +90,7 @@ pub fn decode_varint(cursor: &mut Cursor<&[u8]>) -> Result<i64> {
     // Read additional bytes using fixed-size buffer (max 7 extra bytes)
     if leading_ones > 0 {
         let mut extra_bytes = [0u8; 7];
-        cursor
-            .read_exact(&mut extra_bytes[..leading_ones])
+        r.read_exact(&mut extra_bytes[..leading_ones])
             .map_err(|_| EvalErr::SerializationError)?;
 
         for &byte in &extra_bytes[..leading_ones] {
@@ -113,6 +111,7 @@ pub fn decode_varint(cursor: &mut Cursor<&[u8]>) -> Result<i64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Cursor;
 
     #[test]
     fn test_encode_varint() {
