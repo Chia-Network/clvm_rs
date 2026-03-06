@@ -506,6 +506,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 }
             };
         }
+        self.allocator.clear_validation_caches();
         Ok(Reduction(cost, self.pop()?))
     }
 }

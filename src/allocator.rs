@@ -2,6 +2,7 @@ use crate::error::{EvalErr, Result};
 use crate::number::{Number, number_from_u8};
 use chia_bls::{G1Element, G2Element};
 use std::borrow::Borrow;
+use std::collections::HashSet;
 use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
@@ -260,6 +261,12 @@ pub struct Allocator {
     #[cfg(feature = "counters")]
     max_heap_size: usize,
 
+    // Cache of already-validated G1/G2 points, keyed by raw bytes.
+    // Using raw bytes instead of NodePtr since NodePtrs can be invalidated
+    // by restore_checkpoint() inside softfork guards.
+    validated_g1_points: HashSet<[u8; 48]>,
+    validated_g2_points: HashSet<[u8; 96]>,
+
     #[cfg(feature = "allocator-debug")]
     fingerprint: u32,
 
@@ -335,6 +342,8 @@ impl Allocator {
             ghost_pairs: 0,
             // compensate for the one() we used to allocate unconditionally
             ghost_heap: 1,
+            validated_g1_points: HashSet::new(),
+            validated_g2_points: HashSet::new(),
             #[cfg(feature = "counters")]
             max_atom_count: 0,
             #[cfg(feature = "counters")]
@@ -1044,6 +1053,29 @@ impl Allocator {
 
     pub fn allocated_heap_size(&self) -> usize {
         self.u8_vec.len()
+    }
+
+    pub fn validate_g1(&mut self, node: NodePtr, bytes: [u8; 48]) -> Result<()> {
+        if !self.validated_g1_points.contains(&bytes) {
+            G1Element::from_bytes(&bytes)
+                .map_err(|_| EvalErr::InvalidOpArg(node, "atom is not a G1 point".to_string()))?;
+            self.validated_g1_points.insert(bytes);
+        }
+        Ok(())
+    }
+
+    pub fn validate_g2(&mut self, node: NodePtr, bytes: [u8; 96]) -> Result<()> {
+        if !self.validated_g2_points.contains(&bytes) {
+            G2Element::from_bytes(&bytes)
+                .map_err(|_| EvalErr::InvalidOpArg(node, "atom is not a G2 point".to_string()))?;
+            self.validated_g2_points.insert(bytes);
+        }
+        Ok(())
+    }
+
+    pub fn clear_validation_caches(&mut self) {
+        self.validated_g1_points.clear();
+        self.validated_g2_points.clear();
     }
 
     #[cfg(feature = "counters")]
