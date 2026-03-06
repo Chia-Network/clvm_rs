@@ -11,48 +11,48 @@ use chia_bls::{
     hash_to_g2_with_dst,
 };
 use std::collections::HashMap;
-use std::sync::{OnceLock, RwLock};
 
-static G1_CACHE: OnceLock<RwLock<HashMap<[u8; 48], bool>>> = OnceLock::new();
-static G2_CACHE: OnceLock<RwLock<HashMap<[u8; 96], bool>>> = OnceLock::new();
-
-// Evict when the cache exceeds this many entries to bound memory usage.
+// Per-thread caches: no locking, no cross-thread interaction.
+// Evict by full clear when the cache exceeds this many entries.
 const MAX_CACHE_ENTRIES: usize = 65536;
 
-/// Check if a G1 point (compressed, 48 bytes) is valid.
-/// Caches the result globally across calls.
-fn g1_check_valid(blob: &[u8; 48]) -> bool {
-    let cache = G1_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
-    {
-        let r = cache.read().unwrap();
-        if let Some(&v) = r.get(blob) {
-            return v;
-        }
-    }
-    let valid = G1Element::from_bytes(blob).is_ok();
-    let mut w = cache.write().unwrap();
-    if w.len() >= MAX_CACHE_ENTRIES {
-        w.clear();
-    }
-    w.insert(*blob, valid);
-    valid
+thread_local! {
+    static G1_CACHE: std::cell::RefCell<HashMap<[u8; 48], bool>> = std::cell::RefCell::new(HashMap::new());
+    static G2_CACHE: std::cell::RefCell<HashMap<[u8; 96], bool>> = std::cell::RefCell::new(HashMap::new());
 }
 
-fn g2_check_valid(blob: &[u8; 96]) -> bool {
-    let cache = G2_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
-    {
-        let r = cache.read().unwrap();
-        if let Some(&v) = r.get(blob) {
+/// Check if a G1 point (compressed, 48 bytes) is valid.
+/// Caches the result in thread-local storage across calls.
+fn g1_check_valid(blob: &[u8; 48]) -> bool {
+    G1_CACHE.with(|c| {
+        let mut cache = c.borrow_mut();
+        if let Some(&v) = cache.get(blob) {
             return v;
         }
-    }
-    let valid = G2Element::from_bytes(blob).is_ok();
-    let mut w = cache.write().unwrap();
-    if w.len() >= MAX_CACHE_ENTRIES {
-        w.clear();
-    }
-    w.insert(*blob, valid);
-    valid
+        let valid = G1Element::from_bytes(blob).is_ok();
+        if cache.len() >= MAX_CACHE_ENTRIES {
+            cache.clear();
+        }
+        cache.insert(*blob, valid);
+        valid
+    })
+}
+
+/// Check if a G2 point (compressed, 96 bytes) is valid.
+/// Caches the result in thread-local storage across calls.
+fn g2_check_valid(blob: &[u8; 96]) -> bool {
+    G2_CACHE.with(|c| {
+        let mut cache = c.borrow_mut();
+        if let Some(&v) = cache.get(blob) {
+            return v;
+        }
+        let valid = G2Element::from_bytes(blob).is_ok();
+        if cache.len() >= MAX_CACHE_ENTRIES {
+            cache.clear();
+        }
+        cache.insert(*blob, valid);
+        valid
+    })
 }
 
 // the same cost as point_add (aka g1_add)
