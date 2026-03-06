@@ -10,50 +10,6 @@ use chia_bls::{
     G1Element, G2Element, PublicKey, aggregate_pairing, aggregate_verify, hash_to_g1_with_dst,
     hash_to_g2_with_dst,
 };
-use std::collections::HashMap;
-
-// Per-thread caches: no locking, no cross-thread interaction.
-// Evict by full clear when the cache exceeds this many entries.
-const MAX_CACHE_ENTRIES: usize = 65536;
-
-thread_local! {
-    static G1_CACHE: std::cell::RefCell<HashMap<[u8; 48], bool>> = std::cell::RefCell::new(HashMap::new());
-    static G2_CACHE: std::cell::RefCell<HashMap<[u8; 96], bool>> = std::cell::RefCell::new(HashMap::new());
-}
-
-/// Check if a G1 point (compressed, 48 bytes) is valid.
-/// Caches the result in thread-local storage across calls.
-fn g1_check_valid(blob: &[u8; 48]) -> bool {
-    G1_CACHE.with(|c| {
-        let mut cache = c.borrow_mut();
-        if let Some(&v) = cache.get(blob) {
-            return v;
-        }
-        let valid = G1Element::from_bytes(blob).is_ok();
-        if cache.len() >= MAX_CACHE_ENTRIES {
-            cache.clear();
-        }
-        cache.insert(*blob, valid);
-        valid
-    })
-}
-
-/// Check if a G2 point (compressed, 96 bytes) is valid.
-/// Caches the result in thread-local storage across calls.
-fn g2_check_valid(blob: &[u8; 96]) -> bool {
-    G2_CACHE.with(|c| {
-        let mut cache = c.borrow_mut();
-        if let Some(&v) = cache.get(blob) {
-            return v;
-        }
-        let valid = G2Element::from_bytes(blob).is_ok();
-        if cache.len() >= MAX_CACHE_ENTRIES {
-            cache.clear();
-        }
-        cache.insert(*blob, valid);
-        valid
-    })
-}
 
 // the same cost as point_add (aka g1_add)
 const BLS_G1_SUBTRACT_BASE_COST: Cost = 101094;
@@ -146,26 +102,28 @@ pub fn op_bls_g1_negate_strict(a: &mut Allocator, input: NodePtr, _max_cost: Cos
 fn op_bls_g1_negate_impl(a: &mut Allocator, input: NodePtr, strict: bool) -> Response {
     let [point] = get_args::<1>(a, input, "g1_negate")?;
 
-    let blob = atom(a, point, "G1 atom")?;
-    // this is here to validate the point
-    if strict {
-        let blob_array: [u8; 48] = blob.as_ref().try_into().map_err(|_| {
-            EvalErr::InvalidOpArg(point, "atom is not a G1 size, 48 bytes".to_string())
-        })?;
-        if !g1_check_valid(&blob_array) {
+    let blob_array: [u8; 48] = {
+        let blob = atom(a, point, "G1 atom")?;
+        // this is here to validate the point
+        if !strict && blob.len() != 48 {
             return Err(EvalErr::InvalidOpArg(
                 point,
-                "atom is not a G1 point".to_string(),
+                "atom is not G1 size, 48 bytes".to_string(),
             ));
         }
-    } else if blob.len() != 48 {
+        blob.as_ref().try_into().map_err(|_| {
+            EvalErr::InvalidOpArg(point, "atom is not a G1 size, 48 bytes".to_string())
+        })?
+    };
+
+    if strict && !a.g1_is_valid(&blob_array) {
         return Err(EvalErr::InvalidOpArg(
             point,
-            "atom is not G1 size, 48 bytes".to_string(),
+            "atom is not a G1 point".to_string(),
         ));
     }
 
-    if (blob.as_ref()[0] & 0xe0) == 0xc0 {
+    if (blob_array[0] & 0xe0) == 0xc0 {
         // This is compressed infinity. negating it is a no-op
         // we can just pass through the same atom as we received. We'll charge
         // the allocation cost anyway, for consistency
@@ -174,7 +132,7 @@ fn op_bls_g1_negate_impl(a: &mut Allocator, input: NodePtr, strict: bool) -> Res
             point,
         ))
     } else {
-        let mut blob: [u8; 48] = blob.as_ref().try_into().unwrap();
+        let mut blob = blob_array;
         blob[0] ^= 0x20;
         new_atom_and_cost(a, BLS_G1_NEGATE_BASE_COST, &blob)
     }
@@ -253,28 +211,29 @@ fn op_bls_g2_negate_impl(a: &mut Allocator, input: NodePtr, strict: bool) -> Res
 
     // we don't validate the point. We may want to soft fork-in validating the
     // point once the allocator preserves native representation of points
-    let blob_atom = atom(a, point, "G2 atom")?;
-    let blob = blob_atom.as_ref();
-
-    // this is here to validate the point
-    if strict {
-        let blob_array: [u8; 96] = blob.as_ref().try_into().map_err(|_| {
-            EvalErr::InvalidOpArg(point, "atom is not G2 size, 96 bytes".to_string())
-        })?;
-        if !g2_check_valid(&blob_array) {
+    let blob_array: [u8; 96] = {
+        let blob_atom = atom(a, point, "G2 atom")?;
+        let blob = blob_atom.as_ref();
+        // this is here to validate the point
+        if !strict && blob.len() != 96 {
             return Err(EvalErr::InvalidOpArg(
                 point,
-                "atom is not a G2 point".to_string(),
+                "atom is not G2 size, 96 bytes".to_string(),
             ));
         }
-    } else if blob.len() != 96 {
+        blob.try_into().map_err(|_| {
+            EvalErr::InvalidOpArg(point, "atom is not G2 size, 96 bytes".to_string())
+        })?
+    };
+
+    if strict && !a.g2_is_valid(&blob_array) {
         return Err(EvalErr::InvalidOpArg(
             point,
-            "atom is not G2 size, 96 bytes".to_string(),
+            "atom is not a G2 point".to_string(),
         ));
     }
 
-    if (blob[0] & 0xe0) == 0xc0 {
+    if (blob_array[0] & 0xe0) == 0xc0 {
         // This is compressed infinity. negating it is a no-op
         // we can just pass through the same atom as we received. We'll charge
         // the allocation cost anyway, for consistency
@@ -283,7 +242,7 @@ fn op_bls_g2_negate_impl(a: &mut Allocator, input: NodePtr, strict: bool) -> Res
             point,
         ))
     } else {
-        let mut blob: [u8; 96] = blob.as_ref().try_into().unwrap();
+        let mut blob = blob_array;
         blob[0] ^= 0x20;
         new_atom_and_cost(a, BLS_G2_NEGATE_BASE_COST, &blob)
     }

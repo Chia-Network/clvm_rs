@@ -2,6 +2,7 @@ use crate::error::{EvalErr, Result};
 use crate::number::{Number, number_from_u8};
 use chia_bls::{G1Element, G2Element};
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
@@ -266,6 +267,10 @@ pub struct Allocator {
     // the number of atoms and pairs at different versions
     #[cfg(feature = "allocator-debug")]
     versions: Vec<(u32, u32)>,
+
+    // per-run validation caches; not part of consensus state, not checkpointed
+    g1_cache: HashMap<[u8; 48], bool>,
+    g2_cache: HashMap<[u8; 96], bool>,
 }
 
 impl Default for Allocator {
@@ -347,6 +352,9 @@ impl Allocator {
 
             #[cfg(feature = "allocator-debug")]
             versions: Vec::new(),
+
+            g1_cache: HashMap::new(),
+            g2_cache: HashMap::new(),
         };
         r.u8_vec.reserve(1024 * 1024);
         r.atom_vec.reserve(256);
@@ -955,6 +963,28 @@ impl Allocator {
 
         G2Element::from_bytes(array)
             .map_err(|_| EvalErr::InvalidAllocArg(node, "atom is not a G2 point".to_string()))
+    }
+
+    /// Check if a G1 point (compressed, 48 bytes) is valid.
+    /// Result is cached for the lifetime of this allocator (one program run).
+    pub fn g1_is_valid(&mut self, blob: &[u8; 48]) -> bool {
+        if let Some(&v) = self.g1_cache.get(blob) {
+            return v;
+        }
+        let valid = G1Element::from_bytes(blob).is_ok();
+        self.g1_cache.insert(*blob, valid);
+        valid
+    }
+
+    /// Check if a G2 point (compressed, 96 bytes) is valid.
+    /// Result is cached for the lifetime of this allocator (one program run).
+    pub fn g2_is_valid(&mut self, blob: &[u8; 96]) -> bool {
+        if let Some(&v) = self.g2_cache.get(blob) {
+            return v;
+        }
+        let valid = G2Element::from_bytes(blob).is_ok();
+        self.g2_cache.insert(*blob, valid);
+        valid
     }
 
     pub fn node(&self, node: NodePtr) -> NodeVisitor<'_> {
