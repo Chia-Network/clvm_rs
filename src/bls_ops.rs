@@ -165,11 +165,12 @@ fn op_bls_g1_negate_impl(a: &mut Allocator, input: NodePtr, strict: bool) -> Res
     let [point] = get_args::<1>(a, input, "g1_negate")?;
 
     let blob = atom(a, point, "G1 atom")?;
-    
-    let blob_array: [u8; 48] = blob.as_ref().try_into().map_err(|_| {
-        EvalErr::InvalidOpArg(point, "atom is not a G1 size, 48 bytes".to_string())
-    })?;
-    
+
+    let blob_array: [u8; 48] = blob
+        .as_ref()
+        .try_into()
+        .map_err(|_| EvalErr::InvalidOpArg(point, "atom is not a G1 size, 48 bytes".to_string()))?;
+
     if strict && !g1_check_valid(&blob_array) {
         return Err(EvalErr::InvalidOpArg(
             point,
@@ -262,11 +263,11 @@ fn op_bls_g2_negate_impl(a: &mut Allocator, input: NodePtr, strict: bool) -> Res
 
     let blob_atom = atom(a, point, "G2 atom")?;
     let blob = blob_atom.as_ref();
-    
-    let blob_array: [u8; 96] = blob.try_into().map_err(|_| {
-        EvalErr::InvalidOpArg(point, "atom is not G2 size, 96 bytes".to_string())
-    })?;
-    
+
+    let blob_array: [u8; 96] = blob
+        .try_into()
+        .map_err(|_| EvalErr::InvalidOpArg(point, "atom is not G2 size, 96 bytes".to_string()))?;
+
     if strict && !g2_check_valid(&blob_array) {
         return Err(EvalErr::InvalidOpArg(
             point,
@@ -423,10 +424,10 @@ mod tests {
         let mut a = Allocator::new();
         let invalid_g1 = a.new_atom(&hex::decode("b7f1d3a7319092346345638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb").unwrap()).unwrap();
         let input = a.new_pair(invalid_g1, a.nil()).unwrap();
-        
+
         let result1 = op_bls_g1_negate_strict(&mut a, input, 1_000_000);
         assert!(result1.is_err());
-        
+
         let result2 = op_bls_g1_negate_strict(&mut a, input, 1_000_000);
         assert!(result2.is_err());
     }
@@ -436,10 +437,10 @@ mod tests {
         let mut a = Allocator::new();
         let invalid_g2 = a.new_atom(&hex::decode("b3e02b6052719f624359072893758937457903459920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8").unwrap()).unwrap();
         let input = a.new_pair(invalid_g2, a.nil()).unwrap();
-        
+
         let result1 = op_bls_g2_negate_strict(&mut a, input, 10_000_000);
         assert!(result1.is_err());
-        
+
         let result2 = op_bls_g2_negate_strict(&mut a, input, 10_000_000);
         assert!(result2.is_err());
     }
