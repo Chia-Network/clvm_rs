@@ -10,6 +10,68 @@ use chia_bls::{
     G1Element, G2Element, PublicKey, aggregate_pairing, aggregate_verify, hash_to_g1_with_dst,
     hash_to_g2_with_dst,
 };
+use std::collections::HashMap;
+use std::sync::{OnceLock, RwLock};
+
+static G1_CACHE: OnceLock<RwLock<HashMap<[u8; 48], bool>>> = OnceLock::new();
+static G2_CACHE: OnceLock<RwLock<HashMap<[u8; 96], bool>>> = OnceLock::new();
+
+/// Returns (negated_blob, is_infinity)
+fn negate_g1_bytes(blob: &[u8; 48]) -> ([u8; 48], bool) {
+    let mut neg = *blob;
+    let is_inf = (neg[0] & 0xe0) == 0xc0;
+    if !is_inf {
+        neg[0] ^= 0x20;
+    }
+    (neg, is_inf)
+}
+
+fn negate_g2_bytes(blob: &[u8; 96]) -> ([u8; 96], bool) {
+    let mut neg = *blob;
+    let is_inf = (neg[0] & 0xe0) == 0xc0;
+    if !is_inf {
+        neg[0] ^= 0x20;
+    }
+    (neg, is_inf)
+}
+
+/// Check if a G1 point (compressed, 48 bytes) is valid.
+/// Caches the result (and its negation) for future lookups.
+fn g1_check_valid(blob: &[u8; 48]) -> bool {
+    let cache = G1_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
+    let (neg, _) = negate_g1_bytes(blob);
+
+    {
+        let r = cache.read().unwrap();
+        if let Some(&v) = r.get(blob).or_else(|| r.get(&neg)) {
+            return v;
+        }
+    }
+
+    let valid = G1Element::from_bytes(blob).is_ok();
+    let mut w = cache.write().unwrap();
+    w.insert(*blob, valid);
+    w.insert(neg, valid);
+    valid
+}
+
+fn g2_check_valid(blob: &[u8; 96]) -> bool {
+    let cache = G2_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
+    let (neg, _) = negate_g2_bytes(blob);
+
+    {
+        let r = cache.read().unwrap();
+        if let Some(&v) = r.get(blob).or_else(|| r.get(&neg)) {
+            return v;
+        }
+    }
+
+    let valid = G2Element::from_bytes(blob).is_ok();
+    let mut w = cache.write().unwrap();
+    w.insert(*blob, valid);
+    w.insert(neg, valid);
+    valid
+}
 
 // the same cost as point_add (aka g1_add)
 const BLS_G1_SUBTRACT_BASE_COST: Cost = 101094;
@@ -103,29 +165,25 @@ fn op_bls_g1_negate_impl(a: &mut Allocator, input: NodePtr, strict: bool) -> Res
     let [point] = get_args::<1>(a, input, "g1_negate")?;
 
     let blob = atom(a, point, "G1 atom")?;
-    // this is here to validate the point
-    if strict {
-        let _g1 = G1Element::from_bytes(blob.as_ref().try_into().map_err(|_| {
-            EvalErr::InvalidOpArg(point, "atom is not a G1 size, 48 bytes".to_string())
-        })?)
-        .map_err(|_| EvalErr::InvalidOpArg(point, "atom is not a G1 point".to_string()))?;
-    } else if blob.len() != 48 {
+    
+    let blob_array: [u8; 48] = blob.as_ref().try_into().map_err(|_| {
+        EvalErr::InvalidOpArg(point, "atom is not a G1 size, 48 bytes".to_string())
+    })?;
+    
+    if strict && !g1_check_valid(&blob_array) {
         return Err(EvalErr::InvalidOpArg(
             point,
-            "atom is not G1 size, 48 bytes".to_string(),
+            "atom is not a G1 point".to_string(),
         ));
     }
 
-    if (blob.as_ref()[0] & 0xe0) == 0xc0 {
-        // This is compressed infinity. negating it is a no-op
-        // we can just pass through the same atom as we received. We'll charge
-        // the allocation cost anyway, for consistency
+    if (blob_array[0] & 0xe0) == 0xc0 {
         Ok(Reduction(
             BLS_G1_NEGATE_BASE_COST + 48 * MALLOC_COST_PER_BYTE,
             point,
         ))
     } else {
-        let mut blob: [u8; 48] = blob.as_ref().try_into().unwrap();
+        let mut blob = blob_array;
         blob[0] ^= 0x20;
         new_atom_and_cost(a, BLS_G1_NEGATE_BASE_COST, &blob)
     }
@@ -202,34 +260,27 @@ pub fn op_bls_g2_negate_strict(a: &mut Allocator, input: NodePtr, _max_cost: Cos
 fn op_bls_g2_negate_impl(a: &mut Allocator, input: NodePtr, strict: bool) -> Response {
     let [point] = get_args::<1>(a, input, "g2_negate")?;
 
-    // we don't validate the point. We may want to soft fork-in validating the
-    // point once the allocator preserves native representation of points
     let blob_atom = atom(a, point, "G2 atom")?;
     let blob = blob_atom.as_ref();
-
-    // this is here to validate the point
-    if strict {
-        let _g2 = G2Element::from_bytes(blob.as_ref().try_into().map_err(|_| {
-            EvalErr::InvalidOpArg(point, "atom is not G2 size, 96 bytes".to_string())
-        })?)
-        .map_err(|_| EvalErr::InvalidOpArg(point, "atom is not a G2 point".to_string()))?;
-    } else if blob.len() != 96 {
+    
+    let blob_array: [u8; 96] = blob.try_into().map_err(|_| {
+        EvalErr::InvalidOpArg(point, "atom is not G2 size, 96 bytes".to_string())
+    })?;
+    
+    if strict && !g2_check_valid(&blob_array) {
         return Err(EvalErr::InvalidOpArg(
             point,
-            "atom is not G2 size, 96 bytes".to_string(),
+            "atom is not a G2 point".to_string(),
         ));
     }
 
-    if (blob[0] & 0xe0) == 0xc0 {
-        // This is compressed infinity. negating it is a no-op
-        // we can just pass through the same atom as we received. We'll charge
-        // the allocation cost anyway, for consistency
+    if (blob_array[0] & 0xe0) == 0xc0 {
         Ok(Reduction(
             BLS_G2_NEGATE_BASE_COST + 96 * MALLOC_COST_PER_BYTE,
             point,
         ))
     } else {
-        let mut blob: [u8; 96] = blob.as_ref().try_into().unwrap();
+        let mut blob = blob_array;
         blob[0] ^= 0x20;
         new_atom_and_cost(a, BLS_G2_NEGATE_BASE_COST, &blob)
     }
@@ -359,5 +410,37 @@ pub fn op_bls_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respo
         Err(EvalErr::BLSVerifyFailed(input))?
     } else {
         Ok(Reduction(cost, a.nil()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::allocator::Allocator;
+
+    #[test]
+    fn test_g1_negate_strict_invalid_point_cached() {
+        let mut a = Allocator::new();
+        let invalid_g1 = a.new_atom(&hex::decode("b7f1d3a7319092346345638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb").unwrap()).unwrap();
+        let input = a.new_pair(invalid_g1, a.nil()).unwrap();
+        
+        let result1 = op_bls_g1_negate_strict(&mut a, input, 1_000_000);
+        assert!(result1.is_err());
+        
+        let result2 = op_bls_g1_negate_strict(&mut a, input, 1_000_000);
+        assert!(result2.is_err());
+    }
+
+    #[test]
+    fn test_g2_negate_strict_invalid_point_cached() {
+        let mut a = Allocator::new();
+        let invalid_g2 = a.new_atom(&hex::decode("b3e02b6052719f624359072893758937457903459920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8").unwrap()).unwrap();
+        let input = a.new_pair(invalid_g2, a.nil()).unwrap();
+        
+        let result1 = op_bls_g2_negate_strict(&mut a, input, 10_000_000);
+        assert!(result1.is_err());
+        
+        let result2 = op_bls_g2_negate_strict(&mut a, input, 10_000_000);
+        assert!(result2.is_err());
     }
 }
