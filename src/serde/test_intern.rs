@@ -1,7 +1,7 @@
 use crate::allocator::{Allocator, NodePtr};
 use crate::error::Result;
 use crate::serde::bytes32::Bytes32;
-use crate::serde::intern::intern;
+use crate::serde::intern::intern_tree;
 use crate::serde::node_from_bytes_backrefs;
 use crate::serde::node_to_bytes;
 use crate::serde::object_cache::{ObjectCache, treehash};
@@ -28,7 +28,7 @@ fn test_hex_interning(hex: &str, expected_atoms: usize, expected_pairs: usize) -
     let node = hex_to_node(&mut allocator, hex)?;
 
     // Create interned version using the new API
-    let tree = intern(&allocator, node)?;
+    let tree = intern_tree(&allocator, node, Allocator::new())?;
 
     // Ensure interned node serializes to same bytes
     let original_serialized = node_to_bytes(&allocator, node)?;

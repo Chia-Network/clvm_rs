@@ -2,7 +2,7 @@
 
 use clvm_fuzzing::make_tree_limits;
 use clvmr::allocator::Allocator;
-use clvmr::serde::{ObjectCache, intern, node_to_bytes, treehash};
+use clvmr::serde::{ObjectCache, intern_tree, node_to_bytes, treehash};
 use libfuzzer_sys::fuzz_target;
 
 // Fuzzer for the interning functionality.
@@ -39,7 +39,7 @@ fuzz_target!(|data: &[u8]| {
     let original_allocated_pairs = allocator.allocated_pair_count();
 
     // Create interned version using new API
-    let Ok(tree) = intern(&allocator, program) else {
+    let Ok(tree) = intern_tree(&allocator, program, Allocator::new()) else {
         return;
     };
 
