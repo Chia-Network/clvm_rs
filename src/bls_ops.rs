@@ -17,70 +17,41 @@ static G1_CACHE: OnceLock<RwLock<HashMap<[u8; 48], bool>>> = OnceLock::new();
 static G2_CACHE: OnceLock<RwLock<HashMap<[u8; 96], bool>>> = OnceLock::new();
 
 // Evict when the cache exceeds this many entries to bound memory usage.
-// Each entry stores both the point and its negation, so a 65536-entry cache
-// holds up to ~32768 distinct validated points.
 const MAX_CACHE_ENTRIES: usize = 65536;
 
-/// Returns (negated_blob, is_infinity)
-fn negate_g1_bytes(blob: &[u8; 48]) -> ([u8; 48], bool) {
-    let mut neg = *blob;
-    let is_inf = (neg[0] & 0xe0) == 0xc0;
-    if !is_inf {
-        neg[0] ^= 0x20;
-    }
-    (neg, is_inf)
-}
-
-fn negate_g2_bytes(blob: &[u8; 96]) -> ([u8; 96], bool) {
-    let mut neg = *blob;
-    let is_inf = (neg[0] & 0xe0) == 0xc0;
-    if !is_inf {
-        neg[0] ^= 0x20;
-    }
-    (neg, is_inf)
-}
-
 /// Check if a G1 point (compressed, 48 bytes) is valid.
-/// Caches the result (and its negation) for future lookups.
+/// Caches the result globally across calls.
 fn g1_check_valid(blob: &[u8; 48]) -> bool {
     let cache = G1_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
-    let (neg, _) = negate_g1_bytes(blob);
-
     {
         let r = cache.read().unwrap();
-        if let Some(&v) = r.get(blob).or_else(|| r.get(&neg)) {
+        if let Some(&v) = r.get(blob) {
             return v;
         }
     }
-
     let valid = G1Element::from_bytes(blob).is_ok();
     let mut w = cache.write().unwrap();
     if w.len() >= MAX_CACHE_ENTRIES {
         w.clear();
     }
     w.insert(*blob, valid);
-    w.insert(neg, valid);
     valid
 }
 
 fn g2_check_valid(blob: &[u8; 96]) -> bool {
     let cache = G2_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
-    let (neg, _) = negate_g2_bytes(blob);
-
     {
         let r = cache.read().unwrap();
-        if let Some(&v) = r.get(blob).or_else(|| r.get(&neg)) {
+        if let Some(&v) = r.get(blob) {
             return v;
         }
     }
-
     let valid = G2Element::from_bytes(blob).is_ok();
     let mut w = cache.write().unwrap();
     if w.len() >= MAX_CACHE_ENTRIES {
         w.clear();
     }
     w.insert(*blob, valid);
-    w.insert(neg, valid);
     valid
 }
 
