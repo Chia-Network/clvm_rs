@@ -74,6 +74,8 @@ pub fn node_to_bytes(a: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
 mod tests {
     use super::*;
     use crate::error::EvalErr;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[test]
     fn test_serialize_limit() {

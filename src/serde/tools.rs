@@ -243,8 +243,7 @@ mod tests {
     use crate::serde::node_from_bytes_backrefs;
     use hex::FromHex;
     use rstest::rstest;
-
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_tree_hash_max_single_byte() {
         let mut ctx = Sha256::new();
         ctx.update([1_u8]);
@@ -256,7 +255,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_tree_hash_one() {
         let mut ctx = Sha256::new();
         ctx.update([1_u8]);
@@ -268,7 +267,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_tree_hash_zero() {
         let mut ctx = Sha256::new();
         ctx.update([1_u8]);
@@ -280,7 +279,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_tree_hash_nil() {
         let mut ctx = Sha256::new();
         ctx.update([1_u8]);
@@ -291,7 +290,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_tree_hash_overlong() {
         let mut cursor = Cursor::<&[u8]>::new(&[0x8f, 0xff]);
         let e = tree_hash_from_stream(&mut cursor).unwrap_err();
@@ -313,7 +312,7 @@ mod tests {
     // print(bytes(a).hex())
     // print(a.get_tree_hash().hex())
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_tree_hash_list() {
         // this is the list (1 (2 (3 (4 (5 ())))))
         let buf = Vec::from_hex("ff01ff02ff03ff04ff0580").unwrap();
@@ -325,7 +324,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_tree_hash_tree() {
         // this is the tree ((1, 2), (3, 4))
         let buf = Vec::from_hex("ffff0102ff0304").unwrap();
@@ -337,7 +336,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_tree_hash_tree_large_atom() {
         // this is the tree ((1, 2), (3, b"foobar"))
         let buf = Vec::from_hex("ffff0102ff0386666f6f626172").unwrap();
@@ -349,7 +348,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_serialized_length_from_bytes_trusted() {
         assert_eq!(
             serialized_length_from_bytes_trusted(&[0x7f, 0x00, 0x00, 0x00]).unwrap(),
@@ -394,7 +393,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_serialized_length_from_bytes() {
         assert_eq!(
             serialized_length_from_bytes(&[0x7f, 0x00, 0x00, 0x00]).unwrap(),
@@ -435,6 +434,7 @@ mod tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     // ("foobar" "foobar")
     #[case("ff86666f6f626172ff86666f6f62617280")]
     // ("foobar" "foobar")
@@ -586,6 +586,7 @@ ae5c3c40c50832a7aecc0b3ba4646568a00c01289c45e1f03b2b488080808080"
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case("c000")]
     #[case("c03f")]
     #[case("e00000")]
@@ -616,6 +617,7 @@ ae5c3c40c50832a7aecc0b3ba4646568a00c01289c45e1f03b2b488080808080"
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case("c040", 66)]
     #[case("e02000", 8195)]
     #[case("f0100000", 1048580)]

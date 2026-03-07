@@ -41,7 +41,8 @@ pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> Result<(u8,
         atom_size <<= 8;
         atom_size += *b as u64;
     }
-    if atom_size >= 0x400000000 {
+    // we assume atom sizes fit in usize, usize is 32 bits on wasm
+    if atom_size >= 0x80000000 {
         return Err(EvalErr::SerializationError);
     }
     Ok((atom_start_offset as u8, atom_size))
@@ -58,13 +59,14 @@ fn parse_atom_ptr<'a>(f: &'a mut Cursor<&[u8]>, first_byte: u8) -> Result<&'a [u
         let pos = f.position() as usize;
         &f.get_ref()[pos - 1..pos]
     } else {
-        let blob_size = decode_size(f, first_byte)?;
-        let pos = f.position() as usize;
-        if f.get_ref().len() < pos + blob_size as usize {
+        let blob_size = usize::try_from(decode_size(f, first_byte)?)
+            .map_err(|_| EvalErr::SerializationError)?;
+        let pos = usize::try_from(f.position()).map_err(|_| EvalErr::SerializationError)?;
+        if f.get_ref().len() < pos + blob_size {
             return Err(EvalErr::SerializationError);
         }
         f.seek(SeekFrom::Current(blob_size as i64))?;
-        &f.get_ref()[pos..(pos + blob_size as usize)]
+        &f.get_ref()[pos..(pos + blob_size)]
     };
     Ok(blob)
 }
@@ -100,19 +102,18 @@ mod tests {
     use super::*;
     use crate::serde::write_atom::write_atom;
     use rstest::rstest;
-
     #[rstest]
+    #[crate::wasm_compat::test]
     // single-byte length prefix
     #[case(0b10100000, &[], (1, 0x20))]
     // two-byte length prefix
     #[case(0b11001111, &[0xaa], (2, 0xfaa))]
     // this is *just* within what we support
     // Still a very large blob, probably enough for a DoS attack
-    #[case(0b11111100, &[0x3, 0xff, 0xff, 0xff, 0xff], (6, 0x3ffffffff))]
+    #[case(0b11111000, &[0x7f, 0xff, 0xff, 0xff], (5, 0x7fffffff))]
     #[case(0b11011111, &[0], (2, 0x1f00))]
     #[case(0b11101111, &[0, 0], (3, 0xf0000))]
     #[case(0b11110111, &[0, 0, 0], (4, 0x7000000))]
-    #[case(0b11111011, &[0, 0, 0, 0], (5, 0x300000000))]
     fn test_decode_size_success(
         #[case] first_b: u8,
         #[case] stream: &[u8],
@@ -124,6 +125,7 @@ mod tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     // this is an atom length-prefix 0xffffffffffff, or (2^48 - 1).
     // We don't support atoms this large and we should fail before attempting to
     // allocate this much memory
@@ -135,6 +137,7 @@ mod tests {
     // the stream is truncated
     #[case(0b11111100, &[0x4, 0, 0, 0], "bad encoding")]
     // atoms are too large
+    #[case(0b11111011, &[0, 0, 0, 0], "bad encoding")]
     #[case(0b11111101, &[0, 0, 0, 0, 0], "bad encoding")]
     #[case(0b11111110, &[0x80, 0, 0, 0, 0, 0], "bad encoding")]
     #[case(0b11111111, &[0x80, 0, 0, 0, 0, 0, 0], "bad encoding")]
@@ -149,7 +152,7 @@ mod tests {
     }
 
     #[cfg(debug_assertions)]
-    #[test]
+    #[crate::wasm_compat::test]
     #[should_panic]
     fn test_decode_size_panic() {
         let mut stream = Cursor::new(&[0x4, 0, 0, 0]);
@@ -157,7 +160,7 @@ mod tests {
     }
 
     #[cfg(not(debug_assertions))]
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_decode_size_panic() {
         let mut stream = Cursor::new(&[0x4, 0, 0, 0]);
         assert_eq!(
@@ -188,7 +191,7 @@ mod tests {
         check_parse_atom(&blob, expected_atom);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_parse_atom() {
         check_parse_atom_str("80", "");
         // try "00", "01", "02", ..., "7f"
@@ -214,7 +217,7 @@ mod tests {
         }
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_truncated_parse_atom() {
         // the stream is truncated
         let first = 0b11111100;

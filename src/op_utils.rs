@@ -257,11 +257,10 @@ pub fn int_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<(Number, 
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use rstest::rstest;
 
-    use super::*;
-
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_get_args() {
         let mut a = Allocator::new();
         let a0 = a.new_number(42.into()).unwrap();
@@ -307,7 +306,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_get_varargs() {
         let mut a = Allocator::new();
         let a0 = a.new_number(42.into()).unwrap();
@@ -355,7 +354,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_nilp() {
         let mut a = Allocator::new();
         let a0 = a.new_number(42.into()).unwrap();
@@ -372,7 +371,7 @@ mod tests {
         assert!(nilp(&a, a5));
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_first() {
         let mut a = Allocator::new();
         let a0 = a.new_number(42.into()).unwrap();
@@ -387,7 +386,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_rest() {
         let mut a = Allocator::new();
         let a0 = a.new_number(42.into()).unwrap();
@@ -400,6 +399,7 @@ mod tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(0.into(), (0.into(), 0))]
     #[case(1.into(), (1.into(), 1))]
     #[case(42.into(), (42.into(), 1))]
@@ -412,7 +412,7 @@ mod tests {
         assert_eq!(int_atom(&a, a0, "test").unwrap(), expected);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_int_atom_failure() {
         let mut a = Allocator::new();
         let a0 = a.new_number(42.into()).unwrap();
@@ -425,7 +425,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_atom_len() {
         let mut a = Allocator::new();
 
@@ -445,6 +445,7 @@ mod tests {
 
     // u32, 4 bytes
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(&[0], 0)]
     #[case(&[0,0,0,1], 1)]
     #[case(&[0,0xff,0xff,0xff,0xff], 0xffffffff)]
@@ -463,6 +464,7 @@ mod tests {
 
     // u32, 4 bytes
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(&[0xff,0xff,0xff,0xff], "test requires positive int arg")]
     #[case(&[0xff], "test requires positive int arg")]
     #[case(&[0x80], "test requires positive int arg")]
@@ -480,6 +482,7 @@ mod tests {
 
     // u32, 4 bytes
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(&[0x00,0x7f,0xff,0xff], "test requires u32 arg with no leading zeros")]
     #[case(&[0x00, 0x00, 0x01], "test requires u32 arg with no leading zeros")]
     #[case(&[0xff,0xff,0xff,0xff], "test requires positive int arg")]
@@ -497,7 +500,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_uint_atom_4_pair() {
         use crate::allocator::Allocator;
         let mut a = Allocator::new();
@@ -514,6 +517,7 @@ mod tests {
 
     // u64, 8 bytes
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(&[0], 0)]
     #[case(&[0,0,0,1], 1)]
     #[case(&[0,0xff,0xff,0xff,0xff], 0xffffffff)]
@@ -536,6 +540,7 @@ mod tests {
 
     // u64, 8 bytes
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(&[0xff,0xff,0xff,0xff],"test requires positive int arg")]
     #[case(&[0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff], "test requires positive int arg")]
     #[case(&[0xff], "test requires positive int arg")]
@@ -552,7 +557,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_uint_atom_8_pair() {
         use crate::allocator::Allocator;
         let mut a = Allocator::new();
@@ -567,7 +572,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_u32_from_u8() {
         assert_eq!(u32_from_u8(&[]), Some(0));
         assert_eq!(u32_from_u8(&[0xcc]), Some(0xcc));
@@ -593,7 +598,7 @@ mod tests {
         assert_eq!(u32_from_u8(&[0x7d, 0xcc, 0x55, 0x88, 0xf3]), None);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_i32_from_u8() {
         assert_eq!(i32_from_u8(&[]), Some(0));
         assert_eq!(i32_from_u8(&[0xcc]), Some(-52));
@@ -620,7 +625,7 @@ mod tests {
         assert_eq!(i32_from_u8(&[0x7d, 0xcc, 0x55, 0x88, 0xf3]), None);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_u64_from_bytes() {
         assert_eq!(u64_from_bytes(&[]), 0);
         assert_eq!(u64_from_bytes(&[0xcc]), 0xcc);
@@ -645,7 +650,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_i32_atom() {
         let mut a = Allocator::new();
 

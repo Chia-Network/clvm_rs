@@ -112,6 +112,8 @@ pub fn traverse_path_fast(allocator: &Allocator, mut node_index: u32, args: Node
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[test]
     fn test_msb_mask() {

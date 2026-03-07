@@ -60,6 +60,8 @@ pub fn write_atom<W: io::Write>(f: &mut W, atom: &[u8]) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[test]
     fn test_write_atom_encoding_prefix_with_size() {

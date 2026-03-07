@@ -92,6 +92,8 @@ mod tests {
     use super::*;
     use crate::error::EvalErr;
     use crate::serde::node_to_bytes_backrefs;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     #[test]
     fn test_serialize_limit() {

@@ -2,6 +2,8 @@ use super::allocator::{Allocator, NodePtr};
 use super::serde::node_from_bytes;
 use super::serde::node_to_bytes;
 use super::test_ops::node_eq;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
 
 fn test_serialize_roundtrip(a: &mut Allocator, n: NodePtr) {
     let vec = node_to_bytes(a, n).unwrap();

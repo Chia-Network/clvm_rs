@@ -6,7 +6,6 @@ use crate::serde::node_from_bytes_backrefs;
 use crate::serde::node_to_bytes;
 use crate::serde::object_cache::{ObjectCache, treehash};
 use rstest::rstest;
-
 fn treehash_for_node(allocator: &Allocator, node: NodePtr) -> Bytes32 {
     let mut object_cache = ObjectCache::new(treehash);
     *object_cache
@@ -70,6 +69,7 @@ fn test_hex_interning(hex: &str, expected_atoms: usize, expected_pairs: usize) -
 // ========================================================
 
 #[rstest]
+#[crate::wasm_compat::test]
 #[case("01", 1, 0)] // Simple atom 1: 1 atom, 0 pairs
 #[case("0a", 1, 0)] // Atom 10: 1 atom, 0 pairs
 #[case("ff0101", 1, 1)] // (1 . 1): 1 atom (deduplicated), 1 pair

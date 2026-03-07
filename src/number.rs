@@ -17,6 +17,8 @@ pub fn number_from_u8(v: &[u8]) -> Number {
 #[cfg(test)]
 mod tests {
     use num_bigint::{BigUint, Sign};
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
 
     use super::*;
 

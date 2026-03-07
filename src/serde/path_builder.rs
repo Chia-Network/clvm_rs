@@ -122,7 +122,6 @@ mod tests {
     use crate::serde::serialized_length_atom;
     use hex;
     use rstest::rstest;
-
     fn build_path<'a>(a: &'a Bump, input: &[u8]) -> PathBuilder<'a> {
         let mut path = PathBuilder::default();
         // keep in mind that paths are built in reverse order (starting from the
@@ -142,6 +141,7 @@ mod tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(&[1], "01")]
     #[case(&[1,0], "02")]
     #[case(&[1,0,0], "04")]
@@ -168,6 +168,7 @@ mod tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(0)]
     #[case(1)]
     #[case(6)]

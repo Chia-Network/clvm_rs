@@ -1109,7 +1109,7 @@ mod tests {
     use super::*;
     use rstest::rstest;
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_atom_eq_1() {
         // these are a bunch of different representations of 1
         // make sure they all compare equal
@@ -1167,7 +1167,7 @@ mod tests {
         assert!(a.atom_eq(a5, a5));
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_atom_eq_minus_1() {
         // these are a bunch of different representations of -1
         // make sure they all compare equal
@@ -1201,7 +1201,7 @@ mod tests {
         assert!(a.atom_eq(a3, a3));
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_atom_eq() {
         let mut a = Allocator::new();
         let a0 = a.nil();
@@ -1247,7 +1247,7 @@ mod tests {
         assert!(!a.atom_eq(a4, a5));
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     #[should_panic]
     fn test_atom_eq_pair1() {
         let mut a = Allocator::new();
@@ -1256,7 +1256,7 @@ mod tests {
         a.atom_eq(pair, a0);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     #[should_panic]
     fn test_atom_eq_pair2() {
         let mut a = Allocator::new();
@@ -1265,7 +1265,7 @@ mod tests {
         a.atom_eq(a0, pair);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     #[should_panic]
     fn test_atom_len_pair() {
         let mut a = Allocator::new();
@@ -1274,7 +1274,7 @@ mod tests {
         a.atom_len(pair);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     #[should_panic]
     fn test_number_pair() {
         let mut a = Allocator::new();
@@ -1284,7 +1284,7 @@ mod tests {
     }
 
     #[cfg(not(feature = "allocator-debug"))]
-    #[test]
+    #[crate::wasm_compat::test]
     #[should_panic]
     fn test_invalid_node_ptr_type() {
         let node = NodePtr(3 << NODE_PTR_IDX_BITS);
@@ -1293,14 +1293,14 @@ mod tests {
     }
 
     #[cfg(debug_assertions)]
-    #[test]
+    #[crate::wasm_compat::test]
     #[should_panic]
     fn test_node_ptr_overflow() {
         NodePtr::new(ObjectType::Bytes, NODE_PTR_IDX_MASK as usize + 1);
     }
 
     #[cfg(debug_assertions)]
-    #[test]
+    #[crate::wasm_compat::test]
     #[should_panic]
     fn test_invalid_small_number() {
         let mut a = Allocator::new();
@@ -1308,6 +1308,7 @@ mod tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(0, 0)]
     #[case(1, 1)]
     #[case(0x7f, 1)]
@@ -1322,7 +1323,7 @@ mod tests {
         assert_eq!(len_for_value(val), len);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_nil() {
         let a = Allocator::new();
         assert_eq!(a.atom(a.nil()).as_ref(), b"");
@@ -1331,14 +1332,14 @@ mod tests {
         assert_eq!(a.nil(), NodePtr::NIL);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_one() {
         let a = Allocator::new();
         assert_eq!(a.atom(a.one()).as_ref(), b"\x01");
         assert_eq!(a.sexp(a.one()), SExp::Atom);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_allocate_atom() {
         let mut a = Allocator::new();
         let atom = a.new_atom(b"foobar").unwrap();
@@ -1346,7 +1347,7 @@ mod tests {
         assert_eq!(a.sexp(atom), SExp::Atom);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_allocate_pair() {
         let mut a = Allocator::new();
         let atom1 = a.new_atom(b"foo").unwrap();
@@ -1359,7 +1360,7 @@ mod tests {
         assert_eq!(a.sexp(pair2), SExp::Pair(pair, pair));
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_allocate_heap_limit() {
         let mut a = Allocator::new_limited(6);
         // we can't allocate 6 bytes
@@ -1368,14 +1369,14 @@ mod tests {
         let _atom = a.new_atom(b"fooba").unwrap();
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_new_atom_heap_limit() {
         let mut a = Allocator::new_limited(6);
         assert_eq!(a.new_atom(b"foobar").unwrap_err(), EvalErr::OutOfMemory);
         a.new_atom(b"fooba").unwrap();
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_new_atom_small_value_heap_limit() {
         // small-atom-eligible values still count against the heap
         // ghost_heap starts at 1, so with limit=1 there are 0 bytes available
@@ -1383,7 +1384,7 @@ mod tests {
         assert_eq!(a.new_atom(&[1]).unwrap_err(), EvalErr::OutOfMemory);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_new_small_number_heap_limit() {
         let mut a = Allocator::new_limited(1);
         assert_eq!(a.new_small_number(1).unwrap_err(), EvalErr::OutOfMemory);
@@ -1391,13 +1392,13 @@ mod tests {
         a.new_small_number(0).unwrap();
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_new_number_small_path_heap_limit() {
         let mut a = Allocator::new_limited(1);
         assert_eq!(a.new_number(1.into()).unwrap_err(), EvalErr::OutOfMemory);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_new_number_large_path_heap_limit() {
         // 0xff_ffff_ffff -> [0, 0xff, 0xff, 0xff, 0xff] = 5 bytes, limit allows 4
         let mut a = Allocator::new_limited(5);
@@ -1407,7 +1408,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_new_g1_heap_limit() {
         let g1_bytes = hex::decode(VALID_G1).unwrap();
         let g1 = G1Element::from_bytes(g1_bytes.as_slice().try_into().unwrap()).unwrap();
@@ -1419,7 +1420,7 @@ mod tests {
         Allocator::new_limited(49).new_g1(g1).unwrap();
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_new_g2_heap_limit() {
         let g2_bytes = hex::decode(VALID_G2).unwrap();
         let g2 = G2Element::from_bytes(g2_bytes.as_slice().try_into().unwrap()).unwrap();
@@ -1431,7 +1432,7 @@ mod tests {
         Allocator::new_limited(97).new_g2(g2).unwrap();
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_new_concat_heap_limit() {
         let mut a = Allocator::new_limited(5);
         let atom = a.new_atom(&[0x80]).unwrap(); // 1 real heap byte (negative, not a small atom)
@@ -1443,7 +1444,7 @@ mod tests {
         a.new_concat(3, &[atom, atom, atom]).unwrap();
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_allocate_atom_limit() {
         let mut a = Allocator::new();
 
@@ -1456,7 +1457,7 @@ mod tests {
         assert_eq!(a.ghost_atoms, MAX_NUM_ATOMS);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_allocate_small_number_limit() {
         let mut a = Allocator::new();
 
@@ -1469,7 +1470,7 @@ mod tests {
         assert_eq!(a.ghost_atoms, MAX_NUM_ATOMS);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_allocate_substr_limit() {
         let mut a = Allocator::new();
 
@@ -1483,7 +1484,7 @@ mod tests {
         assert_eq!(a.ghost_atoms, MAX_NUM_ATOMS);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_allocate_concat_limit() {
         let mut a = Allocator::new();
 
@@ -1497,7 +1498,7 @@ mod tests {
         assert_eq!(a.ghost_atoms, MAX_NUM_ATOMS);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_allocate_pair_limit() {
         let mut a = Allocator::new();
         let atom = a.new_atom(b"foo").unwrap();
@@ -1512,7 +1513,7 @@ mod tests {
         assert_eq!(a.add_ghost_pair(1).unwrap_err(), EvalErr::TooManyPairs);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_ghost_pair_limit() {
         let mut a = Allocator::new();
         let atom = a.new_atom(b"foo").unwrap();
@@ -1524,7 +1525,7 @@ mod tests {
         assert_eq!(a.add_ghost_pair(1).unwrap_err(), EvalErr::TooManyPairs);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_substr() {
         let mut a = Allocator::new();
         let atom = a.new_atom(b"foobar").unwrap();
@@ -1573,7 +1574,7 @@ mod tests {
         ));
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_substr_small_number() {
         let mut a = Allocator::new();
         let atom = a.new_atom(b"a\x80").unwrap();
@@ -1619,7 +1620,7 @@ mod tests {
         ));
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_concat_launder_small_number() {
         let mut a = Allocator::new();
         let atom1 = a.new_small_number(42).expect("new_small_number");
@@ -1639,7 +1640,7 @@ mod tests {
         assert_eq!(a.atom(atom2).as_ref(), &[42]);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_concat() {
         let mut a = Allocator::new();
         let atom1 = a.new_atom(b"f").unwrap();
@@ -1694,7 +1695,7 @@ mod tests {
         assert_eq!(a.new_concat(1, &[atom1]).unwrap(), atom1);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_concat_large() {
         let mut a = Allocator::new();
         let atom1 = a.new_atom(b"foo").unwrap();
@@ -1732,7 +1733,7 @@ mod tests {
         ));
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_sexp() {
         let mut a = Allocator::new();
         let atom1 = a.new_atom(b"f").unwrap();
@@ -1744,7 +1745,7 @@ mod tests {
         assert_eq!(a.sexp(pair), SExp::Pair(atom1, atom2));
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_concat_limit() {
         // the Allocator::one() is always allocated and uses 1 byte of heap
         let mut a = Allocator::new_limited(9);
@@ -1766,6 +1767,7 @@ mod tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(0.into(), &[])]
     #[case(1.into(), &[1])]
     #[case((-1).into(), &[0xff])]
@@ -1792,7 +1794,7 @@ mod tests {
         assert_eq!(number_from_u8(expected), num);
     }
 
-    #[test]
+    #[crate::wasm_compat::test]
     fn test_checkpoints() {
         let mut a = Allocator::new();
 
@@ -1841,6 +1843,7 @@ mod tests {
     type TestFun = fn(&Allocator, NodePtr) -> EvalErr;
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(test_g1, 0, "atom is not G1 size, 48 bytes")]
     #[case(test_g1, 3, "atom is not G1 size, 48 bytes")]
     #[case(test_g1, 47, "atom is not G1 size, 48 bytes")]
@@ -1861,6 +1864,7 @@ mod tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(test_g1, "pair found, expected G1 point")]
     #[case(test_g2, "pair found, expected G2 point")]
     fn test_point_atom_pair(#[case] fun: TestFun, #[case] expected: &str) {
@@ -1871,6 +1875,7 @@ mod tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(
         "\
 97f1d3a73197d7942695638c4fa9ac0f\
@@ -1912,6 +1917,7 @@ e28f75bb8f1c7c42c39a8c5529bf0f4e"
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(
         "\
 93e02b6052719f607dacd3a088274f65\
@@ -2058,6 +2064,7 @@ c6c886f6b57ec72a6178288c47c33577\
     */
 
     #[rstest]
+    #[crate::wasm_compat::test]
     // round trip empty buffer
     #[case(EMPTY, make_buf, check_buf)]
     #[case(EMPTY, make_buf, check_number)]
@@ -2134,6 +2141,7 @@ c6c886f6b57ec72a6178288c47c33577\
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(&[], 0)]
     #[case(&[1], 1)]
     #[case(&[1,2], 2)]
@@ -2146,6 +2154,7 @@ c6c886f6b57ec72a6178288c47c33577\
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(0.into(), 0)]
     #[case(42.into(), 1)]
     #[case(127.into(), 1)]
@@ -2161,6 +2170,7 @@ c6c886f6b57ec72a6178288c47c33577\
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(
         "\
 97f1d3a73197d7942695638c4fa9ac0f\
@@ -2184,6 +2194,7 @@ e28f75bb8f1c7c42c39a8c5529bf0f4e",
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(
         "\
 93e02b6052719f607dacd3a088274f65\
@@ -2214,6 +2225,7 @@ c6c886f6b57ec72a6178288c47c33577\
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(0.into())]
     #[case(1.into())]
     #[case(0x7f.into())]
@@ -2264,6 +2276,7 @@ c6c886f6b57ec72a6178288c47c33577\
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(0)]
     #[case(1)]
     #[case(0x7f)]
@@ -2290,6 +2303,7 @@ c6c886f6b57ec72a6178288c47c33577\
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(0.into(), true)]
     #[case(1.into(), true)]
     #[case(0x3ffffff.into(), true)]
@@ -2330,6 +2344,7 @@ c6c886f6b57ec72a6178288c47c33577\
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(0u64, &[])]
     #[case(1, &[1])]
     #[case(0x7f, &[0x7f])]
@@ -2363,6 +2378,7 @@ c6c886f6b57ec72a6178288c47c33577\
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[case(0i64, &[])]
     #[case(1, &[1])]
     #[case(0x7f, &[0x7f])]
@@ -2396,6 +2412,7 @@ c6c886f6b57ec72a6178288c47c33577\
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     // redundant leading zeros are not canoncial
     #[case(&[0x00], false)]
     #[case(&[0x00, 0x7f], false)]
@@ -2426,6 +2443,7 @@ c6c886f6b57ec72a6178288c47c33577\
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     // redundant leading zeros are not canoncial
     #[case(&[0x00], None)]
     #[case(&[0x00, 0x7f], None)]
@@ -2457,6 +2475,7 @@ c6c886f6b57ec72a6178288c47c33577\
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     // 0 is encoded as an empty string
     #[case(&[0], "0", &[])]
     #[case(&[1], "1", &[1])]
@@ -2566,6 +2585,7 @@ mod debug_tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[should_panic(expected = "using a NodePtr on the wrong Allocator")]
     fn mixing_allocators(
         #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)] create_case: u8,
@@ -2579,6 +2599,7 @@ mod debug_tests {
     }
 
     #[rstest]
+    #[crate::wasm_compat::test]
     #[should_panic(expected = "was invalidated by restore_checkpoint()")]
     fn invalidating_node(
         #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)] create_case: u8,
