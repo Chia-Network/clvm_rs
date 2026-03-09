@@ -10,13 +10,17 @@ repository = "https://github.com/Chia-Network/clvm_rs/tools/"
 readme = "README.md"
 publish = false
 
+[features]
+openssl = ["clvmr/openssl"]
+
 [dependencies]
 hex-literal = { workspace = true }
 hex = { workspace = true }
 rand = { workspace = true }
 sha1 = { workspace = true }
 linreg = { workspace = true }
-clvmr = { workspace = true }
+bitflags = { workspace = true }
+clvmr = { workspace = true, features = ["counters"] }
 chia-bls = { workspace = true }
 num-bigint = { workspace = true }
 num-integer = { workspace = true }
@@ -47,5 +51,10 @@ bench = false
 
 [[bin]]
 name = "generate-stress-tests"
+test = false
+bench = false
+
+[[bin]]
+name = "run-clvm"
 test = false
 bench = false
