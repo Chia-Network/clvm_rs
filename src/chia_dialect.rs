@@ -10,9 +10,11 @@ use crate::dialect::{Dialect, OperatorSet};
 use crate::error::EvalErr;
 use crate::keccak256_ops::op_keccak256;
 use crate::more_ops::{
-    op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_div_limit, op_divmod,
-    op_divmod_limit, op_gr, op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh,
-    op_mod, op_mod_limit, op_modpow, op_multiply, op_not, op_point_add, op_pubkey_for_exp,
+    op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_div_limit,
+    op_div_limit_malachite, op_div_malachite, op_divmod, op_divmod_limit,
+    op_divmod_limit_malachite, op_divmod_malachite, op_gr, op_gr_bytes, op_logand, op_logior,
+    op_lognot, op_logxor, op_lsh, op_mod, op_mod_limit, op_mod_limit_malachite, op_mod_malachite,
+    op_modpow, op_modpow_malachite, op_multiply, op_not, op_point_add, op_pubkey_for_exp,
     op_sha256, op_strlen, op_substr, op_subtract, op_unknown,
 };
 use crate::reduction::Response;
@@ -54,6 +56,9 @@ bitflags! {
 
         /// Enables secp opcodes 64 (secp256k1_verify) and 65 (secp256r1_verify).
         const ENABLE_SECP_OPS = 0x0800;
+
+        /// Use malachite-bigint instead of num-bigint for div, divmod, mod, and modpow.
+        const MALACHITE = 0x1000;
 
     }
 }
@@ -171,20 +176,24 @@ impl Dialect for ChiaDialect {
             16 => op_add,
             17 => op_subtract,
             18 => op_multiply,
-            19 => {
-                if flags.contains(ClvmFlags::DISABLE_OP) {
-                    op_div_limit
-                } else {
-                    op_div
-                }
-            }
-            20 => {
-                if flags.contains(ClvmFlags::DISABLE_OP) {
-                    op_divmod_limit
-                } else {
-                    op_divmod
-                }
-            }
+            19 => match (
+                flags.contains(ClvmFlags::DISABLE_OP),
+                flags.contains(ClvmFlags::MALACHITE),
+            ) {
+                (true, true) => op_div_limit_malachite,
+                (true, false) => op_div_limit,
+                (false, true) => op_div_malachite,
+                (false, false) => op_div,
+            },
+            20 => match (
+                flags.contains(ClvmFlags::DISABLE_OP),
+                flags.contains(ClvmFlags::MALACHITE),
+            ) {
+                (true, true) => op_divmod_limit_malachite,
+                (true, false) => op_divmod_limit,
+                (false, true) => op_divmod_malachite,
+                (false, false) => op_divmod,
+            },
             21 => op_gr,
             22 => op_ash,
             23 => op_lsh,
@@ -218,17 +227,21 @@ impl Dialect for ChiaDialect {
             60 => {
                 if flags.contains(ClvmFlags::DISABLE_OP) {
                     return Err(EvalErr::Unimplemented(o))?;
+                } else if flags.contains(ClvmFlags::MALACHITE) {
+                    op_modpow_malachite
                 } else {
                     op_modpow
                 }
             }
-            61 => {
-                if flags.contains(ClvmFlags::DISABLE_OP) {
-                    op_mod_limit
-                } else {
-                    op_mod
-                }
-            }
+            61 => match (
+                flags.contains(ClvmFlags::DISABLE_OP),
+                flags.contains(ClvmFlags::MALACHITE),
+            ) {
+                (true, true) => op_mod_limit_malachite,
+                (true, false) => op_mod_limit,
+                (false, true) => op_mod_malachite,
+                (false, false) => op_mod,
+            },
             62 if flags.contains(ClvmFlags::ENABLE_KECCAK_OPS_OUTSIDE_GUARD) => op_keccak256,
             63 if flags.contains(ClvmFlags::ENABLE_SHA256_TREE) => op_sha256_tree,
             64 if flags.contains(ClvmFlags::ENABLE_SECP_OPS) => op_secp256k1_verify,
