@@ -39,7 +39,7 @@ fuzz_target!(|data: &[u8]| {
     let original_allocated_pairs = allocator.allocated_pair_count();
 
     // Create interned version using new API
-    let Ok(tree) = intern_tree(&allocator, program, Allocator::new()) else {
+    let Ok(tree) = intern_tree(&allocator, program) else {
         return;
     };
 

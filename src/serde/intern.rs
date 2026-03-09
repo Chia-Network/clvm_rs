@@ -56,8 +56,15 @@ impl InternedTree {
 /// # Errors
 ///
 /// Returns an error if allocator limits are exceeded when creating new nodes.
-pub fn intern_tree(source: &Allocator, node: NodePtr, dest: Allocator) -> Result<InternedTree> {
-    let mut new_allocator = dest;
+pub fn intern_tree_with_factory<F>(
+    source: &Allocator,
+    node: NodePtr,
+    make_dest: F,
+) -> Result<InternedTree>
+where
+    F: FnOnce() -> Allocator,
+{
+    let mut new_allocator = make_dest();
     let mut atoms: Vec<NodePtr> = Vec::new();
     let mut pairs: Vec<NodePtr> = Vec::new();
 
@@ -129,6 +136,14 @@ pub fn intern_tree(source: &Allocator, node: NodePtr, dest: Allocator) -> Result
         pairs,
     })
 }
+
+/// Intern a CLVM tree using a default `Allocator::new()` destination.
+/// Use `intern_tree_with_factory` when you need a heap-limited or otherwise
+/// configured allocator.
+pub fn intern_tree(source: &Allocator, node: NodePtr) -> Result<InternedTree> {
+    intern_tree_with_factory(source, node, Allocator::new)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -138,7 +153,7 @@ mod tests {
         let mut allocator = Allocator::new();
         let node = allocator.new_atom(&[1, 2, 3]).unwrap();
 
-        let tree = intern_tree(&allocator, node, Allocator::new()).unwrap();
+        let tree = intern_tree(&allocator, node).unwrap();
 
         assert_eq!(tree.atoms.len(), 1);
         assert_eq!(tree.pairs.len(), 0);
@@ -152,7 +167,7 @@ mod tests {
         let right = allocator.new_atom(&[2]).unwrap();
         let node = allocator.new_pair(left, right).unwrap();
 
-        let tree = intern_tree(&allocator, node, Allocator::new()).unwrap();
+        let tree = intern_tree(&allocator, node).unwrap();
 
         assert_eq!(tree.atoms.len(), 2);
         assert_eq!(tree.pairs.len(), 1);
@@ -166,7 +181,7 @@ mod tests {
         let a2 = allocator.new_atom(&[42]).unwrap(); // Same content, different NodePtr
         let node = allocator.new_pair(a1, a2).unwrap();
 
-        let tree = intern_tree(&allocator, node, Allocator::new()).unwrap();
+        let tree = intern_tree(&allocator, node).unwrap();
 
         // Should have only 1 unique atom
         assert_eq!(tree.atoms.len(), 1);
@@ -183,7 +198,7 @@ mod tests {
         let p2 = allocator.new_pair(a, b).unwrap(); // Same structure, different NodePtr
         let node = allocator.new_pair(p1, p2).unwrap();
 
-        let tree = intern_tree(&allocator, node, Allocator::new()).unwrap();
+        let tree = intern_tree(&allocator, node).unwrap();
 
         // Should have 2 atoms, 2 pairs (inner pair deduplicated)
         assert_eq!(tree.atoms.len(), 2);
@@ -202,8 +217,8 @@ mod tests {
         let b2 = alloc2.new_atom(&[4, 5, 6]).unwrap();
         let node2 = alloc2.new_pair(a2, b2).unwrap();
 
-        let tree1 = intern_tree(&alloc1, node1, Allocator::new()).unwrap();
-        let tree2 = intern_tree(&alloc2, node2, Allocator::new()).unwrap();
+        let tree1 = intern_tree(&alloc1, node1).unwrap();
+        let tree2 = intern_tree(&alloc2, node2).unwrap();
 
         assert_eq!(tree1.tree_hash(), tree2.tree_hash());
     }
@@ -218,7 +233,7 @@ mod tests {
         let inner = allocator.new_pair(b, c).unwrap();
         let outer = allocator.new_pair(a, inner).unwrap();
 
-        let tree = intern_tree(&allocator, outer, Allocator::new()).unwrap();
+        let tree = intern_tree(&allocator, outer).unwrap();
 
         // Post-order: inner pair before outer pair
         assert_eq!(tree.pairs.len(), 2);

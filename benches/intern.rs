@@ -34,7 +34,7 @@ fn intern_benchmark(c: &mut Criterion) {
         group.bench_function(format!("intern {name}"), |b| {
             b.iter(|| {
                 let start = Instant::now();
-                let _tree = intern_tree(&a, node, Allocator::new()).expect("intern_tree");
+                let _tree = intern_tree(&a, node).expect("intern_tree");
                 start.elapsed()
             })
         });

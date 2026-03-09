@@ -28,7 +28,7 @@ fn test_hex_interning(hex: &str, expected_atoms: usize, expected_pairs: usize) -
     let node = hex_to_node(&mut allocator, hex)?;
 
     // Create interned version using the new API
-    let tree = intern_tree(&allocator, node, Allocator::new())?;
+    let tree = intern_tree(&allocator, node)?;
 
     // Ensure interned node serializes to same bytes
     let original_serialized = node_to_bytes(&allocator, node)?;
