@@ -56,15 +56,12 @@ impl InternedTree {
 /// # Errors
 ///
 /// Returns an error if allocator limits are exceeded when creating new nodes.
-pub fn intern_tree_with_factory<F>(
+pub fn intern_tree_with_factory(
     source: &Allocator,
     node: NodePtr,
-    make_dest: F,
-) -> Result<InternedTree>
-where
-    F: FnOnce() -> Allocator,
-{
-    let mut new_allocator = make_dest();
+    dest: Allocator,
+) -> Result<InternedTree> {
+    let mut new_allocator = dest;
     let mut atoms: Vec<NodePtr> = Vec::new();
     let mut pairs: Vec<NodePtr> = Vec::new();
 
@@ -141,7 +138,7 @@ where
 /// Use `intern_tree_with_factory` when you need a heap-limited or otherwise
 /// configured allocator.
 pub fn intern_tree(source: &Allocator, node: NodePtr) -> Result<InternedTree> {
-    intern_tree_with_factory(source, node, Allocator::new)
+    intern_tree_with_factory(source, node, Allocator::new())
 }
 
 #[cfg(test)]
