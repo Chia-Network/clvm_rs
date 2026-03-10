@@ -140,7 +140,6 @@ pub fn intern_tree(source: &Allocator, node: NodePtr) -> Result<InternedTree> {
     intern_tree_limited(source, node, u32::MAX as usize)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
