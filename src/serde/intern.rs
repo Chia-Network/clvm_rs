@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 
 use crate::allocator::{Allocator, Atom, NodePtr, SExp};
-use crate::chia_dialect::ClvmFlags;
 use crate::error::Result;
 
 use super::bytes32::Bytes32;
@@ -57,16 +56,12 @@ impl InternedTree {
 /// # Errors
 ///
 /// Returns an error if allocator limits are exceeded when creating new nodes.
-pub fn intern_tree_with_flags(
+pub fn intern_tree_limited(
     source: &Allocator,
     node: NodePtr,
-    flags: ClvmFlags,
+    heap_limit: usize,
 ) -> Result<InternedTree> {
-    let mut new_allocator = if flags.contains(ClvmFlags::LIMIT_HEAP) {
-        Allocator::new_limited(500_000_000)
-    } else {
-        Allocator::new()
-    };
+    let mut new_allocator = Allocator::new_limited(heap_limit);
     let mut atoms: Vec<NodePtr> = Vec::new();
     let mut pairs: Vec<NodePtr> = Vec::new();
 
@@ -139,96 +134,12 @@ pub fn intern_tree_with_flags(
     })
 }
 
-/// Intern a CLVM tree using a default `Allocator::new()` destination.
-/// Use `intern_tree_with_flags` when you need heap limits or other configuration.
+/// Intern a CLVM tree using a default unlimited allocator.
+/// Use `intern_tree_limited` when you need to enforce heap limits.
 pub fn intern_tree(source: &Allocator, node: NodePtr) -> Result<InternedTree> {
-    intern_tree_with_flags(source, node, ClvmFlags::empty())
+    intern_tree_limited(source, node, u32::MAX as usize)
 }
 
-/// Intern a CLVM tree using a factory closure to create the allocator.
-/// This function is deprecated - use `intern_tree_with_flags` instead.
-#[allow(dead_code)]
-#[deprecated(since = "0.0.0", note = "Use intern_tree_with_flags instead")]
-pub fn intern_tree_with_factory<F>(
-    source: &Allocator,
-    node: NodePtr,
-    make_dest: F,
-) -> Result<InternedTree>
-where
-    F: FnOnce() -> Allocator,
-{
-    let mut new_allocator = make_dest();
-    let mut atoms: Vec<NodePtr> = Vec::new();
-    let mut pairs: Vec<NodePtr> = Vec::new();
-
-    // Maps from source allocator to interned allocator
-    let mut node_to_interned: HashMap<NodePtr, NodePtr> = HashMap::new();
-    // Maps atom content to interned NodePtr (for deduplication)
-    let mut atom_to_interned: HashMap<Atom, NodePtr> = HashMap::new();
-    // Maps (left_interned, right_interned) to interned pair NodePtr
-    let mut pair_to_interned: HashMap<(NodePtr, NodePtr), NodePtr> = HashMap::new();
-
-    let mut stack = vec![node];
-
-    while let Some(current) = stack.pop() {
-        // Skip if already processed
-        if node_to_interned.contains_key(&current) {
-            continue;
-        }
-
-        match source.sexp(current) {
-            SExp::Atom => {
-                let atom = source.atom(current);
-                let interned = match atom_to_interned.entry(atom) {
-                    Entry::Occupied(o) => *o.get(),
-                    Entry::Vacant(v) => {
-                        let new_node = new_allocator.new_atom(atom.as_ref())?;
-                        v.insert(new_node);
-                        atoms.push(new_node);
-                        new_node
-                    }
-                };
-                node_to_interned.insert(current, interned);
-            }
-            SExp::Pair(left, right) => {
-                // Check if children are processed
-                let left_interned = node_to_interned.get(&left);
-                let right_interned = node_to_interned.get(&right);
-
-                if let (Some(l), Some(r)) = (left_interned, right_interned) {
-                    // Both children processed, create or reuse pair
-                    let interned = match pair_to_interned.entry((*l, *r)) {
-                        Entry::Occupied(o) => *o.get(),
-                        Entry::Vacant(v) => {
-                            let new_node = new_allocator.new_pair(*l, *r)?;
-                            v.insert(new_node);
-                            pairs.push(new_node);
-                            new_node
-                        }
-                    };
-                    node_to_interned.insert(current, interned);
-                } else {
-                    // Need to process children first
-                    stack.push(current);
-                    if right_interned.is_none() {
-                        stack.push(right);
-                    }
-                    if left_interned.is_none() {
-                        stack.push(left);
-                    }
-                }
-            }
-        }
-    }
-
-    let root = node_to_interned[&node];
-    Ok(InternedTree {
-        allocator: new_allocator,
-        root,
-        atoms,
-        pairs,
-    })
-}
 
 #[cfg(test)]
 mod tests {
