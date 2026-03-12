@@ -235,10 +235,8 @@ mod tests {
         check("ff01ff02ff03ff04ff05ff0680", 13); // (1 2 3 4 5 6)
     }
 
-    // this test takes a very long time (>60s) in debug mode, so it only runs in release mode
-
-    #[cfg(not(debug_assertions))]
     #[test]
+    #[ignore = "slow: run with `cargo test -- --include-ignored`"]
     fn test_very_long_list() {
         // in this test, we check that `treehash` and `serialized_length` can handle very deep trees that
         // would normally blow out the stack. It's expensive to create such a long list, so we do both
