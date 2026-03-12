@@ -206,6 +206,9 @@ jobs:
   unit_tests:
     name: Unit tests
     runs-on: ${{ matrix.os }}
+    env:
+      CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS: true
+      CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS: true
     strategy:
       fail-fast: false
       matrix:
