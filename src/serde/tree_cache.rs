@@ -164,9 +164,8 @@ impl TreeCache {
         for idx in &self.stack {
             self.node_entries[*idx as usize].on_stack -= 1;
         }
-        #[cfg(not(debug_assertions))]
         for e in &self.node_entries {
-            assert_eq!(e.on_stack, 0);
+            debug_assert_eq!(e.on_stack, 0);
         }
 
         self.stack = st.stack;
