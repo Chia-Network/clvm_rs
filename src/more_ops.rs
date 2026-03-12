@@ -1290,6 +1290,43 @@ mod tests {
         }
     }
 
+    fn check_large_operand(
+        a: &mut Allocator,
+        op: fn(&mut Allocator, NodePtr, Cost, ClvmFlags) -> Response,
+        arg_size: u32,
+        num_args: u32,
+        flags: ClvmFlags,
+        expect: &Option<EvalErr>,
+    ) {
+        let mut atom = a.one();
+        let mut size = 1;
+        for _ in 0..arg_size {
+            size += size;
+            atom = a.new_concat(size, &[atom, atom]).expect("concat");
+        }
+        if size > 1000000 {
+            println!("atom size: {} MB", size / 1000000);
+        } else {
+            println!("atom size: {} kB", size / 1000);
+        }
+        println!("{num_args} arguments");
+
+        let mut args = a.nil();
+        for _ in 0..num_args {
+            args = a.new_pair(atom, args).expect("new_pair");
+        }
+        // in order to have a very large atom, you need to spend quite a lot of
+        // cost. 6 billion is a generous expected cost left (based on the 11
+        // billion limit)
+        let result = op(a, args, 6_000_000_000, flags);
+        if let Some(expect) = expect {
+            assert_eq!(result.unwrap_err(), *expect);
+        } else {
+            assert!(result.is_ok());
+            println!("cost: {}", result.unwrap().0);
+        }
+    }
+
     #[rstest]
     #[case::sha(op_sha256, 28, 11, None)]
     #[case::sha(op_sha256, 28, 12, Some(EvalErr::CostExceeded))]
@@ -1323,46 +1360,46 @@ mod tests {
     #[case::pubkey(op_pubkey_for_exp, 27, 1, None)]
     #[case::pubkey(op_pubkey_for_exp, 28, 1, Some(EvalErr::CostExceeded))]
     #[case::modpow(op_modpow, 27, 3, Some(EvalErr::CostExceeded))]
+    #[ignore = "slow: run with `cargo test -- --include-ignored`"]
     fn test_large_operand(
         #[case] op: fn(&mut Allocator, NodePtr, Cost, ClvmFlags) -> Response,
         #[case] arg_size: u32,
         #[case] num_args: u32,
         #[case] expect: Option<EvalErr>,
-        #[values(
-            ClvmFlags::empty(),
-            ClvmFlags::DISABLE_OP,
-            ClvmFlags::MALACHITE,
-            ClvmFlags::RELAXED_BLS
-        )]
-        flags: ClvmFlags,
     ) {
         let mut a = Allocator::new();
-        let mut atom = a.one();
-        let mut size = 1;
-        for _ in 0..arg_size {
-            size += size;
-            atom = a.new_concat(size, &[atom, atom]).expect("concat");
-        }
-        if size > 1000000 {
-            println!("atom size: {} MB", size / 1000000);
-        } else {
-            println!("atom size: {} kB", size / 1000);
-        }
-        println!("{num_args} arguments");
+        check_large_operand(&mut a, op, arg_size, num_args, ClvmFlags::empty(), &expect);
+    }
 
-        let mut args = a.nil();
-        for _ in 0..num_args {
-            args = a.new_pair(atom, args).expect("new_pair");
-        }
-        // in order to have a very large atom, you need to spend quite a lot of
-        // cost. 6 billion is a generous expected cost left (based on the 11
-        // billion limit)
-        let result = op(&mut a, args, 6_000_000_000, flags);
-        if let Some(expect) = expect {
-            assert_eq!(result.unwrap_err(), expect);
-        } else {
-            assert!(result.is_ok());
-            println!("cost: {}", result.unwrap().0);
+    // only op_div, op_divmod, op_mod, and op_modpow inspect flags.
+    // test those separately to avoid running all the flag-insensitive
+    // operators multiple times.
+    #[test]
+    #[ignore = "slow: run with `cargo test -- --include-ignored`"]
+    fn test_large_operand_with_flags() {
+        type Op = fn(&mut Allocator, NodePtr, Cost, ClvmFlags) -> Response;
+        #[allow(clippy::type_complexity)]
+        let cases: &[(&str, Op, u32, u32, ClvmFlags, Option<EvalErr>)] = &[
+            ("div", op_div, 9, 2, ClvmFlags::DISABLE_OP, None),
+            ("div", op_div, 9, 2, ClvmFlags::MALACHITE, None),
+            ("divmod", op_divmod, 9, 2, ClvmFlags::DISABLE_OP, None),
+            ("divmod", op_divmod, 9, 2, ClvmFlags::MALACHITE, None),
+            ("modulus", op_mod, 9, 2, ClvmFlags::DISABLE_OP, None),
+            ("modulus", op_mod, 9, 2, ClvmFlags::MALACHITE, None),
+            (
+                "modpow",
+                op_modpow,
+                27,
+                3,
+                ClvmFlags::MALACHITE,
+                Some(EvalErr::CostExceeded),
+            ),
+        ];
+
+        for &(name, op, arg_size, num_args, flags, ref expect) in cases {
+            println!("{name} (arg_size={arg_size}, num_args={num_args}, flags={flags:?})");
+            let mut a = Allocator::new();
+            check_large_operand(&mut a, op, arg_size, num_args, flags, expect);
         }
     }
 }
