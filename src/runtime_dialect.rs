@@ -48,7 +48,7 @@ impl Dialect for RuntimeDialect {
         if b.len() == 1
             && let Some(f) = self.f_lookup[b[0] as usize]
         {
-            return f(allocator, argument_list, max_cost);
+            return f(allocator, argument_list, max_cost, self.flags);
         }
         if self.flags.contains(ClvmFlags::NO_UNKNOWN_OPS) {
             Err(EvalErr::Unimplemented(o))?
