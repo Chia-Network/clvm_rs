@@ -2,6 +2,7 @@
 
 use clvm_fuzzing::build_args;
 use clvmr::allocator::{Allocator, NodePtr};
+use clvmr::chia_dialect::ClvmFlags;
 use clvmr::cost::Cost;
 use clvmr::more_ops::{
     op_add, op_ash, op_gr, op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply,
@@ -15,7 +16,7 @@ use num_traits::ToPrimitive;
 
 const MAX_COST: Cost = 6_000_000_000;
 
-type Opf = fn(&mut Allocator, NodePtr, Cost) -> Response;
+type Opf = fn(&mut Allocator, NodePtr, Cost, ClvmFlags) -> Response;
 
 fn check_op(
     op: Opf,
@@ -26,7 +27,7 @@ fn check_op(
 ) {
     let mut alloc = Allocator::new();
     let args = build_args(&mut alloc, &[a, b]);
-    let reduction = op(&mut alloc, args, MAX_COST).expect(name);
+    let reduction = op(&mut alloc, args, MAX_COST, ClvmFlags::empty()).expect(name);
     assert_eq!(
         alloc.number(reduction.1),
         reference(a, b),
@@ -56,7 +57,7 @@ fuzz_target!(|input: (Vec<u8>, Vec<u8>)| {
     // Unary
     let mut alloc = Allocator::new();
     let args = build_args(&mut alloc, &[&a]);
-    let reduction = op_lognot(&mut alloc, args, MAX_COST).expect("lognot");
+    let reduction = op_lognot(&mut alloc, args, MAX_COST, ClvmFlags::empty()).expect("lognot");
     assert_eq!(
         alloc.number(reduction.1),
         !&a,
@@ -69,7 +70,7 @@ fuzz_target!(|input: (Vec<u8>, Vec<u8>)| {
     // Arithmetic shift (signed)
     let mut alloc = Allocator::new();
     let args = build_args(&mut alloc, &[&a, &b]);
-    let clvm_result = op_ash(&mut alloc, args, MAX_COST);
+    let clvm_result = op_ash(&mut alloc, args, MAX_COST, ClvmFlags::empty());
     if let Some(shift) = valid_shift {
         let reduction = clvm_result.expect("ash");
         let expected: Number = if shift > 0 { &a << shift } else { &a >> -shift };
@@ -88,7 +89,7 @@ fuzz_target!(|input: (Vec<u8>, Vec<u8>)| {
     // Logical shift (unsigned)
     let mut alloc = Allocator::new();
     let args = build_args(&mut alloc, &[&a, &b]);
-    let clvm_result = op_lsh(&mut alloc, args, MAX_COST);
+    let clvm_result = op_lsh(&mut alloc, args, MAX_COST, ClvmFlags::empty());
     if let Some(shift) = valid_shift {
         let reduction = clvm_result.expect("lsh");
         // op_lsh interprets the first argument's atom bytes as unsigned

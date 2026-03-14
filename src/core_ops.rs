@@ -1,4 +1,5 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
+use crate::chia_dialect::ClvmFlags;
 use crate::cost::Cost;
 use crate::error::{EvalErr, Result};
 use crate::op_utils::{first, get_args, nilp, rest};
@@ -15,29 +16,29 @@ const LISTP_COST: Cost = 19;
 const EQ_BASE_COST: Cost = 117;
 const EQ_COST_PER_BYTE: Cost = 1;
 
-pub fn op_if(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+pub fn op_if(a: &mut Allocator, input: NodePtr, _max_cost: Cost, _flags: ClvmFlags) -> Response {
     let [cond, affirmative, negative] = get_args::<3>(a, input, "i")?;
     let chosen_node = if nilp(a, cond) { negative } else { affirmative };
     Ok(Reduction(IF_COST, chosen_node))
 }
 
-pub fn op_cons(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+pub fn op_cons(a: &mut Allocator, input: NodePtr, _max_cost: Cost, _flags: ClvmFlags) -> Response {
     let [n1, n2] = get_args::<2>(a, input, "c")?;
     let r = a.new_pair(n1, n2)?;
     Ok(Reduction(CONS_COST, r))
 }
 
-pub fn op_first(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+pub fn op_first(a: &mut Allocator, input: NodePtr, _max_cost: Cost, _flags: ClvmFlags) -> Response {
     let [n] = get_args::<1>(a, input, "f")?;
     Ok(Reduction(FIRST_COST, first(a, n)?))
 }
 
-pub fn op_rest(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+pub fn op_rest(a: &mut Allocator, input: NodePtr, _max_cost: Cost, _flags: ClvmFlags) -> Response {
     let [n] = get_args::<1>(a, input, "r")?;
     Ok(Reduction(REST_COST, rest(a, n)?))
 }
 
-pub fn op_listp(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+pub fn op_listp(a: &mut Allocator, input: NodePtr, _max_cost: Cost, _flags: ClvmFlags) -> Response {
     let [n] = get_args::<1>(a, input, "l")?;
     match a.sexp(n) {
         SExp::Pair(_, _) => Ok(Reduction(LISTP_COST, a.one())),
@@ -45,7 +46,7 @@ pub fn op_listp(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response 
     }
 }
 
-pub fn op_raise(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+pub fn op_raise(a: &mut Allocator, input: NodePtr, _max_cost: Cost, _flags: ClvmFlags) -> Response {
     // if given a single argument we should raise the single argument rather
     // than the full list of arguments. brun also used to behave this way.
     // if the single argument here is a pair then don't throw it unwrapped
@@ -70,7 +71,7 @@ fn ensure_atom(a: &Allocator, n: NodePtr, op: &str) -> Result<()> {
     }
 }
 
-pub fn op_eq(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
+pub fn op_eq(a: &mut Allocator, input: NodePtr, _max_cost: Cost, _flags: ClvmFlags) -> Response {
     let [s0, s1] = get_args::<2>(a, input, "=")?;
     ensure_atom(a, s0, "=")?;
     ensure_atom(a, s1, "=")?;

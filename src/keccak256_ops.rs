@@ -1,4 +1,5 @@
 use crate::allocator::{Allocator, NodePtr};
+use crate::chia_dialect::ClvmFlags;
 use crate::cost::Cost;
 use crate::cost::check_cost;
 use crate::op_utils::atom;
@@ -10,7 +11,12 @@ const KECCAK256_BASE_COST: Cost = 50;
 const KECCAK256_COST_PER_ARG: Cost = 160;
 const KECCAK256_COST_PER_BYTE: Cost = 2;
 
-pub fn op_keccak256(a: &mut Allocator, mut input: NodePtr, max_cost: Cost) -> Response {
+pub fn op_keccak256(
+    a: &mut Allocator,
+    mut input: NodePtr,
+    max_cost: Cost,
+    _flags: ClvmFlags,
+) -> Response {
     let mut cost = KECCAK256_BASE_COST;
 
     let mut byte_count: usize = 0;

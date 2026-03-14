@@ -6,6 +6,7 @@ use crate::bls_ops::{
     op_bls_g2_negate, op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
     op_bls_pairing_identity, op_bls_verify,
 };
+use crate::chia_dialect::ClvmFlags;
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
 use crate::more_ops::{
@@ -16,7 +17,7 @@ use crate::more_ops::{
 use crate::reduction::Response;
 use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
 
-type OpFn = fn(&mut Allocator, NodePtr, Cost) -> Response;
+type OpFn = fn(&mut Allocator, NodePtr, Cost, ClvmFlags) -> Response;
 
 pub type FLookup = [Option<OpFn>; 256];
 

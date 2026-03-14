@@ -1,17 +1,16 @@
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::bls_ops::{
-    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_negate_strict, op_bls_g1_subtract,
-    op_bls_g2_add, op_bls_g2_multiply, op_bls_g2_negate, op_bls_g2_negate_strict,
-    op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2, op_bls_pairing_identity, op_bls_verify,
+    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
+    op_bls_g2_negate, op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
+    op_bls_pairing_identity, op_bls_verify,
 };
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
 use crate::keccak256_ops::op_keccak256;
 use crate::more_ops::{
-    op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_div_malachite, op_divmod,
-    op_divmod_malachite, op_gr, op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh,
-    op_mod, op_mod_malachite, op_modpow, op_modpow_malachite, op_multiply, op_not, op_point_add,
-    op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
+    op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
+    op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not,
+    op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
 };
 use crate::number::Number;
 use crate::reduction::{Reduction, Response};
@@ -209,9 +208,10 @@ pub fn node_eq(allocator: &Allocator, s1: NodePtr, s2: NodePtr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::chia_dialect::ClvmFlags;
 
     #[cfg(feature = "pre-eval")]
-    use crate::chia_dialect::{ChiaDialect, ClvmFlags};
+    use crate::chia_dialect::ChiaDialect;
 
     #[cfg(feature = "pre-eval")]
     use crate::run_program::run_program_with_pre_eval;
@@ -229,17 +229,35 @@ mod tests {
 
     use rstest::rstest;
 
-    type Opf = fn(&mut Allocator, NodePtr, Cost) -> Response;
+    type Opf = fn(&mut Allocator, NodePtr, Cost, ClvmFlags) -> Response;
+
+    fn op_bls_g1_negate_relaxed(
+        a: &mut Allocator,
+        input: NodePtr,
+        max_cost: Cost,
+        flags: ClvmFlags,
+    ) -> Response {
+        op_bls_g1_negate(a, input, max_cost, flags | ClvmFlags::RELAXED_BLS)
+    }
+
+    fn op_bls_g2_negate_relaxed(
+        a: &mut Allocator,
+        input: NodePtr,
+        max_cost: Cost,
+        flags: ClvmFlags,
+    ) -> Response {
+        op_bls_g2_negate(a, input, max_cost, flags | ClvmFlags::RELAXED_BLS)
+    }
 
     // the input is a list of test cases, each item is a tuple of:
     // (function pointer to test, list of arguments, optional result)
     // if the result is None, the call is expected to fail
-    fn run_op_test(op: &Opf, args_str: &str, expected: &str, expected_cost: u64) {
+    fn run_op_test(op: &Opf, args_str: &str, expected: &str, expected_cost: u64, flags: ClvmFlags) {
         let mut a = Allocator::new();
 
         let (args, rest) = parse_list(&mut a, args_str);
         assert_eq!(rest, "");
-        let result = op(&mut a, args, 10000000000 as Cost);
+        let result = op(&mut a, args, 10000000000 as Cost, flags);
         match result {
             Err(e) => {
                 println!("Error: {e}");
@@ -279,8 +297,13 @@ mod tests {
         use std::fs::read_to_string;
 
         let filename = format!("op-tests/{filename}.txt");
+        let flags = if malachite {
+            ClvmFlags::MALACHITE
+        } else {
+            ClvmFlags::empty()
+        };
 
-        let mut funs = HashMap::from([
+        let funs = HashMap::from([
             ("i", op_if as Opf),
             ("c", op_cons as Opf),
             ("f", op_first as Opf),
@@ -311,18 +334,17 @@ mod tests {
             ("not", op_not as Opf),
             ("any", op_any as Opf),
             ("all", op_all as Opf),
-            //the BLS extension
             ("coinid", op_coinid as Opf),
             ("g1_add", op_point_add as Opf),
             ("g1_subtract", op_bls_g1_subtract as Opf),
             ("g1_multiply", op_bls_g1_multiply as Opf),
-            ("g1_negate", op_bls_g1_negate as Opf),
-            ("g1_negate_strict", op_bls_g1_negate_strict as Opf),
+            ("g1_negate", op_bls_g1_negate_relaxed as Opf),
+            ("g1_negate_strict", op_bls_g1_negate as Opf),
             ("g2_add", op_bls_g2_add as Opf),
             ("g2_subtract", op_bls_g2_subtract as Opf),
             ("g2_multiply", op_bls_g2_multiply as Opf),
-            ("g2_negate", op_bls_g2_negate as Opf),
-            ("g2_negate_strict", op_bls_g2_negate_strict as Opf),
+            ("g2_negate", op_bls_g2_negate_relaxed as Opf),
+            ("g2_negate_strict", op_bls_g2_negate as Opf),
             ("g1_map", op_bls_map_to_g1 as Opf),
             ("g2_map", op_bls_map_to_g2 as Opf),
             ("bls_pairing_identity", op_bls_pairing_identity as Opf),
@@ -333,16 +355,8 @@ mod tests {
             ("secp256r1_verify_65", op_secp256r1_verify as Opf),
             ("modpow", op_modpow as Opf),
             ("keccak256", op_keccak256 as Opf),
-            // 3.0 hard fork
             ("sha256tree", op_sha256_tree as Opf),
         ]);
-
-        if malachite {
-            funs.insert("/", op_div_malachite as Opf);
-            funs.insert("divmod", op_divmod_malachite as Opf);
-            funs.insert("%", op_mod_malachite as Opf);
-            funs.insert("modpow", op_modpow_malachite as Opf);
-        }
 
         println!("Test cases from: {filename}");
         let test_cases = read_to_string(filename).expect("test file not found");
@@ -372,6 +386,7 @@ mod tests {
                 args.trim(),
                 expected.trim(),
                 expected_cost.trim().parse().unwrap(),
+                flags,
             );
         }
     }
@@ -381,7 +396,7 @@ mod tests {
         let mut allocator = Allocator::new();
         let a1 = allocator.new_atom(&[65]).unwrap();
         let args = allocator.new_pair(a1, allocator.nil()).unwrap();
-        let result = op_raise(&mut allocator, args, 100000);
+        let result = op_raise(&mut allocator, args, 100000, ClvmFlags::empty());
         assert_eq!(result.unwrap_err(), EvalErr::Raise(a1));
     }
 
@@ -396,7 +411,7 @@ mod tests {
         args = allocator.new_pair(a1, args).unwrap();
         // ((a1 a2))
         args = allocator.new_pair(args, allocator.nil()).unwrap();
-        let result = op_raise(&mut allocator, args, 100000);
+        let result = op_raise(&mut allocator, args, 100000, ClvmFlags::empty());
         assert_eq!(result.unwrap_err(), EvalErr::Raise(args));
     }
 
@@ -409,7 +424,7 @@ mod tests {
         let mut args = allocator.new_pair(a2, allocator.nil()).unwrap();
         // (a1 a2)
         args = allocator.new_pair(a1, args).unwrap();
-        let result = op_raise(&mut allocator, args, 100000);
+        let result = op_raise(&mut allocator, args, 100000, ClvmFlags::empty());
         assert_eq!(result.unwrap_err(), EvalErr::Raise(args));
     }
 

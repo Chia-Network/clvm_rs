@@ -1,8 +1,8 @@
 use crate::allocator::{Allocator, NodePtr};
 use crate::bls_ops::{
-    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_negate_strict, op_bls_g1_subtract,
-    op_bls_g2_add, op_bls_g2_multiply, op_bls_g2_negate, op_bls_g2_negate_strict,
-    op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2, op_bls_pairing_identity, op_bls_verify,
+    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
+    op_bls_g2_negate, op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
+    op_bls_pairing_identity, op_bls_verify,
 };
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
@@ -10,12 +10,9 @@ use crate::dialect::{Dialect, OperatorSet};
 use crate::error::EvalErr;
 use crate::keccak256_ops::op_keccak256;
 use crate::more_ops::{
-    op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_div_limit,
-    op_div_limit_malachite, op_div_malachite, op_divmod, op_divmod_limit,
-    op_divmod_limit_malachite, op_divmod_malachite, op_gr, op_gr_bytes, op_logand, op_logior,
-    op_lognot, op_logxor, op_lsh, op_mod, op_mod_limit, op_mod_limit_malachite, op_mod_malachite,
-    op_modpow, op_modpow_malachite, op_multiply, op_not, op_point_add, op_pubkey_for_exp,
-    op_sha256, op_strlen, op_substr, op_subtract, op_unknown,
+    op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
+    op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not,
+    op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract, op_unknown,
 };
 use crate::reduction::Response;
 use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
@@ -149,7 +146,7 @@ impl Dialect for ChiaDialect {
                     return unknown_operator(allocator, o, argument_list, flags, max_cost);
                 }
             };
-            return f(allocator, argument_list, max_cost);
+            return f(allocator, argument_list, max_cost, flags);
         }
         if op_len != 1 {
             return unknown_operator(allocator, o, argument_list, flags, max_cost);
@@ -176,24 +173,8 @@ impl Dialect for ChiaDialect {
             16 => op_add,
             17 => op_subtract,
             18 => op_multiply,
-            19 => match (
-                flags.contains(ClvmFlags::DISABLE_OP),
-                flags.contains(ClvmFlags::MALACHITE),
-            ) {
-                (true, true) => op_div_limit_malachite,
-                (true, false) => op_div_limit,
-                (false, true) => op_div_malachite,
-                (false, false) => op_div,
-            },
-            20 => match (
-                flags.contains(ClvmFlags::DISABLE_OP),
-                flags.contains(ClvmFlags::MALACHITE),
-            ) {
-                (true, true) => op_divmod_limit_malachite,
-                (true, false) => op_divmod_limit,
-                (false, true) => op_divmod_malachite,
-                (false, false) => op_divmod,
-            },
+            19 => op_div,
+            20 => op_divmod,
             21 => op_gr,
             22 => op_ash,
             23 => op_lsh,
@@ -213,13 +194,11 @@ impl Dialect for ChiaDialect {
             48 => op_coinid,
             49 => op_bls_g1_subtract,
             50 => op_bls_g1_multiply,
-            51 if flags.contains(ClvmFlags::RELAXED_BLS) => op_bls_g1_negate,
-            51 if !flags.contains(ClvmFlags::RELAXED_BLS) => op_bls_g1_negate_strict,
+            51 => op_bls_g1_negate,
             52 => op_bls_g2_add,
             53 => op_bls_g2_subtract,
             54 => op_bls_g2_multiply,
-            55 if flags.contains(ClvmFlags::RELAXED_BLS) => op_bls_g2_negate,
-            55 if !flags.contains(ClvmFlags::RELAXED_BLS) => op_bls_g2_negate_strict,
+            55 => op_bls_g2_negate,
             56 => op_bls_map_to_g1,
             57 => op_bls_map_to_g2,
             58 => op_bls_pairing_identity,
@@ -227,21 +206,10 @@ impl Dialect for ChiaDialect {
             60 => {
                 if flags.contains(ClvmFlags::DISABLE_OP) {
                     return Err(EvalErr::Unimplemented(o))?;
-                } else if flags.contains(ClvmFlags::MALACHITE) {
-                    op_modpow_malachite
-                } else {
-                    op_modpow
                 }
+                op_modpow
             }
-            61 => match (
-                flags.contains(ClvmFlags::DISABLE_OP),
-                flags.contains(ClvmFlags::MALACHITE),
-            ) {
-                (true, true) => op_mod_limit_malachite,
-                (true, false) => op_mod_limit,
-                (false, true) => op_mod_malachite,
-                (false, false) => op_mod,
-            },
+            61 => op_mod,
             62 if flags.contains(ClvmFlags::ENABLE_KECCAK_OPS_OUTSIDE_GUARD) => op_keccak256,
             63 if flags.contains(ClvmFlags::ENABLE_SHA256_TREE) => op_sha256_tree,
             64 if flags.contains(ClvmFlags::ENABLE_SECP_OPS) => op_secp256k1_verify,
@@ -250,7 +218,7 @@ impl Dialect for ChiaDialect {
                 return unknown_operator(allocator, o, argument_list, flags, max_cost);
             }
         };
-        f(allocator, argument_list, max_cost)
+        f(allocator, argument_list, max_cost, flags)
     }
 
     fn quote_kw(&self) -> u32 {
