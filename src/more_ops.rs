@@ -566,7 +566,7 @@ pub fn op_multiply(
     a: &mut Allocator,
     mut input: NodePtr,
     max_cost: Cost,
-    _flags: ClvmFlags,
+    flags: ClvmFlags,
 ) -> Response {
     let mut cost: Cost = MUL_BASE_COST;
     let mut first_iter: bool = true;
@@ -576,6 +576,9 @@ pub fn op_multiply(
         input = rest;
         if first_iter {
             (total, l0) = int_atom(a, arg, "*")?;
+            if flags.contains(ClvmFlags::LIMITS) && l0 > 256 {
+                return Err(EvalErr::InvalidOpArg(arg, "*".to_string()));
+            }
             first_iter = false;
             continue;
         }
@@ -584,6 +587,9 @@ pub fn op_multiply(
         match a.node(arg) {
             NodeVisitor::Buffer(buf) => {
                 let l1 = buf.len() as u64;
+                if flags.contains(ClvmFlags::LIMITS) && l1 > 256 {
+                    return Err(EvalErr::InvalidOpArg(arg, "*".to_string()));
+                }
                 cost += (l0 as Cost + l1) * MUL_LINEAR_COST_PER_BYTE;
                 cost += (l0 as Cost * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
                 check_cost(cost, max_cost)?;
@@ -622,6 +628,9 @@ pub fn op_div(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlag
     if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
         return Err(EvalErr::InvalidOpArg(input, "div".to_string()));
     }
+    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
+        return Err(EvalErr::InvalidOpArg(input, "div".to_string()));
+    }
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
     if a1.sign() == Sign::NoSign {
@@ -644,6 +653,9 @@ fn op_div_malachite(
     if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
         return Err(EvalErr::InvalidOpArg(input, "div".to_string()));
     }
+    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
+        return Err(EvalErr::InvalidOpArg(input, "div".to_string()));
+    }
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
     if a1.sign() == malachite_bigint::Sign::NoSign {
@@ -662,6 +674,9 @@ pub fn op_divmod(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmF
     let (a0, a0_len) = int_atom(a, v0, "divmod")?;
     let (a1, a1_len) = int_atom(a, v1, "divmod")?;
     if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
+        return Err(EvalErr::InvalidOpArg(input, "divmod".to_string()));
+    }
+    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
         return Err(EvalErr::InvalidOpArg(input, "divmod".to_string()));
     }
     let cost = DIVMOD_BASE_COST + ((a0_len + a1_len) as Cost) * DIVMOD_COST_PER_BYTE;
@@ -690,6 +705,9 @@ fn op_divmod_malachite(
     if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
         return Err(EvalErr::InvalidOpArg(input, "divmod".to_string()));
     }
+    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
+        return Err(EvalErr::InvalidOpArg(input, "divmod".to_string()));
+    }
     let cost = DIVMOD_BASE_COST + ((a0_len + a1_len) as Cost) * DIVMOD_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
     if a1.sign() == malachite_bigint::Sign::NoSign {
@@ -714,6 +732,9 @@ pub fn op_mod(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlag
     if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
         return Err(EvalErr::InvalidOpArg(input, "mod".to_string()));
     }
+    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
+        return Err(EvalErr::InvalidOpArg(input, "mod".to_string()));
+    }
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
     if a1.sign() == Sign::NoSign {
@@ -734,6 +755,9 @@ fn op_mod_malachite(
     let (a0, a0_len) = malachite_int_atom(a, v0, "mod")?;
     let (a1, a1_len) = malachite_int_atom(a, v1, "mod")?;
     if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
+        return Err(EvalErr::InvalidOpArg(input, "mod".to_string()));
+    }
+    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
         return Err(EvalErr::InvalidOpArg(input, "mod".to_string()));
     }
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
