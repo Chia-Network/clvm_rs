@@ -41,6 +41,9 @@ bitflags! {
         /// Hard-fork; enable only when it activates.
         const RELAXED_BLS = 0x0008;
 
+        /// some limits for mempool mode
+        const LIMITS = 0x0010;
+
         /// Enables the keccak256 op *outside* the softfork guard. Hard-fork;
         /// enable only when it activates.
         const ENABLE_KECCAK_OPS_OUTSIDE_GUARD = 0x0100;
@@ -65,7 +68,8 @@ bitflags! {
 pub const MEMPOOL_MODE: ClvmFlags = ClvmFlags::NO_UNKNOWN_OPS
     .union(ClvmFlags::LIMIT_HEAP)
     .union(ClvmFlags::DISABLE_OP)
-    .union(ClvmFlags::CANONICAL_INTS);
+    .union(ClvmFlags::CANONICAL_INTS)
+    .union(ClvmFlags::LIMITS);
 
 fn unknown_operator(
     allocator: &mut Allocator,

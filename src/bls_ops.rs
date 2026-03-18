@@ -81,7 +81,7 @@ pub fn op_bls_g1_multiply(
     a: &mut Allocator,
     input: NodePtr,
     max_cost: Cost,
-    _flags: ClvmFlags,
+    flags: ClvmFlags,
 ) -> Response {
     let [point, scalar] = get_args::<2>(a, input, "g1_multiply")?;
 
@@ -90,6 +90,9 @@ pub fn op_bls_g1_multiply(
 
     let mut total = a.g1(point)?;
     let (scalar, scalar_len) = int_atom(a, scalar, "g1_multiply")?;
+    if flags.contains(ClvmFlags::LIMITS) && scalar_len > 1024 {
+        return Err(EvalErr::InvalidOpArg(input, "g1_multiply".to_string()));
+    }
     cost += scalar_len as Cost * BLS_G1_MULTIPLY_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
 
@@ -188,7 +191,7 @@ pub fn op_bls_g2_multiply(
     a: &mut Allocator,
     input: NodePtr,
     max_cost: Cost,
-    _flags: ClvmFlags,
+    flags: ClvmFlags,
 ) -> Response {
     let [point, scalar] = get_args::<2>(a, input, "g2_multiply")?;
 
@@ -197,6 +200,9 @@ pub fn op_bls_g2_multiply(
 
     let mut total = a.g2(point)?;
     let (scalar, scalar_len) = int_atom(a, scalar, "g2_multiply")?;
+    if flags.contains(ClvmFlags::LIMITS) && scalar_len > 1024 {
+        return Err(EvalErr::InvalidOpArg(input, "g2_multiply".to_string()));
+    }
     cost += scalar_len as Cost * BLS_G2_MULTIPLY_COST_PER_BYTE;
     check_cost(cost, max_cost)?;
 
