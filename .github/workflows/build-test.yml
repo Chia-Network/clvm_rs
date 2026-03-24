@@ -195,11 +195,6 @@ jobs:
           cargo clippy
       - name: cargo-fuzz
         run: cargo install cargo-fuzz
-      # TODO: it would be nice to save and restore the corpus between runs
-      - name: build corpus
-        run: |
-          cd tools
-          cargo run --bin generate-fuzz-corpus
       - name: build
         run: cargo +nightly fuzz list | xargs -I "%" sh -c "cargo +nightly fuzz run % -- -max_total_time=30 || exit 255"
 
