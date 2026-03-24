@@ -742,11 +742,15 @@ impl Allocator {
     }
 
     pub fn new_g1(&mut self, g1: G1Element) -> Result<NodePtr> {
-        self.new_atom(&g1.to_bytes())
+        let bytes = g1.to_bytes();
+        self.validated_g1_points.insert(bytes);
+        self.new_atom(&bytes)
     }
 
     pub fn new_g2(&mut self, g2: G2Element) -> Result<NodePtr> {
-        self.new_atom(&g2.to_bytes())
+        let bytes = g2.to_bytes();
+        self.validated_g2_points.insert(bytes);
+        self.new_atom(&bytes)
     }
 
     pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr> {
@@ -1273,6 +1277,14 @@ impl Allocator {
             self.validated_g2_points.insert(bytes);
         }
         Ok(())
+    }
+
+    pub fn add_validated_g1(&mut self, bytes: [u8; 48]) {
+        self.validated_g1_points.insert(bytes);
+    }
+
+    pub fn add_validated_g2(&mut self, bytes: [u8; 96]) {
+        self.validated_g2_points.insert(bytes);
     }
 
     pub fn clear_validation_caches(&mut self) {
