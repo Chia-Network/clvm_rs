@@ -192,7 +192,7 @@ type EnvFn = fn(&mut Allocator) -> NodePtr;
 
 fn run_program_benchmark(c: &mut Criterion) {
     let mut a = Allocator::new();
-    let dialect = ChiaDialect::new(ClvmFlags::empty());
+    let dialect = ChiaDialect::new(ClvmFlags::ENABLE_GC);
 
     let test_case_checkpoint = a.checkpoint();
 
