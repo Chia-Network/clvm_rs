@@ -202,8 +202,13 @@ jobs:
           key: fuzz-corpus-${{ matrix.os }}-${{ hashFiles('fuzz/fuzz_targets/**/*.rs') }}
           restore-keys: |
             fuzz-corpus-${{ matrix.os }}-
+      - name: Build all fuzz targets
+        run: cargo +nightly fuzz build
       - name: Run fuzz targets
-        run: cargo +nightly fuzz list | xargs -I "%" sh -c "cargo +nightly fuzz run % -- -max_total_time=30 || exit 255"
+        run: |
+          for target in $(cargo +nightly fuzz list); do
+            cargo +nightly fuzz run "$target" -- -max_total_time=30 || exit 1
+          done
       - name: Save fuzz corpus
         uses: actions/cache/save@v4
         if: always()
