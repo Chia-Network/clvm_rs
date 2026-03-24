@@ -613,6 +613,9 @@ pub fn op_multiply(
             }
         }
         l0 = limbs_for_int(&total);
+        if flags.contains(ClvmFlags::LIMITS) && l0 > 1024 {
+            return Err(EvalErr::InvalidOpArg(arg, "*".to_string()));
+        }
     }
     let total = a.new_number(total)?;
     Ok(malloc_cost(a, cost, total))
