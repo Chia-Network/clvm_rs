@@ -1111,6 +1111,14 @@ impl Allocator {
         Ok(())
     }
 
+    pub fn add_validated_g1(&mut self, bytes: [u8; 48]) {
+        self.validated_g1_points.insert(bytes);
+    }
+
+    pub fn add_validated_g2(&mut self, bytes: [u8; 96]) {
+        self.validated_g2_points.insert(bytes);
+    }
+
     pub fn clear_validation_caches(&mut self) {
         self.validated_g1_points.clear();
         self.validated_g2_points.clear();

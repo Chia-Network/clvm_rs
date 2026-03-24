@@ -133,6 +133,9 @@ pub fn op_bls_g1_negate(
         ))
     } else {
         blob[0] ^= 0x20;
+        if strict {
+            a.add_validated_g1(blob);
+        }
         new_atom_and_cost(a, BLS_G1_NEGATE_BASE_COST, &blob)
     }
 }
@@ -243,6 +246,9 @@ pub fn op_bls_g2_negate(
         ))
     } else {
         blob[0] ^= 0x20;
+        if strict {
+            a.add_validated_g2(blob);
+        }
         new_atom_and_cost(a, BLS_G2_NEGATE_BASE_COST, &blob)
     }
 }
