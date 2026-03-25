@@ -1,8 +1,8 @@
 //! Tests for the 2026 serialization format.
 
 use super::{
-    deserialize_2026, node_from_bytes_auto, node_to_bytes_serde_2026,
-    node_to_bytes_serde_2026_raw, serialize_2026, MAGIC_PREFIX,
+    MAGIC_PREFIX, deserialize_2026, node_from_bytes_auto, node_to_bytes_serde_2026,
+    node_to_bytes_serde_2026_raw, serialize_2026,
 };
 use crate::allocator::{Allocator, SExp};
 use crate::serde::{node_from_bytes_backrefs, node_to_bytes};
@@ -272,7 +272,11 @@ fn test_round_trip_from_legacy(#[case] hex: &str) {
     let deserialized = deserialize_2026(&mut new_allocator, &serialized, None).unwrap();
     let round_trip_canonical = node_to_bytes(&new_allocator, deserialized).unwrap();
 
-    assert_eq!(canonical, round_trip_canonical, "Round-trip mismatch for hex: {}", hex);
+    assert_eq!(
+        canonical, round_trip_canonical,
+        "Round-trip mismatch for hex: {}",
+        hex
+    );
 }
 
 #[test]
@@ -291,17 +295,17 @@ fn test_nil_roundtrip() {
 fn test_round_trip_double() {
     // Serialize -> deserialize -> serialize again -> deserialize again; both final forms must match.
     let mut allocator = Allocator::new();
-    let node = node_from_bytes_backrefs(
-        &mut allocator,
-        &Vec::from_hex("ff01ff02ff0300").unwrap(),
-    )
-    .unwrap();
+    let node = node_from_bytes_backrefs(&mut allocator, &Vec::from_hex("ff01ff02ff0300").unwrap())
+        .unwrap();
 
     let serialized1 = serialize_2026(&allocator, node).unwrap();
     let mut allocator2 = Allocator::new();
     let node2 = deserialize_2026(&mut allocator2, &serialized1, None).unwrap();
     let serialized2 = serialize_2026(&allocator2, node2).unwrap();
-    assert_eq!(serialized1, serialized2, "Double round-trip should produce identical bytes");
+    assert_eq!(
+        serialized1, serialized2,
+        "Double round-trip should produce identical bytes"
+    );
 }
 
 #[test]
@@ -350,7 +354,11 @@ fn test_round_trip_intern_structures(#[case] hex: &str) {
     let deserialized = deserialize_2026(&mut new_allocator, &serialized, None).unwrap();
     let round_trip_canonical = node_to_bytes(&new_allocator, deserialized).unwrap();
 
-    assert_eq!(canonical, round_trip_canonical, "Round-trip mismatch for hex: {}", hex);
+    assert_eq!(
+        canonical, round_trip_canonical,
+        "Round-trip mismatch for hex: {}",
+        hex
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -359,9 +367,7 @@ fn test_round_trip_intern_structures(#[case] hex: &str) {
 
 #[test]
 fn test_magic_prefix_value() {
-    // The magic prefix is the classic-CLVM serialization of (20 . 26).
-    // 0xff = pair marker, 0x14 = atom 20, 0x1a = atom 26.
-    assert_eq!(MAGIC_PREFIX, [0xff, 0x14, 0x1a]);
+    assert_eq!(MAGIC_PREFIX, [0xfd, 0xff, b'2', b'0', b'2', b'6']);
 }
 
 #[test]
@@ -410,19 +416,31 @@ fn check_auto(node_alloc: &Allocator, n: crate::allocator::NodePtr) {
     // classic input
     let mut a = Allocator::new();
     let decoded = node_from_bytes_auto(&mut a, &classic).unwrap();
-    assert_eq!(node_to_bytes(&a, decoded).unwrap(), classic, "classic round-trip via auto");
+    assert_eq!(
+        node_to_bytes(&a, decoded).unwrap(),
+        classic,
+        "classic round-trip via auto"
+    );
 
     // backrefs input (superset of classic)
     let backrefs = crate::serde::node_to_bytes_backrefs(node_alloc, n).unwrap();
     let mut a2 = Allocator::new();
     let decoded2 = node_from_bytes_auto(&mut a2, &backrefs).unwrap();
-    assert_eq!(node_to_bytes(&a2, decoded2).unwrap(), classic, "backrefs round-trip via auto");
+    assert_eq!(
+        node_to_bytes(&a2, decoded2).unwrap(),
+        classic,
+        "backrefs round-trip via auto"
+    );
 
     // serde_2026 prefixed input
     let prefixed = node_to_bytes_serde_2026(node_alloc, n).unwrap();
     let mut a3 = Allocator::new();
     let decoded3 = node_from_bytes_auto(&mut a3, &prefixed).unwrap();
-    assert_eq!(node_to_bytes(&a3, decoded3).unwrap(), classic, "serde_2026 round-trip via auto");
+    assert_eq!(
+        node_to_bytes(&a3, decoded3).unwrap(),
+        classic,
+        "serde_2026 round-trip via auto"
+    );
 }
 
 #[test]
@@ -490,6 +508,19 @@ fn test_auto_detect_serde_2026_prefixed() {
     let mut a2 = Allocator::new();
     let decoded = node_from_bytes_auto(&mut a2, &prefixed).unwrap();
     assert_eq!(a2.atom(decoded).as_ref(), b"serde2026");
+}
+
+#[test]
+fn test_legacy_backrefs_decoder_rejects_prefixed_2026() {
+    let mut allocator = Allocator::new();
+    let node = allocator.new_atom(b"hello").unwrap();
+    let prefixed = node_to_bytes_serde_2026(&allocator, node).unwrap();
+
+    let mut a2 = Allocator::new();
+    assert!(
+        node_from_bytes_backrefs(&mut a2, &prefixed).is_err(),
+        "legacy/backrefs decode path should fail fast on serde_2026 magic"
+    );
 }
 
 #[test]

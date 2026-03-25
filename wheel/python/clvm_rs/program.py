@@ -19,9 +19,10 @@ from .replace import replace
 from .ser import sexp_from_stream, sexp_to_stream, sexp_to_bytes
 from .tree_hash import sha256_treehash
 
-# Serialized form of the CLVM value (20 . 26) — used as the serde_2026 magic
-# prefix.  Classic encoding: 0xff (pair), 0x14 (atom 20), 0x1a (atom 26).
-_SERDE_2026_MAGIC = b"\xff\x14\x1a"
+# serde_2026 wire-format magic prefix:
+# 0xfd 0xff forces legacy/backrefs decoders to fail fast;
+# "2026" keeps hexdumps readable.
+_SERDE_2026_MAGIC = b"\xfd\xff2026"
 
 
 
@@ -46,6 +47,18 @@ class Program(CLVMStorage):
 
     @classmethod
     def from_bytes(cls, blob: bytes, calculate_tree_hash: bool = True) -> Program:
+        """Deserialize from any CLVM format (classic, backrefs, or serde_2026).
+
+        This is the recommended entry point for byte blobs in Python.
+        The ``calculate_tree_hash`` parameter is kept for API compatibility.
+        """
+        return cls.wrap(deser_auto(blob))
+
+    @classmethod
+    def from_bytes_legacy(
+        cls, blob: bytes, calculate_tree_hash: bool = True
+    ) -> Program:
+        """Deserialize using the legacy Python parser only."""
         obj, cursor = cls.from_bytes_with_cursor(
             blob, 0, calculate_tree_hash=calculate_tree_hash
         )
@@ -66,10 +79,10 @@ class Program(CLVMStorage):
     def from_bytes_auto(cls, blob: bytes) -> "Program":
         """Deserialize from any CLVM format (classic, backrefs, or serde_2026).
 
-        Auto-detects by inspecting the first three bytes: if they are the
-        serde_2026 magic prefix ``ff 14 1a``, the serde_2026 decoder is used;
+        Auto-detects by inspecting the first bytes: if they are the
+        serde_2026 magic prefix ``fd ff 32 30 32 36``, the serde_2026 decoder is used;
         otherwise the backrefs decoder is used (which also handles plain classic
-        format).  This is the recommended entry point for new code.
+        format).  ``Program.from_bytes`` delegates here and is preferred.
         """
         return cls.wrap(deser_auto(blob))
 
@@ -77,18 +90,18 @@ class Program(CLVMStorage):
     def from_bytes_serde_2026(cls, blob: bytes) -> "Program":
         """Deserialize from serde_2026 format.
 
-        The blob must begin with the three-byte magic prefix ``ff 14 1a``
-        (the serialization of the CLVM pair ``(20 . 26)``).  Use
+        The blob must begin with the six-byte magic prefix
+        ``fd ff 32 30 32 36``. Use
         ``to_bytes_serde_2026`` to produce compatible output.
         """
         if not blob.startswith(_SERDE_2026_MAGIC):
             raise ValueError(
-                "missing serde_2026 magic prefix (expected first bytes ff 14 1a)"
+                "missing serde_2026 magic prefix (expected first bytes fd ff 32 30 32 36)"
             )
         return cls.wrap(deser_2026(blob[len(_SERDE_2026_MAGIC):]))
 
     def to_bytes_serde_2026(self) -> bytes:
-        """Serialize to serde_2026 format with the ``ff 14 1a`` magic prefix.
+        """Serialize to serde_2026 format with the ``fd ff 32 30 32 36`` magic prefix.
 
         Use ``from_bytes_auto`` or ``from_bytes_serde_2026`` to deserialize the
         result.  The returned bytes are suitable for storage or transmission
