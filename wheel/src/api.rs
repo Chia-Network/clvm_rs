@@ -117,7 +117,8 @@ fn deser_2026(blob: &[u8]) -> PyResult<LazyNode> {
 }
 
 /// Deserialize CLVM bytes, auto-detecting the format (classic, backrefs, or
-/// serde_2026).  If the blob starts with the magic prefix `ff 14 1a`, it is
+/// serde_2026).  If the blob starts with the magic prefix
+/// `fd ff 32 30 32 36`, it is
 /// treated as serde_2026; otherwise the backrefs deserializer is used (which
 /// also handles plain classic format).
 #[pyfunction]
@@ -130,29 +131,29 @@ fn deser_auto(blob: &[u8]) -> PyResult<LazyNode> {
 // --- Serialize functions: LazyNode -> bytes ---
 
 #[pyfunction]
-fn ser_legacy(py: Python, node: &LazyNode) -> PyResult<PyObject> {
+fn ser_legacy(py: Python, node: &LazyNode) -> PyResult<Py<PyBytes>> {
     let bytes = node_to_bytes(node.allocator(), node.node()).map_err(eval_to_py)?;
-    Ok(PyBytes::new_bound(py, &bytes).into())
+    Ok(PyBytes::new(py, &bytes).unbind())
 }
 
 #[pyfunction]
-fn ser_backrefs(py: Python, node: &LazyNode) -> PyResult<PyObject> {
+fn ser_backrefs(py: Python, node: &LazyNode) -> PyResult<Py<PyBytes>> {
     let bytes = node_to_bytes_backrefs(node.allocator(), node.node()).map_err(eval_to_py)?;
-    Ok(PyBytes::new_bound(py, &bytes).into())
+    Ok(PyBytes::new(py, &bytes).unbind())
 }
 
 #[pyfunction]
-fn ser_2026(py: Python, node: &LazyNode) -> PyResult<PyObject> {
+fn ser_2026(py: Python, node: &LazyNode) -> PyResult<Py<PyBytes>> {
     let bytes = serialize_2026(node.allocator(), node.node()).map_err(eval_to_py)?;
-    Ok(PyBytes::new_bound(py, &bytes).into())
+    Ok(PyBytes::new(py, &bytes).unbind())
 }
 
-/// Serialize to serde_2026 format **with** the `ff 14 1a` magic prefix.
+/// Serialize to serde_2026 format **with** the `fd ff 32 30 32 36` magic prefix.
 /// Use `deser_auto` to deserialize the result.
 #[pyfunction]
-fn ser_2026_prefixed(py: Python, node: &LazyNode) -> PyResult<PyObject> {
+fn ser_2026_prefixed(py: Python, node: &LazyNode) -> PyResult<Py<PyBytes>> {
     let bytes = node_to_bytes_serde_2026(node.allocator(), node.node()).map_err(eval_to_py)?;
-    Ok(PyBytes::new_bound(py, &bytes).into())
+    Ok(PyBytes::new(py, &bytes).unbind())
 }
 
 #[pymodule]

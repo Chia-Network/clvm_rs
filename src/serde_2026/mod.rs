@@ -29,15 +29,17 @@ use std::io::{Cursor, Read, Write};
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::error::{EvalErr, Result};
 use crate::serde::intern;
-use crate::serde::{node_from_bytes_backrefs};
+use crate::serde::node_from_bytes_backrefs;
 
 use varint::{decode_varint, write_varint};
 
-/// Magic prefix bytes for serde_2026 format: the serialization of `(20 . 26)` in
-/// classic CLVM.  This is `0xff` (pair marker) followed by atom `20` (`0x14`) and
-/// atom `26` (`0x1a`).  No valid real-world CLVM generator starts with this
-/// sequence, so it is used as an unambiguous format discriminator.
-pub const MAGIC_PREFIX: [u8; 3] = [0xff, 0x14, 0x1a];
+/// Magic prefix bytes for serde_2026 format.
+///
+/// Prefix value:
+/// - `0xfd 0xff` forces legacy/backref decoders down an invalid atom-length path
+///   (fail-fast).
+/// - `0x32 0x30 0x32 0x36` is ASCII `"2026"` for readable hexdumps.
+pub const MAGIC_PREFIX: [u8; 6] = [0xfd, 0xff, b'2', b'0', b'2', b'6'];
 
 /// Maximum atoms/pairs that fit in i32 indices (used by instruction stream).
 const MAX_INDEX: usize = i32::MAX as usize;
@@ -223,8 +225,8 @@ pub fn serialize_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
     Ok(output)
 }
 
-/// Serialize a node to serde_2026 format **with** the `(20 . 26)` magic prefix
-/// (`ff 14 1a`).  This is the recommended wire format — use `node_from_bytes_auto`
+/// Serialize a node to serde_2026 format **with** the magic prefix
+/// (`fd ff 32 30 32 36`).  This is the recommended wire format — use `node_from_bytes_auto`
 /// to deserialize.
 pub fn node_to_bytes_serde_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
     let raw = serialize_2026(allocator, node)?;
@@ -244,7 +246,7 @@ pub fn node_to_bytes_serde_2026_raw(allocator: &Allocator, node: NodePtr) -> Res
 /// Deserialize CLVM from any format (classic, backrefs, or serde_2026).
 ///
 /// Detection logic:
-/// 1. If `bytes` starts with `ff 14 1a` (the magic prefix), strip the 3-byte
+/// 1. If `bytes` starts with `fd ff 32 30 32 36` (the magic prefix), strip the
 ///    header and deserialize the remainder with `deserialize_2026`.
 /// 2. Otherwise delegate to `node_from_bytes_backrefs`, which handles both the
 ///    classic format and the back-reference extension (backrefs is a strict

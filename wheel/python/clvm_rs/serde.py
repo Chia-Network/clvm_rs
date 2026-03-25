@@ -50,7 +50,7 @@ class Format(Enum):
     SER_2026 = "2026"
     # Deserialize only: auto-detect format from magic prefix.
     AUTO = "auto"
-    # Serialize only: serde_2026 with the ff 14 1a magic prefix prepended.
+    # Serialize only: serde_2026 with the fd ff 32 30 32 36 magic prefix prepended.
     SER_2026_PREFIXED = "2026_prefixed"
 
 
