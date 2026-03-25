@@ -15,8 +15,12 @@ struct Args {
 
     /// Arguments to pass to the program as a list. Integers are created as
     /// number atoms, other strings are used as raw byte atoms.
-    #[arg(long, num_args = 1..)]
+    #[arg(long, num_args = 1.., conflicts_with = "envfile")]
     env: Vec<String>,
+
+    /// Path to file containing hex-encoded CLVM environment
+    #[arg(long, conflicts_with = "env")]
+    envfile: Option<String>,
 
     /// CLVM dialect flags to enable
     #[arg(long, num_args = 1..)]
@@ -33,15 +37,23 @@ pub fn main() {
     let mut a = Allocator::new();
     let program = node_from_bytes_backrefs(&mut a, &program_bytes).expect("invalid CLVM");
 
-    let mut env = NodePtr::NIL;
-    for val in args.env.into_iter().rev() {
-        let atom = if let Ok(num) = val.parse::<i64>() {
-            a.new_number(num.into()).expect("new_number")
-        } else {
-            a.new_atom(val.as_bytes()).expect("new_atom")
-        };
-        env = a.new_pair(atom, env).expect("new_pair");
-    }
+    let env = if let Some(envfile) = &args.envfile {
+        let env_hex = std::fs::read_to_string(envfile)
+            .unwrap_or_else(|e| panic!("failed to read {envfile}: {e}"));
+        let env_bytes = hex::decode(env_hex.trim()).expect("invalid hex in envfile");
+        node_from_bytes_backrefs(&mut a, &env_bytes).expect("invalid CLVM in envfile")
+    } else {
+        let mut env = NodePtr::NIL;
+        for val in args.env.into_iter().rev() {
+            let atom = if let Ok(num) = val.parse::<i64>() {
+                a.new_number(num.into()).expect("new_number")
+            } else {
+                a.new_atom(val.as_bytes()).expect("new_atom")
+            };
+            env = a.new_pair(atom, env).expect("new_pair");
+        }
+        env
+    };
 
     let mut flags = ClvmFlags::empty();
     for f in &args.flags {
@@ -66,13 +78,15 @@ pub fn main() {
     match result {
         Ok(Reduction(cost, _result)) => {
             println!("cost: {cost}");
+            println!("execution time: {duration:.3?}");
+            let ns_per_cost = duration.as_nanos() as f64 / cost as f64;
+            println!("ns/cost: {ns_per_cost:.3}");
         }
         Err(e) => {
             println!("execution FAILED: {e:?}");
+            println!("execution time: {duration:.3?}");
         }
     }
-
-    println!("execution time: {duration:.3?}");
     println!("atom_count: {}", counters.atom_count);
     println!("pair_count: {}", counters.pair_count);
     println!("heap_size: {}", counters.heap_size);
