@@ -26,13 +26,6 @@ The fuzzing infrastructure for `clvm_rs` uses [cargo-fuzz](https://github.com/ru
 
 Documentation for setting up fuzzing in rust can be found [here](https://rust-fuzz.github.io/book/cargo-fuzz.html).
 
-To generate an initial corpus (for the `run_program` fuzzer), run:
-
-```
-cd tools
-cargo run generate-fuzz-corpus
-```
-
 To get started, run:
 
 ```
