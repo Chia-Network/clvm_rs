@@ -2,6 +2,7 @@ import io
 import unittest
 
 from clvm_rs.program import Program
+from clvm_rs.serde import Format, deserialize, serialize
 from clvm_rs.ser import atom_to_byte_iterator
 
 
@@ -138,7 +139,9 @@ class SerializeTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             Program.fromhex("ff8085")
 
-        o = Program.fromhex("ff808185")
+        # Legacy-only representation check; Program.from_bytes now auto-detects
+        # and may return Rust-backed LazyNode internals instead of CLVMTree.
+        o = Program.from_bytes_legacy(bytes.fromhex("ff808185"))
         self.assertEqual(repr(o._unwrapped_pair[0]), "<CLVMTree: 80>")
         self.assertEqual(repr(o._unwrapped_pair[1]), "<CLVMTree: 8185>")
 
@@ -157,3 +160,22 @@ class SerializeTest(unittest.TestCase):
     def test_too_large_atom(self):
         self.assertRaises(ValueError, lambda: Program.fromhex("fc"))
         self.assertRaises(ValueError, lambda: Program.fromhex("fc8000000000"))
+
+    def test_serde_2026_magic_prefix_and_from_bytes(self):
+        p = Program.to((1, (2, 3)))
+        prefixed = p.to_bytes_serde_2026()
+        self.assertTrue(prefixed.startswith(bytes.fromhex("fdff32303236")))
+        p2 = Program.from_bytes(prefixed)
+        self.assertEqual(p, p2)
+
+    def test_serde_2026_magic_prefix_explicit_deserializer(self):
+        p = Program.to([1, 2, 3, 4])
+        prefixed = serialize(deserialize(bytes(p), Format.LEGACY), Format.SER_2026_PREFIXED)
+        p2 = Program.from_bytes_serde_2026(prefixed)
+        self.assertEqual(p, p2)
+
+    def test_legacy_parser_rejects_serde_2026_prefixed(self):
+        p = Program.to((b"a", b"b"))
+        prefixed = p.to_bytes_serde_2026()
+        with self.assertRaises(ValueError):
+            Program.from_bytes_legacy(prefixed)

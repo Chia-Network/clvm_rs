@@ -2,50 +2,33 @@
 
 ## Magic Header
 
-The 2026 serialization format is identified by a 3-byte magic prefix:
+The 2026 serialization format is identified by a 6-byte magic prefix:
 
 ```
-0xff 0x14 0x1a
+0xfd 0xff 0x32 0x30 0x32 0x36
 ```
 
-Under the legacy CLVM deserializer, these bytes decode to:
+Rationale:
 
-- `0xff` — cons pair
-- `0x14` — atom with value 20 (decimal)
-- `0x1a` — atom with value 26 (decimal)
-
-Producing the expression `(20 . 26)`.
+- `0xfd 0xff` drives legacy/backrefs decoders down an invalid atom-size path,
+  causing immediate failure.
+- `0x32 0x30 0x32 0x36` is ASCII `"2026"` for readable hexdumps.
 
 ### Detection
 
-A deserializer determines the format by inspecting the first 3 bytes:
+A deserializer determines the format by inspecting the first 6 bytes:
 
-- If the blob is exactly `0xff 0x14 0x1a` (3 bytes, nothing more), it is the
-  legacy-format value `(20 . 26)`.
-- If the blob starts with `0xff 0x14 0x1a` and has additional bytes following,
-  it is 2026-format. The payload begins at byte offset 3.
-
-This works because `0xff 0x14 0x1a` is a complete, self-contained expression
-under the legacy format. No valid legacy blob has trailing bytes after a
-complete expression, so the presence of additional data is unambiguous.
+- If the blob starts with `0xfd 0xff 0x32 0x30 0x32 0x36`, it is 2026-format.
+- Otherwise, parse with the legacy/backrefs path.
 
 ### Backward Compatibility
 
 When a 2026-format blob is handed to a legacy deserializer unaware of the new
-format, one of two things happens:
-
-1. The deserializer consumes the first 3 bytes, returns `(20 . 26)`, and
-   ignores or discards the trailing bytes. The result is bland and obviously
-   not a real program — a strong signal that something is up.
-2. The deserializer rejects the blob due to unexpected trailing data. This is
-   also acceptable: old tools cleanly refuse to process new-format data.
-
-Either outcome is safe. No legitimate CLVM program is the bare value
-`(20 . 26)`.
+format, it should fail quickly due to the deliberately invalid size prefix.
 
 ## Payload Format
 
-After the 3-byte magic header, the payload consists of two sections:
+After the 6-byte magic header, the payload consists of two sections:
 
 1. **Atom table** — all unique atoms, grouped by length
 2. **Instruction stream** — stack-based operations to reconstruct the tree
