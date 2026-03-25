@@ -76,7 +76,8 @@ root node.
 
 ### Varint Encoding
 
-Signed integers are encoded with a variable-length prefix scheme:
+Signed integers are encoded with a variable-length prefix scheme.
+The patterns below are illustrative examples, not an upper bound:
 
 ```
 0xxxxxxx                          →  7-bit value, range [-64, 63]
@@ -87,4 +88,5 @@ Signed integers are encoded with a variable-length prefix scheme:
 
 The number of leading `1` bits determines how many additional bytes follow. A
 `0` separator bit follows the leading `1`s. The remaining bits (across all
-bytes) form a two's-complement signed integer in big-endian order.
+bytes) form a two's-complement signed integer in big-endian order. This scales
+to wider integers without changing the encoding rules.
