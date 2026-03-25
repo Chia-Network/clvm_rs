@@ -38,7 +38,7 @@ After the 6-byte magic header, the payload consists of two sections:
 The atom table begins with a varint encoding the number of distinct atom
 lengths present.
 
-For each length group (in ascending order of length):
+For each length group (in stream order):
 
 - If there is **one** atom of that length: a positive varint encoding the
   length, followed by the atom's raw bytes.
@@ -47,7 +47,11 @@ For each length group (in ascending order of length):
   bytes of each atom concatenated (each is exactly `length` bytes).
 
 Atoms are assigned indices starting from 0, in the order they appear in the
-table (shortest atoms first).
+table.
+
+The decoder accepts length groups in any order, and repeated length groups are
+valid. A serializer may still choose a specific ordering strategy (for example,
+sorting by length) as an implementation optimization.
 
 ### Instruction Stream
 
