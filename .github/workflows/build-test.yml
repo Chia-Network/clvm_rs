@@ -195,13 +195,26 @@ jobs:
           cargo clippy
       - name: cargo-fuzz
         run: cargo install cargo-fuzz
-      # TODO: it would be nice to save and restore the corpus between runs
-      - name: build corpus
+      - name: Restore fuzz corpus
+        uses: actions/cache/restore@v4
+        with:
+          path: fuzz/corpus
+          key: fuzz-corpus-${{ matrix.os }}-${{ hashFiles('fuzz/fuzz_targets/**/*.rs') }}
+          restore-keys: |
+            fuzz-corpus-${{ matrix.os }}-
+      - name: Build all fuzz targets
+        run: cargo +nightly fuzz build
+      - name: Run fuzz targets
         run: |
-          cd tools
-          cargo run --bin generate-fuzz-corpus
-      - name: build
-        run: cargo +nightly fuzz list | xargs -I "%" sh -c "cargo +nightly fuzz run % -- -max_total_time=30 || exit 255"
+          for target in $(cargo +nightly fuzz list); do
+            cargo +nightly fuzz run "$target" -- -max_total_time=30 || exit 1
+          done
+      - name: Save fuzz corpus
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: fuzz/corpus
+          key: fuzz-corpus-${{ matrix.os }}-${{ hashFiles('fuzz/fuzz_targets/**/*.rs') }}-${{ github.run_id }}
 
   unit_tests:
     name: Unit tests

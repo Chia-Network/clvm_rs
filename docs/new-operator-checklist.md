@@ -21,9 +21,8 @@ Follow this checklist when adding operators:
 - If relevant, write a script that generates test vectors, printing them into a
   file under `op-tests/` (see `tools/generate-bls-tests.py`). This is to ensure
   the new operator's behavior match at least one other implementation.
-- Include the new operators in the fuzzer `fuzz/fuzz_targets/operators.rs`
-- Include the new operators and their signatures in `tools/src/bin/generate-fuzz-corpus.rs`.
-  Make sure to run this and fuzz for some time before landing the PR.
+- Include the new operators in the fuzzer `fuzz/fuzz_targets/operators.rs`.
+  Make sure to fuzz for some time before landing the PR.
 - Extend the benchmark-clvm-cost.rs to include benchmarks for the new operator,
   to establish its cost.
 - The opcode decoding and dispatching happens in `src/chia_dialect.rs`
