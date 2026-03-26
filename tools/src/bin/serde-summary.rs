@@ -6,7 +6,7 @@ use clvmr::allocator::Allocator;
 use clvmr::serde::{
     node_from_bytes, node_from_bytes_backrefs, node_to_bytes_backrefs, node_to_bytes_limit,
 };
-use clvmr::serde_2026::{deserialize_2026, serialize_2026};
+use clvmr::serde_2026::{deserialize_2026, serialize_2026, serialize_2026_pair_optimized};
 
 #[derive(Parser)]
 #[command(about = "Compare legacy, backref, and 2026 serialization formats")]
@@ -118,10 +118,20 @@ fn main() {
             });
         }
 
-        // --- 2026 ---
+        // --- 2026 (atom sort, always left-first) ---
         {
             let serialized = serialize_2026(&a, node).expect("serialize_2026");
             let size = serialized.len();
+
+            let mut a_rt = Allocator::new();
+            let n_rt =
+                deserialize_2026(&mut a_rt, &serialized, None).expect("2026 round-trip deser");
+            let rt = serialize_2026(&a_rt, n_rt).expect("2026 re-serialize");
+            assert_eq!(
+                serialized, rt,
+                "2026 double round-trip mismatch for {}",
+                path.display()
+            );
 
             let start = Instant::now();
             for _ in 0..iters {
@@ -138,6 +148,44 @@ fn main() {
 
             results.push(FormatResult {
                 name: "2026",
+                size,
+                ser_us,
+                deser_us,
+            });
+        }
+
+        // --- 2026-opt (atom sort + tree DP pair ordering) ---
+        {
+            let serialized =
+                serialize_2026_pair_optimized(&a, node).expect("serialize_2026_pair_optimized");
+            let size = serialized.len();
+
+            let mut a_rt = Allocator::new();
+            let n_rt = deserialize_2026(&mut a_rt, &serialized, None)
+                .expect("2026-opt round-trip deser");
+            let baseline = serialize_2026(&a_rt, n_rt).expect("2026 from round-tripped opt");
+            let baseline_orig = serialize_2026(&a, node).expect("2026 original");
+            assert_eq!(
+                baseline, baseline_orig,
+                "2026-opt round-trip mismatch for {}",
+                path.display()
+            );
+
+            let start = Instant::now();
+            for _ in 0..iters {
+                let _ = serialize_2026_pair_optimized(&a, node).unwrap();
+            }
+            let ser_us = start.elapsed().as_micros() as f64 / iters as f64;
+
+            let start = Instant::now();
+            for _ in 0..iters {
+                let mut a2 = Allocator::new();
+                let _ = deserialize_2026(&mut a2, &serialized, None).unwrap();
+            }
+            let deser_us = start.elapsed().as_micros() as f64 / iters as f64;
+
+            results.push(FormatResult {
+                name: "2026-opt",
                 size,
                 ser_us,
                 deser_us,
@@ -164,6 +212,17 @@ fn main() {
                     let ratio = r.size as f64 / base as f64 * 100.0;
                     println!("    {}: {:.1}%", r.name, ratio);
                 }
+            }
+        }
+        if let Some(base_r) = results.iter().find(|r| r.name == "2026") {
+            if let Some(opt_r) = results.iter().find(|r| r.name == "2026-opt") {
+                let delta = opt_r.size as i64 - base_r.size as i64;
+                println!();
+                println!(
+                    "  2026-opt vs 2026: {:+} bytes ({:+.2}%)",
+                    delta,
+                    delta as f64 / base_r.size as f64 * 100.0
+                );
             }
         }
         println!();
