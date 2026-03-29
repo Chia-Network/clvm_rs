@@ -2913,7 +2913,7 @@ c6c886f6b57ec72a6178288c47c33577\
     }
 
     #[rstest]
-    // redundant leading zeros are not canoncial
+    // redundant leading zeros are not canonical
     #[case(&[0x00], false)]
     #[case(&[0x00, 0x7f], false)]
     // negative numbers cannot be small ints
@@ -2921,7 +2921,7 @@ c6c886f6b57ec72a6178288c47c33577\
     #[case(&[0xff], false)]
     #[case(&[0xff, 0xff], false)]
     #[case(&[0x80, 0xff, 0xff], false)]
-    // small positive intergers can be small
+    // small positive integers can be small
     #[case(&[0x01], true)]
     #[case(&[0x00, 0xff], true)]
     #[case(&[0x7f, 0xff], true)]
@@ -2943,7 +2943,7 @@ c6c886f6b57ec72a6178288c47c33577\
     }
 
     #[rstest]
-    // redundant leading zeros are not canoncial
+    // redundant leading zeros are not canonical
     #[case(&[0x00], None)]
     #[case(&[0x00, 0x7f], None)]
     // negative numbers cannot be small ints
