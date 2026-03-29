@@ -481,7 +481,7 @@ impl TreeCache {
                 continue;
             }
             if seen.visit(p.idx) {
-                // if we've already visited this node, terminate this banch of
+                // if we've already visited this node, terminate this branch of
                 // the search
                 partial_paths.swap_remove(cursor);
                 if cursor >= partial_paths.len() {
