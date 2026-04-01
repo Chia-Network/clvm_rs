@@ -322,7 +322,6 @@ dependencies = [
  "clap",
  "clvmr",
  "hex",
- "hex-literal",
  "linreg",
  "num-bigint",
  "num-integer",
@@ -330,7 +329,6 @@ dependencies = [
  "rand_chacha",
  "serde",
  "serde_json",
- "sha1",
 ]
 
 [[package]]

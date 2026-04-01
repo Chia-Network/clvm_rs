@@ -29,7 +29,7 @@ use std::io::{Cursor, Read, Write};
 
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::error::{EvalErr, Result};
-use crate::serde::intern;
+use crate::serde::intern_tree;
 use crate::serde::node_from_bytes_backrefs;
 
 use varint::{decode_varint, write_varint};
@@ -57,7 +57,7 @@ pub fn serialize_2026_to_stream<W: Write>(
     node: NodePtr,
     writer: &mut W,
 ) -> Result<()> {
-    let tree = intern(allocator, node)?;
+    let tree = intern_tree(allocator, node)?;
 
     if tree.atoms.len() > MAX_INDEX || tree.pairs.len() > MAX_INDEX {
         return Err(EvalErr::SerializationError);
@@ -410,7 +410,7 @@ pub fn serialize_2026_pair_optimized_to_stream<W: Write>(
     node: NodePtr,
     writer: &mut W,
 ) -> Result<()> {
-    let tree = intern(allocator, node)?;
+    let tree = intern_tree(allocator, node)?;
     if tree.atoms.len() > MAX_INDEX || tree.pairs.len() > MAX_INDEX {
         return Err(EvalErr::SerializationError);
     }
@@ -504,11 +504,22 @@ pub fn serialize_2026_pair_optimized_to_stream<W: Write>(
     let mut go_left: Vec<Vec<bool>> = Vec::with_capacity(pair_count);
 
     for (i, &(left, right)) in pairs.iter().enumerate() {
-        let savings: u64 =
-            if pair_ref_count[i] > 1 { (pair_ref_count[i] - 1) as u64 } else { 0 };
+        let savings: u64 = if pair_ref_count[i] > 1 {
+            (pair_ref_count[i] - 1) as u64
+        } else {
+            0
+        };
 
-        let l_size = if left < 0 { stsize[(-left - 1) as usize] } else { 0 };
-        let r_size = if right < 0 { stsize[(-right - 1) as usize] } else { 0 };
+        let l_size = if left < 0 {
+            stsize[(-left - 1) as usize]
+        } else {
+            0
+        };
+        let r_size = if right < 0 {
+            stsize[(-right - 1) as usize]
+        } else {
+            0
+        };
         let my_size = 1 + l_size + r_size;
         stsize[i] = my_size;
 
@@ -601,10 +612,16 @@ pub fn serialize_2026_pair_optimized_to_stream<W: Write>(
                     } else {
                         let pi = (-idx - 1) as usize;
                         let (left, right) = pairs[pi];
-                        let l_size =
-                            if left < 0 { stsize[(-left - 1) as usize] } else { 0 };
-                        let r_size =
-                            if right < 0 { stsize[(-right - 1) as usize] } else { 0 };
+                        let l_size = if left < 0 {
+                            stsize[(-left - 1) as usize]
+                        } else {
+                            0
+                        };
+                        let r_size = if right < 0 {
+                            stsize[(-right - 1) as usize]
+                        } else {
+                            0
+                        };
                         let my_size = 1 + l_size + r_size;
 
                         let k = budget.min(my_size).min(go_left[pi].len() - 1);
