@@ -206,26 +206,26 @@ fn main() {
             );
         }
         let legacy_size = results.iter().find(|r| r.name == "legacy").map(|r| r.size);
-        if let Some(base) = legacy_size {
-            if results.len() >= 2 {
-                println!();
-                println!("  size vs legacy:");
-                for r in results.iter().filter(|r| r.name != "legacy") {
-                    let ratio = r.size as f64 / base as f64 * 100.0;
-                    println!("    {}: {:.1}%", r.name, ratio);
-                }
+        if let Some(base) = legacy_size
+            && results.len() >= 2
+        {
+            println!();
+            println!("  size vs legacy:");
+            for r in results.iter().filter(|r| r.name != "legacy") {
+                let ratio = r.size as f64 / base as f64 * 100.0;
+                println!("    {}: {:.1}%", r.name, ratio);
             }
         }
-        if let Some(base_r) = results.iter().find(|r| r.name == "2026") {
-            if let Some(opt_r) = results.iter().find(|r| r.name == "2026-opt") {
-                let delta = opt_r.size as i64 - base_r.size as i64;
-                println!();
-                println!(
-                    "  2026-opt vs 2026: {:+} bytes ({:+.2}%)",
-                    delta,
-                    delta as f64 / base_r.size as f64 * 100.0
-                );
-            }
+        if let Some(base_r) = results.iter().find(|r| r.name == "2026")
+            && let Some(opt_r) = results.iter().find(|r| r.name == "2026-opt")
+        {
+            let delta = opt_r.size as i64 - base_r.size as i64;
+            println!();
+            println!(
+                "  2026-opt vs 2026: {:+} bytes ({:+.2}%)",
+                delta,
+                delta as f64 / base_r.size as f64 * 100.0
+            );
         }
         println!();
     }
