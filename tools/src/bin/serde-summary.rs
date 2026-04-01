@@ -128,7 +128,8 @@ fn main() {
                 deserialize_2026(&mut a_rt, &serialized, None).expect("2026 round-trip deser");
             let rt = serialize_2026(&a_rt, n_rt).expect("2026 re-serialize");
             assert_eq!(
-                serialized, rt,
+                serialized,
+                rt,
                 "2026 double round-trip mismatch for {}",
                 path.display()
             );
@@ -161,12 +162,13 @@ fn main() {
             let size = serialized.len();
 
             let mut a_rt = Allocator::new();
-            let n_rt = deserialize_2026(&mut a_rt, &serialized, None)
-                .expect("2026-opt round-trip deser");
+            let n_rt =
+                deserialize_2026(&mut a_rt, &serialized, None).expect("2026-opt round-trip deser");
             let baseline = serialize_2026(&a_rt, n_rt).expect("2026 from round-tripped opt");
             let baseline_orig = serialize_2026(&a, node).expect("2026 original");
             assert_eq!(
-                baseline, baseline_orig,
+                baseline,
+                baseline_orig,
                 "2026-opt round-trip mismatch for {}",
                 path.display()
             );

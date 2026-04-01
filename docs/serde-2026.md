@@ -60,11 +60,11 @@ instructions.
 
 Each instruction is a varint:
 
-| Varint value | Meaning |
-|---|---|
-| Positive N | Push the atom at index N-1 onto the stack |
-| Zero | Pop two items (right then left), cons them, push the pair |
-| Negative -N | Push the already-constructed pair at index N-1 onto the stack |
+| Varint value | Meaning                                                       |
+| ------------ | ------------------------------------------------------------- |
+| Positive N   | Push the atom at index N-1 onto the stack                     |
+| Zero         | Pop two items (right then left), cons them, push the pair     |
+| Negative -N  | Push the already-constructed pair at index N-1 onto the stack |
 
 Pairs are indexed in construction order (the first pair cons'd is index 0, the
 second is index 1, etc.). A negative instruction references a pair that was
