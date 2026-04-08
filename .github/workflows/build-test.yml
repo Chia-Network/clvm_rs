@@ -196,7 +196,7 @@ jobs:
       - name: cargo-fuzz
         run: cargo install cargo-fuzz
       - name: Restore fuzz corpus
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: fuzz/corpus
           key: fuzz-corpus-${{ matrix.os }}-${{ hashFiles('fuzz/fuzz_targets/**/*.rs') }}
@@ -210,7 +210,7 @@ jobs:
             cargo +nightly fuzz run "$target" -- -max_total_time=30 || exit 1
           done
       - name: Save fuzz corpus
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         if: always()
         with:
           path: fuzz/corpus
