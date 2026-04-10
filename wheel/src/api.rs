@@ -1,5 +1,6 @@
 #![allow(clippy::useless_conversion)]
 use std::io;
+use std::rc::Rc;
 
 use super::lazy_node::LazyNode;
 use crate::adapt_response::adapt_response;
@@ -10,7 +11,13 @@ use clvmr::cost::Cost;
 use clvmr::error::EvalErr;
 use clvmr::reduction::Response;
 use clvmr::run_program::run_program;
-use clvmr::serde::{ParsedTriple, node_from_bytes, parse_triples, serialized_length_from_bytes};
+use clvmr::serde::{
+    ParsedTriple, node_from_bytes, node_from_bytes_backrefs, node_to_bytes, node_to_bytes_backrefs,
+    parse_triples, serialized_length_from_bytes,
+};
+use clvmr::serde_2026::{
+    deserialize_2026, node_from_bytes_auto, node_to_bytes_serde_2026, serialize_2026,
+};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
 
@@ -86,11 +93,82 @@ fn deserialize_as_tree(
     Ok((r, s))
 }
 
+// --- Deserialize functions: bytes -> LazyNode ---
+
+#[pyfunction]
+fn deser_legacy(blob: &[u8]) -> PyResult<LazyNode> {
+    let mut a = Allocator::new();
+    let node = node_from_bytes(&mut a, blob).map_err(eval_to_py)?;
+    Ok(LazyNode::new(Rc::new(a), node))
+}
+
+#[pyfunction]
+fn deser_backrefs(blob: &[u8]) -> PyResult<LazyNode> {
+    let mut a = Allocator::new();
+    let node = node_from_bytes_backrefs(&mut a, blob).map_err(eval_to_py)?;
+    Ok(LazyNode::new(Rc::new(a), node))
+}
+
+#[pyfunction]
+fn deser_2026(blob: &[u8]) -> PyResult<LazyNode> {
+    let mut a = Allocator::new();
+    let node = deserialize_2026(&mut a, blob, None).map_err(eval_to_py)?;
+    Ok(LazyNode::new(Rc::new(a), node))
+}
+
+/// Deserialize CLVM bytes, auto-detecting the format (classic, backrefs, or
+/// serde_2026).  If the blob starts with the magic prefix
+/// `fd ff 32 30 32 36`, it is
+/// treated as serde_2026; otherwise the backrefs deserializer is used (which
+/// also handles plain classic format).
+#[pyfunction]
+fn deser_auto(blob: &[u8]) -> PyResult<LazyNode> {
+    let mut a = Allocator::new();
+    let node = node_from_bytes_auto(&mut a, blob).map_err(eval_to_py)?;
+    Ok(LazyNode::new(Rc::new(a), node))
+}
+
+// --- Serialize functions: LazyNode -> bytes ---
+
+#[pyfunction]
+fn ser_legacy(py: Python, node: &LazyNode) -> PyResult<Py<PyBytes>> {
+    let bytes = node_to_bytes(node.allocator(), node.node()).map_err(eval_to_py)?;
+    Ok(PyBytes::new(py, &bytes).unbind())
+}
+
+#[pyfunction]
+fn ser_backrefs(py: Python, node: &LazyNode) -> PyResult<Py<PyBytes>> {
+    let bytes = node_to_bytes_backrefs(node.allocator(), node.node()).map_err(eval_to_py)?;
+    Ok(PyBytes::new(py, &bytes).unbind())
+}
+
+#[pyfunction]
+fn ser_2026(py: Python, node: &LazyNode) -> PyResult<Py<PyBytes>> {
+    let bytes = serialize_2026(node.allocator(), node.node()).map_err(eval_to_py)?;
+    Ok(PyBytes::new(py, &bytes).unbind())
+}
+
+/// Serialize to serde_2026 format **with** the `fd ff 32 30 32 36` magic prefix.
+/// Use `deser_auto` to deserialize the result.
+#[pyfunction]
+fn ser_2026_prefixed(py: Python, node: &LazyNode) -> PyResult<Py<PyBytes>> {
+    let bytes = node_to_bytes_serde_2026(node.allocator(), node.node()).map_err(eval_to_py)?;
+    Ok(PyBytes::new(py, &bytes).unbind())
+}
+
 #[pymodule]
 fn clvm_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run_serialized_chia_program, m)?)?;
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
     m.add_function(wrap_pyfunction!(deserialize_as_tree, m)?)?;
+    m.add_function(wrap_pyfunction!(deser_legacy, m)?)?;
+    m.add_function(wrap_pyfunction!(deser_backrefs, m)?)?;
+    m.add_function(wrap_pyfunction!(deser_2026, m)?)?;
+    m.add_function(wrap_pyfunction!(deser_auto, m)?)?;
+    m.add_function(wrap_pyfunction!(ser_legacy, m)?)?;
+    m.add_function(wrap_pyfunction!(ser_backrefs, m)?)?;
+    m.add_function(wrap_pyfunction!(ser_2026, m)?)?;
+    m.add_function(wrap_pyfunction!(ser_2026_prefixed, m)?)?;
 
     m.add("NO_UNKNOWN_OPS", ClvmFlags::NO_UNKNOWN_OPS.bits())?;
     m.add("LIMIT_HEAP", ClvmFlags::LIMIT_HEAP.bits())?;
