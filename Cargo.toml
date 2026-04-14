@@ -38,7 +38,7 @@ openssl = ["chia-sha2/openssl"]
 lto = "thin"
 
 [workspace.dependencies]
-bitflags = "2.10"
+bitflags = "2.11"
 clvmr = { path = ".", version = "0.17.0" }
 clvm-fuzzing = { path = "./clvm-fuzzing", version = "0.17.0" }
 lazy_static = "1.5.0"
