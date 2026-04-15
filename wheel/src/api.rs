@@ -12,7 +12,7 @@ use clvmr::error::EvalErr;
 use clvmr::reduction::Response;
 use clvmr::run_program::run_program;
 use clvmr::serde::{
-    ParsedTriple, node_from_bytes, node_from_bytes_backrefs, node_from_bytes_interned, node_to_bytes, node_to_bytes_backrefs,
+    ParsedTriple, node_from_bytes, node_from_bytes_backrefs, node_to_bytes, node_to_bytes_backrefs,
     parse_triples, serialized_length_from_bytes,
 };
 use clvmr::serde_2026::{
@@ -110,13 +110,6 @@ fn deser_backrefs(blob: &[u8]) -> PyResult<LazyNode> {
     Ok(LazyNode::new(Rc::new(a), node))
 }
 
-#[pyfunction]
-fn deser_legacy_interned(blob: &[u8]) -> PyResult<LazyNode> {
-    let mut a = Allocator::new();
-    let node = node_from_bytes_interned(&mut a, blob).map_err(eval_to_py)?;
-    Ok(LazyNode::new(Rc::new(a), node))
-}
-
 fn make_limits(max_atom_len: Option<usize>, max_input_bytes: Option<usize>) -> DeserializeLimits {
     let mut limits = DeserializeLimits::default();
     if let Some(v) = max_atom_len {
@@ -205,7 +198,6 @@ fn clvm_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(deserialize_as_tree, m)?)?;
     m.add_function(wrap_pyfunction!(deser_legacy, m)?)?;
     m.add_function(wrap_pyfunction!(deser_backrefs, m)?)?;
-    m.add_function(wrap_pyfunction!(deser_legacy_interned, m)?)?;
     m.add_function(wrap_pyfunction!(deser_2026, m)?)?;
     m.add_function(wrap_pyfunction!(deser_auto, m)?)?;
     m.add_function(wrap_pyfunction!(intern, m)?)?;
