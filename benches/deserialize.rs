@@ -5,7 +5,7 @@ use clvmr::serde::{
     tree_hash_from_stream,
 };
 #[cfg(feature = "ser-2026")]
-use clvmr::serde_2026::{deserialize_2026, serialize_2026};
+use clvmr::serde_2026::{DeserializeLimits, deserialize_2026, serialize_2026};
 use criterion::{Criterion, criterion_group, criterion_main};
 use std::include_bytes;
 use std::time::Instant;
@@ -99,7 +99,7 @@ fn deserialize_benchmark(c: &mut Criterion) {
                 b.iter(|| {
                     a.restore_checkpoint(&iter_checkpoint);
                     let start = Instant::now();
-                    deserialize_2026(&mut a, data, None).expect("deserialize_2026");
+                    deserialize_2026(&mut a, data, DeserializeLimits::default()).expect("deserialize_2026");
                     start.elapsed()
                 })
             });

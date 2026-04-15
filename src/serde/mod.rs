@@ -2,6 +2,7 @@ mod bitset;
 mod bytes32;
 mod de;
 mod de_br;
+mod de_interned;
 mod de_tree;
 mod identity_hash;
 mod incremental;
@@ -26,6 +27,7 @@ mod test_intern;
 pub use bitset::BitSet;
 pub use de::{node_from_bytes, node_from_stream};
 pub use de_br::{node_from_bytes_backrefs, node_from_bytes_backrefs_old};
+pub use de_interned::{node_from_bytes_interned, node_from_stream_interned};
 pub use de_tree::{ParsedTriple, parse_triples};
 pub use identity_hash::RandomState;
 pub use incremental::{Serializer, UndoState};
@@ -45,7 +47,7 @@ pub use tree_cache::{TreeCache, TreeCacheCheckpoint};
 // Re-export from serde_2026 module for backward compatibility
 #[cfg(feature = "ser-2026")]
 pub use crate::serde_2026::{
-    MAGIC_PREFIX as SERDE_2026_MAGIC_PREFIX, deserialize_2026, deserialize_2026_from_stream,
-    node_from_bytes_auto, node_to_bytes_serde_2026, node_to_bytes_serde_2026_raw, serialize_2026,
-    serialize_2026_to_stream,
+    DeserializeLimits, MAGIC_PREFIX as SERDE_2026_MAGIC_PREFIX, deserialize_2026,
+    deserialize_2026_from_stream, node_from_bytes_auto, node_to_bytes_serde_2026,
+    node_to_bytes_serde_2026_raw, serialize_2026, serialize_2026_to_stream,
 };

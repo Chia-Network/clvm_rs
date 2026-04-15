@@ -1,8 +1,8 @@
 //! Tests for the 2026 serialization format.
 
 use super::{
-    MAGIC_PREFIX, deserialize_2026, node_from_bytes_auto, node_to_bytes_serde_2026,
-    node_to_bytes_serde_2026_raw, serialize_2026,
+    DeserializeLimits, MAGIC_PREFIX, deserialize_2026, node_from_bytes_auto,
+    node_to_bytes_serde_2026, node_to_bytes_serde_2026_raw, serialize_2026,
 };
 use crate::allocator::{Allocator, SExp};
 use crate::serde::{node_from_bytes_backrefs, node_to_bytes};
@@ -16,7 +16,7 @@ fn test_roundtrip_simple_atom() {
 
     let serialized = serialize_2026(&allocator, node).unwrap();
     let mut new_allocator = Allocator::new();
-    let deserialized = deserialize_2026(&mut new_allocator, &serialized, None).unwrap();
+    let deserialized = deserialize_2026(&mut new_allocator, &serialized, DeserializeLimits::default()).unwrap();
 
     let original_atom = allocator.atom(node);
     let deserialized_atom = new_allocator.atom(deserialized);
@@ -32,7 +32,7 @@ fn test_roundtrip_simple_pair() {
 
     let serialized = serialize_2026(&allocator, pair).unwrap();
     let mut new_allocator = Allocator::new();
-    let deserialized = deserialize_2026(&mut new_allocator, &serialized, None).unwrap();
+    let deserialized = deserialize_2026(&mut new_allocator, &serialized, DeserializeLimits::default()).unwrap();
 
     // Check structure
     match new_allocator.sexp(deserialized) {
@@ -53,7 +53,7 @@ fn test_empty_atom() {
 
     let serialized = serialize_2026(&allocator, node).unwrap();
     let mut new_allocator = Allocator::new();
-    let deserialized = deserialize_2026(&mut new_allocator, &serialized, None).unwrap();
+    let deserialized = deserialize_2026(&mut new_allocator, &serialized, DeserializeLimits::default()).unwrap();
 
     assert_eq!(
         allocator.atom(node).as_ref(),
@@ -74,7 +74,7 @@ fn test_multiple_atoms_same_length() {
 
     let serialized = serialize_2026(&allocator, root).unwrap();
     let mut new_allocator = Allocator::new();
-    let deserialized = deserialize_2026(&mut new_allocator, &serialized, None).unwrap();
+    let deserialized = deserialize_2026(&mut new_allocator, &serialized, DeserializeLimits::default()).unwrap();
 
     // Verify structure
     match new_allocator.sexp(deserialized) {
@@ -112,7 +112,7 @@ fn test_deduplication() {
     println!("Deduplication test: {} bytes", serialized.len());
 
     let mut new_allocator = Allocator::new();
-    let deserialized = deserialize_2026(&mut new_allocator, &serialized, None).unwrap();
+    let deserialized = deserialize_2026(&mut new_allocator, &serialized, DeserializeLimits::default()).unwrap();
 
     // Verify the structure is correct
     match new_allocator.sexp(deserialized) {
@@ -154,7 +154,7 @@ fn test_list_structure() {
     println!("List (1 2 3 4 5): {} bytes", serialized.len());
 
     let mut new_allocator = Allocator::new();
-    let deserialized = deserialize_2026(&mut new_allocator, &serialized, None).unwrap();
+    let deserialized = deserialize_2026(&mut new_allocator, &serialized, DeserializeLimits::default()).unwrap();
 
     // Verify list elements
     let mut current = deserialized;
@@ -186,7 +186,7 @@ fn test_deeply_nested() {
     println!("Deeply nested (depth 100): {} bytes", serialized.len());
 
     let mut new_allocator = Allocator::new();
-    let deserialized = deserialize_2026(&mut new_allocator, &serialized, None).unwrap();
+    let deserialized = deserialize_2026(&mut new_allocator, &serialized, DeserializeLimits::default()).unwrap();
 
     // Verify depth
     let mut current = deserialized;
@@ -226,7 +226,7 @@ fn test_various_atom_sizes() {
     println!("Various sizes: {} bytes", serialized.len());
 
     let mut new_allocator = Allocator::new();
-    let deserialized = deserialize_2026(&mut new_allocator, &serialized, None).unwrap();
+    let deserialized = deserialize_2026(&mut new_allocator, &serialized, DeserializeLimits::default()).unwrap();
 
     // Verify structure
     match new_allocator.sexp(deserialized) {
@@ -269,7 +269,7 @@ fn test_round_trip_from_legacy(#[case] hex: &str) {
 
     let serialized = serialize_2026(&allocator, node).unwrap();
     let mut new_allocator = Allocator::new();
-    let deserialized = deserialize_2026(&mut new_allocator, &serialized, None).unwrap();
+    let deserialized = deserialize_2026(&mut new_allocator, &serialized, DeserializeLimits::default()).unwrap();
     let round_trip_canonical = node_to_bytes(&new_allocator, deserialized).unwrap();
 
     assert_eq!(
@@ -286,7 +286,7 @@ fn test_nil_roundtrip() {
 
     let serialized = serialize_2026(&allocator, nil).unwrap();
     let mut new_allocator = Allocator::new();
-    let deserialized = deserialize_2026(&mut new_allocator, &serialized, None).unwrap();
+    let deserialized = deserialize_2026(&mut new_allocator, &serialized, DeserializeLimits::default()).unwrap();
 
     assert_eq!(new_allocator.atom(deserialized).as_ref(), b"");
 }
@@ -300,7 +300,7 @@ fn test_round_trip_double() {
 
     let serialized1 = serialize_2026(&allocator, node).unwrap();
     let mut allocator2 = Allocator::new();
-    let node2 = deserialize_2026(&mut allocator2, &serialized1, None).unwrap();
+    let node2 = deserialize_2026(&mut allocator2, &serialized1, DeserializeLimits::default()).unwrap();
     let serialized2 = serialize_2026(&allocator2, node2).unwrap();
     assert_eq!(
         serialized1, serialized2,
@@ -313,10 +313,10 @@ fn test_deserialize_rejects_malformed_counts() {
     let mut allocator = Allocator::new();
 
     // Negative atom_lengths_count (0x7f = -1 in single-byte varint) would have caused huge loop
-    assert!(deserialize_2026(&mut allocator, &[0x7f], None).is_err());
+    assert!(deserialize_2026(&mut allocator, &[0x7f], DeserializeLimits::default()).is_err());
 
     // 0xFF is invalid varint prefix
-    assert!(deserialize_2026(&mut allocator, &[0xff], None).is_err());
+    assert!(deserialize_2026(&mut allocator, &[0xff], DeserializeLimits::default()).is_err());
 }
 
 /// Round-trip through 2026 format for all structures from serde/test_intern.rs.
@@ -351,7 +351,7 @@ fn test_round_trip_intern_structures(#[case] hex: &str) {
 
     let serialized = serialize_2026(&allocator, node).unwrap();
     let mut new_allocator = Allocator::new();
-    let deserialized = deserialize_2026(&mut new_allocator, &serialized, None).unwrap();
+    let deserialized = deserialize_2026(&mut new_allocator, &serialized, DeserializeLimits::default()).unwrap();
     let round_trip_canonical = node_to_bytes(&new_allocator, deserialized).unwrap();
 
     assert_eq!(
@@ -415,7 +415,7 @@ fn check_auto(node_alloc: &Allocator, n: crate::allocator::NodePtr) {
 
     // classic input
     let mut a = Allocator::new();
-    let decoded = node_from_bytes_auto(&mut a, &classic).unwrap();
+    let decoded = node_from_bytes_auto(&mut a, &classic, DeserializeLimits::default()).unwrap();
     assert_eq!(
         node_to_bytes(&a, decoded).unwrap(),
         classic,
@@ -425,7 +425,7 @@ fn check_auto(node_alloc: &Allocator, n: crate::allocator::NodePtr) {
     // backrefs input (superset of classic)
     let backrefs = crate::serde::node_to_bytes_backrefs(node_alloc, n).unwrap();
     let mut a2 = Allocator::new();
-    let decoded2 = node_from_bytes_auto(&mut a2, &backrefs).unwrap();
+    let decoded2 = node_from_bytes_auto(&mut a2, &backrefs, DeserializeLimits::default()).unwrap();
     assert_eq!(
         node_to_bytes(&a2, decoded2).unwrap(),
         classic,
@@ -435,7 +435,7 @@ fn check_auto(node_alloc: &Allocator, n: crate::allocator::NodePtr) {
     // serde_2026 prefixed input
     let prefixed = node_to_bytes_serde_2026(node_alloc, n).unwrap();
     let mut a3 = Allocator::new();
-    let decoded3 = node_from_bytes_auto(&mut a3, &prefixed).unwrap();
+    let decoded3 = node_from_bytes_auto(&mut a3, &prefixed, DeserializeLimits::default()).unwrap();
     assert_eq!(
         node_to_bytes(&a3, decoded3).unwrap(),
         classic,
@@ -494,7 +494,7 @@ fn test_auto_detect_classic_format_explicitly() {
     assert!(!classic_bytes.starts_with(&MAGIC_PREFIX));
 
     let mut a2 = Allocator::new();
-    let decoded = node_from_bytes_auto(&mut a2, &classic_bytes).unwrap();
+    let decoded = node_from_bytes_auto(&mut a2, &classic_bytes, DeserializeLimits::default()).unwrap();
     assert_eq!(a2.atom(decoded).as_ref(), b"test");
 }
 
@@ -506,7 +506,7 @@ fn test_auto_detect_serde_2026_prefixed() {
     assert!(prefixed.starts_with(&MAGIC_PREFIX));
 
     let mut a2 = Allocator::new();
-    let decoded = node_from_bytes_auto(&mut a2, &prefixed).unwrap();
+    let decoded = node_from_bytes_auto(&mut a2, &prefixed, DeserializeLimits::default()).unwrap();
     assert_eq!(a2.atom(decoded).as_ref(), b"serde2026");
 }
 
@@ -526,13 +526,13 @@ fn test_legacy_backrefs_decoder_rejects_prefixed_2026() {
 #[test]
 fn test_auto_detect_rejects_empty_input() {
     let mut allocator = Allocator::new();
-    assert!(node_from_bytes_auto(&mut allocator, b"").is_err());
+    assert!(node_from_bytes_auto(&mut allocator, b"", DeserializeLimits::default()).is_err());
 }
 
 #[test]
 fn test_node_from_bytes_auto_classic_single_byte() {
     let classic = vec![0x01u8];
     let mut a = Allocator::new();
-    let node = node_from_bytes_auto(&mut a, &classic).unwrap();
+    let node = node_from_bytes_auto(&mut a, &classic, DeserializeLimits::default()).unwrap();
     assert_eq!(a.atom(node).as_ref(), b"\x01");
 }

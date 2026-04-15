@@ -23,6 +23,8 @@ from .clvm_rs import (
     deser_auto,
     deser_backrefs,
     deser_legacy,
+    deser_legacy_interned,
+    intern,
     ser_2026,
     ser_2026_prefixed,
     ser_backrefs,
@@ -33,8 +35,10 @@ __all__ = [
     "Format",
     "serialize",
     "deserialize",
+    "intern",
     "deser_legacy",
     "deser_backrefs",
+    "deser_legacy_interned",
     "deser_2026",
     "deser_auto",
     "ser_legacy",
@@ -69,14 +73,31 @@ _SERIALIZERS = {
 }
 
 
-def deserialize(blob: bytes, fmt: Format = Format.AUTO):
+def deserialize(
+    blob: bytes,
+    fmt: Format = Format.AUTO,
+    *,
+    max_atom_len: int | None = None,
+    max_input_bytes: int | None = None,
+):
     """Deserialize bytes into a LazyNode.
 
     Defaults to Format.AUTO which handles classic, backrefs, and serde_2026.
+
+    Keyword-only limits (only applied to serde_2026 / AUTO paths):
+        max_atom_len:   largest single atom in bytes (default ~1 MB)
+        max_input_bytes: total input budget in bytes  (default ~10 MB)
     """
     fn = _DESERIALIZERS.get(fmt)
     if fn is None:
         raise ValueError(f"Format {fmt!r} cannot be used for deserialization")
+    if fmt in (Format.SER_2026, Format.AUTO):
+        kwargs: dict = {}
+        if max_atom_len is not None:
+            kwargs["max_atom_len"] = max_atom_len
+        if max_input_bytes is not None:
+            kwargs["max_input_bytes"] = max_input_bytes
+        return fn(blob, **kwargs)
     return fn(blob)
 
 

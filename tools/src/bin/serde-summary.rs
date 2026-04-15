@@ -6,7 +6,9 @@ use clvmr::allocator::Allocator;
 use clvmr::serde::{
     node_from_bytes, node_from_bytes_backrefs, node_to_bytes_backrefs, node_to_bytes_limit,
 };
-use clvmr::serde_2026::{deserialize_2026, serialize_2026, serialize_2026_pair_optimized};
+use clvmr::serde_2026::{
+    DeserializeLimits, deserialize_2026, serialize_2026, serialize_2026_pair_optimized,
+};
 
 #[derive(Parser)]
 #[command(about = "Compare legacy, backref, and 2026 serialization formats")]
@@ -125,7 +127,8 @@ fn main() {
 
             let mut a_rt = Allocator::new();
             let n_rt =
-                deserialize_2026(&mut a_rt, &serialized, None).expect("2026 round-trip deser");
+                deserialize_2026(&mut a_rt, &serialized, DeserializeLimits::default())
+                    .expect("2026 round-trip deser");
             let rt = serialize_2026(&a_rt, n_rt).expect("2026 re-serialize");
             assert_eq!(
                 serialized,
@@ -143,7 +146,7 @@ fn main() {
             let start = Instant::now();
             for _ in 0..iters {
                 let mut a2 = Allocator::new();
-                let _ = deserialize_2026(&mut a2, &serialized, None).unwrap();
+                let _ = deserialize_2026(&mut a2, &serialized, DeserializeLimits::default()).unwrap();
             }
             let deser_us = start.elapsed().as_micros() as f64 / iters as f64;
 
@@ -163,7 +166,8 @@ fn main() {
 
             let mut a_rt = Allocator::new();
             let n_rt =
-                deserialize_2026(&mut a_rt, &serialized, None).expect("2026-opt round-trip deser");
+                deserialize_2026(&mut a_rt, &serialized, DeserializeLimits::default())
+                    .expect("2026-opt round-trip deser");
             let baseline = serialize_2026(&a_rt, n_rt).expect("2026 from round-tripped opt");
             let baseline_orig = serialize_2026(&a, node).expect("2026 original");
             assert_eq!(
@@ -182,7 +186,7 @@ fn main() {
             let start = Instant::now();
             for _ in 0..iters {
                 let mut a2 = Allocator::new();
-                let _ = deserialize_2026(&mut a2, &serialized, None).unwrap();
+                let _ = deserialize_2026(&mut a2, &serialized, DeserializeLimits::default()).unwrap();
             }
             let deser_us = start.elapsed().as_micros() as f64 / iters as f64;
 

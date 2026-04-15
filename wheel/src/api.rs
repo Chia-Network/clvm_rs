@@ -12,11 +12,12 @@ use clvmr::error::EvalErr;
 use clvmr::reduction::Response;
 use clvmr::run_program::run_program;
 use clvmr::serde::{
-    ParsedTriple, node_from_bytes, node_from_bytes_backrefs, node_to_bytes, node_to_bytes_backrefs,
+    ParsedTriple, node_from_bytes, node_from_bytes_backrefs, node_from_bytes_interned, node_to_bytes, node_to_bytes_backrefs,
     parse_triples, serialized_length_from_bytes,
 };
 use clvmr::serde_2026::{
-    deserialize_2026, node_from_bytes_auto, node_to_bytes_serde_2026, serialize_2026,
+    DeserializeLimits, deserialize_2026, node_from_bytes_auto, node_to_bytes_serde_2026,
+    serialize_2026,
 };
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
@@ -110,9 +111,33 @@ fn deser_backrefs(blob: &[u8]) -> PyResult<LazyNode> {
 }
 
 #[pyfunction]
-fn deser_2026(blob: &[u8]) -> PyResult<LazyNode> {
+fn deser_legacy_interned(blob: &[u8]) -> PyResult<LazyNode> {
     let mut a = Allocator::new();
-    let node = deserialize_2026(&mut a, blob, None).map_err(eval_to_py)?;
+    let node = node_from_bytes_interned(&mut a, blob).map_err(eval_to_py)?;
+    Ok(LazyNode::new(Rc::new(a), node))
+}
+
+fn make_limits(max_atom_len: Option<usize>, max_input_bytes: Option<usize>) -> DeserializeLimits {
+    let mut limits = DeserializeLimits::default();
+    if let Some(v) = max_atom_len {
+        limits.max_atom_len = v;
+    }
+    if let Some(v) = max_input_bytes {
+        limits.max_input_bytes = v;
+    }
+    limits
+}
+
+#[pyfunction]
+#[pyo3(signature = (blob, *, max_atom_len=None, max_input_bytes=None))]
+fn deser_2026(
+    blob: &[u8],
+    max_atom_len: Option<usize>,
+    max_input_bytes: Option<usize>,
+) -> PyResult<LazyNode> {
+    let mut a = Allocator::new();
+    let limits = make_limits(max_atom_len, max_input_bytes);
+    let node = deserialize_2026(&mut a, blob, limits).map_err(eval_to_py)?;
     Ok(LazyNode::new(Rc::new(a), node))
 }
 
@@ -122,10 +147,27 @@ fn deser_2026(blob: &[u8]) -> PyResult<LazyNode> {
 /// treated as serde_2026; otherwise the backrefs deserializer is used (which
 /// also handles plain classic format).
 #[pyfunction]
-fn deser_auto(blob: &[u8]) -> PyResult<LazyNode> {
+#[pyo3(signature = (blob, *, max_atom_len=None, max_input_bytes=None))]
+fn deser_auto(
+    blob: &[u8],
+    max_atom_len: Option<usize>,
+    max_input_bytes: Option<usize>,
+) -> PyResult<LazyNode> {
     let mut a = Allocator::new();
-    let node = node_from_bytes_auto(&mut a, blob).map_err(eval_to_py)?;
+    let limits = make_limits(max_atom_len, max_input_bytes);
+    let node = node_from_bytes_auto(&mut a, blob, limits).map_err(eval_to_py)?;
     Ok(LazyNode::new(Rc::new(a), node))
+}
+
+/// Intern a tree: deduplicate atoms and pairs, returning a new LazyNode
+/// with an interned allocator. This validates that the tree is properly
+/// interned (no duplicate nodes by content/structure).
+#[pyfunction]
+fn intern(node: &LazyNode) -> PyResult<LazyNode> {
+    use clvmr::serde::intern_tree;
+    
+    let interned = intern_tree(node.allocator(), node.node()).map_err(eval_to_py)?;
+    Ok(LazyNode::new(Rc::new(interned.allocator), interned.root))
 }
 
 // --- Serialize functions: LazyNode -> bytes ---
@@ -163,8 +205,10 @@ fn clvm_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(deserialize_as_tree, m)?)?;
     m.add_function(wrap_pyfunction!(deser_legacy, m)?)?;
     m.add_function(wrap_pyfunction!(deser_backrefs, m)?)?;
+    m.add_function(wrap_pyfunction!(deser_legacy_interned, m)?)?;
     m.add_function(wrap_pyfunction!(deser_2026, m)?)?;
     m.add_function(wrap_pyfunction!(deser_auto, m)?)?;
+    m.add_function(wrap_pyfunction!(intern, m)?)?;
     m.add_function(wrap_pyfunction!(ser_legacy, m)?)?;
     m.add_function(wrap_pyfunction!(ser_backrefs, m)?)?;
     m.add_function(wrap_pyfunction!(ser_2026, m)?)?;
