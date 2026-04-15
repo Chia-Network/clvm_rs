@@ -10,7 +10,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = { workspace = true }
-clvmr = { workspace = true, features = ["counters", "allocator-debug"] }
+clvmr = { workspace = true, features = ["counters", "allocator-debug", "ser-2026"] }
 arbitrary = { workspace = true }
 clvm-fuzzing = { workspace = true }
 num-bigint = { workspace = true }
@@ -146,5 +146,11 @@ doc = false
 [[bin]]
 name = "modpow"
 path = "fuzz_targets/modpow.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "serde-2026"
+path = "fuzz_targets/serde_2026.rs"
 test = false
 doc = false
