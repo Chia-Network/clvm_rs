@@ -19,7 +19,10 @@ fuzz_target!(|data: &[u8]| -> Corpus {
         deserialize_2026(&mut a2, &serialized, limits).expect("round-trip deserialize failed");
     let serialized2 = serialize_2026(&a2, node2).expect("re-serialize failed");
 
-    assert_eq!(serialized, serialized2, "round-trip produced different serialization");
+    assert_eq!(
+        serialized, serialized2,
+        "round-trip produced different serialization"
+    );
 
     Corpus::Keep
 });
