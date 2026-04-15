@@ -3,10 +3,10 @@ use std::io::Write;
 
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::error::{EvalErr, Result};
-use crate::serde::{intern_tree, InternedTree};
+use crate::serde::{InternedTree, intern_tree};
 
-use super::varint::write_varint;
 use super::MAX_INDEX;
+use super::varint::write_varint;
 
 /// Intermediate state after interning and sorting atoms.
 ///

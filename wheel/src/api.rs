@@ -158,7 +158,7 @@ fn deser_auto(
 #[pyfunction]
 fn intern(node: &LazyNode) -> PyResult<LazyNode> {
     use clvmr::serde::intern_tree;
-    
+
     let interned = intern_tree(node.allocator(), node.node()).map_err(eval_to_py)?;
     Ok(LazyNode::new(Rc::new(interned.allocator), interned.root))
 }

@@ -4,9 +4,9 @@ use std::io::Write;
 use crate::allocator::{Allocator, NodePtr, SExp};
 use crate::error::Result;
 
-use super::ser::{write_atom_table, SerializerState};
-use super::varint::write_varint;
 use super::MAX_INDEX;
+use super::ser::{SerializerState, write_atom_table};
+use super::varint::write_varint;
 
 /// Serialize with tree-DP-optimal left/right decisions.
 ///
@@ -39,12 +39,7 @@ pub fn serialize_2026_pair_optimized_to_stream<W: Write>(
             _ => unreachable!(),
         };
         for child in [left, right] {
-            let idx = if let Some(&ai) = state
-                .tree
-                .node_indices()
-                .0
-                .get(&child)
-            {
+            let idx = if let Some(&ai) = state.tree.node_indices().0.get(&child) {
                 ai
             } else {
                 state.tree.node_indices().1[&child]

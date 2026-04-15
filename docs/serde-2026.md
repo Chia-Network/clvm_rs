@@ -60,13 +60,13 @@ instructions.
 
 Each instruction is a varint:
 
-| Varint value | Meaning                                                            |
-| ------------ | ------------------------------------------------------------------ |
-| `0`          | Push nil (the empty atom)                                          |
-| `1`          | Pop two items (left was pushed first), cons them, push the pair    |
-| `-1`         | Pop two items (right was pushed first), cons them, push the pair   |
-| `N >= 2`     | Push the atom at index N-2 onto the stack                          |
-| `N <= -2`    | Push the already-constructed pair at index -N-2 onto the stack     |
+| Varint value | Meaning                                                          |
+| ------------ | ---------------------------------------------------------------- |
+| `0`          | Push nil (the empty atom)                                        |
+| `1`          | Pop two items (left was pushed first), cons them, push the pair  |
+| `-1`         | Pop two items (right was pushed first), cons them, push the pair |
+| `N >= 2`     | Push the atom at index N-2 onto the stack                        |
+| `N <= -2`    | Push the already-constructed pair at index -N-2 onto the stack   |
 
 The default serializer always uses opcode `1` (left-first cons). The
 pair-optimized serializer uses both `1` and `-1` to steer traversal order,

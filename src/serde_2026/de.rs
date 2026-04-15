@@ -4,8 +4,8 @@ use crate::allocator::{Allocator, NodePtr};
 use crate::error::{EvalErr, Result};
 use crate::serde::node_from_bytes_backrefs;
 
-use super::varint::decode_varint;
 use super::MAGIC_PREFIX;
+use super::varint::decode_varint;
 
 /// Default maximum atom length (1 MB).
 pub const DEFAULT_MAX_ATOM_LEN: usize = 1 << 20;

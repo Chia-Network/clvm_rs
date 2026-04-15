@@ -38,7 +38,7 @@ pub const MAGIC_PREFIX: [u8; 6] = [0xfd, 0xff, b'2', b'0', b'2', b'6'];
 const MAX_INDEX: usize = i32::MAX as usize;
 
 pub use de::{
-    deserialize_2026, deserialize_2026_from_stream, node_from_bytes_auto, DeserializeLimits,
+    DeserializeLimits, deserialize_2026, deserialize_2026_from_stream, node_from_bytes_auto,
 };
 pub use ser::{
     node_to_bytes_serde_2026, node_to_bytes_serde_2026_raw, serialize_2026,
