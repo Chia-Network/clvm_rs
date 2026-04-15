@@ -52,8 +52,7 @@ impl<R: Read> Read for LimitReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let limit = buf.len().min(self.remaining);
         if limit == 0 && !buf.is_empty() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            return Err(std::io::Error::other(
                 "serde_2026: input exceeds max_input_bytes",
             ));
         }
