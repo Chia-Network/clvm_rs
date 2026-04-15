@@ -41,3 +41,11 @@ pub use tools::{
     tree_hash_from_stream,
 };
 pub use tree_cache::{TreeCache, TreeCacheCheckpoint};
+
+// Re-export from serde_2026 module for backward compatibility
+#[cfg(feature = "ser-2026")]
+pub use crate::serde_2026::{
+    DeserializeLimits, MAGIC_PREFIX as SERDE_2026_MAGIC_PREFIX, deserialize_2026,
+    deserialize_2026_from_stream, node_from_bytes_auto, node_to_bytes_serde_2026,
+    node_to_bytes_serde_2026_raw, serialize_2026, serialize_2026_to_stream,
+};
