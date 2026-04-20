@@ -9,7 +9,7 @@ use crate::allocator::{Allocator, NodePtr, NodeVisitor, SExp, len_for_value};
 use crate::chia_dialect::ClvmFlags;
 use crate::cost::{Cost, check_cost};
 use crate::error::EvalErr;
-use crate::number::Number;
+use crate::number::{Number, number_from_u8};
 use crate::op_utils::{
     MALLOC_COST_PER_BYTE, atom, atom_len, get_args, get_varargs, i32_atom, int_atom,
     malachite_int_atom, match_args, mod_group_order, new_atom_and_cost, nilp, u32_from_u8,
@@ -412,6 +412,8 @@ pub fn op_add(
     max_cost: Cost,
     _flags: ClvmFlags,
 ) -> Response {
+    use rand::Rng;
+
     let mut cost = ARITH_BASE_COST;
 
     // Fast path: if every operand is a SmallAtom, try adding as u64
@@ -439,10 +441,13 @@ pub fn op_add(
         return Ok(malloc_cost(a, cost, total));
     }
 
+    let mut rng = rand::rng();
+
     // Slow path: fall back to bignum arithmetic
     input = saved_input;
     cost = ARITH_BASE_COST;
-    let mut total: Number = 0.into();
+    let mut acc = [Number::from(0), Number::from(0)];
+    let mut small_acc: Number = 0.into();
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += ARITH_COST_PER_ARG;
@@ -451,14 +456,13 @@ pub fn op_add(
             NodeVisitor::Buffer(buf) => {
                 cost += ARITH_COST_PER_BYTE * (buf.len() as Cost);
                 check_cost(cost, max_cost)?;
-
-                use crate::number::number_from_u8;
-                total += number_from_u8(buf);
+                let val = number_from_u8(buf);
+                acc[rng.random_range(0..2)] += val;
             }
             NodeVisitor::U32(val) => {
                 cost += len_for_value(val) as Cost * ARITH_COST_PER_BYTE;
                 check_cost(cost, max_cost)?;
-                total += val;
+                small_acc += val;
             }
             NodeVisitor::Pair(_, _) => {
                 Err(EvalErr::InvalidOpArg(
@@ -468,7 +472,7 @@ pub fn op_add(
             }
         }
     }
-    let total = a.new_number(total)?;
+    let total = a.new_number(&acc[0] + &acc[1] + small_acc)?;
     Ok(malloc_cost(a, cost, total))
 }
 
@@ -478,6 +482,9 @@ pub fn op_subtract(
     max_cost: Cost,
     _flags: ClvmFlags,
 ) -> Response {
+    use crate::number::number_from_u8;
+    use rand::Rng;
+
     let mut cost = ARITH_BASE_COST;
 
     // Fast path: if every operand is a SmallAtom, try subtracting as i64
@@ -511,54 +518,60 @@ pub fn op_subtract(
         return Ok(malloc_cost(a, cost, total));
     }
 
+    let mut rng = rand::rng();
+
     // Slow path: fall back to bignum arithmetic
     input = saved_input;
     cost = ARITH_BASE_COST;
-    let mut total: Number = 0.into();
+    let mut acc = [Number::from(0), Number::from(0)];
+    let mut small_acc: Number = 0.into();
     let mut is_first = true;
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += ARITH_COST_PER_ARG;
-        if matches!(a.sexp(arg), SExp::Pair(_, _)) {
-            return Err(EvalErr::InvalidOpArg(
-                arg,
-                "Requires Int Argument: -".to_string(),
-            ));
-        }
         check_cost(cost, max_cost)?;
         if is_first {
-            let len = a.atom_len(arg);
-            cost += len as Cost * ARITH_COST_PER_BYTE;
-            check_cost(cost, max_cost)?;
-            let v = a.number(arg);
-            total = v;
+            match a.node(arg) {
+                NodeVisitor::Buffer(buf) => {
+                    cost += buf.len() as Cost * ARITH_COST_PER_BYTE;
+                    check_cost(cost, max_cost)?;
+                    acc[rng.random_range(0..2)] += number_from_u8(buf);
+                }
+                NodeVisitor::U32(val) => {
+                    cost += len_for_value(val) as Cost * ARITH_COST_PER_BYTE;
+                    check_cost(cost, max_cost)?;
+                    small_acc += val;
+                }
+                NodeVisitor::Pair(_, _) => {
+                    return Err(EvalErr::InvalidOpArg(
+                        arg,
+                        "Requires Int Argument: -".to_string(),
+                    ));
+                }
+            }
         } else {
             match a.node(arg) {
                 NodeVisitor::Buffer(buf) => {
                     cost += buf.len() as Cost * ARITH_COST_PER_BYTE;
                     check_cost(cost, max_cost)?;
-
-                    use crate::number::number_from_u8;
-                    total -= number_from_u8(buf);
+                    acc[rng.random_range(0..2)] -= number_from_u8(buf);
                 }
                 NodeVisitor::U32(val) => {
-                    let len = len_for_value(val);
-                    cost += len as Cost * ARITH_COST_PER_BYTE;
+                    cost += len_for_value(val) as Cost * ARITH_COST_PER_BYTE;
                     check_cost(cost, max_cost)?;
-
-                    total -= val;
+                    small_acc -= val;
                 }
                 NodeVisitor::Pair(_, _) => {
-                    Err(EvalErr::InvalidOpArg(
+                    return Err(EvalErr::InvalidOpArg(
                         arg,
                         "Requires Int Argument: -".to_string(),
-                    ))?;
+                    ));
                 }
             }
-        };
+        }
         is_first = false;
     }
-    let total = a.new_number(total)?;
+    let total = a.new_number(&acc[0] + &acc[1] + small_acc)?;
     Ok(malloc_cost(a, cost, total))
 }
 
@@ -594,7 +607,6 @@ pub fn op_multiply(
                 cost += (l0 as Cost * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
                 check_cost(cost, max_cost)?;
 
-                use crate::number::number_from_u8;
                 total *= number_from_u8(buf);
             }
             NodeVisitor::U32(val) => {
@@ -1010,19 +1022,25 @@ fn binop_reduction(
     max_cost: Cost,
     op_f: fn(&mut Number, &Number) -> (),
 ) -> Response {
-    let mut total = initial_value;
+    let mut pos_acc = initial_value.clone();
+    let mut neg_acc = initial_value;
     let mut arg_size: usize = 0;
     let mut cost = LOG_BASE_COST;
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         let (n0, len) = int_atom(a, arg, op_name)?;
-        op_f(&mut total, &n0);
+        if n0.sign() == num_bigint::Sign::Minus {
+            op_f(&mut neg_acc, &n0);
+        } else {
+            op_f(&mut pos_acc, &n0);
+        }
         arg_size += len;
         cost += LOG_COST_PER_ARG;
         check_cost(cost + (arg_size as Cost * LOG_COST_PER_BYTE), max_cost)?;
     }
     cost += arg_size as Cost * LOG_COST_PER_BYTE;
-    let total = a.new_number(total)?;
+    op_f(&mut pos_acc, &neg_acc);
+    let total = a.new_number(pos_acc)?;
     Ok(malloc_cost(a, cost, total))
 }
 
