@@ -139,11 +139,11 @@ pub struct TreeCache {
 
 impl TreeCache {
     pub fn new(sentinel: Option<NodePtr>) -> Self {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         Self {
             sentinel_node: sentinel,
             atom_lookup: HashMap::with_hasher(RandomState::default()),
-            salt: rng.r#gen(),
+            salt: rng.random(),
             ..Default::default()
         }
     }

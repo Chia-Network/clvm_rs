@@ -45,12 +45,12 @@ lazy_static = "1.5.0"
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
 num-integer = "0.1.46"
-chia-bls = "0.36.1"
-chia-sha2 = "0.36.1"
+chia-bls = "0.38.2"
+chia-sha2 = "0.38.2"
 hex-literal = "0.4.1"
 # for secp sigs
-k256 = "0.13.4"
-p256 = "0.13.2"
+k256 = "0.14.0-rc"
+p256 = "0.14.0-rc"
 rstest = "0.26.1"
 criterion = "0.5.1"
 hex = "0.4.3"
@@ -58,13 +58,13 @@ pyo3 = "0.28.2"
 js-sys = "0.3.77"
 getrandom = "0.2.16"
 libfuzzer-sys = "0.4.10"
-rand = "0.8.5"
+rand = "0.9"
 sha1 = "0.10.6"
 linreg = "0.2.0"
 serde = "1.0.228"
 serde_json = "1.0.145"
 clap = "4.5.52"
-rand_chacha = "0.3.1"
+rand_chacha = "0.9.0"
 bitvec = "1.0.1"
 arbitrary = { version = "1.4.2", features = ["derive"] }
 bumpalo = "3.19.0"
@@ -82,15 +82,15 @@ chia-sha2 = { workspace = true }
 hex-literal = { workspace = true }
 bitvec = { workspace = true }
 # for secp sigs
-k256 = { version = "0.13.4", features = ["ecdsa"] }
-p256 = { version = "0.13.2", features = ["ecdsa"] }
+k256 = { version = "0.14.0-rc", features = ["ecdsa"] }
+p256 = { version = "0.14.0-rc", features = ["ecdsa"] }
 # for keccak256
 sha3 = { version = "0.10.8", features = ["asm"] }
 rand = { workspace = true }
 hex = { workspace = true }
 sha1 = { workspace = true }
 bumpalo = { workspace = true }
-thiserror = "1.0.69"
+thiserror = "2.0"
 malachite-bigint = { workspace = true }
 
 
