@@ -254,7 +254,7 @@ fn random_tree(a: &mut Allocator, rng: &mut StdRng, num_leafs: u32, leaf: NodePt
         return leaf;
     }
 
-    let pivot = rng.gen_range(1..num_leafs);
+    let pivot = rng.random_range(1..num_leafs);
     let left = random_tree(a, rng, pivot, leaf);
     let right = random_tree(a, rng, num_leafs - pivot, leaf);
     a.new_pair(left, right).expect("new_pair")

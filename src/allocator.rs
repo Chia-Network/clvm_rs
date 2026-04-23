@@ -385,7 +385,7 @@ impl Allocator {
             max_heap_size: 0,
 
             #[cfg(feature = "allocator-debug")]
-            fingerprint: rand::thread_rng().next_u32() & 0x7fffffff,
+            fingerprint: rand::rng().next_u32() & 0x7fffffff,
 
             #[cfg(feature = "allocator-debug")]
             versions: Vec::new(),
