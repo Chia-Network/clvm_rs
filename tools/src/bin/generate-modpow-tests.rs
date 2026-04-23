@@ -12,7 +12,7 @@ fn main() {
 
     // Generate a random quantity (within a range) of random bytes.
     let mut bytes = |min: usize, max: usize| {
-        let len = rng.gen_range(min..=max);
+        let len = rng.random_range(min..=max);
         let mut bytes = vec![0; len];
         rng.fill(&mut bytes[..]);
         bytes
