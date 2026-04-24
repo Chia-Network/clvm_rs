@@ -54,17 +54,20 @@ jobs:
           name: wheels
           path: target/wheels/
 
-      - name: Install setuptools_rust
-        run: |
-          if [ ! -f "venv" ]; then sudo rm -rf venv; fi
-          sudo apt-get install python3-venv python3-pip -y
-          python3 -m venv venv
-          if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi
-          . ./activate
-          pip install setuptools_rust
+  publish:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: build_wheels
+    if: startsWith(github.event.ref, 'refs/tags')
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: wheels
+          path: target/wheels/
 
       - name: publish (PyPi)
-        if: startsWith(github.event.ref, 'refs/tags')
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: target/wheels/
