@@ -19,10 +19,13 @@ target/
 # python ignore
 /venv
 /.venv
+__pycache__
+*.pyc
+*.so
 
 # Node.js
 /target
 /node_modules
 
 # Mac generates these with the benchmarking tools
-.DS_Store
+.DS_Storestate/
