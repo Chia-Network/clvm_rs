@@ -4,7 +4,12 @@ from typing import Iterator, List, Tuple, Optional, BinaryIO
 from .at import at
 from .casts import CastableType, to_clvm_object, int_from_bytes, int_to_bytes
 from .chia_dialect import CHIA_DIALECT
-from .clvm_rs import run_serialized_chia_program
+from .clvm_rs import (
+    clvm_tree_to_lazy_node,
+    deser_auto,
+    run_serialized_chia_program,
+    ser_2026,
+)
 from .clvm_storage import CLVMStorage
 from .clvm_tree import CLVMTree
 from .curry_and_treehash import CurryTreehasher
@@ -12,6 +17,11 @@ from .eval_error import EvalError
 from .replace import replace
 from .ser import sexp_from_stream, sexp_to_stream, sexp_to_bytes
 from .tree_hash import sha256_treehash
+
+# serde_2026 wire-format magic prefix:
+# 0xfd 0xff forces legacy/backrefs decoders to fail fast;
+# "2026" keeps hexdumps readable.
+_SERDE_2026_MAGIC = b"\xfd\xff2026"
 
 
 
@@ -36,6 +46,18 @@ class Program(CLVMStorage):
 
     @classmethod
     def from_bytes(cls, blob: bytes, calculate_tree_hash: bool = True) -> Program:
+        """Deserialize from any CLVM format (classic, backrefs, or serde_2026).
+
+        This is the recommended entry point for byte blobs in Python.
+        The ``calculate_tree_hash`` parameter is kept for API compatibility.
+        """
+        return cls.wrap(deser_auto(blob))
+
+    @classmethod
+    def from_bytes_legacy(
+        cls, blob: bytes, calculate_tree_hash: bool = True
+    ) -> Program:
+        """Deserialize using the legacy Python parser only."""
         obj, cursor = cls.from_bytes_with_cursor(
             blob, 0, calculate_tree_hash=calculate_tree_hash
         )
@@ -53,7 +75,42 @@ class Program(CLVMStorage):
         return obj, new_cursor
 
     @classmethod
-    def fromhex(cls, hexstr: str) -> Program:
+    def from_bytes_auto(cls, blob: bytes) -> "Program":
+        """Deserialize from any CLVM format (classic, backrefs, or serde_2026).
+
+        Auto-detects by inspecting the first bytes: if they are the
+        serde_2026 magic prefix ``fd ff 32 30 32 36``, the serde_2026 decoder is used;
+        otherwise the backrefs decoder is used (which also handles plain classic
+        format).  ``Program.from_bytes`` delegates here and is preferred.
+        """
+        return cls.wrap(deser_auto(blob))
+
+    @classmethod
+    def from_bytes_serde_2026(cls, blob: bytes) -> "Program":
+        """Deserialize from serde_2026 format.
+
+        The blob must begin with the six-byte magic prefix
+        ``fd ff 32 30 32 36``. Use
+        ``to_bytes_serde_2026`` to produce compatible output.
+        """
+        if not blob.startswith(_SERDE_2026_MAGIC):
+            raise ValueError(
+                "missing serde_2026 magic prefix (expected first bytes fd ff 32 30 32 36)"
+            )
+        return cls.wrap(deser_auto(blob))
+
+    def to_bytes_serde_2026(self) -> bytes:
+        """Serialize to serde_2026 format with the ``fd ff 32 30 32 36`` magic prefix.
+
+        Use ``from_bytes_auto`` or ``from_bytes_serde_2026`` to deserialize the
+        result.  The returned bytes are suitable for storage or transmission
+        wherever serde_2026 is expected.
+        """
+        lazy = clvm_tree_to_lazy_node(self)
+        return ser_2026(lazy)
+
+    @classmethod
+    def fromhex(cls, hexstr: str) -> "Program":
         return cls.from_bytes(bytes.fromhex(hexstr))
 
     def __bytes__(self) -> bytes:
