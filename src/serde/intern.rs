@@ -30,25 +30,6 @@ impl InternedTree {
             .get_or_calculate(&self.allocator, &self.root, None)
             .expect("treehash should not fail on valid tree")
     }
-
-    /// Get a mapping from NodePtr to index for serialization.
-    ///
-    /// Returns (atom_to_index, pair_to_index) where:
-    /// - Atom indices are 0, 1, 2, ... (non-negative)
-    /// - Pair indices are -1, -2, -3, ... (negative, 1-based)
-    pub fn node_indices(&self) -> (HashMap<NodePtr, i32>, HashMap<NodePtr, i32>) {
-        let mut atom_to_index = HashMap::with_capacity(self.atoms.len());
-        let mut pair_to_index = HashMap::with_capacity(self.pairs.len());
-
-        for (i, &atom) in self.atoms.iter().enumerate() {
-            atom_to_index.insert(atom, i as i32);
-        }
-        for (i, &pair) in self.pairs.iter().enumerate() {
-            pair_to_index.insert(pair, -(i as i32 + 1));
-        }
-
-        (atom_to_index, pair_to_index)
-    }
 }
 
 /// Intern a CLVM tree: deduplicate atoms and pairs in a single pass.

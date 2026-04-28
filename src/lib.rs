@@ -15,7 +15,6 @@ pub mod run_program;
 pub mod runtime_dialect;
 pub mod secp_ops;
 pub mod serde;
-#[cfg(feature = "ser-2026")]
 pub mod serde_2026;
 pub mod sha_tree_op;
 pub mod traverse_path;

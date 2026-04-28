@@ -33,7 +33,6 @@ def ser_2026(
     node: "LazyNode",
     *,
     level: int = 1,
-    prefixed: bool = True,
 ) -> bytes: ...
 
 # --- Tree conversion ---

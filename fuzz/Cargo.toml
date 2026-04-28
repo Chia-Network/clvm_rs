@@ -148,3 +148,9 @@ name = "modpow"
 path = "fuzz_targets/modpow.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "serde-2026"
+path = "fuzz_targets/serde_2026.rs"
+test = false
+doc = false

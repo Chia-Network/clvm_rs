@@ -2,7 +2,7 @@
 
 ## Magic Header
 
-The 2026 serialization format is identified by a 6-byte magic prefix:
+Every 2026-format blob begins with a 6-byte magic prefix:
 
 ```
 0xfd 0xff 0x32 0x30 0x32 0x36
@@ -30,28 +30,31 @@ format, it should fail quickly due to the deliberately invalid size prefix.
 
 After the 6-byte magic header, the payload consists of two sections:
 
-1. **Atom table** — all unique atoms, grouped by length
+1. **Atom table** — all unique atoms (except nil), grouped by length
 2. **Instruction stream** — stack-based operations to reconstruct the tree
 
 ### Atom Table
 
-The atom table begins with a varint encoding the number of distinct atom
-lengths present.
+Nil (the empty atom) is **not** included in the atom table — it has a dedicated
+opcode (`0`) in the instruction stream.
 
-For each length group (in stream order):
+The atom table begins with a varint encoding the number of atom groups.
 
-- If there is **one** atom of that length: a positive varint encoding the
+For each group (in stream order):
+
+- If the group contains **one** atom: a positive varint encoding the atom's byte
   length, followed by the atom's raw bytes.
-- If there are **multiple** atoms of that length: a negative varint encoding
-  the negated length, then a positive varint encoding the count, then the raw
-  bytes of each atom concatenated (each is exactly `length` bytes).
+- If the group contains **multiple** atoms of the same length: a negative varint
+  encoding the negated byte length, then a positive varint encoding the count,
+  then the raw bytes of each atom concatenated (each is exactly `length` bytes).
 
 Atoms are assigned indices starting from 0, in the order they appear in the
 table.
 
-The decoder accepts length groups in any order, and repeated length groups are
-valid. A serializer may still choose a specific ordering strategy (for example,
-sorting by length) as an implementation optimization.
+The decoder accepts groups in any order. Multiple groups with the same byte
+length are valid (they contribute separate atom indices). A serializer may
+choose a specific ordering strategy (for example, sorting by frequency so
+commonly-referenced atoms get smaller varint indices).
 
 ### Instruction Stream
 
@@ -68,10 +71,6 @@ Each instruction is a varint:
 | `N >= 2`     | Push the atom at index N-2 onto the stack                        |
 | `N <= -2`    | Push the already-constructed pair at index -N-2 onto the stack   |
 
-The default serializer always uses opcode `1` (left-first cons). The
-pair-optimized serializer uses both `1` and `-1` to steer traversal order,
-reducing the number of pair back-references needed.
-
 Pairs are indexed in construction order (the first pair cons'd is index 0, the
 second is index 1, etc.). A negative instruction references a pair that was
 previously constructed during this same decode, enabling shared sub-trees
@@ -82,8 +81,7 @@ root node.
 
 ### Varint Encoding
 
-Signed integers are encoded with a variable-length prefix scheme.
-The patterns below are illustrative examples, not an upper bound:
+Signed integers are encoded with a variable-length prefix scheme:
 
 ```
 0xxxxxxx                          →  7-bit value, range [-64, 63]
@@ -96,3 +94,5 @@ The number of leading `1` bits determines how many additional bytes follow. A
 `0` separator bit follows the leading `1`s. The remaining bits (across all
 bytes) form a two's-complement signed integer in big-endian order. This scales
 to wider integers without changing the encoding rules.
+
+A prefix of 8 leading `1` bits (`0xFF`) is invalid.

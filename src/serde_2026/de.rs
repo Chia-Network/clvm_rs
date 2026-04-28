@@ -4,7 +4,7 @@ use crate::allocator::{Allocator, NodePtr};
 use crate::error::{EvalErr, Result};
 use crate::serde::node_from_bytes_backrefs;
 
-use super::MAGIC_PREFIX;
+use super::SERDE_2026_MAGIC_PREFIX;
 use super::varint::decode_varint;
 
 /// Default maximum atom length (1 MB).
@@ -86,17 +86,14 @@ pub fn node_from_bytes_auto(
     bytes: &[u8],
     limits: DeserializeLimits,
 ) -> Result<NodePtr> {
-    if bytes.starts_with(&MAGIC_PREFIX) {
-        deserialize_2026(allocator, &bytes[MAGIC_PREFIX.len()..], limits)
+    if bytes.starts_with(&SERDE_2026_MAGIC_PREFIX) {
+        deserialize_2026(allocator, &bytes[SERDE_2026_MAGIC_PREFIX.len()..], limits)
     } else {
         node_from_bytes_backrefs(allocator, bytes)
     }
 }
 
 /// Deserialize a node from a stream using the 2026 format.
-///
-/// Handles both `cons_lr` (opcode 1) and `cons_rl` (opcode -1), so it can
-/// deserialize output from either the default or pair-optimized serializer.
 pub fn deserialize_2026_from_stream<R: Read>(
     allocator: &mut Allocator,
     reader: &mut R,
@@ -132,11 +129,7 @@ pub fn deserialize_2026_from_stream<R: Read>(
 
     let instruction_count = checked_usize(decode_varint(&mut reader)?, MAX_COUNT)?;
     if instruction_count == 0 {
-        return if atoms.is_empty() {
-            Err(EvalErr::SerializationError)
-        } else {
-            Ok(atoms[0])
-        };
+        return Err(EvalErr::SerializationError);
     }
 
     let nil = allocator.nil();
@@ -199,11 +192,11 @@ pub fn deserialize_2026(
 /// The input buffer may contain trailing data; only the bytes belonging to
 /// the serde_2026 blob are counted.
 pub fn serialized_length_serde_2026(buf: &[u8]) -> Result<u64> {
-    if !buf.starts_with(&MAGIC_PREFIX) {
+    if !buf.starts_with(&SERDE_2026_MAGIC_PREFIX) {
         return Err(EvalErr::SerializationError);
     }
 
-    let data = &buf[MAGIC_PREFIX.len()..];
+    let data = &buf[SERDE_2026_MAGIC_PREFIX.len()..];
     let mut cursor = Cursor::new(data);
 
     let group_count = checked_usize(decode_varint(&mut cursor)?, MAX_COUNT)?;
@@ -236,5 +229,5 @@ pub fn serialized_length_serde_2026(buf: &[u8]) -> Result<u64> {
         decode_varint(&mut cursor)?;
     }
 
-    Ok(MAGIC_PREFIX.len() as u64 + cursor.position())
+    Ok(SERDE_2026_MAGIC_PREFIX.len() as u64 + cursor.position())
 }

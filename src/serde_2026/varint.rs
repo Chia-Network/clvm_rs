@@ -150,7 +150,33 @@ mod tests {
 
     #[test]
     fn test_decode_rejects_invalid_prefix() {
-        // 0xFF (8 leading ones) is invalid - should return error, not panic
         assert!(decode_varint(&mut Cursor::new(&[0xff][..])).is_err());
+        assert!(decode_varint(&mut Cursor::new(&[0xff, 0x00][..])).is_err());
+    }
+
+    #[test]
+    fn test_decode_rejects_truncated_multibyte() {
+        // 2-byte varint (0x80 prefix) with missing second byte
+        assert!(decode_varint(&mut Cursor::new(&[0x80][..])).is_err());
+        // 3-byte varint (0xc0 prefix) with only 1 extra byte
+        assert!(decode_varint(&mut Cursor::new(&[0xc0, 0x00][..])).is_err());
+        // 4-byte varint (0xe0 prefix) with only 2 extra bytes
+        assert!(decode_varint(&mut Cursor::new(&[0xe0, 0x00, 0x00][..])).is_err());
+    }
+
+    #[test]
+    fn test_decode_empty_input() {
+        assert!(decode_varint(&mut Cursor::new(&[][..])).is_err());
+    }
+
+    #[test]
+    fn test_roundtrip_boundary_values() {
+        for val in [
+            0, 1, -1, 63, -64, 64, -65, 8191, -8192, 8192, -8193, 1048575, -1048576,
+        ] {
+            let encoded = encode_varint(val);
+            let decoded = decode_varint(&mut Cursor::new(&encoded)).unwrap();
+            assert_eq!(val, decoded, "roundtrip failed for {val}");
+        }
     }
 }

@@ -17,8 +17,8 @@ use clvmr::serde::{
     parse_triples, serialized_length_from_bytes,
 };
 use clvmr::serde_2026::{
-    DeserializeLimits, MAGIC_PREFIX, deserialize_2026, node_from_bytes_auto, serialize_2026,
-    serialize_2026_pair_optimized,
+    Compression, DeserializeLimits, SERDE_2026_MAGIC_PREFIX, deserialize_2026,
+    node_from_bytes_auto, serialize_2026,
 };
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
@@ -167,32 +167,27 @@ fn ser_backrefs(py: Python, node: &LazyNode) -> PyResult<Py<PyBytes>> {
     Ok(PyBytes::new(py, &bytes).unbind())
 }
 
-/// Serialize to serde_2026 format.
+/// Serialize to serde_2026 format (always includes the magic prefix).
 ///
 /// - `level=0`: left-first traversal (fast)
 /// - `level=1`: pair-optimized DP traversal (smaller output, default)
-/// - `prefixed=True`: prepend the `fd ff 32 30 32 36` magic prefix (default)
 #[pyfunction]
-#[pyo3(signature = (node, *, level=1, prefixed=true))]
-fn ser_2026(py: Python, node: &LazyNode, level: u32, prefixed: bool) -> PyResult<Py<PyBytes>> {
-    let raw = match level {
-        0 => serialize_2026(node.allocator(), node.node()).map_err(eval_to_py)?,
-        1 => serialize_2026_pair_optimized(node.allocator(), node.node()).map_err(eval_to_py)?,
+#[pyo3(signature = (node, *, level=1))]
+fn ser_2026(py: Python, node: &LazyNode, level: u32) -> PyResult<Py<PyBytes>> {
+    let compression = match level {
+        0 => Compression::Fast,
+        1 => Compression::Compact,
         _ => {
             return Err(pyo3::exceptions::PyValueError::new_err(
                 "ser_2026: level must be 0 or 1",
             ));
         }
     };
-    let out = if prefixed {
-        let mut buf = Vec::with_capacity(MAGIC_PREFIX.len() + raw.len());
-        buf.extend_from_slice(&MAGIC_PREFIX);
-        buf.extend_from_slice(&raw);
-        buf
-    } else {
-        raw
-    };
-    Ok(PyBytes::new(py, &out).unbind())
+    let raw = serialize_2026(node.allocator(), node.node(), compression).map_err(eval_to_py)?;
+    let mut buf = Vec::with_capacity(SERDE_2026_MAGIC_PREFIX.len() + raw.len());
+    buf.extend_from_slice(&SERDE_2026_MAGIC_PREFIX);
+    buf.extend_from_slice(&raw);
+    Ok(PyBytes::new(py, &buf).unbind())
 }
 
 /// Convert a Python CLVM tree (any object with `.atom` / `.pair` attributes)

@@ -140,9 +140,7 @@ class SerializeTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             Program.fromhex("ff8085")
 
-        # Legacy-only representation check; Program.from_bytes now auto-detects
-        # and may return Rust-backed LazyNode internals instead of CLVMTree.
-        o = Program.from_bytes_legacy(bytes.fromhex("ff808185"))
+        o = Program.from_bytes_backrefs(bytes.fromhex("ff808185"))
         self.assertEqual(repr(o._unwrapped_pair[0]), "<CLVMTree: 80>")
         self.assertEqual(repr(o._unwrapped_pair[1]), "<CLVMTree: 8185>")
 
@@ -162,24 +160,24 @@ class SerializeTest(unittest.TestCase):
         self.assertRaises(ValueError, lambda: Program.fromhex("fc"))
         self.assertRaises(ValueError, lambda: Program.fromhex("fc8000000000"))
 
-    def test_serde_2026_magic_prefix_and_from_bytes(self):
+    def test_2026_magic_prefix_and_from_bytes(self):
         p = Program.to((1, (2, 3)))
-        prefixed = p.to_bytes_serde_2026()
+        prefixed = p.to_bytes_2026()
         self.assertTrue(prefixed.startswith(bytes.fromhex("fdff32303236")))
         p2 = Program.from_bytes(prefixed)
         self.assertEqual(p, p2)
 
-    def test_serde_2026_magic_prefix_explicit_deserializer(self):
+    def test_2026_magic_prefix_explicit_deserializer(self):
         p = Program.to([1, 2, 3, 4])
         prefixed = serialize(deserialize(bytes(p), "legacy"), "2026")
-        p2 = Program.from_bytes_serde_2026(prefixed)
+        p2 = Program.from_bytes_2026(prefixed)
         self.assertEqual(p, p2)
 
-    def test_legacy_parser_rejects_serde_2026_prefixed(self):
+    def test_backrefs_parser_rejects_2026(self):
         p = Program.to((b"a", b"b"))
-        prefixed = p.to_bytes_serde_2026()
+        prefixed = p.to_bytes_2026()
         with self.assertRaises(ValueError):
-            Program.from_bytes_legacy(prefixed)
+            Program.from_bytes_backrefs(prefixed)
 
 
 class ClvmTreeToLazyNodeTest(unittest.TestCase):
@@ -189,7 +187,7 @@ class ClvmTreeToLazyNodeTest(unittest.TestCase):
         """Python tree -> clvm_tree_to_lazy_node -> ser -> deser -> assert equal."""
         for tree in [b"hello", 42, [1, 2, 3], (1, (2, 3)), [], b""]:
             p = Program.to(tree)
-            blob = p.to_bytes_serde_2026()
+            blob = p.to_bytes_2026()
             p2 = Program.from_bytes(blob)
             self.assertEqual(p, p2, f"roundtrip failed for {tree!r}")
 
@@ -250,6 +248,28 @@ class ClvmTreeToLazyNodeTest(unittest.TestCase):
         lazy = clvm_tree_to_lazy_node(p)
         self.assertIsNotNone(lazy)
 
+    def test_nil_atom(self):
+        """Empty atom (nil) converts correctly."""
+        p = Program.to(b"")
+        lazy = clvm_tree_to_lazy_node(p)
+        self.assertEqual(lazy.atom, b"")
+        self.assertIsNone(lazy.pair)
+
+    def test_preserves_tree_structure(self):
+        """Converted tree has the same structure as the original."""
+        p = Program.to((b"a", (b"b", b"c")))
+        lazy = clvm_tree_to_lazy_node(p)
+        self.assertEqual(lazy.pair[0].atom, b"a")
+        self.assertEqual(lazy.pair[1].pair[0].atom, b"b")
+        self.assertEqual(lazy.pair[1].pair[1].atom, b"c")
+
+    def test_large_atom(self):
+        """Large atoms convert without error."""
+        big = b"\xab" * 100_000
+        p = Program.to(big)
+        lazy = clvm_tree_to_lazy_node(p)
+        self.assertEqual(lazy.atom, big)
+
 
 class Serde2026RoundTripTest(unittest.TestCase):
     """Comprehensive serde_2026 round-trip tests."""
@@ -285,7 +305,7 @@ class Serde2026RoundTripTest(unittest.TestCase):
         """Shared subtrees should serialize compactly and round-trip."""
         shared = Program.to([1, 2, 3])
         tree = Program.to((shared, (shared, shared)))
-        blob = tree.to_bytes_serde_2026()
+        blob = tree.to_bytes_2026()
         p2 = Program.from_bytes(blob)
         self.assertEqual(tree, p2)
 
@@ -294,7 +314,7 @@ class Serde2026RoundTripTest(unittest.TestCase):
         t = Program.to(b"x")
         for _ in range(50):
             t = Program.to((t, t))
-        blob = t.to_bytes_serde_2026()
+        blob = t.to_bytes_2026()
         self.assertLess(len(blob), 500)
         # Verify it deserializes without error (skip equality check —
         # LazyNode.pair creates new wrappers, making tree_hash O(2^N))
@@ -306,21 +326,21 @@ class Serde2026RoundTripTest(unittest.TestCase):
         t = Program.to(b"y")
         for _ in range(15):
             t = Program.to((t, t))
-        blob = t.to_bytes_serde_2026()
+        blob = t.to_bytes_2026()
         p2 = Program.from_bytes(blob)
         self.assertEqual(t, p2)
 
     def test_repeated_atoms(self):
         """Many copies of the same atom should be deduplicated."""
         tree = Program.to([b"dup"] * 100)
-        blob = tree.to_bytes_serde_2026()
+        blob = tree.to_bytes_2026()
         p2 = Program.from_bytes(blob)
         self.assertEqual(tree, p2)
 
     def test_many_distinct_atoms(self):
         """Many distinct atoms should all round-trip."""
         tree = Program.to([bytes([i]) for i in range(256)])
-        blob = tree.to_bytes_serde_2026()
+        blob = tree.to_bytes_2026()
         p2 = Program.from_bytes(blob)
         self.assertEqual(tree, p2)
 
@@ -333,17 +353,6 @@ class Serde2026RoundTripTest(unittest.TestCase):
         blob_1 = ser_2026(lazy, level=1)
         self.assertLessEqual(len(blob_1), len(blob_0))
         self.assertEqual(Program.from_bytes(blob_0), Program.from_bytes(blob_1))
-
-    def test_unprefixed_roundtrip(self):
-        """Unprefixed serialization should work via explicit deser_2026."""
-        from clvm_rs.clvm_rs import deser_2026 as raw_deser_2026
-        p = Program.to([10, 20, 30])
-        lazy = clvm_tree_to_lazy_node(p)
-        raw = ser_2026(lazy, prefixed=False)
-        self.assertFalse(raw.startswith(bytes.fromhex("fdff32303236")))
-        node = raw_deser_2026(raw)
-        p2 = Program.wrap(node)
-        self.assertEqual(p, p2)
 
     def test_mixed_tree_with_large_atoms(self):
         """Mix of large atoms, small atoms, and nested structure."""
@@ -361,7 +370,7 @@ class Serde2026RoundTripTest(unittest.TestCase):
         node = deserialize(legacy_blob, "auto")
         self.assertEqual(Program.wrap(node), p)
 
-        prefixed = p.to_bytes_serde_2026()
+        prefixed = p.to_bytes_2026()
         node = deserialize(prefixed, "auto")
         self.assertEqual(Program.wrap(node), p)
 

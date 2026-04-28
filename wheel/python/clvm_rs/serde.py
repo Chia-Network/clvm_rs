@@ -84,7 +84,7 @@ def deserialize(
     return fn(blob)
 
 
-def serialize(node, fmt: str = "2026", *, level: int = 1, prefixed: bool = True) -> bytes:
+def serialize(node, fmt: str = "2026", *, level: int = 1) -> bytes:
     """Serialize a LazyNode to bytes.
 
     Formats: "2026" (default), "legacy", "backrefs".
@@ -92,11 +92,10 @@ def serialize(node, fmt: str = "2026", *, level: int = 1, prefixed: bool = True)
     For "2026" format:
         level=0: left-first traversal (fast)
         level=1: pair-optimized DP traversal (smaller output, default)
-        prefixed=True: prepend the magic prefix (default)
     """
     fn = _SERIALIZERS.get(fmt)
     if fn is None:
         raise ValueError(f"unknown serialize format {fmt!r}, expected one of {list(_SERIALIZERS)}")
     if fmt == "2026":
-        return fn(node, level=level, prefixed=prefixed)
+        return fn(node, level=level)
     return fn(node)
