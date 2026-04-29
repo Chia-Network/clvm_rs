@@ -2,7 +2,7 @@ use bitflags::Flags;
 use clap::Parser;
 use clvmr::allocator::{Allocator, NodePtr};
 use clvmr::reduction::Reduction;
-use clvmr::serde::node_from_bytes_backrefs;
+use clvmr::serde::{node_from_bytes_backrefs, node_to_bytes};
 use clvmr::{ChiaDialect, ClvmFlags, run_program_with_counters};
 use std::time::Instant;
 
@@ -21,6 +21,10 @@ struct Args {
     /// CLVM dialect flags to enable
     #[arg(long, num_args = 1..)]
     flags: Vec<String>,
+
+    /// Print the return value of the program
+    #[arg(short, long)]
+    print_result: bool,
 }
 
 pub fn main() {
@@ -64,8 +68,12 @@ pub fn main() {
     let duration = start.elapsed();
 
     match result {
-        Ok(Reduction(cost, _result)) => {
+        Ok(Reduction(cost, result)) => {
             println!("cost: {cost}");
+            if args.print_result {
+                let bytes = node_to_bytes(&a, result).expect("serialize result");
+                println!("result: {}", hex::encode(&bytes));
+            }
         }
         Err(e) => {
             println!("execution FAILED: {e:?}");
