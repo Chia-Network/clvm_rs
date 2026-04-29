@@ -3,7 +3,7 @@ members = ["fuzz", "tools", "wheel", "clvm-fuzzing"]
 
 [package]
 name = "clvmr"
-version = "0.17.6"
+version = "0.17.7"
 authors = ["Richard Kiss <him@richardkiss.com>"]
 edition = "2024"
 license = "Apache-2.0"
