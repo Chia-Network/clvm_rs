@@ -9,7 +9,7 @@ use libfuzzer_sys::{Corpus, fuzz_target};
 #[derive(arbitrary::Arbitrary, Debug)]
 enum FuzzInput {
     Bytes(Vec<u8>),
-    Tree(ArbitraryClvmTree<10_000, true>),
+    Tree(Box<ArbitraryClvmTree<10_000, true>>),
 }
 
 fn canonical(a: &Allocator, node: NodePtr) -> Vec<u8> {
@@ -29,11 +29,15 @@ fn roundtrip_check(label: &str, a: &Allocator, original: NodePtr, blob: &[u8]) {
 }
 
 fn check_tree(a: &Allocator, node: NodePtr) {
-    for (label, compression) in [("fast", Compression::Fast)] {
+    for (label, compression) in serialization_strategies() {
         let blob =
             serialize_2026(a, node, compression).unwrap_or_else(|_| panic!("{label} failed"));
         roundtrip_check(label, a, node, &blob);
     }
+}
+
+fn serialization_strategies() -> impl Iterator<Item = (&'static str, Compression)> {
+    std::iter::once(("fast", Compression::Fast))
 }
 
 fuzz_target!(|input: FuzzInput| -> Corpus {

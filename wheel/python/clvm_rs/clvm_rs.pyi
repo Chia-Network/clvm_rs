@@ -32,7 +32,7 @@ def ser_backrefs(node: "LazyNode") -> bytes: ...
 def ser_2026(
     node: "LazyNode",
     *,
-    level: int = 1,
+    level: int = 0,
 ) -> bytes: ...
 
 # --- Tree conversion ---

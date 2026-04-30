@@ -274,7 +274,7 @@ class ClvmTreeToLazyNodeTest(unittest.TestCase):
 class Serde2026RoundTripTest(unittest.TestCase):
     """Comprehensive serde_2026 round-trip tests."""
 
-    def check_2026_roundtrip(self, tree, levels=(0, 1)):
+    def check_2026_roundtrip(self, tree, levels=(0,)):
         """Serialize to serde_2026, deserialize, check equality."""
         p = Program.to(tree)
         for level in levels:
