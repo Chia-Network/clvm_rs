@@ -11,7 +11,7 @@ use super::varint::write_varint;
 
 /// Intermediate state after interning and sorting atoms.
 ///
-/// Both the default and pair-optimized serializers need this same prep work.
+/// Serialization strategies share this prep work.
 pub(super) struct SerializerState {
     pub tree: InternedTree,
     pub sorted_no_nil: Vec<usize>,
@@ -291,8 +291,6 @@ fn cross_allocator_eq(a: &Allocator, na: NodePtr, b: &Allocator, nb: NodePtr) ->
 // --- Public entry points ---
 
 use super::Compression;
-use super::ser_optimized::DpOptimized;
-
 /// Serialize a CLVM node to the 2026 format.
 pub fn serialize_2026_to_stream<W: Write>(
     allocator: &Allocator,
@@ -303,10 +301,6 @@ pub fn serialize_2026_to_stream<W: Write>(
     let state = SerializerState::new(allocator, node)?;
     match compression {
         Compression::Fast => serialize_with_strategy(&state, &LeftFirst, writer),
-        Compression::Compact => {
-            let dp = DpOptimized::new(&state);
-            serialize_with_strategy(&state, &dp, writer)
-        }
     }
 }
 

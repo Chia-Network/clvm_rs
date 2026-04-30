@@ -11,6 +11,7 @@ use super::ser::SerializerState;
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Direction {
     LeftFirst,
+    #[allow(dead_code)]
     RightFirst,
 }
 

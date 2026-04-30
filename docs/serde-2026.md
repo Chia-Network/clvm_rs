@@ -16,17 +16,11 @@ Rationale:
 
 ### Detection
 
-The magic prefix allows helper APIs to distinguish 2026-format blobs from
+The magic prefix allows tooling to distinguish 2026-format blobs from
 legacy/backref blobs:
 
 - If the blob starts with `0xfd 0xff 0x32 0x30 0x32 0x36`, it is 2026-format.
 - Otherwise, parse with the legacy/backrefs path.
-
-Consensus callers do not need to rely on auto-detection. They can select the
-expected format from fork height or consensus flags and call the corresponding
-deserializer directly.
-
-### Backward Compatibility
 
 When a 2026-format blob is handed to a legacy deserializer unaware of the new
 format, it should fail quickly due to the deliberately invalid size prefix.
@@ -90,6 +84,10 @@ second is index 1, etc.). A negative instruction references a pair that was
 previously constructed during this same decode, enabling shared sub-trees
 without re-encoding them.
 
+The current serializer emits left-first cons instructions (`1`). Decoders accept
+right-first cons instructions (`-1`) so future serializers can choose different
+pair visit orders without changing the wire format.
+
 After all instructions execute, the stack must contain exactly one item: the
 root node.
 
@@ -124,18 +122,3 @@ The deserializer has a `strict` mode that rejects overlong varint encodings. In
 strict mode, every varint must use the shortest encoding that can represent its
 value. Lenient mode accepts overlong encodings for tooling/backward-compatible
 parsing.
-
-## Size Bound
-
-For the current instruction-stream format, the analysis in
-`generator-identity-hf-analysis/docs/SERDE2026_UPPER_BOUND.md` proves:
-
-```
-serde_2026_bytes <= atom_bytes + 2 * unique_atoms + 3 * unique_pairs + 5
-```
-
-assuming all atom lengths fit in a 4-byte varint (`length <= 2^27 - 1`). This
-condition is far weaker than the default 1 MiB atom limit. Because the hard fork
-cost formula charges this same size component, consensus callers can derive
-their accepted serde_2026 byte budget from the 11B block cost limit instead of
-choosing an arbitrary message-size cap.
