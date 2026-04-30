@@ -16,13 +16,12 @@
 //! - `>= 2` (positive varint N): Push atom at index N-2
 //! - `<= -2` (negative varint N): Push already-constructed pair at index -N-2
 //!
-//! The default serializer always uses opcode `1` (left-first cons). The
-//! pair-optimized serializer uses both `1` and `-1` to steer traversal order,
-//! reducing the number of pair back-references needed.
+//! The current serializer always uses opcode `1` (left-first cons). The format
+//! accepts `-1` so future serializers can choose right-first traversal when
+//! that helps compression.
 
 mod de;
 mod ser;
-mod ser_optimized;
 mod strategy;
 mod varint;
 
@@ -42,14 +41,11 @@ const MAX_INDEX: usize = i32::MAX as usize;
 /// Controls the serialization strategy for pair visit order.
 ///
 /// - `Fast` (0): left-first traversal. O(N) serialization.
-/// - `Compact` (1): tree-DP to minimize output size by optimizing which
-///   pairs land in the 1-byte varint tier. O(N x min(subtree_size, 64)).
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 #[repr(u8)]
 pub enum Compression {
-    Fast = 0,
     #[default]
-    Compact = 1,
+    Fast = 0,
 }
 
 pub use de::{

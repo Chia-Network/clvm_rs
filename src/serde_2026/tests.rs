@@ -13,9 +13,9 @@ use rstest::rstest;
 // Double-round-trip, all strategies, full corpus
 // ---------------------------------------------------------------------------
 
-/// For each legacy-hex tree: serialize with Fast and Compact, then
-/// deserialize each, re-serialize, and assert identical bytes (idempotency)
-/// plus tree equivalence to the original.
+/// For each legacy-hex tree: serialize with each strategy, then deserialize,
+/// re-serialize, and assert identical bytes (idempotency) plus tree equivalence
+/// to the original.
 #[rstest]
 #[case("00")] // nil
 #[case("80")] // empty atom (canonical nil)
@@ -58,18 +58,11 @@ fn test_round_trip(#[case] hex: &str) {
     let canonical = node_to_bytes(&allocator, node).unwrap();
     let options = DeserializeOptions::default();
 
-    let blobs: Vec<(&str, Compression, Vec<u8>)> = vec![
-        (
-            "fast",
-            Compression::Fast,
-            serialize_2026(&allocator, node, Compression::Fast).unwrap(),
-        ),
-        (
-            "compact",
-            Compression::Compact,
-            serialize_2026(&allocator, node, Compression::Compact).unwrap(),
-        ),
-    ];
+    let blobs: Vec<(&str, Compression, Vec<u8>)> = vec![(
+        "fast",
+        Compression::Fast,
+        serialize_2026(&allocator, node, Compression::Fast).unwrap(),
+    )];
 
     for (label, compression, blob) in &blobs {
         // First trip: tree equivalence
@@ -88,14 +81,6 @@ fn test_round_trip(#[case] hex: &str) {
             "{label}: double round-trip mismatch for {hex}"
         );
     }
-
-    // Compact must never be larger than Fast
-    assert!(
-        blobs[1].2.len() <= blobs[0].2.len(),
-        "compact ({}) > fast ({}) for {hex}",
-        blobs[1].2.len(),
-        blobs[0].2.len()
-    );
 }
 
 // ---------------------------------------------------------------------------

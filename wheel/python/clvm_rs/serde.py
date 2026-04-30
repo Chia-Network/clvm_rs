@@ -7,7 +7,7 @@ All functions operate on bytes or LazyNode handles backed by Rust.
     node = deserialize(blob)                    # auto-detects format
     out  = serialize(node, "2026")              # serde_2026 with magic prefix
     out  = serialize(node, "legacy")            # classic format
-    out  = serialize(node, "2026", level=0)     # serde_2026, fast (no pair optimization)
+    out  = serialize(node, "2026", level=0)     # serde_2026, fast left-first traversal
 
 Converting a Python CLVM tree to a Rust-backed LazyNode (with interning):
 
@@ -87,14 +87,13 @@ def deserialize(
     return fn(blob)
 
 
-def serialize(node, fmt: str = "2026", *, level: int = 1) -> bytes:
+def serialize(node, fmt: str = "2026", *, level: int = 0) -> bytes:
     """Serialize a LazyNode to bytes.
 
     Formats: "2026" (default), "legacy", "backrefs".
 
     For "2026" format:
         level=0: left-first traversal (fast)
-        level=1: pair-optimized DP traversal (smaller output, default)
     """
     fn = _SERIALIZERS.get(fmt)
     if fn is None:

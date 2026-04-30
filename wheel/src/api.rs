@@ -177,16 +177,14 @@ fn ser_backrefs(py: Python, node: &LazyNode) -> PyResult<Py<PyBytes>> {
 /// Serialize to serde_2026 format (always includes the magic prefix).
 ///
 /// - `level=0`: left-first traversal (fast)
-/// - `level=1`: pair-optimized DP traversal (smaller output, default)
 #[pyfunction]
-#[pyo3(signature = (node, *, level=1))]
+#[pyo3(signature = (node, *, level=0))]
 fn ser_2026(py: Python, node: &LazyNode, level: u32) -> PyResult<Py<PyBytes>> {
     let compression = match level {
         0 => Compression::Fast,
-        1 => Compression::Compact,
         _ => {
             return Err(pyo3::exceptions::PyValueError::new_err(
-                "ser_2026: level must be 0 or 1",
+                "ser_2026: level must be 0",
             ));
         }
     };

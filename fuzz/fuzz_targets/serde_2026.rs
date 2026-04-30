@@ -29,18 +29,11 @@ fn roundtrip_check(label: &str, a: &Allocator, original: NodePtr, blob: &[u8]) {
 }
 
 fn check_tree(a: &Allocator, node: NodePtr) {
-    let fast = serialize_2026(a, node, Compression::Fast).expect("Fast failed");
-    let compact = serialize_2026(a, node, Compression::Compact).expect("Compact failed");
-
-    roundtrip_check("fast", a, node, &fast);
-    roundtrip_check("compact", a, node, &compact);
-
-    assert!(
-        compact.len() <= fast.len(),
-        "compact ({}) > fast ({})",
-        compact.len(),
-        fast.len()
-    );
+    for (label, compression) in [("fast", Compression::Fast)] {
+        let blob =
+            serialize_2026(a, node, compression).unwrap_or_else(|_| panic!("{label} failed"));
+        roundtrip_check(label, a, node, &blob);
+    }
 }
 
 fuzz_target!(|input: FuzzInput| -> Corpus {
@@ -57,10 +50,10 @@ fuzz_target!(|input: FuzzInput| -> Corpus {
             check_tree(&program.allocator, program.tree);
 
             let mut a2 = Allocator::new();
-            let blob = serialize_2026(&program.allocator, program.tree, Compression::Compact)
-                .expect("Compact failed");
+            let blob = serialize_2026(&program.allocator, program.tree, Compression::Fast)
+                .expect("Fast failed");
             let decoded = deserialize_2026(&mut a2, &blob, DeserializeOptions::default())
-                .expect("deserialize compact failed");
+                .expect("deserialize fast failed");
             assert_eq!(
                 canonical(&program.allocator, program.tree),
                 canonical(&a2, decoded)

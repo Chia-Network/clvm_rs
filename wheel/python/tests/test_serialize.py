@@ -344,15 +344,15 @@ class Serde2026RoundTripTest(unittest.TestCase):
         p2 = Program.from_bytes(blob)
         self.assertEqual(tree, p2)
 
-    def test_compression_level_0_vs_1(self):
-        """Level 1 (pair-optimized) should produce <= bytes compared to level 0."""
+    def test_2026_rejects_unknown_compression_level(self):
+        """Only the left-first serializer is currently exposed."""
         shared = Program.to([1, 2, 3])
         tree = Program.to([shared, shared, shared, shared])
         lazy = clvm_tree_to_lazy_node(tree)
         blob_0 = ser_2026(lazy, level=0)
-        blob_1 = ser_2026(lazy, level=1)
-        self.assertLessEqual(len(blob_1), len(blob_0))
-        self.assertEqual(Program.from_bytes(blob_0), Program.from_bytes(blob_1))
+        with self.assertRaises(ValueError):
+            ser_2026(lazy, level=1)
+        self.assertEqual(Program.from_bytes(blob_0), tree)
 
     def test_mixed_tree_with_large_atoms(self):
         """Mix of large atoms, small atoms, and nested structure."""

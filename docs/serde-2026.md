@@ -90,6 +90,10 @@ second is index 1, etc.). A negative instruction references a pair that was
 previously constructed during this same decode, enabling shared sub-trees
 without re-encoding them.
 
+The current serializer emits left-first cons instructions (`1`). Decoders accept
+right-first cons instructions (`-1`) so future serializers can choose different
+pair visit orders without changing the wire format.
+
 After all instructions execute, the stack must contain exactly one item: the
 root node.
 
