@@ -6,7 +6,7 @@ use crate::error::{EvalErr, Result};
 use crate::serde::{InternedTree, intern_tree};
 
 use super::MAX_INDEX;
-use super::strategy::{Direction, LeftFirst, Random, VisitStrategy};
+use super::strategy::{Direction, LeftFirst, VisitStrategy};
 use super::varint::write_varint;
 
 /// Intermediate state after interning and sorting atoms.
@@ -258,9 +258,9 @@ pub(super) fn serialize_with_strategy<W: Write, S: VisitStrategy>(
 /// Debug-only: deserialize `bytes` and verify it equals `node`. Panics on mismatch.
 #[cfg(debug_assertions)]
 pub(super) fn debug_assert_roundtrip(allocator: &Allocator, node: NodePtr, bytes: &[u8]) {
-    use super::de::{DeserializeLimits, deserialize_2026};
+    use super::de::{DeserializeOptions, deserialize_2026};
     let mut probe = Allocator::new();
-    let decoded = deserialize_2026(&mut probe, bytes, DeserializeLimits::default())
+    let decoded = deserialize_2026(&mut probe, bytes, DeserializeOptions::default())
         .expect("serde_2026 self-check: produced bytes that fail to deserialize");
     assert!(
         cross_allocator_eq(allocator, node, &probe, decoded),
@@ -333,17 +333,4 @@ pub fn node_to_bytes_serde_2026(
     out.extend_from_slice(&super::SERDE_2026_MAGIC_PREFIX);
     serialize_2026_to_stream(allocator, node, compression, &mut out)?;
     Ok(out)
-}
-
-/// Serialize using a pseudorandom visit order seeded by `seed`.
-///
-/// The output is valid 2026 format but not size-optimal. Intended for
-/// fuzzing the deserializer's handling of mixed `cons_lr`/`cons_rl` opcodes.
-pub fn serialize_2026_random(allocator: &Allocator, node: NodePtr, seed: u64) -> Result<Vec<u8>> {
-    let state = SerializerState::new(allocator, node)?;
-    let mut output = Vec::new();
-    serialize_with_strategy(&state, &Random::new(seed), &mut output)?;
-    #[cfg(debug_assertions)]
-    debug_assert_roundtrip(allocator, node, &output);
-    Ok(output)
 }

@@ -43,7 +43,7 @@ pub use tools::{
 pub use tree_cache::{TreeCache, TreeCacheCheckpoint};
 
 pub use crate::serde_2026::{
-    Compression, DeserializeLimits, SERDE_2026_MAGIC_PREFIX, deserialize_2026,
+    Compression, DeserializeOptions, SERDE_2026_MAGIC_PREFIX, deserialize_2026,
     deserialize_2026_from_stream, node_from_bytes_auto, node_to_bytes_serde_2026, serialize_2026,
     serialize_2026_to_stream, serialized_length_serde_2026,
 };

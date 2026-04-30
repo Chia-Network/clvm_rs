@@ -17,7 +17,7 @@ use clvmr::serde::{
     parse_triples, serialized_length_from_bytes,
 };
 use clvmr::serde_2026::{
-    Compression, DeserializeLimits, SERDE_2026_MAGIC_PREFIX, deserialize_2026,
+    Compression, DeserializeOptions, SERDE_2026_MAGIC_PREFIX, deserialize_2026,
     node_from_bytes_auto, serialize_2026,
 };
 use pyo3::prelude::*;
@@ -111,27 +111,33 @@ fn deser_backrefs(blob: &[u8]) -> PyResult<LazyNode> {
     Ok(LazyNode::new(Rc::new(a), node))
 }
 
-fn make_limits(max_atom_len: Option<usize>, max_input_bytes: Option<usize>) -> DeserializeLimits {
-    let mut limits = DeserializeLimits::default();
+fn make_deserialize_options(
+    max_atom_len: Option<usize>,
+    max_input_bytes: Option<usize>,
+    strict: bool,
+) -> DeserializeOptions {
+    let mut options = DeserializeOptions::default();
     if let Some(v) = max_atom_len {
-        limits.max_atom_len = v;
+        options.max_atom_len = v;
     }
     if let Some(v) = max_input_bytes {
-        limits.max_input_bytes = v;
+        options.max_input_bytes = v;
     }
-    limits
+    options.strict = strict;
+    options
 }
 
 #[pyfunction]
-#[pyo3(signature = (blob, *, max_atom_len=None, max_input_bytes=None))]
+#[pyo3(signature = (blob, *, max_atom_len=None, max_input_bytes=None, strict=false))]
 fn deser_2026(
     blob: &[u8],
     max_atom_len: Option<usize>,
     max_input_bytes: Option<usize>,
+    strict: bool,
 ) -> PyResult<LazyNode> {
     let mut a = Allocator::new();
-    let limits = make_limits(max_atom_len, max_input_bytes);
-    let node = deserialize_2026(&mut a, blob, limits).map_err(eval_to_py)?;
+    let options = make_deserialize_options(max_atom_len, max_input_bytes, strict);
+    let node = deserialize_2026(&mut a, blob, options).map_err(eval_to_py)?;
     Ok(LazyNode::new(Rc::new(a), node))
 }
 
@@ -141,15 +147,16 @@ fn deser_2026(
 /// treated as serde_2026; otherwise the backrefs deserializer is used (which
 /// also handles plain classic format).
 #[pyfunction]
-#[pyo3(signature = (blob, *, max_atom_len=None, max_input_bytes=None))]
+#[pyo3(signature = (blob, *, max_atom_len=None, max_input_bytes=None, strict=false))]
 fn deser_auto(
     blob: &[u8],
     max_atom_len: Option<usize>,
     max_input_bytes: Option<usize>,
+    strict: bool,
 ) -> PyResult<LazyNode> {
     let mut a = Allocator::new();
-    let limits = make_limits(max_atom_len, max_input_bytes);
-    let node = node_from_bytes_auto(&mut a, blob, limits).map_err(eval_to_py)?;
+    let options = make_deserialize_options(max_atom_len, max_input_bytes, strict);
+    let node = node_from_bytes_auto(&mut a, blob, options).map_err(eval_to_py)?;
     Ok(LazyNode::new(Rc::new(a), node))
 }
 

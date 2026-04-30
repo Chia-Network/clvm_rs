@@ -53,9 +53,7 @@ pub enum Compression {
 }
 
 pub use de::{
-    DeserializeLimits, deserialize_2026, deserialize_2026_from_stream, node_from_bytes_auto,
+    DeserializeOptions, deserialize_2026, deserialize_2026_from_stream, node_from_bytes_auto,
     serialized_length_serde_2026,
 };
-pub use ser::{
-    node_to_bytes_serde_2026, serialize_2026, serialize_2026_random, serialize_2026_to_stream,
-};
+pub use ser::{node_to_bytes_serde_2026, serialize_2026, serialize_2026_to_stream};

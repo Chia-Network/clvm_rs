@@ -61,6 +61,7 @@ def deserialize(
     *,
     max_atom_len: int | None = None,
     max_input_bytes: int | None = None,
+    strict: bool = False,
 ):
     """Deserialize bytes into a LazyNode.
 
@@ -70,6 +71,7 @@ def deserialize(
     Keyword-only limits (applied to "2026" and "auto" paths):
         max_atom_len:   largest single atom in bytes (default ~1 MB)
         max_input_bytes: total input budget in bytes  (default ~10 MB)
+        strict:         reject overlong varint encodings
     """
     fn = _DESERIALIZERS.get(fmt)
     if fn is None:
@@ -80,6 +82,7 @@ def deserialize(
             kwargs["max_atom_len"] = max_atom_len
         if max_input_bytes is not None:
             kwargs["max_input_bytes"] = max_input_bytes
+        kwargs["strict"] = strict
         return fn(blob, **kwargs)
     return fn(blob)
 

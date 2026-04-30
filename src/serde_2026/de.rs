@@ -13,22 +13,27 @@ pub const DEFAULT_MAX_ATOM_LEN: usize = 1 << 20;
 /// Default maximum input bytes (10 MB).
 pub const DEFAULT_MAX_INPUT_BYTES: usize = 10 * (1 << 20);
 
-const MAX_COUNT: usize = 256 * 1024 * 1024;
-
-/// Deserialization limits for the 2026 format.
+/// Deserialization options for the 2026 format.
 #[derive(Debug, Clone, Copy)]
-pub struct DeserializeLimits {
+pub struct DeserializeOptions {
     /// Maximum byte length of any single atom. Default: 1 MB.
     pub max_atom_len: usize,
     /// Maximum total bytes consumed from the input stream. Default: 10 MB.
+    ///
+    /// This also bounds atom groups, atoms, instructions, stack growth, and pair
+    /// allocation: every declared item must consume at least one byte before it
+    /// can produce work.
     pub max_input_bytes: usize,
+    /// If true, reject overlong/non-minimal varint encodings.
+    pub strict: bool,
 }
 
-impl Default for DeserializeLimits {
+impl Default for DeserializeOptions {
     fn default() -> Self {
         Self {
             max_atom_len: DEFAULT_MAX_ATOM_LEN,
             max_input_bytes: DEFAULT_MAX_INPUT_BYTES,
+            strict: false,
         }
     }
 }
@@ -62,18 +67,19 @@ impl<R: Read> Read for LimitReader<R> {
     }
 }
 
-fn checked_usize(value: i64, max: usize) -> Result<usize> {
+fn checked_usize(value: i64) -> Result<usize> {
     if value < 0 {
         return Err(EvalErr::SerializationError);
     }
-    if value as u64 > usize::MAX as u64 {
+    usize::try_from(value).map_err(|_| EvalErr::SerializationError)
+}
+
+fn checked_bounded_usize(value: i64, max: usize) -> Result<usize> {
+    let value = checked_usize(value)?;
+    if value > max {
         return Err(EvalErr::SerializationError);
     }
-    let u = value as usize;
-    if u > max {
-        return Err(EvalErr::SerializationError);
-    }
-    Ok(u)
+    Ok(value)
 }
 
 /// Deserialize CLVM from any format (classic, backrefs, or serde_2026).
@@ -84,10 +90,10 @@ fn checked_usize(value: i64, max: usize) -> Result<usize> {
 pub fn node_from_bytes_auto(
     allocator: &mut Allocator,
     bytes: &[u8],
-    limits: DeserializeLimits,
+    options: DeserializeOptions,
 ) -> Result<NodePtr> {
     if bytes.starts_with(&SERDE_2026_MAGIC_PREFIX) {
-        deserialize_2026(allocator, &bytes[SERDE_2026_MAGIC_PREFIX.len()..], limits)
+        deserialize_2026(allocator, &bytes[SERDE_2026_MAGIC_PREFIX.len()..], options)
     } else {
         node_from_bytes_backrefs(allocator, bytes)
     }
@@ -97,27 +103,30 @@ pub fn node_from_bytes_auto(
 pub fn deserialize_2026_from_stream<R: Read>(
     allocator: &mut Allocator,
     reader: &mut R,
-    limits: DeserializeLimits,
+    options: DeserializeOptions,
 ) -> Result<NodePtr> {
-    let mut reader = LimitReader::new(reader, limits.max_input_bytes);
+    let mut reader = LimitReader::new(reader, options.max_input_bytes);
 
     let mut atoms: Vec<NodePtr> = Vec::new();
-    let group_count = checked_usize(decode_varint(&mut reader)?, MAX_COUNT)?;
+    let group_count = checked_usize(decode_varint(&mut reader, options.strict)?)?;
     let mut buf: Vec<u8> = Vec::new();
 
     for _ in 0..group_count {
-        let length_val = decode_varint(&mut reader)?;
+        let length_val = decode_varint(&mut reader, options.strict)?;
         let (length, count) = if length_val < 0 {
             if length_val == i64::MIN {
                 return Err(EvalErr::SerializationError);
             }
             (
-                checked_usize(-length_val, limits.max_atom_len)?,
-                checked_usize(decode_varint(&mut reader)?, MAX_COUNT)?,
+                checked_bounded_usize(-length_val, options.max_atom_len)?,
+                checked_usize(decode_varint(&mut reader, options.strict)?)?,
             )
         } else {
-            (checked_usize(length_val, limits.max_atom_len)?, 1)
+            (checked_bounded_usize(length_val, options.max_atom_len)?, 1)
         };
+        if length == 0 || count == 0 {
+            return Err(EvalErr::SerializationError);
+        }
         buf.resize(length, 0);
         for _ in 0..count {
             reader
@@ -127,7 +136,7 @@ pub fn deserialize_2026_from_stream<R: Read>(
         }
     }
 
-    let instruction_count = checked_usize(decode_varint(&mut reader)?, MAX_COUNT)?;
+    let instruction_count = checked_usize(decode_varint(&mut reader, options.strict)?)?;
     if instruction_count == 0 {
         return Err(EvalErr::SerializationError);
     }
@@ -137,7 +146,7 @@ pub fn deserialize_2026_from_stream<R: Read>(
     let mut stack: Vec<NodePtr> = Vec::with_capacity(64);
 
     for _ in 0..instruction_count {
-        let inst = decode_varint(&mut reader)?;
+        let inst = decode_varint(&mut reader, options.strict)?;
         match inst {
             0 => stack.push(nil),
             1 => {
@@ -181,9 +190,9 @@ pub fn deserialize_2026_from_stream<R: Read>(
 pub fn deserialize_2026(
     allocator: &mut Allocator,
     data: &[u8],
-    limits: DeserializeLimits,
+    options: DeserializeOptions,
 ) -> Result<NodePtr> {
-    deserialize_2026_from_stream(allocator, &mut Cursor::new(data), limits)
+    deserialize_2026_from_stream(allocator, &mut Cursor::new(data), options)
 }
 
 /// Compute the serialized length of a serde_2026 blob (including magic prefix).
@@ -199,19 +208,26 @@ pub fn serialized_length_serde_2026(buf: &[u8]) -> Result<u64> {
     let data = &buf[SERDE_2026_MAGIC_PREFIX.len()..];
     let mut cursor = Cursor::new(data);
 
-    let group_count = checked_usize(decode_varint(&mut cursor)?, MAX_COUNT)?;
+    let group_count = checked_usize(decode_varint(&mut cursor, false)?)?;
     for _ in 0..group_count {
-        let length_val = decode_varint(&mut cursor)?;
+        let length_val = decode_varint(&mut cursor, false)?;
         let skip = if length_val < 0 {
             if length_val == i64::MIN {
                 return Err(EvalErr::SerializationError);
             }
             let atom_len = (-length_val) as u64;
-            let count = checked_usize(decode_varint(&mut cursor)?, MAX_COUNT)? as u64;
+            let count = checked_usize(decode_varint(&mut cursor, false)?)?;
+            if atom_len == 0 || count == 0 {
+                return Err(EvalErr::SerializationError);
+            }
+            let count = count as u64;
             atom_len
                 .checked_mul(count)
                 .ok_or(EvalErr::SerializationError)?
         } else {
+            if length_val == 0 {
+                return Err(EvalErr::SerializationError);
+            }
             length_val as u64
         };
         let new_pos = cursor
@@ -224,9 +240,9 @@ pub fn serialized_length_serde_2026(buf: &[u8]) -> Result<u64> {
         cursor.set_position(new_pos);
     }
 
-    let instruction_count = checked_usize(decode_varint(&mut cursor)?, MAX_COUNT)?;
+    let instruction_count = checked_usize(decode_varint(&mut cursor, false)?)?;
     for _ in 0..instruction_count {
-        decode_varint(&mut cursor)?;
+        decode_varint(&mut cursor, false)?;
     }
 
     Ok(SERDE_2026_MAGIC_PREFIX.len() as u64 + cursor.position())

@@ -56,6 +56,18 @@ pub fn write_varint<W: Write>(w: &mut W, value: i64) -> std::io::Result<()> {
     panic!("Value too large to encode: {}", value);
 }
 
+fn varint_size(value: i64) -> usize {
+    for leading_ones in 0..8 {
+        let total_value_bits = 7 + 7 * leading_ones;
+        let min_value = -(1i64 << (total_value_bits - 1));
+        let max_value = (1i64 << (total_value_bits - 1)) - 1;
+        if value >= min_value && value <= max_value {
+            return leading_ones + 1;
+        }
+    }
+    panic!("Value too large to encode: {}", value);
+}
+
 /// Encode a signed integer to bytes using variable-length encoding (varint).
 #[allow(dead_code)]
 pub fn encode_varint(value: i64) -> Vec<u8> {
@@ -64,8 +76,8 @@ pub fn encode_varint(value: i64) -> Vec<u8> {
     buf
 }
 
-/// Decode a signed integer from a byte stream using variable-length encoding.
-pub fn decode_varint<R: Read>(r: &mut R) -> Result<i64> {
+/// Decode a signed integer, optionally rejecting non-minimal encodings.
+pub fn decode_varint<R: Read>(r: &mut R, strict: bool) -> Result<i64> {
     let mut first_byte_buf = [0u8; 1];
     r.read_exact(&mut first_byte_buf)
         .map_err(|_| EvalErr::SerializationError)?;
@@ -100,12 +112,18 @@ pub fn decode_varint<R: Read>(r: &mut R) -> Result<i64> {
 
     // Convert from two's complement to signed
     let sign_bit = 1u64 << (total_value_bits - 1);
-    if unsigned_value >= sign_bit {
+    let value = if unsigned_value >= sign_bit {
         // Negative value: subtract 2^total_value_bits
-        Ok(unsigned_value as i64 - (1i64 << total_value_bits))
+        unsigned_value as i64 - (1i64 << total_value_bits)
     } else {
-        Ok(unsigned_value as i64)
+        unsigned_value as i64
+    };
+
+    if strict && varint_size(value) != leading_ones + 1 {
+        return Err(EvalErr::SerializationError);
     }
+
+    Ok(value)
 }
 
 #[cfg(test)]
@@ -131,42 +149,67 @@ mod tests {
 
     #[test]
     fn test_decode_varint() {
-        assert_eq!(decode_varint(&mut Cursor::new(&[0x00][..])).unwrap(), 0);
-        assert_eq!(decode_varint(&mut Cursor::new(&[0x01][..])).unwrap(), 1);
-        assert_eq!(decode_varint(&mut Cursor::new(&[0x7f][..])).unwrap(), -1);
         assert_eq!(
-            decode_varint(&mut Cursor::new(&[0x80, 0x40][..])).unwrap(),
+            decode_varint(&mut Cursor::new(&[0x00][..]), false).unwrap(),
+            0
+        );
+        assert_eq!(
+            decode_varint(&mut Cursor::new(&[0x01][..]), false).unwrap(),
+            1
+        );
+        assert_eq!(
+            decode_varint(&mut Cursor::new(&[0x7f][..]), false).unwrap(),
+            -1
+        );
+        assert_eq!(
+            decode_varint(&mut Cursor::new(&[0x80, 0x40][..]), false).unwrap(),
             64
         );
         assert_eq!(
-            decode_varint(&mut Cursor::new(&[0x9f, 0xff][..])).unwrap(),
+            decode_varint(&mut Cursor::new(&[0x9f, 0xff][..]), false).unwrap(),
             8191
         );
         assert_eq!(
-            decode_varint(&mut Cursor::new(&[0xbf, 0xbf][..])).unwrap(),
+            decode_varint(&mut Cursor::new(&[0xbf, 0xbf][..]), false).unwrap(),
             -65
         );
     }
 
     #[test]
     fn test_decode_rejects_invalid_prefix() {
-        assert!(decode_varint(&mut Cursor::new(&[0xff][..])).is_err());
-        assert!(decode_varint(&mut Cursor::new(&[0xff, 0x00][..])).is_err());
+        assert!(decode_varint(&mut Cursor::new(&[0xff][..]), false).is_err());
+        assert!(decode_varint(&mut Cursor::new(&[0xff, 0x00][..]), false).is_err());
     }
 
     #[test]
     fn test_decode_rejects_truncated_multibyte() {
         // 2-byte varint (0x80 prefix) with missing second byte
-        assert!(decode_varint(&mut Cursor::new(&[0x80][..])).is_err());
+        assert!(decode_varint(&mut Cursor::new(&[0x80][..]), false).is_err());
         // 3-byte varint (0xc0 prefix) with only 1 extra byte
-        assert!(decode_varint(&mut Cursor::new(&[0xc0, 0x00][..])).is_err());
+        assert!(decode_varint(&mut Cursor::new(&[0xc0, 0x00][..]), false).is_err());
         // 4-byte varint (0xe0 prefix) with only 2 extra bytes
-        assert!(decode_varint(&mut Cursor::new(&[0xe0, 0x00, 0x00][..])).is_err());
+        assert!(decode_varint(&mut Cursor::new(&[0xe0, 0x00, 0x00][..]), false).is_err());
     }
 
     #[test]
     fn test_decode_empty_input() {
-        assert!(decode_varint(&mut Cursor::new(&[][..])).is_err());
+        assert!(decode_varint(&mut Cursor::new(&[][..]), false).is_err());
+    }
+
+    #[test]
+    fn test_strict_decode_rejects_overlong_encodings() {
+        // 0 and -1 fit in a single byte, but these encodings use two bytes.
+        assert_eq!(
+            decode_varint(&mut Cursor::new(&[0x80, 0x00][..]), false).unwrap(),
+            0
+        );
+        assert!(decode_varint(&mut Cursor::new(&[0x80, 0x00][..]), true).is_err());
+
+        assert_eq!(
+            decode_varint(&mut Cursor::new(&[0xbf, 0xff][..]), false).unwrap(),
+            -1
+        );
+        assert!(decode_varint(&mut Cursor::new(&[0xbf, 0xff][..]), true).is_err());
     }
 
     #[test]
@@ -175,7 +218,7 @@ mod tests {
             0, 1, -1, 63, -64, 64, -65, 8191, -8192, 8192, -8193, 1048575, -1048576,
         ] {
             let encoded = encode_varint(val);
-            let decoded = decode_varint(&mut Cursor::new(&encoded)).unwrap();
+            let decoded = decode_varint(&mut Cursor::new(&encoded), false).unwrap();
             assert_eq!(val, decoded, "roundtrip failed for {val}");
         }
     }

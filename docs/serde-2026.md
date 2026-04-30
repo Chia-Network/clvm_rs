@@ -16,10 +16,15 @@ Rationale:
 
 ### Detection
 
-A deserializer determines the format by inspecting the first 6 bytes:
+The magic prefix allows helper APIs to distinguish 2026-format blobs from
+legacy/backref blobs:
 
 - If the blob starts with `0xfd 0xff 0x32 0x30 0x32 0x36`, it is 2026-format.
 - Otherwise, parse with the legacy/backrefs path.
+
+Consensus callers do not need to rely on auto-detection. They can select the
+expected format from fork height or consensus flags and call the corresponding
+deserializer directly.
 
 ### Backward Compatibility
 
@@ -48,13 +53,22 @@ For each group (in stream order):
   encoding the negated byte length, then a positive varint encoding the count,
   then the raw bytes of each atom concatenated (each is exactly `length` bytes).
 
+Atom lengths must be non-zero because nil is excluded from the atom table.
+Deserializers enforce a configurable maximum atom length (default: 1 MiB) and a
+maximum input byte budget (default: 10 MiB). Separate atom-group, atom-count,
+instruction-count, stack-size, and pair-count limits are not needed for DoS
+protection: every declared item must consume at least one input byte before it
+can produce parser work or allocate a CLVM node. The input byte budget therefore
+bounds all of those quantities.
+
 Atoms are assigned indices starting from 0, in the order they appear in the
 table.
 
 The decoder accepts groups in any order. Multiple groups with the same byte
 length are valid (they contribute separate atom indices). A serializer may
 choose a specific ordering strategy (for example, sorting by frequency so
-commonly-referenced atoms get smaller varint indices).
+commonly-referenced atoms land in lower index ranges whose varint encodings are
+shorter).
 
 ### Instruction Stream
 
@@ -87,12 +101,41 @@ Signed integers are encoded with a variable-length prefix scheme:
 0xxxxxxx                          →  7-bit value, range [-64, 63]
 10xxxxxx xxxxxxxx                 → 14-bit value, range [-8192, 8191]
 110xxxxx xxxxxxxx xxxxxxxx        → 21-bit value, range [-1048576, 1048575]
-...
+1110xxxx xxxxxxxx xxxxxxxx xxxxxxxx
+                                   → 28-bit value
+11110xxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
+                                   → 35-bit value
+111110xx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
+                                   → 42-bit value
+1111110x xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
+                                   → 49-bit value
+11111110 xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
+                                   → 56-bit value
 ```
 
-The number of leading `1` bits determines how many additional bytes follow. A
-`0` separator bit follows the leading `1`s. The remaining bits (across all
-bytes) form a two's-complement signed integer in big-endian order. This scales
-to wider integers without changing the encoding rules.
+The number of leading `1` bits determines how many additional bytes follow,
+similar to UTF-8 prefix-length coding. A `0` separator bit follows the leading
+`1`s. The remaining bits (across all bytes) form a two's-complement signed
+integer in big-endian order.
 
 A prefix of 8 leading `1` bits (`0xFF`) is invalid.
+
+The deserializer has a `strict` mode that rejects overlong varint encodings. In
+strict mode, every varint must use the shortest encoding that can represent its
+value. Lenient mode accepts overlong encodings for tooling/backward-compatible
+parsing.
+
+## Size Bound
+
+For the current instruction-stream format, the analysis in
+`generator-identity-hf-analysis/docs/SERDE2026_UPPER_BOUND.md` proves:
+
+```
+serde_2026_bytes <= atom_bytes + 2 * unique_atoms + 3 * unique_pairs + 5
+```
+
+assuming all atom lengths fit in a 4-byte varint (`length <= 2^27 - 1`). This
+condition is far weaker than the default 1 MiB atom limit. Because the hard fork
+cost formula charges this same size component, consensus callers can derive
+their accepted serde_2026 byte budget from the 11B block cost limit instead of
+choosing an arbitrary message-size cap.

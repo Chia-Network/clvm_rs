@@ -1,9 +1,8 @@
 //! Tests for the 2026 serialization format.
 
 use super::{
-    Compression, DeserializeLimits, SERDE_2026_MAGIC_PREFIX, deserialize_2026,
-    node_from_bytes_auto, node_to_bytes_serde_2026, serialize_2026, serialize_2026_random,
-    serialized_length_serde_2026,
+    Compression, DeserializeOptions, SERDE_2026_MAGIC_PREFIX, deserialize_2026,
+    node_from_bytes_auto, node_to_bytes_serde_2026, serialize_2026, serialized_length_serde_2026,
 };
 use crate::allocator::Allocator;
 use crate::serde::{node_from_bytes_backrefs, node_to_bytes};
@@ -14,7 +13,7 @@ use rstest::rstest;
 // Double-round-trip, all strategies, full corpus
 // ---------------------------------------------------------------------------
 
-/// For each legacy-hex tree: serialize with Fast, Compact, and Random, then
+/// For each legacy-hex tree: serialize with Fast and Compact, then
 /// deserialize each, re-serialize, and assert identical bytes (idempotency)
 /// plus tree equivalence to the original.
 #[rstest]
@@ -57,27 +56,25 @@ fn test_round_trip(#[case] hex: &str) {
     let mut allocator = Allocator::new();
     let node = node_from_bytes_backrefs(&mut allocator, &bytes).unwrap();
     let canonical = node_to_bytes(&allocator, node).unwrap();
-    let limits = DeserializeLimits::default();
+    let options = DeserializeOptions::default();
 
-    let blobs: Vec<(&str, Vec<u8>)> = vec![
+    let blobs: Vec<(&str, Compression, Vec<u8>)> = vec![
         (
             "fast",
+            Compression::Fast,
             serialize_2026(&allocator, node, Compression::Fast).unwrap(),
         ),
         (
             "compact",
+            Compression::Compact,
             serialize_2026(&allocator, node, Compression::Compact).unwrap(),
-        ),
-        (
-            "random",
-            serialize_2026_random(&allocator, node, 12345).unwrap(),
         ),
     ];
 
-    for (label, blob) in &blobs {
+    for (label, compression, blob) in &blobs {
         // First trip: tree equivalence
         let mut a2 = Allocator::new();
-        let n2 = deserialize_2026(&mut a2, blob, limits).unwrap();
+        let n2 = deserialize_2026(&mut a2, blob, options).unwrap();
         assert_eq!(
             node_to_bytes(&a2, n2).unwrap(),
             canonical,
@@ -85,16 +82,7 @@ fn test_round_trip(#[case] hex: &str) {
         );
 
         // Second trip: serialization idempotency (same compression level)
-        let blob2 = if *label == "random" {
-            serialize_2026_random(&a2, n2, 12345).unwrap()
-        } else {
-            let c = if *label == "fast" {
-                Compression::Fast
-            } else {
-                Compression::Compact
-            };
-            serialize_2026(&a2, n2, c).unwrap()
-        };
+        let blob2 = serialize_2026(&a2, n2, *compression).unwrap();
         assert_eq!(
             blob, &blob2,
             "{label}: double round-trip mismatch for {hex}"
@@ -103,23 +91,10 @@ fn test_round_trip(#[case] hex: &str) {
 
     // Compact must never be larger than Fast
     assert!(
-        blobs[1].1.len() <= blobs[0].1.len(),
+        blobs[1].2.len() <= blobs[0].2.len(),
         "compact ({}) > fast ({}) for {hex}",
-        blobs[1].1.len(),
-        blobs[0].1.len()
-    );
-}
-
-#[test]
-fn test_random_different_seeds_diverge() {
-    let mut allocator = Allocator::new();
-    let a = allocator.new_atom(b"shared").unwrap();
-    let b = allocator.new_atom(b"other").unwrap();
-    let p = allocator.new_pair(a, b).unwrap();
-    let root = allocator.new_pair(p, a).unwrap();
-    assert_ne!(
-        serialize_2026_random(&allocator, root, 1).unwrap(),
-        serialize_2026_random(&allocator, root, 2).unwrap(),
+        blobs[1].2.len(),
+        blobs[0].2.len()
     );
 }
 
@@ -142,9 +117,40 @@ fn test_random_different_seeds_diverge() {
 fn test_deserialize_rejects_malformed(#[case] data: &[u8], #[case] _desc: &str) {
     let mut allocator = Allocator::new();
     assert!(
-        deserialize_2026(&mut allocator, data, DeserializeLimits::default()).is_err(),
+        deserialize_2026(&mut allocator, data, DeserializeOptions::default()).is_err(),
         "should reject: {_desc}"
     );
+}
+
+#[test]
+fn test_strict_rejects_overlong_varints() {
+    let mut allocator = Allocator::new();
+    let mut options = DeserializeOptions {
+        strict: true,
+        ..DeserializeOptions::default()
+    };
+
+    // group_count=1 encoded as two bytes, then a valid single atom payload.
+    let overlong_group_count = [0x80, 0x01, 0x01, b'A', 0x01, 0x02];
+    assert!(deserialize_2026(&mut allocator, &overlong_group_count, options).is_err());
+
+    options.strict = false;
+    let decoded = deserialize_2026(&mut allocator, &overlong_group_count, options).unwrap();
+    assert_eq!(allocator.atom(decoded).as_ref(), b"A");
+}
+
+#[test]
+fn test_input_byte_limit_bounds_parser_work() {
+    let mut allocator = Allocator::new();
+    let options = DeserializeOptions {
+        max_input_bytes: 3,
+        ..DeserializeOptions::default()
+    };
+
+    // This otherwise-valid one-atom blob needs 4 bytes of payload:
+    // group_count, length, atom byte, instruction_count.
+    let data = [0x01, 0x01, b'A', 0x01, 0x02];
+    assert!(deserialize_2026(&mut allocator, &data, options).is_err());
 }
 
 // ---------------------------------------------------------------------------
@@ -168,7 +174,7 @@ fn check_auto(node_alloc: &Allocator, n: crate::allocator::NodePtr) {
     let classic = node_to_bytes(node_alloc, n).unwrap();
 
     let mut a = Allocator::new();
-    let decoded = node_from_bytes_auto(&mut a, &classic, DeserializeLimits::default()).unwrap();
+    let decoded = node_from_bytes_auto(&mut a, &classic, DeserializeOptions::default()).unwrap();
     assert_eq!(
         node_to_bytes(&a, decoded).unwrap(),
         classic,
@@ -177,7 +183,7 @@ fn check_auto(node_alloc: &Allocator, n: crate::allocator::NodePtr) {
 
     let backrefs = crate::serde::node_to_bytes_backrefs(node_alloc, n).unwrap();
     let mut a2 = Allocator::new();
-    let decoded2 = node_from_bytes_auto(&mut a2, &backrefs, DeserializeLimits::default()).unwrap();
+    let decoded2 = node_from_bytes_auto(&mut a2, &backrefs, DeserializeOptions::default()).unwrap();
     assert_eq!(
         node_to_bytes(&a2, decoded2).unwrap(),
         classic,
@@ -186,7 +192,7 @@ fn check_auto(node_alloc: &Allocator, n: crate::allocator::NodePtr) {
 
     let prefixed = node_to_bytes_serde_2026(node_alloc, n, Compression::default()).unwrap();
     let mut a3 = Allocator::new();
-    let decoded3 = node_from_bytes_auto(&mut a3, &prefixed, DeserializeLimits::default()).unwrap();
+    let decoded3 = node_from_bytes_auto(&mut a3, &prefixed, DeserializeOptions::default()).unwrap();
     assert_eq!(
         node_to_bytes(&a3, decoded3).unwrap(),
         classic,
@@ -221,13 +227,13 @@ fn test_auto_detect() {
 #[test]
 fn test_auto_detect_rejects_empty() {
     let mut allocator = Allocator::new();
-    assert!(node_from_bytes_auto(&mut allocator, b"", DeserializeLimits::default()).is_err());
+    assert!(node_from_bytes_auto(&mut allocator, b"", DeserializeOptions::default()).is_err());
 }
 
 #[test]
 fn test_auto_detect_classic_single_byte() {
     let mut a = Allocator::new();
-    let node = node_from_bytes_auto(&mut a, &[0x01], DeserializeLimits::default()).unwrap();
+    let node = node_from_bytes_auto(&mut a, &[0x01], DeserializeOptions::default()).unwrap();
     assert_eq!(a.atom(node).as_ref(), b"\x01");
 }
 
