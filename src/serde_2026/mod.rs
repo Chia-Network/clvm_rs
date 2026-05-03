@@ -53,3 +53,5 @@ pub use de::{
     serialized_length_serde_2026,
 };
 pub use ser::{node_to_bytes_serde_2026, serialize_2026, serialize_2026_to_stream};
+#[doc(hidden)]
+pub use varint::{decode_varint, encode_varint};

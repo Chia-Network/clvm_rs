@@ -127,6 +127,10 @@ fn make_deserialize_options(
     options
 }
 
+/// Deserialize a serde_2026 blob.  The input must start with
+/// `SERDE_2026_MAGIC_PREFIX` (the same prefix `ser_2026` emits); the prefix is
+/// stripped before calling the underlying decoder.  This makes `ser_2026` and
+/// `deser_2026` a symmetric pair.
 #[pyfunction]
 #[pyo3(signature = (blob, *, max_atom_len=None, max_input_bytes=None, strict=false))]
 fn deser_2026(
@@ -135,9 +139,16 @@ fn deser_2026(
     max_input_bytes: Option<usize>,
     strict: bool,
 ) -> PyResult<LazyNode> {
+    let body = blob
+        .strip_prefix(SERDE_2026_MAGIC_PREFIX.as_slice())
+        .ok_or_else(|| {
+            pyo3::exceptions::PyValueError::new_err(
+                "deser_2026: blob is missing the serde_2026 magic prefix",
+            )
+        })?;
     let mut a = Allocator::new();
     let options = make_deserialize_options(max_atom_len, max_input_bytes, strict);
-    let node = deserialize_2026(&mut a, blob, options).map_err(eval_to_py)?;
+    let node = deserialize_2026(&mut a, body, options).map_err(eval_to_py)?;
     Ok(LazyNode::new(Rc::new(a), node))
 }
 
