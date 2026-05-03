@@ -386,3 +386,18 @@ class Serde2026RoundTripTest(unittest.TestCase):
         s2026_blob = serialize(node, "2026")
         self.assertTrue(s2026_blob.startswith(bytes.fromhex("fdff32303236")))
         self.assertEqual(Program.from_bytes(s2026_blob), p)
+
+    def test_ser_2026_deser_2026_symmetry(self):
+        """ser_2026 emits the magic prefix, deser_2026 must accept it."""
+        from clvm_rs.clvm_rs import deser_2026, ser_2026
+
+        p = Program.to([1, 2, (b"shared", b"shared"), 3])
+        blob = ser_2026(clvm_tree_to_lazy_node(p))
+        self.assertTrue(blob.startswith(bytes.fromhex("fdff32303236")))
+
+        node = deser_2026(blob)
+        self.assertEqual(Program.wrap(node), p)
+
+        # Without the magic prefix it must be rejected.
+        with self.assertRaises(ValueError):
+            deser_2026(blob[6:])

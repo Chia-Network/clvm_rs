@@ -281,3 +281,85 @@ fn test_serialized_length() {
     assert!(serialized_length_serde_2026(b"\x80").is_err());
     assert!(serialized_length_serde_2026(b"").is_err());
 }
+
+// ---------------------------------------------------------------------------
+// write_atom_table
+// ---------------------------------------------------------------------------
+
+/// Verify the wire-level structure of `write_atom_table`: atoms of the same
+/// length are emitted as a single repeated-length group (negative length
+/// varint + count), and atoms of different lengths split into separate groups.
+/// The exact ordering of atoms inside a length group depends on the frequency
+/// sort; this test only inspects structure, not order.
+#[test]
+fn test_write_atom_table_groups_by_length() {
+    use super::ser::{SerializerState, write_atom_table};
+    use super::varint::decode_varint;
+    use std::io::{Cursor, Read};
+
+    // Tree with three 3-byte atoms and one 5-byte atom — every atom is forced
+    // into the table (no nil, no duplicates).
+    let mut a = Allocator::new();
+    let foo = a.new_atom(b"foo").unwrap();
+    let bar = a.new_atom(b"bar").unwrap();
+    let baz = a.new_atom(b"baz").unwrap();
+    let hello = a.new_atom(b"hello").unwrap();
+    let p = a.new_pair(foo, bar).unwrap();
+    let q = a.new_pair(baz, hello).unwrap();
+    let root = a.new_pair(p, q).unwrap();
+
+    let state = SerializerState::new(&a, root).unwrap();
+    let mut buf = Vec::new();
+    write_atom_table(&mut buf, &state.tree, &state.sorted_no_nil).unwrap();
+
+    let mut cursor = Cursor::new(&buf[..]);
+    let group_count = decode_varint(&mut cursor, false).unwrap();
+    assert_eq!(group_count, 2, "expected 2 length-groups (3, 5)");
+
+    let mut total_atoms = 0usize;
+    let mut total_bytes = 0usize;
+    let mut saw_repeated_3 = false;
+    let mut saw_singleton_5 = false;
+    for _ in 0..group_count {
+        let length_val = decode_varint(&mut cursor, false).unwrap();
+        if length_val < 0 {
+            // multi-atom group: -length, count, then count*length raw bytes
+            let len = (-length_val) as usize;
+            let count = decode_varint(&mut cursor, false).unwrap() as usize;
+            assert!(len > 0 && count > 1);
+            let mut bytes = vec![0u8; len * count];
+            cursor.read_exact(&mut bytes).unwrap();
+            total_atoms += count;
+            total_bytes += bytes.len();
+            if len == 3 && count == 3 {
+                saw_repeated_3 = true;
+            }
+        } else {
+            // singleton group: positive length, then `length` raw bytes
+            let len = length_val as usize;
+            let mut bytes = vec![0u8; len];
+            cursor.read_exact(&mut bytes).unwrap();
+            total_atoms += 1;
+            total_bytes += bytes.len();
+            if len == 5 {
+                saw_singleton_5 = true;
+            }
+        }
+    }
+
+    assert!(
+        saw_repeated_3,
+        "expected the three 3-byte atoms to share a group"
+    );
+    assert!(
+        saw_singleton_5,
+        "expected the 5-byte atom as a singleton group"
+    );
+    assert_eq!(total_atoms, 4);
+    assert_eq!(total_bytes, 3 * 3 + 5);
+    assert_eq!(
+        cursor.position() as usize,
+        buf.len(),
+        "all bytes of the atom table should be consumed"
+    );
+}
