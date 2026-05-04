@@ -92,8 +92,10 @@ def serialize(node, fmt: str = "2026", *, level: int = 0) -> bytes:
 
     Formats: "2026" (default), "legacy", "backrefs".
 
-    For "2026" format:
-        level=0: left-first traversal (fast)
+    For "2026" format, ``level`` selects the compression level. Levels above
+    the highest implemented level saturate to it, so passing a large number
+    always means "best available compression". Currently only level 0
+    (left-first/fast) is implemented.
     """
     fn = _SERIALIZERS.get(fmt)
     if fn is None:

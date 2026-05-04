@@ -17,8 +17,8 @@ use clvmr::serde::{
     parse_triples, serialized_length_from_bytes,
 };
 use clvmr::serde_2026::{
-    Compression, DeserializeOptions, SERDE_2026_MAGIC_PREFIX, deserialize_2026,
-    node_from_bytes_auto, serialize_2026,
+    DeserializeOptions, SERDE_2026_MAGIC_PREFIX, deserialize_2026, node_from_bytes_auto,
+    node_to_bytes_serde_2026_level,
 };
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
@@ -187,22 +187,14 @@ fn ser_backrefs(py: Python, node: &LazyNode) -> PyResult<Py<PyBytes>> {
 
 /// Serialize to serde_2026 format (always includes the magic prefix).
 ///
-/// - `level=0`: left-first traversal (fast)
+/// `level` selects the compression level. Levels above the highest implemented
+/// level saturate to it, so passing `u32::MAX` always means "best available
+/// compression". Currently only level 0 (left-first/fast) is implemented.
 #[pyfunction]
 #[pyo3(signature = (node, *, level=0))]
 fn ser_2026(py: Python, node: &LazyNode, level: u32) -> PyResult<Py<PyBytes>> {
-    let compression = match level {
-        0 => Compression::Fast,
-        _ => {
-            return Err(pyo3::exceptions::PyValueError::new_err(
-                "ser_2026: level must be 0",
-            ));
-        }
-    };
-    let raw = serialize_2026(node.allocator(), node.node(), compression).map_err(eval_to_py)?;
-    let mut buf = Vec::with_capacity(SERDE_2026_MAGIC_PREFIX.len() + raw.len());
-    buf.extend_from_slice(&SERDE_2026_MAGIC_PREFIX);
-    buf.extend_from_slice(&raw);
+    let buf =
+        node_to_bytes_serde_2026_level(node.allocator(), node.node(), level).map_err(eval_to_py)?;
     Ok(PyBytes::new(py, &buf).unbind())
 }
 

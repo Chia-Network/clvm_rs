@@ -38,12 +38,14 @@ pub const SERDE_2026_MAGIC_PREFIX: [u8; 6] = [0xfd, 0xff, b'2', b'0', b'2', b'6'
 /// Maximum atoms/pairs that fit in i32 indices (used by instruction stream).
 const MAX_INDEX: usize = i32::MAX as usize;
 
-/// Controls the serialization strategy for pair visit order.
+/// Internal vocabulary for which serialization strategy to use. The public API
+/// takes a `level: u32` and saturates to the highest implemented level; this
+/// enum is the after-saturation result.
 ///
-/// - `Fast` (0): left-first traversal. O(N) serialization.
+/// - `Fast` (level 0): left-first traversal. O(N) serialization.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 #[repr(u8)]
-pub enum Compression {
+pub(crate) enum Compression {
     #[default]
     Fast = 0,
 }
@@ -52,6 +54,9 @@ pub use de::{
     DeserializeOptions, deserialize_2026, deserialize_2026_from_stream, node_from_bytes_auto,
     serialized_length_serde_2026,
 };
-pub use ser::{node_to_bytes_serde_2026, serialize_2026, serialize_2026_to_stream};
+pub use ser::{
+    node_to_bytes_serde_2026, node_to_bytes_serde_2026_level, serialize_2026, serialize_2026_level,
+    serialize_2026_to_stream, serialize_2026_to_stream_level,
+};
 #[doc(hidden)]
 pub use varint::{decode_varint, encode_varint};
