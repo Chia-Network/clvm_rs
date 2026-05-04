@@ -142,7 +142,13 @@ pub fn deserialize_2026_from_stream<R: Read>(
     }
 
     let nil = allocator.nil();
-    let mut pairs: Vec<NodePtr> = Vec::with_capacity(instruction_count / 3);
+    // Don't pre-size `pairs` from `instruction_count`: a tiny blob could
+    // declare ~2^54 instructions and trick `Vec::with_capacity` into a
+    // multi-PB allocation request that aborts the process. `LimitReader`
+    // already bounds total bytes consumed, so the loop below cannot iterate
+    // far enough to drive `pairs` past `max_input_bytes`/3 entries — geometric
+    // growth from `Vec::new()` handles that safely with a handful of reallocs.
+    let mut pairs: Vec<NodePtr> = Vec::new();
     let mut stack: Vec<NodePtr> = Vec::with_capacity(64);
 
     for _ in 0..instruction_count {
