@@ -51,8 +51,7 @@ class Program(CLVMStorage):
         """Deserialize classic or backrefs format only (rejects serde_2026)."""
         if blob.startswith(SERDE_2026_MAGIC_PREFIX):
             raise ValueError("unexpected serde_2026 format; use from_bytes() for auto-detection")
-        obj, cursor = cls.from_bytes_with_cursor(blob, 0)
-        return obj
+        return cls.wrap(deser_auto(blob))
 
     @classmethod
     def from_bytes_with_cursor(
