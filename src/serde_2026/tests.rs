@@ -283,6 +283,63 @@ fn test_serialized_length() {
 }
 
 // ---------------------------------------------------------------------------
+// Regression test for the unbounded-capacity OOM at `de.rs:145`. A tiny blob
+// (under 16 bytes) declares an `instruction_count` near the max representable
+// varint (~2^54). Pre-fix, the deserializer pre-allocated `instruction_count
+// / 3` `NodePtr`s — a request of about 24 PB — and the process aborted with
+// "memory allocation of N bytes failed". Post-fix, the deserializer rejects
+// any declared count above `max_input_bytes` (each follow-up item costs at
+// least one byte) and returns `Err` cleanly.
+#[test]
+fn deserializer_rejects_unbounded_instruction_count() {
+    use super::varint::encode_varint;
+
+    let mut blob = Vec::new();
+    blob.extend_from_slice(&encode_varint(0)); // group_count = 0
+    blob.extend_from_slice(&encode_varint(1_i64 << 54)); // instruction_count
+    assert!(blob.len() < 16, "PoC blob stays tiny ({} bytes)", blob.len());
+
+    let mut a = Allocator::new();
+    let result = deserialize_2026(&mut a, &blob, DeserializeOptions::default());
+    assert!(
+        result.is_err(),
+        "instruction_count must be rejected before pre-allocation"
+    );
+}
+
+#[test]
+fn deserializer_rejects_unbounded_group_count() {
+    use super::varint::encode_varint;
+
+    let mut blob = Vec::new();
+    blob.extend_from_slice(&encode_varint(1_i64 << 54)); // group_count
+
+    let mut a = Allocator::new();
+    let result = deserialize_2026(&mut a, &blob, DeserializeOptions::default());
+    assert!(
+        result.is_err(),
+        "group_count must be rejected before pre-allocation"
+    );
+}
+
+#[test]
+fn deserializer_rejects_unbounded_per_group_count() {
+    use super::varint::encode_varint;
+
+    let mut blob = Vec::new();
+    blob.extend_from_slice(&encode_varint(1)); // group_count = 1
+    blob.extend_from_slice(&encode_varint(-3)); // multi-atom group, len=3
+    blob.extend_from_slice(&encode_varint(1_i64 << 54)); // count
+
+    let mut a = Allocator::new();
+    let result = deserialize_2026(&mut a, &blob, DeserializeOptions::default());
+    assert!(
+        result.is_err(),
+        "per-group count must be rejected before pre-allocation"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // write_atom_table
 // ---------------------------------------------------------------------------
 
