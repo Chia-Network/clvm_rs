@@ -4,7 +4,7 @@ use clvmr::serde::{
     node_to_bytes_backrefs, serialized_length_from_bytes, serialized_length_from_bytes_trusted,
     tree_hash_from_stream,
 };
-use clvmr::serde_2026::{deserialize_2026, serialize_2026};
+use clvmr::serde_2026::{deserialize_2026_body, serialize_2026};
 
 const BENCH_MAX_ATOM_LEN: usize = 1 << 20;
 use criterion::{Criterion, criterion_group, criterion_main};
@@ -95,12 +95,12 @@ fn deserialize_benchmark(c: &mut Criterion) {
         ] {
             let mut a = Allocator::new();
             let iter_checkpoint = a.checkpoint();
-            group.bench_function(format!("deserialize_2026{name_suffix}"), |b| {
+            group.bench_function(format!("deserialize_2026_body{name_suffix}"), |b| {
                 b.iter(|| {
                     a.restore_checkpoint(&iter_checkpoint);
                     let start = Instant::now();
-                    deserialize_2026(&mut a, data, BENCH_MAX_ATOM_LEN, false)
-                        .expect("deserialize_2026");
+                    deserialize_2026_body(&mut a, data, BENCH_MAX_ATOM_LEN, false)
+                        .expect("deserialize_2026_body");
                     start.elapsed()
                 })
             });
