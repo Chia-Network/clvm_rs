@@ -1,8 +1,8 @@
 //! Tests for the 2026 serialization format.
 
 use super::{
-    SERDE_2026_MAGIC_PREFIX, deserialize_2026_body, node_to_bytes_serde_2026, serialize_2026_level,
-    serialized_length_serde_2026,
+    SERDE_2026_MAGIC_PREFIX, deserialize_2026_body, node_from_bytes_serde_2026,
+    node_to_bytes_serde_2026, serialize_2026_level, serialized_length_serde_2026,
 };
 use crate::allocator::Allocator;
 use crate::serde::{node_from_bytes_backrefs, node_to_bytes};
@@ -251,8 +251,10 @@ fn test_serialized_length_rejects_what_deserialize_rejects() {
 
     let mut a = Allocator::new();
     for (label, blob) in cases {
+        // Use the prefix-aware deserializer so the asymmetry under test
+        // (header-time rejections) is what fails, not the magic-prefix check.
         assert!(
-            deserialize_2026_body(&mut a, blob, TEST_MAX_ATOM_LEN, false).is_err(),
+            node_from_bytes_serde_2026(&mut a, blob, TEST_MAX_ATOM_LEN, false).is_err(),
             "{label}: deserialize must reject"
         );
         assert!(
