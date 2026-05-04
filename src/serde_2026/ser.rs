@@ -258,9 +258,10 @@ pub(super) fn serialize_with_strategy<W: Write, S: VisitStrategy>(
 /// Debug-only: deserialize `bytes` and verify it equals `node`. Panics on mismatch.
 #[cfg(debug_assertions)]
 pub(super) fn debug_assert_roundtrip(allocator: &Allocator, node: NodePtr, bytes: &[u8]) {
-    use super::de::{DeserializeOptions, deserialize_2026};
+    use super::de::deserialize_2026;
     let mut probe = Allocator::new();
-    let decoded = deserialize_2026(&mut probe, bytes, DeserializeOptions::default())
+    // Self-check uses 1 MiB max atom (matches the legacy non-consensus default).
+    let decoded = deserialize_2026(&mut probe, bytes, 1 << 20, false)
         .expect("serde_2026 self-check: produced bytes that fail to deserialize");
     assert!(
         cross_allocator_eq(allocator, node, &probe, decoded),
