@@ -1,8 +1,8 @@
 //! Tests for the 2026 serialization format.
 
 use super::{
-    Compression, DeserializeOptions, SERDE_2026_MAGIC_PREFIX, deserialize_2026,
-    node_from_bytes_auto, node_to_bytes_serde_2026, serialize_2026, serialized_length_serde_2026,
+    DeserializeOptions, SERDE_2026_MAGIC_PREFIX, deserialize_2026, node_from_bytes_auto,
+    node_to_bytes_serde_2026, serialize_2026_level, serialized_length_serde_2026,
 };
 use crate::allocator::Allocator;
 use crate::serde::{node_from_bytes_backrefs, node_to_bytes};
@@ -58,13 +58,13 @@ fn test_round_trip(#[case] hex: &str) {
     let canonical = node_to_bytes(&allocator, node).unwrap();
     let options = DeserializeOptions::default();
 
-    let blobs: Vec<(&str, Compression, Vec<u8>)> = vec![(
+    let blobs: Vec<(&str, u32, Vec<u8>)> = vec![(
         "fast",
-        Compression::Fast,
-        serialize_2026(&allocator, node, Compression::Fast).unwrap(),
+        0,
+        serialize_2026_level(&allocator, node, 0).unwrap(),
     )];
 
-    for (label, compression, blob) in &blobs {
+    for (label, level, blob) in &blobs {
         // First trip: tree equivalence
         let mut a2 = Allocator::new();
         let n2 = deserialize_2026(&mut a2, blob, options).unwrap();
@@ -75,7 +75,7 @@ fn test_round_trip(#[case] hex: &str) {
         );
 
         // Second trip: serialization idempotency (same compression level)
-        let blob2 = serialize_2026(&a2, n2, *compression).unwrap();
+        let blob2 = serialize_2026_level(&a2, n2, *level).unwrap();
         assert_eq!(
             blob, &blob2,
             "{label}: double round-trip mismatch for {hex}"
@@ -151,7 +151,7 @@ fn test_magic_prefix() {
 
     let mut allocator = Allocator::new();
     let node = allocator.new_atom(b"hello").unwrap();
-    let bytes = node_to_bytes_serde_2026(&allocator, node, Compression::default()).unwrap();
+    let bytes = node_to_bytes_serde_2026(&allocator, node).unwrap();
     assert!(bytes.starts_with(&SERDE_2026_MAGIC_PREFIX));
 }
 
@@ -175,7 +175,7 @@ fn check_auto(node_alloc: &Allocator, n: crate::allocator::NodePtr) {
         "backrefs via auto"
     );
 
-    let prefixed = node_to_bytes_serde_2026(node_alloc, n, Compression::default()).unwrap();
+    let prefixed = node_to_bytes_serde_2026(node_alloc, n).unwrap();
     let mut a3 = Allocator::new();
     let decoded3 = node_from_bytes_auto(&mut a3, &prefixed, DeserializeOptions::default()).unwrap();
     assert_eq!(
@@ -226,7 +226,7 @@ fn test_auto_detect_classic_single_byte() {
 fn test_backrefs_decoder_rejects_serde_2026() {
     let mut allocator = Allocator::new();
     let node = allocator.new_atom(b"hello").unwrap();
-    let prefixed = node_to_bytes_serde_2026(&allocator, node, Compression::default()).unwrap();
+    let prefixed = node_to_bytes_serde_2026(&allocator, node).unwrap();
     let mut a2 = Allocator::new();
     assert!(node_from_bytes_backrefs(&mut a2, &prefixed).is_err());
 }
@@ -241,7 +241,7 @@ fn test_serialized_length() {
 
     // atom
     let node = allocator.new_atom(b"hello").unwrap();
-    let bytes = node_to_bytes_serde_2026(&allocator, node, Compression::default()).unwrap();
+    let bytes = node_to_bytes_serde_2026(&allocator, node).unwrap();
     assert_eq!(
         serialized_length_serde_2026(&bytes).unwrap(),
         bytes.len() as u64
@@ -251,7 +251,7 @@ fn test_serialized_length() {
     let left = allocator.new_atom(b"left").unwrap();
     let right = allocator.new_atom(b"right").unwrap();
     let pair = allocator.new_pair(left, right).unwrap();
-    let bytes = node_to_bytes_serde_2026(&allocator, pair, Compression::default()).unwrap();
+    let bytes = node_to_bytes_serde_2026(&allocator, pair).unwrap();
     assert_eq!(
         serialized_length_serde_2026(&bytes).unwrap(),
         bytes.len() as u64
@@ -263,7 +263,7 @@ fn test_serialized_length() {
     let b = allocator.new_atom(b"other").unwrap();
     let p2 = allocator.new_pair(p1, b).unwrap();
     let root = allocator.new_pair(p2, p1).unwrap();
-    let bytes = node_to_bytes_serde_2026(&allocator, root, Compression::default()).unwrap();
+    let bytes = node_to_bytes_serde_2026(&allocator, root).unwrap();
     assert_eq!(
         serialized_length_serde_2026(&bytes).unwrap(),
         bytes.len() as u64

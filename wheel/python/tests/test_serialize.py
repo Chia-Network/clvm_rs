@@ -344,14 +344,20 @@ class Serde2026RoundTripTest(unittest.TestCase):
         p2 = Program.from_bytes(blob)
         self.assertEqual(tree, p2)
 
-    def test_2026_rejects_unknown_compression_level(self):
-        """Only the left-first serializer is currently exposed."""
+    def test_2026_level_saturates_to_highest_implemented(self):
+        """`level` saturates: anything above the top implemented level
+        produces the same bytes as that level. Today only level 0 exists,
+        so every non-zero level must produce identical output to level 0."""
         shared = Program.to([1, 2, 3])
         tree = Program.to([shared, shared, shared, shared])
         lazy = clvm_tree_to_lazy_node(tree)
         blob_0 = ser_2026(lazy, level=0)
-        with self.assertRaises(ValueError):
-            ser_2026(lazy, level=1)
+        for level in (1, 7, 1 << 20, (1 << 32) - 1):
+            self.assertEqual(
+                ser_2026(lazy, level=level),
+                blob_0,
+                f"level={level} should saturate to level=0 today",
+            )
         self.assertEqual(Program.from_bytes(blob_0), tree)
 
     def test_mixed_tree_with_large_atoms(self):

@@ -2,7 +2,7 @@
 
 use clvm_fuzzing::ArbitraryClvmTree;
 use clvmr::serde::node_to_bytes;
-use clvmr::serde_2026::{Compression, DeserializeOptions, deserialize_2026, serialize_2026};
+use clvmr::serde_2026::{DeserializeOptions, deserialize_2026, serialize_2026_level};
 use clvmr::{Allocator, allocator::NodePtr};
 use libfuzzer_sys::{Corpus, fuzz_target};
 
@@ -29,15 +29,15 @@ fn roundtrip_check(label: &str, a: &Allocator, original: NodePtr, blob: &[u8]) {
 }
 
 fn check_tree(a: &Allocator, node: NodePtr) {
-    for (label, compression) in serialization_strategies() {
+    for (label, level) in serialization_strategies() {
         let blob =
-            serialize_2026(a, node, compression).unwrap_or_else(|_| panic!("{label} failed"));
+            serialize_2026_level(a, node, level).unwrap_or_else(|_| panic!("{label} failed"));
         roundtrip_check(label, a, node, &blob);
     }
 }
 
-fn serialization_strategies() -> impl Iterator<Item = (&'static str, Compression)> {
-    std::iter::once(("fast", Compression::Fast))
+fn serialization_strategies() -> impl Iterator<Item = (&'static str, u32)> {
+    std::iter::once(("fast", 0))
 }
 
 fuzz_target!(|input: FuzzInput| -> Corpus {
@@ -54,8 +54,8 @@ fuzz_target!(|input: FuzzInput| -> Corpus {
             check_tree(&program.allocator, program.tree);
 
             let mut a2 = Allocator::new();
-            let blob = serialize_2026(&program.allocator, program.tree, Compression::Fast)
-                .expect("Fast failed");
+            let blob =
+                serialize_2026_level(&program.allocator, program.tree, 0).expect("Fast failed");
             let decoded = deserialize_2026(&mut a2, &blob, DeserializeOptions::default())
                 .expect("deserialize fast failed");
             assert_eq!(

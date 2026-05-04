@@ -291,8 +291,19 @@ fn cross_allocator_eq(a: &Allocator, na: NodePtr, b: &Allocator, nb: NodePtr) ->
 // --- Public entry points ---
 
 use super::Compression;
-/// Serialize a CLVM node to the 2026 format.
-pub fn serialize_2026_to_stream<W: Write>(
+
+/// Map a `level: u32` onto an internal compression variant.
+///
+/// Levels above the highest implemented level are *saturated* down to it,
+/// so callers can pass `u32::MAX` to mean "best available compression"
+/// without recompiling when new levels are added.
+fn compression_for_level(_level: u32) -> Compression {
+    // Currently only level 0 (Fast) is implemented; every higher level
+    // saturates to it. As new levels land this `match` grows.
+    Compression::Fast
+}
+
+fn serialize_with_compression<W: Write>(
     allocator: &Allocator,
     node: NodePtr,
     compression: Compression,
@@ -304,27 +315,62 @@ pub fn serialize_2026_to_stream<W: Write>(
     }
 }
 
-/// Serialize a node using the 2026 format, returning bytes.
-pub fn serialize_2026(
+/// Serialize a CLVM node to the 2026 format using the default level.
+/// Equivalent to `serialize_2026_to_stream_level(.., 0, ..)`.
+pub fn serialize_2026_to_stream<W: Write>(
     allocator: &Allocator,
     node: NodePtr,
-    compression: Compression,
-) -> Result<Vec<u8>> {
+    writer: &mut W,
+) -> Result<()> {
+    serialize_2026_to_stream_level(allocator, node, 0, writer)
+}
+
+/// Serialize a CLVM node to the 2026 format at compression `level`.
+///
+/// Levels above the highest implemented level saturate to it, so passing
+/// `u32::MAX` always selects the best available compression. Currently
+/// only level 0 (left-first / fast) is implemented.
+pub fn serialize_2026_to_stream_level<W: Write>(
+    allocator: &Allocator,
+    node: NodePtr,
+    level: u32,
+    writer: &mut W,
+) -> Result<()> {
+    serialize_with_compression(allocator, node, compression_for_level(level), writer)
+}
+
+/// Serialize a node using the 2026 format at the default level, returning bytes.
+pub fn serialize_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
+    serialize_2026_level(allocator, node, 0)
+}
+
+/// Serialize a node using the 2026 format at compression `level`, returning bytes.
+///
+/// See [`serialize_2026_to_stream_level`] for the level-saturation contract.
+pub fn serialize_2026_level(allocator: &Allocator, node: NodePtr, level: u32) -> Result<Vec<u8>> {
     let mut output = Vec::new();
-    serialize_2026_to_stream(allocator, node, compression, &mut output)?;
+    serialize_2026_to_stream_level(allocator, node, level, &mut output)?;
     #[cfg(debug_assertions)]
     debug_assert_roundtrip(allocator, node, &output);
     Ok(output)
 }
 
-/// Serialize with the magic prefix. This is the recommended wire format.
-pub fn node_to_bytes_serde_2026(
+/// Serialize with the magic prefix at the default level.
+/// This is the recommended wire format.
+pub fn node_to_bytes_serde_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
+    node_to_bytes_serde_2026_level(allocator, node, 0)
+}
+
+/// Serialize with the magic prefix at compression `level`.
+///
+/// See [`serialize_2026_to_stream_level`] for the level-saturation contract.
+pub fn node_to_bytes_serde_2026_level(
     allocator: &Allocator,
     node: NodePtr,
-    compression: Compression,
+    level: u32,
 ) -> Result<Vec<u8>> {
     let mut out = Vec::new();
     out.extend_from_slice(&super::SERDE_2026_MAGIC_PREFIX);
-    serialize_2026_to_stream(allocator, node, compression, &mut out)?;
+    serialize_2026_to_stream_level(allocator, node, level, &mut out)?;
     Ok(out)
 }
