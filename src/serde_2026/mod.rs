@@ -50,7 +50,10 @@ pub(crate) enum Compression {
     Fast = 0,
 }
 
-pub use de::{deserialize_2026, deserialize_2026_from_stream, serialized_length_serde_2026};
+pub use de::{
+    deserialize_2026_body, deserialize_2026_body_from_stream, node_from_bytes_serde_2026,
+    serialized_length_serde_2026,
+};
 pub use ser::{
     node_to_bytes_serde_2026, node_to_bytes_serde_2026_level, serialize_2026, serialize_2026_level,
     serialize_2026_to_stream, serialize_2026_to_stream_level,

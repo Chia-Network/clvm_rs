@@ -43,7 +43,8 @@ pub use tools::{
 pub use tree_cache::{TreeCache, TreeCacheCheckpoint};
 
 pub use crate::serde_2026::{
-    SERDE_2026_MAGIC_PREFIX, deserialize_2026, deserialize_2026_from_stream,
-    node_to_bytes_serde_2026, node_to_bytes_serde_2026_level, serialize_2026, serialize_2026_level,
-    serialize_2026_to_stream, serialize_2026_to_stream_level, serialized_length_serde_2026,
+    SERDE_2026_MAGIC_PREFIX, deserialize_2026_body, deserialize_2026_body_from_stream,
+    node_from_bytes_serde_2026, node_to_bytes_serde_2026, node_to_bytes_serde_2026_level,
+    serialize_2026, serialize_2026_level, serialize_2026_to_stream, serialize_2026_to_stream_level,
+    serialized_length_serde_2026,
 };

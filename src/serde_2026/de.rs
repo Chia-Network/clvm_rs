@@ -23,6 +23,10 @@ fn checked_bounded_usize(value: i64, max: usize) -> Result<usize> {
 
 /// Deserialize a node from a stream using the 2026 format.
 ///
+/// **Reads the body only — does *not* expect the magic prefix.** Callers
+/// that have a full prefix-framed blob should use [`node_from_bytes_serde_2026`]
+/// (slice) or strip the prefix themselves before calling this.
+///
 /// `max_atom_len` caps the byte length of any single atom (and therefore the
 /// pre-allocation done while reading atom bytes). `strict` rejects overlong /
 /// non-minimal varint encodings.
@@ -30,9 +34,9 @@ fn checked_bounded_usize(value: i64, max: usize) -> Result<usize> {
 /// **Caller contract:** `reader` must be bounded — for example via
 /// [`std::io::Read::take`] — otherwise a malformed blob can drive an unbounded
 /// loop. Total input policy belongs in the caller, not here. Use
-/// [`deserialize_2026`] when you have a slice; the slice's length is the
+/// [`deserialize_2026_body`] when you have a slice; the slice's length is the
 /// natural bound.
-pub fn deserialize_2026_from_stream<R: Read>(
+pub fn deserialize_2026_body_from_stream<R: Read>(
     allocator: &mut Allocator,
     reader: &mut R,
     max_atom_len: usize,
@@ -125,24 +129,56 @@ pub fn deserialize_2026_from_stream<R: Read>(
 
 /// Deserialize a node from a byte slice using the 2026 format.
 ///
+/// **Body only — does *not* strip the magic prefix.** Pairs with
+/// [`serialize_2026`]. Callers with a prefix-framed blob should use
+/// [`node_from_bytes_serde_2026`].
+///
 /// The slice's length naturally bounds the input; no separate input-byte
 /// budget is required. `max_atom_len` caps the byte length of any single
 /// atom and `strict` rejects overlong / non-minimal varint encodings.
-pub fn deserialize_2026(
+pub fn deserialize_2026_body(
     allocator: &mut Allocator,
     data: &[u8],
     max_atom_len: usize,
     strict: bool,
 ) -> Result<NodePtr> {
-    deserialize_2026_from_stream(allocator, &mut Cursor::new(data), max_atom_len, strict)
+    deserialize_2026_body_from_stream(allocator, &mut Cursor::new(data), max_atom_len, strict)
+}
+
+/// Deserialize a magic-prefixed serde_2026 blob.
+///
+/// Verifies and strips [`SERDE_2026_MAGIC_PREFIX`], then delegates to
+/// [`deserialize_2026_body`]. Pairs with [`super::ser::node_to_bytes_serde_2026`].
+pub fn node_from_bytes_serde_2026(
+    allocator: &mut Allocator,
+    blob: &[u8],
+    max_atom_len: usize,
+    strict: bool,
+) -> Result<NodePtr> {
+    let body = blob
+        .strip_prefix(SERDE_2026_MAGIC_PREFIX.as_slice())
+        .ok_or(EvalErr::SerializationError)?;
+    deserialize_2026_body(allocator, body, max_atom_len, strict)
 }
 
 /// Compute the serialized length of a serde_2026 blob (including magic prefix).
 ///
 /// Walks the header structure without allocating or building a CLVM tree.
+/// Mirrors every header-time validation
+/// [`deserialize_2026_body_from_stream`] performs, so a blob that returns
+/// `Ok(len)` here is guaranteed to clear the deserializer's header parse
+/// (instruction-stream stack invariants and index validity are still checked
+/// at deserialize time — those can't be byte-counted).
+///
+/// `max_atom_len` caps any declared atom length and `strict` rejects
+/// overlong / non-minimal varint encodings — pass the same values you would
+/// pass to the deserializer. For framing-only callers that don't want a
+/// policy opinion, `usize::MAX` and `false` accept anything the deserializer
+/// could itself parse on a sufficiently permissive caller.
+///
 /// The input buffer may contain trailing data; only the bytes belonging to
 /// the serde_2026 blob are counted.
-pub fn serialized_length_serde_2026(buf: &[u8]) -> Result<u64> {
+pub fn serialized_length_serde_2026(buf: &[u8], max_atom_len: usize, strict: bool) -> Result<u64> {
     if !buf.starts_with(&SERDE_2026_MAGIC_PREFIX) {
         return Err(EvalErr::SerializationError);
     }
@@ -150,27 +186,27 @@ pub fn serialized_length_serde_2026(buf: &[u8]) -> Result<u64> {
     let data = &buf[SERDE_2026_MAGIC_PREFIX.len()..];
     let mut cursor = Cursor::new(data);
 
-    let group_count = checked_usize(decode_varint(&mut cursor, false)?)?;
+    let group_count = checked_usize(decode_varint(&mut cursor, strict)?)?;
     for _ in 0..group_count {
-        let length_val = decode_varint(&mut cursor, false)?;
+        let length_val = decode_varint(&mut cursor, strict)?;
         let skip = if length_val < 0 {
             if length_val == i64::MIN {
                 return Err(EvalErr::SerializationError);
             }
-            let atom_len = (-length_val) as u64;
-            let count = checked_usize(decode_varint(&mut cursor, false)?)?;
+            let atom_len = checked_bounded_usize(-length_val, max_atom_len)?;
+            let count = checked_usize(decode_varint(&mut cursor, strict)?)?;
             if atom_len == 0 || count == 0 {
                 return Err(EvalErr::SerializationError);
             }
-            let count = count as u64;
-            atom_len
-                .checked_mul(count)
+            (atom_len as u64)
+                .checked_mul(count as u64)
                 .ok_or(EvalErr::SerializationError)?
         } else {
-            if length_val == 0 {
+            let atom_len = checked_bounded_usize(length_val, max_atom_len)?;
+            if atom_len == 0 {
                 return Err(EvalErr::SerializationError);
             }
-            length_val as u64
+            atom_len as u64
         };
         let new_pos = cursor
             .position()
@@ -182,9 +218,14 @@ pub fn serialized_length_serde_2026(buf: &[u8]) -> Result<u64> {
         cursor.set_position(new_pos);
     }
 
-    let instruction_count = checked_usize(decode_varint(&mut cursor, false)?)?;
+    let instruction_count = checked_usize(decode_varint(&mut cursor, strict)?)?;
+    // Mirror `deserialize_2026_body_from_stream`: instruction_count == 0
+    // leaves the stack empty and is rejected there, so reject it here too.
+    if instruction_count == 0 {
+        return Err(EvalErr::SerializationError);
+    }
     for _ in 0..instruction_count {
-        decode_varint(&mut cursor, false)?;
+        decode_varint(&mut cursor, strict)?;
     }
 
     Ok(SERDE_2026_MAGIC_PREFIX.len() as u64 + cursor.position())

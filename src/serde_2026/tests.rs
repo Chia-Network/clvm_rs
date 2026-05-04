@@ -1,7 +1,7 @@
 //! Tests for the 2026 serialization format.
 
 use super::{
-    SERDE_2026_MAGIC_PREFIX, deserialize_2026, node_to_bytes_serde_2026, serialize_2026_level,
+    SERDE_2026_MAGIC_PREFIX, deserialize_2026_body, node_to_bytes_serde_2026, serialize_2026_level,
     serialized_length_serde_2026,
 };
 use crate::allocator::Allocator;
@@ -69,7 +69,7 @@ fn test_round_trip(#[case] hex: &str) {
     for (label, level, blob) in &blobs {
         // First trip: tree equivalence
         let mut a2 = Allocator::new();
-        let n2 = deserialize_2026(&mut a2, blob, TEST_MAX_ATOM_LEN, false).unwrap();
+        let n2 = deserialize_2026_body(&mut a2, blob, TEST_MAX_ATOM_LEN, false).unwrap();
         assert_eq!(
             node_to_bytes(&a2, n2).unwrap(),
             canonical,
@@ -104,7 +104,7 @@ fn test_round_trip(#[case] hex: &str) {
 fn test_deserialize_rejects_malformed(#[case] data: &[u8], #[case] _desc: &str) {
     let mut allocator = Allocator::new();
     assert!(
-        deserialize_2026(&mut allocator, data, TEST_MAX_ATOM_LEN, false).is_err(),
+        deserialize_2026_body(&mut allocator, data, TEST_MAX_ATOM_LEN, false).is_err(),
         "should reject: {_desc}"
     );
 }
@@ -116,7 +116,7 @@ fn test_strict_rejects_overlong_varints() {
     // group_count=1 encoded as two bytes, then a valid single atom payload.
     let overlong_group_count = [0x80, 0x01, 0x01, b'A', 0x01, 0x02];
     assert!(
-        deserialize_2026(
+        deserialize_2026_body(
             &mut allocator,
             &overlong_group_count,
             TEST_MAX_ATOM_LEN,
@@ -125,7 +125,7 @@ fn test_strict_rejects_overlong_varints() {
         .is_err()
     );
 
-    let decoded = deserialize_2026(
+    let decoded = deserialize_2026_body(
         &mut allocator,
         &overlong_group_count,
         TEST_MAX_ATOM_LEN,
@@ -177,7 +177,7 @@ fn test_serialized_length() {
     let node = allocator.new_atom(b"hello").unwrap();
     let bytes = node_to_bytes_serde_2026(&allocator, node).unwrap();
     assert_eq!(
-        serialized_length_serde_2026(&bytes).unwrap(),
+        serialized_length_serde_2026(&bytes, TEST_MAX_ATOM_LEN, false).unwrap(),
         bytes.len() as u64
     );
 
@@ -187,7 +187,7 @@ fn test_serialized_length() {
     let pair = allocator.new_pair(left, right).unwrap();
     let bytes = node_to_bytes_serde_2026(&allocator, pair).unwrap();
     assert_eq!(
-        serialized_length_serde_2026(&bytes).unwrap(),
+        serialized_length_serde_2026(&bytes, TEST_MAX_ATOM_LEN, false).unwrap(),
         bytes.len() as u64
     );
 
@@ -199,7 +199,7 @@ fn test_serialized_length() {
     let root = allocator.new_pair(p2, p1).unwrap();
     let bytes = node_to_bytes_serde_2026(&allocator, root).unwrap();
     assert_eq!(
-        serialized_length_serde_2026(&bytes).unwrap(),
+        serialized_length_serde_2026(&bytes, TEST_MAX_ATOM_LEN, false).unwrap(),
         bytes.len() as u64
     );
 
@@ -207,13 +207,59 @@ fn test_serialized_length() {
     let mut padded = bytes.clone();
     padded.extend_from_slice(b"trailing garbage");
     assert_eq!(
-        serialized_length_serde_2026(&padded).unwrap(),
+        serialized_length_serde_2026(&padded, TEST_MAX_ATOM_LEN, false).unwrap(),
         bytes.len() as u64
     );
 
     // rejects non-prefixed / empty
-    assert!(serialized_length_serde_2026(b"\x80").is_err());
-    assert!(serialized_length_serde_2026(b"").is_err());
+    assert!(serialized_length_serde_2026(b"\x80", TEST_MAX_ATOM_LEN, false).is_err());
+    assert!(serialized_length_serde_2026(b"", TEST_MAX_ATOM_LEN, false).is_err());
+}
+
+/// `serialized_length_serde_2026` must reject every header-time condition
+/// that `deserialize_2026_body` rejects, so callers can use the length helper to
+/// gate before deserializing without observing Ok-then-Err mismatches.
+#[test]
+fn test_serialized_length_rejects_what_deserialize_rejects() {
+    use super::varint::encode_varint;
+
+    let mk = |group_count: i64, instruction_count: i64, atom_table: &[u8]| {
+        let mut blob = Vec::new();
+        blob.extend_from_slice(&SERDE_2026_MAGIC_PREFIX);
+        blob.extend_from_slice(&encode_varint(group_count));
+        blob.extend_from_slice(atom_table);
+        blob.extend_from_slice(&encode_varint(instruction_count));
+        blob
+    };
+
+    // Cases that deserialize_2026_body rejects at header time. For each one,
+    // serialized_length_serde_2026 must also reject.
+    let cases: &[(&str, Vec<u8>)] = &[
+        // instruction_count = 0 with non-empty atom table
+        (
+            "instruction_count == 0",
+            mk(1, 0, &[0x01, b'A']), // one group, length=1, atom='A'
+        ),
+        // group with length = 0
+        ("group length == 0", mk(1, 1, &[0x00])),
+        // multi-atom group with count = 0
+        (
+            "multi-atom group count == 0",
+            mk(1, 1, &[0x7f, 0x00, b'A']), // length=-1 (multi-atom), count=0
+        ),
+    ];
+
+    let mut a = Allocator::new();
+    for (label, blob) in cases {
+        assert!(
+            deserialize_2026_body(&mut a, blob, TEST_MAX_ATOM_LEN, false).is_err(),
+            "{label}: deserialize must reject"
+        );
+        assert!(
+            serialized_length_serde_2026(blob, TEST_MAX_ATOM_LEN, false).is_err(),
+            "{label}: serialized_length must reject (mirrors deserialize)"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -239,7 +285,7 @@ fn deserializer_rejects_unbounded_instruction_count() {
     );
 
     let mut a = Allocator::new();
-    let result = deserialize_2026(&mut a, &blob, TEST_MAX_ATOM_LEN, false);
+    let result = deserialize_2026_body(&mut a, &blob, TEST_MAX_ATOM_LEN, false);
     assert!(
         result.is_err(),
         "instruction_count must be rejected before pre-allocation"
@@ -254,7 +300,7 @@ fn deserializer_rejects_unbounded_group_count() {
     blob.extend_from_slice(&encode_varint(1_i64 << 54)); // group_count
 
     let mut a = Allocator::new();
-    let result = deserialize_2026(&mut a, &blob, TEST_MAX_ATOM_LEN, false);
+    let result = deserialize_2026_body(&mut a, &blob, TEST_MAX_ATOM_LEN, false);
     assert!(
         result.is_err(),
         "group_count must be rejected before pre-allocation"
@@ -271,7 +317,7 @@ fn deserializer_rejects_unbounded_per_group_count() {
     blob.extend_from_slice(&encode_varint(1_i64 << 54)); // count
 
     let mut a = Allocator::new();
-    let result = deserialize_2026(&mut a, &blob, TEST_MAX_ATOM_LEN, false);
+    let result = deserialize_2026_body(&mut a, &blob, TEST_MAX_ATOM_LEN, false);
     assert!(
         result.is_err(),
         "per-group count must be rejected before pre-allocation"
