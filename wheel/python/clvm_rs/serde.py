@@ -60,7 +60,6 @@ def deserialize(
     fmt: str = "auto",
     *,
     max_atom_len: int | None = None,
-    max_input_bytes: int | None = None,
     strict: bool = False,
 ):
     """Deserialize bytes into a LazyNode.
@@ -69,20 +68,19 @@ def deserialize(
     "auto" handles all three formats by inspecting the magic prefix.
 
     Keyword-only limits (applied to "2026" and "auto" paths):
-        max_atom_len:   largest single atom in bytes (default ~1 MB)
-        max_input_bytes: total input budget in bytes  (default ~10 MB)
+        max_atom_len:   largest single atom in bytes (default 1 MiB)
         strict:         reject overlong varint encodings
+
+    Total input bytes is bounded by the input slice itself; consensus-aware
+    callers (e.g. chia_rs) should pass their own ``max_atom_len``.
     """
     fn = _DESERIALIZERS.get(fmt)
     if fn is None:
         raise ValueError(f"unknown deserialize format {fmt!r}, expected one of {list(_DESERIALIZERS)}")
     if fmt in ("2026", "auto"):
-        kwargs: dict = {}
+        kwargs: dict = {"strict": strict}
         if max_atom_len is not None:
             kwargs["max_atom_len"] = max_atom_len
-        if max_input_bytes is not None:
-            kwargs["max_input_bytes"] = max_input_bytes
-        kwargs["strict"] = strict
         return fn(blob, **kwargs)
     return fn(blob)
 

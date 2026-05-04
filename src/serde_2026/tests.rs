@@ -1,13 +1,16 @@
 //! Tests for the 2026 serialization format.
 
 use super::{
-    DeserializeOptions, SERDE_2026_MAGIC_PREFIX, deserialize_2026, node_from_bytes_auto,
-    node_to_bytes_serde_2026, serialize_2026_level, serialized_length_serde_2026,
+    SERDE_2026_MAGIC_PREFIX, deserialize_2026, node_to_bytes_serde_2026, serialize_2026_level,
+    serialized_length_serde_2026,
 };
 use crate::allocator::Allocator;
 use crate::serde::{node_from_bytes_backrefs, node_to_bytes};
 use hex::FromHex;
 use rstest::rstest;
+
+/// Sane non-consensus default for tests; the public API has no opinion.
+const TEST_MAX_ATOM_LEN: usize = 1 << 20;
 
 // ---------------------------------------------------------------------------
 // Double-round-trip, all strategies, full corpus
@@ -56,7 +59,6 @@ fn test_round_trip(#[case] hex: &str) {
     let mut allocator = Allocator::new();
     let node = node_from_bytes_backrefs(&mut allocator, &bytes).unwrap();
     let canonical = node_to_bytes(&allocator, node).unwrap();
-    let options = DeserializeOptions::default();
 
     let blobs: Vec<(&str, u32, Vec<u8>)> = vec![(
         "fast",
@@ -67,7 +69,7 @@ fn test_round_trip(#[case] hex: &str) {
     for (label, level, blob) in &blobs {
         // First trip: tree equivalence
         let mut a2 = Allocator::new();
-        let n2 = deserialize_2026(&mut a2, blob, options).unwrap();
+        let n2 = deserialize_2026(&mut a2, blob, TEST_MAX_ATOM_LEN, false).unwrap();
         assert_eq!(
             node_to_bytes(&a2, n2).unwrap(),
             canonical,
@@ -102,7 +104,7 @@ fn test_round_trip(#[case] hex: &str) {
 fn test_deserialize_rejects_malformed(#[case] data: &[u8], #[case] _desc: &str) {
     let mut allocator = Allocator::new();
     assert!(
-        deserialize_2026(&mut allocator, data, DeserializeOptions::default()).is_err(),
+        deserialize_2026(&mut allocator, data, TEST_MAX_ATOM_LEN, false).is_err(),
         "should reject: {_desc}"
     );
 }
@@ -110,32 +112,27 @@ fn test_deserialize_rejects_malformed(#[case] data: &[u8], #[case] _desc: &str) 
 #[test]
 fn test_strict_rejects_overlong_varints() {
     let mut allocator = Allocator::new();
-    let mut options = DeserializeOptions {
-        strict: true,
-        ..DeserializeOptions::default()
-    };
 
     // group_count=1 encoded as two bytes, then a valid single atom payload.
     let overlong_group_count = [0x80, 0x01, 0x01, b'A', 0x01, 0x02];
-    assert!(deserialize_2026(&mut allocator, &overlong_group_count, options).is_err());
+    assert!(
+        deserialize_2026(
+            &mut allocator,
+            &overlong_group_count,
+            TEST_MAX_ATOM_LEN,
+            true
+        )
+        .is_err()
+    );
 
-    options.strict = false;
-    let decoded = deserialize_2026(&mut allocator, &overlong_group_count, options).unwrap();
+    let decoded = deserialize_2026(
+        &mut allocator,
+        &overlong_group_count,
+        TEST_MAX_ATOM_LEN,
+        false,
+    )
+    .unwrap();
     assert_eq!(allocator.atom(decoded).as_ref(), b"A");
-}
-
-#[test]
-fn test_input_byte_limit_bounds_parser_work() {
-    let mut allocator = Allocator::new();
-    let options = DeserializeOptions {
-        max_input_bytes: 3,
-        ..DeserializeOptions::default()
-    };
-
-    // This otherwise-valid one-atom blob needs 4 bytes of payload:
-    // group_count, length, atom byte, instruction_count.
-    let data = [0x01, 0x01, b'A', 0x01, 0x02];
-    assert!(deserialize_2026(&mut allocator, &data, options).is_err());
 }
 
 // ---------------------------------------------------------------------------
@@ -155,72 +152,9 @@ fn test_magic_prefix() {
     assert!(bytes.starts_with(&SERDE_2026_MAGIC_PREFIX));
 }
 
-fn check_auto(node_alloc: &Allocator, n: crate::allocator::NodePtr) {
-    let classic = node_to_bytes(node_alloc, n).unwrap();
-
-    let mut a = Allocator::new();
-    let decoded = node_from_bytes_auto(&mut a, &classic, DeserializeOptions::default()).unwrap();
-    assert_eq!(
-        node_to_bytes(&a, decoded).unwrap(),
-        classic,
-        "classic via auto"
-    );
-
-    let backrefs = crate::serde::node_to_bytes_backrefs(node_alloc, n).unwrap();
-    let mut a2 = Allocator::new();
-    let decoded2 = node_from_bytes_auto(&mut a2, &backrefs, DeserializeOptions::default()).unwrap();
-    assert_eq!(
-        node_to_bytes(&a2, decoded2).unwrap(),
-        classic,
-        "backrefs via auto"
-    );
-
-    let prefixed = node_to_bytes_serde_2026(node_alloc, n).unwrap();
-    let mut a3 = Allocator::new();
-    let decoded3 = node_from_bytes_auto(&mut a3, &prefixed, DeserializeOptions::default()).unwrap();
-    assert_eq!(
-        node_to_bytes(&a3, decoded3).unwrap(),
-        classic,
-        "serde_2026 via auto"
-    );
-}
-
-#[test]
-fn test_auto_detect() {
-    let mut a = Allocator::new();
-    // atom
-    let atom = a.new_atom(b"hello world").unwrap();
-    check_auto(&a, atom);
-    // nil
-    check_auto(&a, a.nil());
-    // pair
-    let x = a.new_atom(b"a").unwrap();
-    let y = a.new_atom(b"b").unwrap();
-    let pair = a.new_pair(x, y).unwrap();
-    check_auto(&a, pair);
-    // nested list
-    let nil = a.nil();
-    let t1 = a.new_pair(y, nil).unwrap();
-    let t2 = a.new_pair(x, t1).unwrap();
-    check_auto(&a, t2);
-    // shared subtree
-    let shared = a.new_atom(b"shared").unwrap();
-    let shared_pair = a.new_pair(shared, shared).unwrap();
-    check_auto(&a, shared_pair);
-}
-
-#[test]
-fn test_auto_detect_rejects_empty() {
-    let mut allocator = Allocator::new();
-    assert!(node_from_bytes_auto(&mut allocator, b"", DeserializeOptions::default()).is_err());
-}
-
-#[test]
-fn test_auto_detect_classic_single_byte() {
-    let mut a = Allocator::new();
-    let node = node_from_bytes_auto(&mut a, &[0x01], DeserializeOptions::default()).unwrap();
-    assert_eq!(a.atom(node).as_ref(), b"\x01");
-}
+// Auto-detection (sniff the magic prefix and dispatch) is a Python-only
+// convenience now, exposed by `clvm_rs.serde.deserialize(blob, "auto")`.
+// See `wheel/python/tests/test_serialize.py` for coverage.
 
 #[test]
 fn test_backrefs_decoder_rejects_serde_2026() {
@@ -287,9 +221,10 @@ fn test_serialized_length() {
 // (under 16 bytes) declares an `instruction_count` near the max representable
 // varint (~2^54). Pre-fix, the deserializer pre-allocated `instruction_count
 // / 3` `NodePtr`s — a request of about 24 PB — and the process aborted with
-// "memory allocation of N bytes failed". Post-fix, the deserializer rejects
-// any declared count above `max_input_bytes` (each follow-up item costs at
-// least one byte) and returns `Err` cleanly.
+// "memory allocation of N bytes failed". Post-fix, the deserializer starts
+// with `Vec::new()` and is bounded by the input slice (or caller-supplied
+// `Read::take`), so the loop runs out of bytes long before it can drive the
+// vector to a pathological size and we return `Err` cleanly.
 #[test]
 fn deserializer_rejects_unbounded_instruction_count() {
     use super::varint::encode_varint;
@@ -297,10 +232,14 @@ fn deserializer_rejects_unbounded_instruction_count() {
     let mut blob = Vec::new();
     blob.extend_from_slice(&encode_varint(0)); // group_count = 0
     blob.extend_from_slice(&encode_varint(1_i64 << 54)); // instruction_count
-    assert!(blob.len() < 16, "PoC blob stays tiny ({} bytes)", blob.len());
+    assert!(
+        blob.len() < 16,
+        "PoC blob stays tiny ({} bytes)",
+        blob.len()
+    );
 
     let mut a = Allocator::new();
-    let result = deserialize_2026(&mut a, &blob, DeserializeOptions::default());
+    let result = deserialize_2026(&mut a, &blob, TEST_MAX_ATOM_LEN, false);
     assert!(
         result.is_err(),
         "instruction_count must be rejected before pre-allocation"
@@ -315,7 +254,7 @@ fn deserializer_rejects_unbounded_group_count() {
     blob.extend_from_slice(&encode_varint(1_i64 << 54)); // group_count
 
     let mut a = Allocator::new();
-    let result = deserialize_2026(&mut a, &blob, DeserializeOptions::default());
+    let result = deserialize_2026(&mut a, &blob, TEST_MAX_ATOM_LEN, false);
     assert!(
         result.is_err(),
         "group_count must be rejected before pre-allocation"
@@ -332,7 +271,7 @@ fn deserializer_rejects_unbounded_per_group_count() {
     blob.extend_from_slice(&encode_varint(1_i64 << 54)); // count
 
     let mut a = Allocator::new();
-    let result = deserialize_2026(&mut a, &blob, DeserializeOptions::default());
+    let result = deserialize_2026(&mut a, &blob, TEST_MAX_ATOM_LEN, false);
     assert!(
         result.is_err(),
         "per-group count must be rejected before pre-allocation"

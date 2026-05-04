@@ -16,14 +16,14 @@ def deser_backrefs(blob: bytes) -> "LazyNode": ...
 def deser_2026(
     blob: bytes,
     *,
-    max_atom_len: Optional[int] = None,
-    max_input_bytes: Optional[int] = None,
+    max_atom_len: int = ...,
+    strict: bool = False,
 ) -> "LazyNode": ...
 def deser_auto(
     blob: bytes,
     *,
-    max_atom_len: Optional[int] = None,
-    max_input_bytes: Optional[int] = None,
+    max_atom_len: int = ...,
+    strict: bool = False,
 ) -> "LazyNode": ...
 
 # --- Serialize functions ---

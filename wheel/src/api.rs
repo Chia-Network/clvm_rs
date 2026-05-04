@@ -17,9 +17,12 @@ use clvmr::serde::{
     parse_triples, serialized_length_from_bytes,
 };
 use clvmr::serde_2026::{
-    DeserializeOptions, SERDE_2026_MAGIC_PREFIX, deserialize_2026, node_from_bytes_auto,
-    node_to_bytes_serde_2026_level,
+    SERDE_2026_MAGIC_PREFIX, deserialize_2026, node_to_bytes_serde_2026_level,
 };
+
+/// Sane "don't OOM the parser" default. clvm_rs has no consensus opinion;
+/// downstream wrappers (e.g. chia_rs) supply their own caps.
+const PY_DEFAULT_MAX_ATOM_LEN: usize = 1 << 20;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
 
@@ -111,34 +114,13 @@ fn deser_backrefs(blob: &[u8]) -> PyResult<LazyNode> {
     Ok(LazyNode::new(Rc::new(a), node))
 }
 
-fn make_deserialize_options(
-    max_atom_len: Option<usize>,
-    max_input_bytes: Option<usize>,
-    strict: bool,
-) -> DeserializeOptions {
-    let mut options = DeserializeOptions::default();
-    if let Some(v) = max_atom_len {
-        options.max_atom_len = v;
-    }
-    if let Some(v) = max_input_bytes {
-        options.max_input_bytes = v;
-    }
-    options.strict = strict;
-    options
-}
-
 /// Deserialize a serde_2026 blob.  The input must start with
 /// `SERDE_2026_MAGIC_PREFIX` (the same prefix `ser_2026` emits); the prefix is
 /// stripped before calling the underlying decoder.  This makes `ser_2026` and
 /// `deser_2026` a symmetric pair.
 #[pyfunction]
-#[pyo3(signature = (blob, *, max_atom_len=None, max_input_bytes=None, strict=false))]
-fn deser_2026(
-    blob: &[u8],
-    max_atom_len: Option<usize>,
-    max_input_bytes: Option<usize>,
-    strict: bool,
-) -> PyResult<LazyNode> {
+#[pyo3(signature = (blob, *, max_atom_len=PY_DEFAULT_MAX_ATOM_LEN, strict=false))]
+fn deser_2026(blob: &[u8], max_atom_len: usize, strict: bool) -> PyResult<LazyNode> {
     let body = blob
         .strip_prefix(SERDE_2026_MAGIC_PREFIX.as_slice())
         .ok_or_else(|| {
@@ -147,27 +129,27 @@ fn deser_2026(
             )
         })?;
     let mut a = Allocator::new();
-    let options = make_deserialize_options(max_atom_len, max_input_bytes, strict);
-    let node = deserialize_2026(&mut a, body, options).map_err(eval_to_py)?;
+    let node = deserialize_2026(&mut a, body, max_atom_len, strict).map_err(eval_to_py)?;
     Ok(LazyNode::new(Rc::new(a), node))
 }
 
 /// Deserialize CLVM bytes, auto-detecting the format (classic, backrefs, or
 /// serde_2026).  If the blob starts with the magic prefix
-/// `fd ff 32 30 32 36`, it is
-/// treated as serde_2026; otherwise the backrefs deserializer is used (which
-/// also handles plain classic format).
+/// `fd ff 32 30 32 36`, it is treated as serde_2026; otherwise the backrefs
+/// deserializer is used (which also handles plain classic format).
+///
+/// This is a Python convenience function — clvm_rs's Rust API doesn't have
+/// an auto-switching counterpart. Consensus-aware callers should sniff the
+/// prefix themselves and use their own caps.
 #[pyfunction]
-#[pyo3(signature = (blob, *, max_atom_len=None, max_input_bytes=None, strict=false))]
-fn deser_auto(
-    blob: &[u8],
-    max_atom_len: Option<usize>,
-    max_input_bytes: Option<usize>,
-    strict: bool,
-) -> PyResult<LazyNode> {
+#[pyo3(signature = (blob, *, max_atom_len=PY_DEFAULT_MAX_ATOM_LEN, strict=false))]
+fn deser_auto(blob: &[u8], max_atom_len: usize, strict: bool) -> PyResult<LazyNode> {
     let mut a = Allocator::new();
-    let options = make_deserialize_options(max_atom_len, max_input_bytes, strict);
-    let node = node_from_bytes_auto(&mut a, blob, options).map_err(eval_to_py)?;
+    let node = if let Some(body) = blob.strip_prefix(SERDE_2026_MAGIC_PREFIX.as_slice()) {
+        deserialize_2026(&mut a, body, max_atom_len, strict).map_err(eval_to_py)?
+    } else {
+        node_from_bytes_backrefs(&mut a, blob).map_err(eval_to_py)?
+    };
     Ok(LazyNode::new(Rc::new(a), node))
 }
 
