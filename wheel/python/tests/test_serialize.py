@@ -140,7 +140,7 @@ class SerializeTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             Program.fromhex("ff8085")
 
-        o = Program.from_bytes_backrefs(bytes.fromhex("ff808185"))
+        o, _ = Program.from_bytes_with_cursor(bytes.fromhex("ff808185"), 0)
         self.assertEqual(repr(o._unwrapped_pair[0]), "<CLVMTree: 80>")
         self.assertEqual(repr(o._unwrapped_pair[1]), "<CLVMTree: 8185>")
 
@@ -178,6 +178,24 @@ class SerializeTest(unittest.TestCase):
         prefixed = p.to_bytes_2026()
         with self.assertRaises(ValueError):
             Program.from_bytes_backrefs(prefixed)
+
+    def test_from_bytes_backrefs_with_actual_backrefs(self):
+        """Test that from_bytes_backrefs actually parses backrefs format (0xfe opcodes)."""
+        # Construct a tree with shared subtrees that will trigger backref encoding
+        shared = Program.to([b"shared_atom", b"another_shared_atom"])
+        p = Program.to([shared, shared, shared, shared, shared])
+        
+        # Serialize using backrefs format
+        blob = serialize(deserialize(bytes(p), "legacy"), "backrefs")
+        
+        # Assert the blob contains at least one 0xfe backref opcode
+        self.assertIn(0xfe, blob, "backrefs-encoded blob should contain at least one 0xfe byte")
+        
+        # Round-trip through from_bytes_backrefs
+        p2 = Program.from_bytes_backrefs(blob)
+        
+        # Verify equality (by tree hash)
+        self.assertEqual(p, p2)
 
 
 class ClvmTreeToLazyNodeTest(unittest.TestCase):
