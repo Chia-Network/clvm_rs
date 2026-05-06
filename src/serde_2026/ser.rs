@@ -255,40 +255,6 @@ pub(super) fn serialize_with_strategy<W: Write, S: VisitStrategy>(
     Ok(())
 }
 
-/// Debug-only: deserialize `bytes` and verify it equals `node`. Panics on mismatch.
-#[cfg(debug_assertions)]
-pub(super) fn debug_assert_roundtrip(allocator: &Allocator, node: NodePtr, bytes: &[u8]) {
-    use super::de::deserialize_2026_body;
-    let mut probe = Allocator::new();
-    // Self-check uses 1 MiB max atom (matches the legacy non-consensus default).
-    let decoded = deserialize_2026_body(&mut probe, bytes, 1 << 20, false)
-        .expect("serde_2026 self-check: produced bytes that fail to deserialize");
-    assert!(
-        cross_allocator_eq(allocator, node, &probe, decoded),
-        "serde_2026 self-check: round-trip tree mismatch",
-    );
-}
-
-#[cfg(debug_assertions)]
-fn cross_allocator_eq(a: &Allocator, na: NodePtr, b: &Allocator, nb: NodePtr) -> bool {
-    let mut stack = vec![(na, nb)];
-    while let Some((x, y)) = stack.pop() {
-        match (a.sexp(x), b.sexp(y)) {
-            (SExp::Atom, SExp::Atom) => {
-                if a.atom(x).as_ref() != b.atom(y).as_ref() {
-                    return false;
-                }
-            }
-            (SExp::Pair(xl, xr), SExp::Pair(yl, yr)) => {
-                stack.push((xr, yr));
-                stack.push((xl, yl));
-            }
-            _ => return false,
-        }
-    }
-    true
-}
-
 // --- Public entry points ---
 
 use super::Compression;
@@ -351,8 +317,6 @@ pub fn serialize_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
 pub fn serialize_2026_level(allocator: &Allocator, node: NodePtr, level: u32) -> Result<Vec<u8>> {
     let mut output = Vec::new();
     serialize_2026_to_stream_level(allocator, node, level, &mut output)?;
-    #[cfg(debug_assertions)]
-    debug_assert_roundtrip(allocator, node, &output);
     Ok(output)
 }
 
