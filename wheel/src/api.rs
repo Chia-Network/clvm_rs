@@ -120,7 +120,7 @@ fn deser_backrefs(blob: &[u8]) -> PyResult<LazyNode> {
 /// stripped before calling the underlying decoder.  This makes `ser_2026` and
 /// `deser_2026` a symmetric pair.
 #[pyfunction]
-#[pyo3(signature = (blob, *, max_atom_len=PY_DEFAULT_MAX_ATOM_LEN, strict=false))]
+#[pyo3(signature = (blob, *, max_atom_len=PY_DEFAULT_MAX_ATOM_LEN, strict=true))]
 fn deser_2026(blob: &[u8], max_atom_len: usize, strict: bool) -> PyResult<LazyNode> {
     let mut a = Allocator::new();
     let node = node_from_bytes_serde_2026(&mut a, blob, max_atom_len, strict).map_err(|e| {
@@ -145,7 +145,7 @@ fn deser_2026(blob: &[u8], max_atom_len: usize, strict: bool) -> PyResult<LazyNo
 /// an auto-switching counterpart. Consensus-aware callers should sniff the
 /// prefix themselves and use their own caps.
 #[pyfunction]
-#[pyo3(signature = (blob, *, max_atom_len=PY_DEFAULT_MAX_ATOM_LEN, strict=false))]
+#[pyo3(signature = (blob, *, max_atom_len=PY_DEFAULT_MAX_ATOM_LEN, strict=true))]
 fn deser_auto(blob: &[u8], max_atom_len: usize, strict: bool) -> PyResult<LazyNode> {
     let mut a = Allocator::new();
     let node = if let Some(body) = blob.strip_prefix(SERDE_2026_MAGIC_PREFIX.as_slice()) {
