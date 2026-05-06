@@ -160,3 +160,9 @@ name = "serde-2026-varint"
 path = "fuzz_targets/serde_2026_varint.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "serde-2026-panic"
+path = "fuzz_targets/serde_2026_panic.rs"
+test = false
+doc = false
