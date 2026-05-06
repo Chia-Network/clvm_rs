@@ -17,13 +17,13 @@ def deser_2026(
     blob: bytes,
     *,
     max_atom_len: int = ...,
-    strict: bool = False,
+    strict: bool = True,
 ) -> "LazyNode": ...
 def deser_auto(
     blob: bytes,
     *,
     max_atom_len: int = ...,
-    strict: bool = False,
+    strict: bool = True,
 ) -> "LazyNode": ...
 
 # --- Serialize functions ---
