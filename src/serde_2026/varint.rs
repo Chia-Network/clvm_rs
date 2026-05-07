@@ -70,7 +70,7 @@ fn varint_size(value: i64) -> usize {
 
 /// Encode a signed integer to bytes using variable-length encoding (varint).
 #[allow(dead_code)]
-pub(crate) fn encode_varint(value: i64) -> Vec<u8> {
+pub fn encode_varint(value: i64) -> Vec<u8> {
     let mut buf = Vec::new();
     write_varint(&mut buf, value).unwrap();
     buf
