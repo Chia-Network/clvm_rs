@@ -1,6 +1,6 @@
 #![allow(clippy::useless_conversion)]
 use std::collections::HashMap;
-use std::io;
+use std::io::{self, Cursor};
 use std::rc::Rc;
 
 use super::lazy_node::LazyNode;
@@ -17,7 +17,7 @@ use clvmr::serde::{
     parse_triples, serialized_length_from_bytes,
 };
 use clvmr::serde_2026::{
-    SERDE_2026_MAGIC_PREFIX, deserialize_2026, deserialize_2026_body, serialize_2026_level,
+    SERDE_2026_MAGIC_PREFIX, deserialize_2026, deserialize_2026_body_from_stream, serialize_2026,
 };
 
 /// Sane "don't OOM the parser" default. clvm_rs has no consensus opinion;
@@ -148,7 +148,7 @@ fn deser_2026(blob: &[u8], max_atom_len: usize, strict: bool) -> PyResult<LazyNo
 fn deser_auto(blob: &[u8], max_atom_len: usize, strict: bool) -> PyResult<LazyNode> {
     let mut a = Allocator::new();
     let node = if let Some(body) = blob.strip_prefix(SERDE_2026_MAGIC_PREFIX.as_slice()) {
-        deserialize_2026_body(&mut a, body, max_atom_len, strict).map_err(eval_to_py)?
+        deserialize_2026_body_from_stream(&mut a, &mut Cursor::new(body), max_atom_len, strict).map_err(eval_to_py)?
     } else {
         node_from_bytes_backrefs(&mut a, blob).map_err(eval_to_py)?
     };
@@ -177,7 +177,7 @@ fn ser_backrefs(py: Python, node: &LazyNode) -> PyResult<Py<PyBytes>> {
 #[pyfunction]
 #[pyo3(signature = (node, *, level=0))]
 fn ser_2026(py: Python, node: &LazyNode, level: u32) -> PyResult<Py<PyBytes>> {
-    let buf = serialize_2026_level(node.allocator(), node.node(), level).map_err(eval_to_py)?;
+    let buf = serialize_2026(node.allocator(), node.node(), level).map_err(eval_to_py)?;
     Ok(PyBytes::new(py, &buf).unbind())
 }
 
