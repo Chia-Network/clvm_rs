@@ -282,17 +282,10 @@ fn serialize_with_compression<W: Write>(
     }
 }
 
-/// Serialize a CLVM node to the 2026 format using the default level.
-/// Equivalent to `serialize_2026_to_stream_level(.., 0, ..)`.
-pub fn serialize_2026_to_stream<W: Write>(
-    allocator: &Allocator,
-    node: NodePtr,
-    writer: &mut W,
-) -> Result<()> {
-    serialize_2026_to_stream_level(allocator, node, 0, writer)
-}
-
-/// Serialize a CLVM node to the 2026 format at compression `level`.
+/// Serialize a CLVM node to the 2026 format at compression `level` with magic prefix.
+///
+/// This is the primary, recommended wire format. To serialize only the body (without prefix),
+/// use [`serialize_2026_body_level`].
 ///
 /// Levels above the highest implemented level saturate to it, so passing
 /// `u32::MAX` always selects the best available compression. Currently
@@ -303,15 +296,14 @@ pub fn serialize_2026_to_stream_level<W: Write>(
     level: u32,
     writer: &mut W,
 ) -> Result<()> {
+    writer.write_all(&super::SERDE_2026_MAGIC_PREFIX)?;
     serialize_with_compression(allocator, node, compression_for_level(level), writer)
 }
 
-/// Serialize a node using the 2026 format at the default level, returning bytes.
-pub fn serialize_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
-    serialize_2026_level(allocator, node, 0)
-}
-
-/// Serialize a node using the 2026 format at compression `level`, returning bytes.
+/// Serialize a node using the 2026 format at compression `level` with magic prefix, returning bytes.
+///
+/// This is the primary, recommended wire format. To serialize only the body (without prefix),
+/// use [`serialize_2026_body_level`].
 ///
 /// See [`serialize_2026_to_stream_level`] for the level-saturation contract.
 pub fn serialize_2026_level(allocator: &Allocator, node: NodePtr, level: u32) -> Result<Vec<u8>> {
@@ -320,22 +312,27 @@ pub fn serialize_2026_level(allocator: &Allocator, node: NodePtr, level: u32) ->
     Ok(output)
 }
 
-/// Serialize with the magic prefix at the default level.
-/// This is the recommended wire format.
-pub fn node_to_bytes_serde_2026(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
-    node_to_bytes_serde_2026_level(allocator, node, 0)
-}
-
-/// Serialize with the magic prefix at compression `level`.
+/// Serialize a node using the 2026 format (body only, no magic prefix) at compression `level`.
 ///
-/// See [`serialize_2026_to_stream_level`] for the level-saturation contract.
-pub fn node_to_bytes_serde_2026_level(
+/// To serialize with the magic prefix (recommended), use [`serialize_2026_level`].
+pub fn serialize_2026_body_level(
     allocator: &Allocator,
     node: NodePtr,
     level: u32,
 ) -> Result<Vec<u8>> {
-    let mut out = Vec::new();
-    out.extend_from_slice(&super::SERDE_2026_MAGIC_PREFIX);
-    serialize_2026_to_stream_level(allocator, node, level, &mut out)?;
-    Ok(out)
+    let mut output = Vec::new();
+    serialize_with_compression(allocator, node, compression_for_level(level), &mut output)?;
+    Ok(output)
+}
+
+/// Serialize a node using the 2026 format (body only, no magic prefix) at compression `level` to a stream.
+///
+/// To serialize with the magic prefix (recommended), use [`serialize_2026_to_stream_level`].
+pub fn serialize_2026_body_to_stream_level<W: Write>(
+    allocator: &Allocator,
+    node: NodePtr,
+    level: u32,
+    writer: &mut W,
+) -> Result<()> {
+    serialize_with_compression(allocator, node, compression_for_level(level), writer)
 }

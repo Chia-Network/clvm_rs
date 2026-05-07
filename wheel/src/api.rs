@@ -17,8 +17,7 @@ use clvmr::serde::{
     parse_triples, serialized_length_from_bytes,
 };
 use clvmr::serde_2026::{
-    SERDE_2026_MAGIC_PREFIX, deserialize_2026_body, node_from_bytes_serde_2026,
-    node_to_bytes_serde_2026_level,
+    SERDE_2026_MAGIC_PREFIX, deserialize_2026, deserialize_2026_body, serialize_2026_level,
 };
 
 /// Sane "don't OOM the parser" default. clvm_rs has no consensus opinion;
@@ -123,7 +122,7 @@ fn deser_backrefs(blob: &[u8]) -> PyResult<LazyNode> {
 #[pyo3(signature = (blob, *, max_atom_len=PY_DEFAULT_MAX_ATOM_LEN, strict=true))]
 fn deser_2026(blob: &[u8], max_atom_len: usize, strict: bool) -> PyResult<LazyNode> {
     let mut a = Allocator::new();
-    let node = node_from_bytes_serde_2026(&mut a, blob, max_atom_len, strict).map_err(|e| {
+    let node = deserialize_2026(&mut a, blob, max_atom_len, strict).map_err(|e| {
         // Translate the prefix-missing error into a friendlier ValueError.
         if !blob.starts_with(SERDE_2026_MAGIC_PREFIX.as_slice()) {
             pyo3::exceptions::PyValueError::new_err(
@@ -178,8 +177,7 @@ fn ser_backrefs(py: Python, node: &LazyNode) -> PyResult<Py<PyBytes>> {
 #[pyfunction]
 #[pyo3(signature = (node, *, level=0))]
 fn ser_2026(py: Python, node: &LazyNode, level: u32) -> PyResult<Py<PyBytes>> {
-    let buf =
-        node_to_bytes_serde_2026_level(node.allocator(), node.node(), level).map_err(eval_to_py)?;
+    let buf = serialize_2026_level(node.allocator(), node.node(), level).map_err(eval_to_py)?;
     Ok(PyBytes::new(py, &buf).unbind())
 }
 

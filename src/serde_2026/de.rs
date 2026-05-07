@@ -148,8 +148,8 @@ pub fn deserialize_2026_body(
 /// Deserialize a magic-prefixed serde_2026 blob.
 ///
 /// Verifies and strips [`SERDE_2026_MAGIC_PREFIX`], then delegates to
-/// [`deserialize_2026_body`]. Pairs with [`super::ser::node_to_bytes_serde_2026`].
-pub fn node_from_bytes_serde_2026(
+/// [`deserialize_2026_body`]. Pairs with [`super::ser::serialize_2026_level`].
+pub fn deserialize_2026(
     allocator: &mut Allocator,
     blob: &[u8],
     max_atom_len: usize,
@@ -159,6 +159,24 @@ pub fn node_from_bytes_serde_2026(
         .strip_prefix(SERDE_2026_MAGIC_PREFIX.as_slice())
         .ok_or(EvalErr::SerializationError)?;
     deserialize_2026_body(allocator, body, max_atom_len, strict)
+}
+
+/// Deserialize a magic-prefixed serde_2026 blob from a stream.
+///
+/// Verifies and strips [`SERDE_2026_MAGIC_PREFIX`], then delegates to
+/// [`deserialize_2026_body_from_stream`]. Pairs with [`super::ser::serialize_2026_to_stream_level`].
+pub fn deserialize_2026_from_stream<R: Read>(
+    allocator: &mut Allocator,
+    reader: &mut R,
+    max_atom_len: usize,
+    strict: bool,
+) -> Result<NodePtr> {
+    let mut prefix_buf = [0u8; 6];
+    reader.read_exact(&mut prefix_buf)?;
+    if prefix_buf != SERDE_2026_MAGIC_PREFIX {
+        return Err(EvalErr::SerializationError);
+    }
+    deserialize_2026_body_from_stream(allocator, reader, max_atom_len, strict)
 }
 
 /// Compute the serialized length of a serde_2026 blob (including magic prefix).

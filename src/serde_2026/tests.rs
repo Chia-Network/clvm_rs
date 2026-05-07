@@ -1,8 +1,8 @@
 //! Tests for the 2026 serialization format.
 
 use super::{
-    SERDE_2026_MAGIC_PREFIX, deserialize_2026_body, node_from_bytes_serde_2026,
-    node_to_bytes_serde_2026, serialize_2026_level, serialized_length_serde_2026,
+    SERDE_2026_MAGIC_PREFIX, deserialize_2026, deserialize_2026_body, serialize_2026_level,
+    serialized_length_serde_2026,
 };
 use crate::allocator::Allocator;
 use crate::serde::{node_from_bytes_backrefs, node_to_bytes};
@@ -69,7 +69,7 @@ fn test_round_trip(#[case] hex: &str) {
     for (label, level, blob) in &blobs {
         // First trip: tree equivalence
         let mut a2 = Allocator::new();
-        let n2 = deserialize_2026_body(&mut a2, blob, TEST_MAX_ATOM_LEN, false).unwrap();
+        let n2 = deserialize_2026(&mut a2, &blob, TEST_MAX_ATOM_LEN, false).unwrap();
         assert_eq!(
             node_to_bytes(&a2, n2).unwrap(),
             canonical,
@@ -148,7 +148,7 @@ fn test_magic_prefix() {
 
     let mut allocator = Allocator::new();
     let node = allocator.new_atom(b"hello").unwrap();
-    let bytes = node_to_bytes_serde_2026(&allocator, node).unwrap();
+    let bytes = serialize_2026_level(&allocator, node, 0).unwrap();
     assert!(bytes.starts_with(&SERDE_2026_MAGIC_PREFIX));
 }
 
@@ -160,7 +160,7 @@ fn test_magic_prefix() {
 fn test_backrefs_decoder_rejects_serde_2026() {
     let mut allocator = Allocator::new();
     let node = allocator.new_atom(b"hello").unwrap();
-    let prefixed = node_to_bytes_serde_2026(&allocator, node).unwrap();
+    let prefixed = serialize_2026_level(&allocator, node, 0).unwrap();
     let mut a2 = Allocator::new();
     assert!(node_from_bytes_backrefs(&mut a2, &prefixed).is_err());
 }
@@ -175,7 +175,7 @@ fn test_serialized_length() {
 
     // atom
     let node = allocator.new_atom(b"hello").unwrap();
-    let bytes = node_to_bytes_serde_2026(&allocator, node).unwrap();
+    let bytes = serialize_2026_level(&allocator, node, 0).unwrap();
     assert_eq!(
         serialized_length_serde_2026(&bytes, TEST_MAX_ATOM_LEN, false).unwrap(),
         bytes.len() as u64
@@ -185,7 +185,7 @@ fn test_serialized_length() {
     let left = allocator.new_atom(b"left").unwrap();
     let right = allocator.new_atom(b"right").unwrap();
     let pair = allocator.new_pair(left, right).unwrap();
-    let bytes = node_to_bytes_serde_2026(&allocator, pair).unwrap();
+    let bytes = serialize_2026_level(&allocator, pair, 0).unwrap();
     assert_eq!(
         serialized_length_serde_2026(&bytes, TEST_MAX_ATOM_LEN, false).unwrap(),
         bytes.len() as u64
@@ -197,7 +197,7 @@ fn test_serialized_length() {
     let b = allocator.new_atom(b"other").unwrap();
     let p2 = allocator.new_pair(p1, b).unwrap();
     let root = allocator.new_pair(p2, p1).unwrap();
-    let bytes = node_to_bytes_serde_2026(&allocator, root).unwrap();
+    let bytes = serialize_2026_level(&allocator, root, 0).unwrap();
     assert_eq!(
         serialized_length_serde_2026(&bytes, TEST_MAX_ATOM_LEN, false).unwrap(),
         bytes.len() as u64
@@ -254,7 +254,7 @@ fn test_serialized_length_rejects_what_deserialize_rejects() {
         // Use the prefix-aware deserializer so the asymmetry under test
         // (header-time rejections) is what fails, not the magic-prefix check.
         assert!(
-            node_from_bytes_serde_2026(&mut a, blob, TEST_MAX_ATOM_LEN, false).is_err(),
+            deserialize_2026(&mut a, blob, TEST_MAX_ATOM_LEN, false).is_err(),
             "{label}: deserialize must reject"
         );
         assert!(

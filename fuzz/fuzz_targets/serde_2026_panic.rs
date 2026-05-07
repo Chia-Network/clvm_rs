@@ -17,9 +17,7 @@
 //! aborts before erroring" bucket.
 
 use clvmr::Allocator;
-use clvmr::serde_2026::{
-    deserialize_2026_body, node_from_bytes_serde_2026, serialized_length_serde_2026,
-};
+use clvmr::serde_2026::{deserialize_2026, deserialize_2026_body, serialized_length_serde_2026};
 use libfuzzer_sys::fuzz_target;
 
 const FUZZ_MAX_ATOM_LEN: usize = 1 << 20;
@@ -32,7 +30,7 @@ fuzz_target!(|data: &[u8]| {
 
         // Prefix-aware deserializer — same body parser, plus magic-prefix strip.
         let mut a = Allocator::new();
-        let _ = node_from_bytes_serde_2026(&mut a, data, FUZZ_MAX_ATOM_LEN, strict);
+        let _ = deserialize_2026(&mut a, data, FUZZ_MAX_ATOM_LEN, strict);
 
         // Length probe — walks the wire format without building a tree, so
         // it has its own opportunity to allocate or recurse pathologically.
