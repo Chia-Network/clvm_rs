@@ -55,5 +55,3 @@ pub use de::{
     serialized_length_serde_2026,
 };
 pub use ser::{serialize_2026, serialize_2026_body_to_stream, serialize_2026_to_stream};
-#[doc(hidden)]
-pub use varint::write_varint;

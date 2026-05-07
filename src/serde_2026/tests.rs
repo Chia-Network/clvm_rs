@@ -269,7 +269,7 @@ fn test_serialized_length_rejects_what_deserialize_rejects() {
 }
 
 // ---------------------------------------------------------------------------
-// Regression test for the unbounded-capacity OOM at `de.rs:145`. A tiny blob
+// Regression test for the unbounded-capacity OOM. A tiny blob
 // (under 16 bytes) declares an `instruction_count` near the max representable
 // varint (~2^54). Pre-fix, the deserializer pre-allocated `instruction_count
 // / 3` `NodePtr`s — a request of about 24 PB — and the process aborted with
