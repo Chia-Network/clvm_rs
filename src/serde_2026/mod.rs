@@ -51,12 +51,9 @@ pub(crate) enum Compression {
 }
 
 pub use de::{
-    deserialize_2026, deserialize_2026_body, deserialize_2026_body_from_stream,
-    deserialize_2026_from_stream, serialized_length_serde_2026,
+    deserialize_2026, deserialize_2026_body_from_stream, deserialize_2026_from_stream,
+    serialized_length_serde_2026,
 };
-pub use ser::{
-    serialize_2026_body_level, serialize_2026_body_to_stream_level, serialize_2026_level,
-    serialize_2026_to_stream_level,
-};
+pub use ser::{serialize_2026, serialize_2026_body_to_stream, serialize_2026_to_stream};
 #[doc(hidden)]
-pub use varint::{decode_varint, encode_varint};
+pub use varint::write_varint;

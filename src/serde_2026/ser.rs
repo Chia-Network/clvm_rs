@@ -12,7 +12,7 @@ use super::varint::write_varint;
 /// Intermediate state after interning and sorting atoms.
 ///
 /// Serialization strategies share this prep work.
-pub(super) struct SerializerState {
+pub struct SerializerState {
     pub tree: InternedTree,
     pub sorted_no_nil: Vec<usize>,
     pub atom_remap: HashMap<i32, i32>,
@@ -142,7 +142,7 @@ impl SerializerState {
 }
 
 /// Write the atom table (nil excluded) grouped by contiguous equal lengths.
-pub(super) fn write_atom_table<W: Write>(
+pub fn write_atom_table<W: Write>(
     writer: &mut W,
     tree: &InternedTree,
     sorted_no_nil: &[usize],
@@ -178,10 +178,7 @@ pub(super) fn write_atom_table<W: Write>(
 
 /// Walk the interned pair tree under `strategy`, emitting an instruction
 /// stream. Only the visit order at each pair varies across strategies.
-pub(super) fn emit_instructions<S: VisitStrategy>(
-    state: &SerializerState,
-    strategy: &S,
-) -> Vec<i64> {
+pub fn emit_instructions<S: VisitStrategy>(state: &SerializerState, strategy: &S) -> Vec<i64> {
     if state.tree.pairs.is_empty() {
         let mut instructions = Vec::with_capacity(1);
         if Some(state.root_index) == state.nil_old_idx {
@@ -241,7 +238,7 @@ pub(super) fn emit_instructions<S: VisitStrategy>(
 }
 
 /// Write `state` to `writer` using `strategy` for pair visit order.
-pub(super) fn serialize_with_strategy<W: Write, S: VisitStrategy>(
+pub fn serialize_with_strategy<W: Write, S: VisitStrategy>(
     state: &SerializerState,
     strategy: &S,
     writer: &mut W,
@@ -285,12 +282,12 @@ fn serialize_with_compression<W: Write>(
 /// Serialize a CLVM node to the 2026 format at compression `level` with magic prefix.
 ///
 /// This is the primary, recommended wire format. To serialize only the body (without prefix),
-/// use [`serialize_2026_body_level`].
+/// use [`serialize_2026_body`].
 ///
 /// Levels above the highest implemented level saturate to it, so passing
 /// `u32::MAX` always selects the best available compression. Currently
 /// only level 0 (left-first / fast) is implemented.
-pub fn serialize_2026_to_stream_level<W: Write>(
+pub fn serialize_2026_to_stream<W: Write>(
     allocator: &Allocator,
     node: NodePtr,
     level: u32,
@@ -303,32 +300,19 @@ pub fn serialize_2026_to_stream_level<W: Write>(
 /// Serialize a node using the 2026 format at compression `level` with magic prefix, returning bytes.
 ///
 /// This is the primary, recommended wire format. To serialize only the body (without prefix),
-/// use [`serialize_2026_body_level`].
+/// use [`serialize_2026_body`].
 ///
-/// See [`serialize_2026_to_stream_level`] for the level-saturation contract.
-pub fn serialize_2026_level(allocator: &Allocator, node: NodePtr, level: u32) -> Result<Vec<u8>> {
+/// See [`serialize_2026_to_stream`] for the level-saturation contract.
+pub fn serialize_2026(allocator: &Allocator, node: NodePtr, level: u32) -> Result<Vec<u8>> {
     let mut output = Vec::new();
-    serialize_2026_to_stream_level(allocator, node, level, &mut output)?;
-    Ok(output)
-}
-
-/// Serialize a node using the 2026 format (body only, no magic prefix) at compression `level`.
-///
-/// To serialize with the magic prefix (recommended), use [`serialize_2026_level`].
-pub fn serialize_2026_body_level(
-    allocator: &Allocator,
-    node: NodePtr,
-    level: u32,
-) -> Result<Vec<u8>> {
-    let mut output = Vec::new();
-    serialize_with_compression(allocator, node, compression_for_level(level), &mut output)?;
+    serialize_2026_to_stream(allocator, node, level, &mut output)?;
     Ok(output)
 }
 
 /// Serialize a node using the 2026 format (body only, no magic prefix) at compression `level` to a stream.
 ///
-/// To serialize with the magic prefix (recommended), use [`serialize_2026_to_stream_level`].
-pub fn serialize_2026_body_to_stream_level<W: Write>(
+/// To serialize with the magic prefix (recommended), use [`serialize_2026_to_stream`].
+pub fn serialize_2026_body_to_stream<W: Write>(
     allocator: &Allocator,
     node: NodePtr,
     level: u32,

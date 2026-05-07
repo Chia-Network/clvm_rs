@@ -70,14 +70,14 @@ fn varint_size(value: i64) -> usize {
 
 /// Encode a signed integer to bytes using variable-length encoding (varint).
 #[allow(dead_code)]
-pub fn encode_varint(value: i64) -> Vec<u8> {
+pub(crate) fn encode_varint(value: i64) -> Vec<u8> {
     let mut buf = Vec::new();
     write_varint(&mut buf, value).unwrap();
     buf
 }
 
 /// Decode a signed integer, optionally rejecting non-minimal encodings.
-pub fn decode_varint<R: Read>(r: &mut R, strict: bool) -> Result<i64> {
+pub fn read_varint<R: Read>(r: &mut R, strict: bool) -> Result<i64> {
     let mut first_byte_buf = [0u8; 1];
     r.read_exact(&mut first_byte_buf)
         .map_err(|_| EvalErr::SerializationError)?;
@@ -148,68 +148,68 @@ mod tests {
     }
 
     #[test]
-    fn test_decode_varint() {
+    fn test_read_varint() {
         assert_eq!(
-            decode_varint(&mut Cursor::new(&[0x00][..]), false).unwrap(),
+            read_varint(&mut Cursor::new(&[0x00][..]), false).unwrap(),
             0
         );
         assert_eq!(
-            decode_varint(&mut Cursor::new(&[0x01][..]), false).unwrap(),
+            read_varint(&mut Cursor::new(&[0x01][..]), false).unwrap(),
             1
         );
         assert_eq!(
-            decode_varint(&mut Cursor::new(&[0x7f][..]), false).unwrap(),
+            read_varint(&mut Cursor::new(&[0x7f][..]), false).unwrap(),
             -1
         );
         assert_eq!(
-            decode_varint(&mut Cursor::new(&[0x80, 0x40][..]), false).unwrap(),
+            read_varint(&mut Cursor::new(&[0x80, 0x40][..]), false).unwrap(),
             64
         );
         assert_eq!(
-            decode_varint(&mut Cursor::new(&[0x9f, 0xff][..]), false).unwrap(),
+            read_varint(&mut Cursor::new(&[0x9f, 0xff][..]), false).unwrap(),
             8191
         );
         assert_eq!(
-            decode_varint(&mut Cursor::new(&[0xbf, 0xbf][..]), false).unwrap(),
+            read_varint(&mut Cursor::new(&[0xbf, 0xbf][..]), false).unwrap(),
             -65
         );
     }
 
     #[test]
     fn test_decode_rejects_invalid_prefix() {
-        assert!(decode_varint(&mut Cursor::new(&[0xff][..]), false).is_err());
-        assert!(decode_varint(&mut Cursor::new(&[0xff, 0x00][..]), false).is_err());
+        assert!(read_varint(&mut Cursor::new(&[0xff][..]), false).is_err());
+        assert!(read_varint(&mut Cursor::new(&[0xff, 0x00][..]), false).is_err());
     }
 
     #[test]
     fn test_decode_rejects_truncated_multibyte() {
         // 2-byte varint (0x80 prefix) with missing second byte
-        assert!(decode_varint(&mut Cursor::new(&[0x80][..]), false).is_err());
+        assert!(read_varint(&mut Cursor::new(&[0x80][..]), false).is_err());
         // 3-byte varint (0xc0 prefix) with only 1 extra byte
-        assert!(decode_varint(&mut Cursor::new(&[0xc0, 0x00][..]), false).is_err());
+        assert!(read_varint(&mut Cursor::new(&[0xc0, 0x00][..]), false).is_err());
         // 4-byte varint (0xe0 prefix) with only 2 extra bytes
-        assert!(decode_varint(&mut Cursor::new(&[0xe0, 0x00, 0x00][..]), false).is_err());
+        assert!(read_varint(&mut Cursor::new(&[0xe0, 0x00, 0x00][..]), false).is_err());
     }
 
     #[test]
     fn test_decode_empty_input() {
-        assert!(decode_varint(&mut Cursor::new(&[][..]), false).is_err());
+        assert!(read_varint(&mut Cursor::new(&[][..]), false).is_err());
     }
 
     #[test]
     fn test_strict_decode_rejects_overlong_encodings() {
         // 0 and -1 fit in a single byte, but these encodings use two bytes.
         assert_eq!(
-            decode_varint(&mut Cursor::new(&[0x80, 0x00][..]), false).unwrap(),
+            read_varint(&mut Cursor::new(&[0x80, 0x00][..]), false).unwrap(),
             0
         );
-        assert!(decode_varint(&mut Cursor::new(&[0x80, 0x00][..]), true).is_err());
+        assert!(read_varint(&mut Cursor::new(&[0x80, 0x00][..]), true).is_err());
 
         assert_eq!(
-            decode_varint(&mut Cursor::new(&[0xbf, 0xff][..]), false).unwrap(),
+            read_varint(&mut Cursor::new(&[0xbf, 0xff][..]), false).unwrap(),
             -1
         );
-        assert!(decode_varint(&mut Cursor::new(&[0xbf, 0xff][..]), true).is_err());
+        assert!(read_varint(&mut Cursor::new(&[0xbf, 0xff][..]), true).is_err());
     }
 
     #[test]
@@ -218,7 +218,7 @@ mod tests {
             0, 1, -1, 63, -64, 64, -65, 8191, -8192, 8192, -8193, 1048575, -1048576,
         ] {
             let encoded = encode_varint(val);
-            let decoded = decode_varint(&mut Cursor::new(&encoded), false).unwrap();
+            let decoded = read_varint(&mut Cursor::new(&encoded), false).unwrap();
             assert_eq!(val, decoded, "roundtrip failed for {val}");
         }
     }

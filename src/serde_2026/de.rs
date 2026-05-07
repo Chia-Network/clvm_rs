@@ -4,7 +4,7 @@ use crate::allocator::{Allocator, NodePtr};
 use crate::error::{EvalErr, Result};
 
 use super::SERDE_2026_MAGIC_PREFIX;
-use super::varint::decode_varint;
+use super::varint::read_varint;
 
 fn checked_usize(value: i64) -> Result<usize> {
     if value < 0 {
@@ -43,18 +43,18 @@ pub fn deserialize_2026_body_from_stream<R: Read>(
     strict: bool,
 ) -> Result<NodePtr> {
     let mut atoms: Vec<NodePtr> = Vec::new();
-    let group_count = checked_usize(decode_varint(reader, strict)?)?;
+    let group_count = checked_usize(read_varint(reader, strict)?)?;
     let mut buf: Vec<u8> = Vec::new();
 
     for _ in 0..group_count {
-        let length_val = decode_varint(reader, strict)?;
+        let length_val = read_varint(reader, strict)?;
         let (length, count) = if length_val < 0 {
             if length_val == i64::MIN {
                 return Err(EvalErr::SerializationError);
             }
             (
                 checked_bounded_usize(-length_val, max_atom_len)?,
-                checked_usize(decode_varint(reader, strict)?)?,
+                checked_usize(read_varint(reader, strict)?)?,
             )
         } else {
             (checked_bounded_usize(length_val, max_atom_len)?, 1)
@@ -71,7 +71,7 @@ pub fn deserialize_2026_body_from_stream<R: Read>(
         }
     }
 
-    let instruction_count = checked_usize(decode_varint(reader, strict)?)?;
+    let instruction_count = checked_usize(read_varint(reader, strict)?)?;
     if instruction_count == 0 {
         return Err(EvalErr::SerializationError);
     }
@@ -87,7 +87,7 @@ pub fn deserialize_2026_body_from_stream<R: Read>(
     let mut stack: Vec<NodePtr> = Vec::with_capacity(64);
 
     for _ in 0..instruction_count {
-        let inst = decode_varint(reader, strict)?;
+        let inst = read_varint(reader, strict)?;
         match inst {
             0 => stack.push(nil),
             1 => {
@@ -127,44 +127,23 @@ pub fn deserialize_2026_body_from_stream<R: Read>(
     Ok(stack[0])
 }
 
-/// Deserialize a node from a byte slice using the 2026 format.
-///
-/// **Body only — does *not* strip the magic prefix.** Pairs with
-/// [`serialize_2026`]. Callers with a prefix-framed blob should use
-/// [`node_from_bytes_serde_2026`].
-///
-/// The slice's length naturally bounds the input; no separate input-byte
-/// budget is required. `max_atom_len` caps the byte length of any single
-/// atom and `strict` rejects overlong / non-minimal varint encodings.
-pub fn deserialize_2026_body(
-    allocator: &mut Allocator,
-    data: &[u8],
-    max_atom_len: usize,
-    strict: bool,
-) -> Result<NodePtr> {
-    deserialize_2026_body_from_stream(allocator, &mut Cursor::new(data), max_atom_len, strict)
-}
-
 /// Deserialize a magic-prefixed serde_2026 blob.
 ///
 /// Verifies and strips [`SERDE_2026_MAGIC_PREFIX`], then delegates to
-/// [`deserialize_2026_body`]. Pairs with [`super::ser::serialize_2026_level`].
+/// [`deserialize_2026_body`]. Pairs with [`super::ser::serialize_2026`].
 pub fn deserialize_2026(
     allocator: &mut Allocator,
     blob: &[u8],
     max_atom_len: usize,
     strict: bool,
 ) -> Result<NodePtr> {
-    let body = blob
-        .strip_prefix(SERDE_2026_MAGIC_PREFIX.as_slice())
-        .ok_or(EvalErr::SerializationError)?;
-    deserialize_2026_body(allocator, body, max_atom_len, strict)
+    deserialize_2026_from_stream(allocator, &mut Cursor::new(blob), max_atom_len, strict)
 }
 
 /// Deserialize a magic-prefixed serde_2026 blob from a stream.
 ///
 /// Verifies and strips [`SERDE_2026_MAGIC_PREFIX`], then delegates to
-/// [`deserialize_2026_body_from_stream`]. Pairs with [`super::ser::serialize_2026_to_stream_level`].
+/// [`deserialize_2026_body_from_stream`]. Pairs with [`super::ser::serialize_2026_to_stream`].
 pub fn deserialize_2026_from_stream<R: Read>(
     allocator: &mut Allocator,
     reader: &mut R,
@@ -204,15 +183,15 @@ pub fn serialized_length_serde_2026(buf: &[u8], max_atom_len: usize, strict: boo
     let data = &buf[SERDE_2026_MAGIC_PREFIX.len()..];
     let mut cursor = Cursor::new(data);
 
-    let group_count = checked_usize(decode_varint(&mut cursor, strict)?)?;
+    let group_count = checked_usize(read_varint(&mut cursor, strict)?)?;
     for _ in 0..group_count {
-        let length_val = decode_varint(&mut cursor, strict)?;
+        let length_val = read_varint(&mut cursor, strict)?;
         let skip = if length_val < 0 {
             if length_val == i64::MIN {
                 return Err(EvalErr::SerializationError);
             }
             let atom_len = checked_bounded_usize(-length_val, max_atom_len)?;
-            let count = checked_usize(decode_varint(&mut cursor, strict)?)?;
+            let count = checked_usize(read_varint(&mut cursor, strict)?)?;
             if atom_len == 0 || count == 0 {
                 return Err(EvalErr::SerializationError);
             }
@@ -236,14 +215,14 @@ pub fn serialized_length_serde_2026(buf: &[u8], max_atom_len: usize, strict: boo
         cursor.set_position(new_pos);
     }
 
-    let instruction_count = checked_usize(decode_varint(&mut cursor, strict)?)?;
+    let instruction_count = checked_usize(read_varint(&mut cursor, strict)?)?;
     // Mirror `deserialize_2026_body_from_stream`: instruction_count == 0
     // leaves the stack empty and is rejected there, so reject it here too.
     if instruction_count == 0 {
         return Err(EvalErr::SerializationError);
     }
     for _ in 0..instruction_count {
-        decode_varint(&mut cursor, strict)?;
+        read_varint(&mut cursor, strict)?;
     }
 
     Ok(SERDE_2026_MAGIC_PREFIX.len() as u64 + cursor.position())

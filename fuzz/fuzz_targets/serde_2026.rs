@@ -2,9 +2,10 @@
 
 use clvm_fuzzing::ArbitraryClvmTree;
 use clvmr::serde::node_to_bytes;
-use clvmr::serde_2026::{deserialize_2026_body, serialize_2026_level};
+use clvmr::serde_2026::{deserialize_2026, deserialize_2026_body_from_stream, serialize_2026};
 use clvmr::{Allocator, allocator::NodePtr};
 use libfuzzer_sys::{Corpus, fuzz_target};
+use std::io::Cursor;
 
 const FUZZ_MAX_ATOM_LEN: usize = 1 << 20;
 
@@ -20,7 +21,7 @@ fn canonical(a: &Allocator, node: NodePtr) -> Vec<u8> {
 
 fn roundtrip_check(label: &str, a: &Allocator, original: NodePtr, blob: &[u8]) {
     let mut a2 = Allocator::new();
-    let decoded = deserialize_2026_body(&mut a2, blob, FUZZ_MAX_ATOM_LEN, false)
+    let decoded = deserialize_2026(&mut a2, blob, FUZZ_MAX_ATOM_LEN, false)
         .unwrap_or_else(|e| panic!("{label}: deserialize failed: {e:?}"));
     assert_eq!(
         canonical(a, original),
@@ -32,7 +33,7 @@ fn roundtrip_check(label: &str, a: &Allocator, original: NodePtr, blob: &[u8]) {
 fn check_tree(a: &Allocator, node: NodePtr) {
     for (label, level) in serialization_strategies() {
         let blob =
-            serialize_2026_level(a, node, level).unwrap_or_else(|_| panic!("{label} failed"));
+            serialize_2026(a, node, level).unwrap_or_else(|_| panic!("{label} failed"));
         roundtrip_check(label, a, node, &blob);
     }
 }
@@ -45,7 +46,7 @@ fuzz_target!(|input: FuzzInput| -> Corpus {
     match input {
         FuzzInput::Bytes(data) => {
             let mut a = Allocator::new();
-            let Ok(node) = deserialize_2026_body(&mut a, &data, FUZZ_MAX_ATOM_LEN, false) else {
+            let Ok(node) = deserialize_2026_body_from_stream(&mut a, &mut Cursor::new(&data), FUZZ_MAX_ATOM_LEN, false) else {
                 return Corpus::Reject;
             };
             check_tree(&a, node);
@@ -55,8 +56,8 @@ fuzz_target!(|input: FuzzInput| -> Corpus {
 
             let mut a2 = Allocator::new();
             let blob =
-                serialize_2026_level(&program.allocator, program.tree, 0).expect("Fast failed");
-            let decoded = deserialize_2026_body(&mut a2, &blob, FUZZ_MAX_ATOM_LEN, false)
+                serialize_2026(&program.allocator, program.tree, 0).expect("Fast failed");
+            let decoded = deserialize_2026(&mut a2, &blob, FUZZ_MAX_ATOM_LEN, false)
                 .expect("deserialize fast failed");
             assert_eq!(
                 canonical(&program.allocator, program.tree),
