@@ -11,6 +11,12 @@ use crate::error::{EvalErr, Result};
 /// - Two bytes (1 leading 1):   10[14-bit two's complement] → range [-8192, 8191]
 /// - Three bytes (2 leading 1s): 110[21-bit two's complement] → range [-1048576, 1048575]
 /// - etc.
+///
+/// # Panics
+///
+/// Panics if `value` is outside the 56-bit range `[-2^55, 2^55 - 1]`.
+/// All values produced by the serde_2026 serializer are bounded by `i32::MAX`
+/// and `u32::MAX`, so this is unreachable in normal use.
 pub fn write_varint<W: Write>(w: &mut W, value: i64) -> std::io::Result<()> {
     // Find the smallest encoding size that can represent the value
     for leading_ones in 0..8 {
@@ -68,14 +74,6 @@ fn varint_size(value: i64) -> usize {
     panic!("Value too large to encode: {}", value);
 }
 
-/// Encode a signed integer to bytes using variable-length encoding (varint).
-#[allow(dead_code)]
-pub fn encode_varint(value: i64) -> Vec<u8> {
-    let mut buf = Vec::new();
-    write_varint(&mut buf, value).unwrap();
-    buf
-}
-
 /// Decode a signed integer, optionally rejecting non-minimal encodings.
 pub fn read_varint<R: Read>(r: &mut R, strict: bool) -> Result<i64> {
     let mut first_byte_buf = [0u8; 1];
@@ -130,6 +128,12 @@ pub fn read_varint<R: Read>(r: &mut R, strict: bool) -> Result<i64> {
 mod tests {
     use super::*;
     use std::io::Cursor;
+
+    fn encode_varint(value: i64) -> Vec<u8> {
+        let mut buf = Vec::new();
+        write_varint(&mut buf, value).unwrap();
+        buf
+    }
 
     #[test]
     fn test_encode_varint() {

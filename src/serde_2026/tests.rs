@@ -10,6 +10,12 @@ use hex::FromHex;
 use rstest::rstest;
 use std::io::Cursor;
 
+fn encode_varint(value: i64) -> Vec<u8> {
+    let mut buf = Vec::new();
+    super::varint::write_varint(&mut buf, value).unwrap();
+    buf
+}
+
 /// Sane non-consensus default for tests; the public API has no opinion.
 const TEST_MAX_ATOM_LEN: usize = 1 << 20;
 
@@ -225,8 +231,6 @@ fn test_serialized_length() {
 /// gate before deserializing without observing Ok-then-Err mismatches.
 #[test]
 fn test_serialized_length_rejects_what_deserialize_rejects() {
-    use super::varint::encode_varint;
-
     let mk = |group_count: i64, instruction_count: i64, atom_table: &[u8]| {
         let mut blob = Vec::new();
         blob.extend_from_slice(&SERDE_2026_MAGIC_PREFIX);
@@ -279,8 +283,6 @@ fn test_serialized_length_rejects_what_deserialize_rejects() {
 // vector to a pathological size and we return `Err` cleanly.
 #[test]
 fn deserializer_rejects_unbounded_instruction_count() {
-    use super::varint::encode_varint;
-
     let mut blob = Vec::new();
     blob.extend_from_slice(&encode_varint(0)); // group_count = 0
     blob.extend_from_slice(&encode_varint(1_i64 << 54)); // instruction_count
@@ -305,8 +307,6 @@ fn deserializer_rejects_unbounded_instruction_count() {
 
 #[test]
 fn deserializer_rejects_unbounded_group_count() {
-    use super::varint::encode_varint;
-
     let mut blob = Vec::new();
     blob.extend_from_slice(&encode_varint(1_i64 << 54)); // group_count
 
@@ -325,8 +325,6 @@ fn deserializer_rejects_unbounded_group_count() {
 
 #[test]
 fn deserializer_rejects_unbounded_per_group_count() {
-    use super::varint::encode_varint;
-
     let mut blob = Vec::new();
     blob.extend_from_slice(&encode_varint(1)); // group_count = 1
     blob.extend_from_slice(&encode_varint(-3)); // multi-atom group, len=3

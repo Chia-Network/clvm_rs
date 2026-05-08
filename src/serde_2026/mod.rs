@@ -56,4 +56,4 @@ pub use de::{
 };
 pub use ser::{serialize_2026, serialize_2026_body_to_stream, serialize_2026_to_stream};
 #[doc(hidden)]
-pub use varint::{encode_varint, read_varint, write_varint};
+pub use varint::{read_varint, write_varint};

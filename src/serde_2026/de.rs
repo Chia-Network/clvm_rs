@@ -24,7 +24,7 @@ fn checked_bounded_usize(value: i64, max: usize) -> Result<usize> {
 /// Deserialize a node from a stream using the 2026 format.
 ///
 /// **Reads the body only — does *not* expect the magic prefix.** Callers
-/// that have a full prefix-framed blob should use [`node_from_bytes_serde_2026`]
+/// that have a full prefix-framed blob should use [`deserialize_2026`]
 /// (slice) or strip the prefix themselves before calling this.
 ///
 /// `max_atom_len` caps the byte length of any single atom (and therefore the
@@ -34,7 +34,7 @@ fn checked_bounded_usize(value: i64, max: usize) -> Result<usize> {
 /// **Caller contract:** `reader` must be bounded — for example via
 /// [`std::io::Read::take`] — otherwise a malformed blob can drive an unbounded
 /// loop. Total input policy belongs in the caller, not here. Use
-/// [`deserialize_2026_body`] when you have a slice; the slice's length is the
+/// [`deserialize_2026_body_from_stream`] when you have a slice; the slice's length is the
 /// natural bound.
 pub fn deserialize_2026_body_from_stream<R: Read>(
     allocator: &mut Allocator,
@@ -124,7 +124,7 @@ pub fn deserialize_2026_body_from_stream<R: Read>(
 /// Deserialize a magic-prefixed serde_2026 blob.
 ///
 /// Verifies and strips [`SERDE_2026_MAGIC_PREFIX`], then delegates to
-/// [`deserialize_2026_body`]. Pairs with [`super::ser::serialize_2026`].
+/// [`deserialize_2026_body_from_stream`]. Pairs with [`super::ser::serialize_2026`].
 pub fn deserialize_2026(
     allocator: &mut Allocator,
     blob: &[u8],

@@ -1,8 +1,14 @@
 #![no_main]
 
-use clvmr::serde_2026::{encode_varint, read_varint};
+use clvmr::serde_2026::{read_varint, write_varint};
 use libfuzzer_sys::fuzz_target;
 use std::io::Cursor;
+
+fn encode_varint(value: i64) -> Vec<u8> {
+    let mut buf = Vec::new();
+    write_varint(&mut buf, value).unwrap();
+    buf
+}
 
 fuzz_target!(|data: &[u8]| {
     // Non-strict decode must never panic on arbitrary input.

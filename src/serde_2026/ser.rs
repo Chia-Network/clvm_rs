@@ -252,8 +252,6 @@ pub fn serialize_with_strategy<W: Write, S: VisitStrategy>(
     Ok(())
 }
 
-// --- Public entry points ---
-
 use super::Compression;
 
 /// Map a `level: u32` onto an internal compression variant.
@@ -282,7 +280,7 @@ fn serialize_with_compression<W: Write>(
 /// Serialize a CLVM node to the 2026 format at compression `level` with magic prefix.
 ///
 /// This is the primary, recommended wire format. To serialize only the body (without prefix),
-/// use [`serialize_2026_body`].
+/// use [`serialize_2026_body_to_stream`].
 ///
 /// Levels above the highest implemented level saturate to it, so passing
 /// `u32::MAX` always selects the best available compression. Currently
@@ -300,7 +298,7 @@ pub fn serialize_2026_to_stream<W: Write>(
 /// Serialize a node using the 2026 format at compression `level` with magic prefix, returning bytes.
 ///
 /// This is the primary, recommended wire format. To serialize only the body (without prefix),
-/// use [`serialize_2026_body`].
+/// use [`serialize_2026_body_to_stream`].
 ///
 /// See [`serialize_2026_to_stream`] for the level-saturation contract.
 pub fn serialize_2026(allocator: &Allocator, node: NodePtr, level: u32) -> Result<Vec<u8>> {
