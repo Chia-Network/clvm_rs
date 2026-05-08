@@ -1,7 +1,5 @@
 use clvmr::allocator::Allocator;
-use clvmr::serde::{
-    node_from_bytes_backrefs, node_from_bytes_backrefs_old,
-};
+use clvmr::serde::{node_from_bytes_backrefs, node_from_bytes_backrefs_old};
 use clvmr::serde_2026::{deserialize_2026, serialize_2026};
 
 const BENCH_MAX_ATOM_LEN: usize = 1 << 20;
@@ -39,7 +37,8 @@ fn deserialize_benchmark(c: &mut Criterion) {
                 b.iter(|| {
                     a.restore_checkpoint(&iter_checkpoint);
                     let start = Instant::now();
-                    node_from_bytes_backrefs_old(&mut a, block).expect("node_from_bytes_backrefs_old");
+                    node_from_bytes_backrefs_old(&mut a, block)
+                        .expect("node_from_bytes_backrefs_old");
                     start.elapsed()
                 })
             });
