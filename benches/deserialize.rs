@@ -88,8 +88,7 @@ fn deserialize_benchmark(c: &mut Criterion) {
         let mut a = Allocator::new();
         let node = node_from_bytes_backrefs(&mut a, compressed_block.as_ref())
             .expect("node_from_bytes_backrefs");
-        let serialized_2026_compressed =
-            serialize_2026(&a, node, 0).expect("serialize_2026");
+        let serialized_2026_compressed = serialize_2026(&a, node, 0).expect("serialize_2026");
 
         for (data, name_suffix) in &[
             (serialized_2026.as_slice(), ""),
@@ -101,8 +100,13 @@ fn deserialize_benchmark(c: &mut Criterion) {
                 b.iter(|| {
                     a.restore_checkpoint(&iter_checkpoint);
                     let start = Instant::now();
-                    deserialize_2026_body_from_stream(&mut a, &mut Cursor::new(data), BENCH_MAX_ATOM_LEN, false)
-                        .expect("deserialize_2026_body_from_stream");
+                    deserialize_2026_body_from_stream(
+                        &mut a,
+                        &mut Cursor::new(data),
+                        BENCH_MAX_ATOM_LEN,
+                        false,
+                    )
+                    .expect("deserialize_2026_body_from_stream");
                     start.elapsed()
                 })
             });

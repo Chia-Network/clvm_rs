@@ -1,6 +1,6 @@
 #![no_main]
 
-use clvmr::serde_2026::{read_varint, encode_varint};
+use clvmr::serde_2026::{encode_varint, read_varint};
 use libfuzzer_sys::fuzz_target;
 use std::io::Cursor;
 

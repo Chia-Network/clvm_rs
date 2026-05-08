@@ -67,7 +67,7 @@ fn test_round_trip(#[case] hex: &str) {
     for (label, level, blob) in &blobs {
         // First trip: tree equivalence
         let mut a2 = Allocator::new();
-        let n2 = deserialize_2026(&mut a2, &blob, TEST_MAX_ATOM_LEN, false).unwrap();
+        let n2 = deserialize_2026(&mut a2, blob, TEST_MAX_ATOM_LEN, false).unwrap();
         assert_eq!(
             node_to_bytes(&a2, n2).unwrap(),
             canonical,

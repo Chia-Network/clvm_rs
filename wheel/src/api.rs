@@ -148,7 +148,8 @@ fn deser_2026(blob: &[u8], max_atom_len: usize, strict: bool) -> PyResult<LazyNo
 fn deser_auto(blob: &[u8], max_atom_len: usize, strict: bool) -> PyResult<LazyNode> {
     let mut a = Allocator::new();
     let node = if let Some(body) = blob.strip_prefix(SERDE_2026_MAGIC_PREFIX.as_slice()) {
-        deserialize_2026_body_from_stream(&mut a, &mut Cursor::new(body), max_atom_len, strict).map_err(eval_to_py)?
+        deserialize_2026_body_from_stream(&mut a, &mut Cursor::new(body), max_atom_len, strict)
+            .map_err(eval_to_py)?
     } else {
         node_from_bytes_backrefs(&mut a, blob).map_err(eval_to_py)?
     };

@@ -17,7 +17,9 @@
 //! aborts before erroring" bucket.
 
 use clvmr::Allocator;
-use clvmr::serde_2026::{deserialize_2026, deserialize_2026_body_from_stream, serialized_length_serde_2026};
+use clvmr::serde_2026::{
+    deserialize_2026, deserialize_2026_body_from_stream, serialized_length_serde_2026,
+};
 use libfuzzer_sys::fuzz_target;
 use std::io::Cursor;
 
@@ -27,7 +29,12 @@ fuzz_target!(|data: &[u8]| {
     for strict in [false, true] {
         // Body-only deserializer — slice length is the natural bound.
         let mut a = Allocator::new();
-        let _ = deserialize_2026_body_from_stream(&mut a, &mut Cursor::new(data), FUZZ_MAX_ATOM_LEN, strict);
+        let _ = deserialize_2026_body_from_stream(
+            &mut a,
+            &mut Cursor::new(data),
+            FUZZ_MAX_ATOM_LEN,
+            strict,
+        );
 
         // Prefix-aware deserializer — same body parser, plus magic-prefix strip.
         let mut a = Allocator::new();

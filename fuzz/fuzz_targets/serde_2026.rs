@@ -32,8 +32,7 @@ fn roundtrip_check(label: &str, a: &Allocator, original: NodePtr, blob: &[u8]) {
 
 fn check_tree(a: &Allocator, node: NodePtr) {
     for (label, level) in serialization_strategies() {
-        let blob =
-            serialize_2026(a, node, level).unwrap_or_else(|_| panic!("{label} failed"));
+        let blob = serialize_2026(a, node, level).unwrap_or_else(|_| panic!("{label} failed"));
         roundtrip_check(label, a, node, &blob);
     }
 }
@@ -46,7 +45,12 @@ fuzz_target!(|input: FuzzInput| -> Corpus {
     match input {
         FuzzInput::Bytes(data) => {
             let mut a = Allocator::new();
-            let Ok(node) = deserialize_2026_body_from_stream(&mut a, &mut Cursor::new(&data), FUZZ_MAX_ATOM_LEN, false) else {
+            let Ok(node) = deserialize_2026_body_from_stream(
+                &mut a,
+                &mut Cursor::new(&data),
+                FUZZ_MAX_ATOM_LEN,
+                false,
+            ) else {
                 return Corpus::Reject;
             };
             check_tree(&a, node);
@@ -55,8 +59,7 @@ fuzz_target!(|input: FuzzInput| -> Corpus {
             check_tree(&program.allocator, program.tree);
 
             let mut a2 = Allocator::new();
-            let blob =
-                serialize_2026(&program.allocator, program.tree, 0).expect("Fast failed");
+            let blob = serialize_2026(&program.allocator, program.tree, 0).expect("Fast failed");
             let decoded = deserialize_2026(&mut a2, &blob, FUZZ_MAX_ATOM_LEN, false)
                 .expect("deserialize fast failed");
             assert_eq!(
