@@ -37,7 +37,7 @@ SIZE = 30
 # generate a bunch of keys
 secret_keys = []
 for i in range(SIZE):
-    secret_keys.append(PrivateKey())
+    secret_keys.append(PrivateKey(randbytes(32), raw=True))
 
 
 p = Path(__file__).parent.parent / "op-tests/test-secp256k1.txt"

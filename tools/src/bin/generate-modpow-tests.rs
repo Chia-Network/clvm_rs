@@ -70,7 +70,7 @@ fn main() {
         tests.push_str(&format!("% {base} {modulus} => {result} | {cost}\n"));
     }
 
-    fs::write("./op-tests/test-modpow.txt", tests).unwrap();
+    fs::write("../op-tests/test-modpow.txt", tests).unwrap();
 }
 
 // Convert a `BigInt` to a CLVM atom.

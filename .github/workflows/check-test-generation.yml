@@ -1,0 +1,58 @@
+name: Check generated test cases
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - "**"
+
+permissions:
+  contents: read
+
+jobs:
+  check-generated-tests:
+    name: Verify op-tests are up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: chia-network/actions/setup-python@main
+        with:
+          python-version: "3.10"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libsecp256k1-dev
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install blspy secp256k1 ecdsa "eth-hash[pycryptodome]" more-itertools
+
+      - name: Run Python test generators
+        working-directory: tools
+        run: |
+          python generate-sha256-tests.py
+          python generate-sha256tree-tests.py
+          python generate-keccak-tests.py
+          python generate-bls-tests.py
+          python generate-secp256k1-tests.py
+          python generate-secp256r1-tests.py
+
+      - name: Run Rust test generator
+        run: |
+          cd tools
+          cargo run --bin generate-modpow-tests
+
+      - name: Check for differences
+        run: |
+          git diff --exit-code op-tests/ || {
+            echo ""
+            echo "ERROR: Generated test cases do not match checked-in versions."
+            echo "Run the test generators locally and commit the updated files."
+            exit 1
+          }
