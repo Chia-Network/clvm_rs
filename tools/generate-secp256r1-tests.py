@@ -37,7 +37,7 @@ SIZE = 30
 # generate a bunch of keys
 secret_keys = []
 for i in range(SIZE):
-    secret_keys.append(SigningKey.generate(curve=NIST256p, hashfunc=sha256))
+    secret_keys.append(SigningKey.from_string(randbytes(32), curve=NIST256p, hashfunc=sha256))
 
 p = Path(__file__).parent.parent / "op-tests/test-secp256r1.txt"
 with open(p, "w+") as f:
