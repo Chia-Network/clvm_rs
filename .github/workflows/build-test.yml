@@ -257,6 +257,9 @@ jobs:
       - name: cargo test (pre-eval and counters)
         run: cargo test --features=pre-eval,counters && cargo test --features=pre-eval,counters --release
 
+      - name: cargo test (no-fastpath)
+        run: cargo test --features=no-fastpath && cargo test --features=no-fastpath --release
+
   coverage:
     runs-on: ubuntu-latest
     steps:
