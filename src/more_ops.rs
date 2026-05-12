@@ -97,8 +97,51 @@ const MODPOW_COST_PER_BYTE_BASE_VALUE: Cost = 38;
 const MODPOW_COST_PER_BYTE_EXPONENT: Cost = 3;
 const MODPOW_COST_PER_BYTE_MOD: Cost = 21;
 
-fn limbs_for_int(v: &Number) -> usize {
-    v.bits().div_ceil(8) as usize
+/// The number of limbs (magnitude bytes) for a BigInt representation.
+///
+/// This matches `Number::bits().div_ceil(8)` — it counts the magnitude bytes,
+/// NOT the signed atom encoding length (which may include a sign-extension
+/// byte). This is consensus-critical in cost computation.
+trait Limbs {
+    fn limbs(&self) -> usize;
+}
+
+impl Limbs for Number {
+    fn limbs(&self) -> usize {
+        self.bits().div_ceil(8) as usize
+    }
+}
+
+impl Limbs for u32 {
+    fn limbs(&self) -> usize {
+        if *self == 0 {
+            0
+        } else {
+            ((32 - self.leading_zeros()) as usize).div_ceil(8)
+        }
+    }
+}
+
+impl Limbs for u64 {
+    fn limbs(&self) -> usize {
+        if *self == 0 {
+            0
+        } else {
+            ((64 - self.leading_zeros()) as usize).div_ceil(8)
+        }
+    }
+}
+
+impl Limbs for i64 {
+    fn limbs(&self) -> usize {
+        if *self == 0 {
+            0
+        } else if *self > 0 {
+            (*self as u64).limbs()
+        } else {
+            self.unsigned_abs().limbs()
+        }
+    }
 }
 
 #[cfg(test)]
@@ -112,7 +155,7 @@ fn limb_test_helper(bytes: &[u8]) {
     } else {
         bytes.len()
     };
-    assert_eq!(limbs_for_int(&bigint), expected);
+    assert_eq!(bigint.limbs(), expected);
 }
 
 #[test]
@@ -150,6 +193,96 @@ fn test_limbs_for_int() {
     limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0, 0]);
     limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0]);
+}
+
+#[test]
+fn test_limbs_agreement() {
+    // All Limbs impls must agree for overlapping input ranges.
+
+    // u64 vs Number (positive values)
+    for v in [
+        0u64,
+        1,
+        0x7f,
+        0x80,
+        0xff,
+        0x100,
+        0x7fff,
+        0x8000,
+        0xffff,
+        0x7fffff,
+        0x800000,
+        0xffffff,
+        0x7fffffff,
+        0x80000000,
+        0xffffffff,
+        0x100000000,
+        0x7fffffffff,
+        0x8000000000,
+        0x7fffffffffff,
+        0xffffffffffff,
+        0x7fffffffffffff,
+        0xffffffffffffff,
+        0x7fffffffffffffff,
+        0xffffffffffffffff,
+    ] {
+        let from_u64 = v.limbs();
+        let from_number = Number::from(v).limbs();
+        assert_eq!(from_u64, from_number, "u64 vs Number disagree for {v}");
+    }
+
+    // i64 vs u64 (positive values that fit in both)
+    for v in [
+        0i64,
+        1,
+        127,
+        128,
+        255,
+        256,
+        32767,
+        32768,
+        65535,
+        65536,
+        0x7fffff,
+        0x800000,
+        0x7fffffff,
+        0x80000000,
+        0x7fffffffffffffff,
+    ] {
+        let from_i64 = v.limbs();
+        let from_u64 = (v as u64).limbs();
+        let from_number = Number::from(v).limbs();
+        assert_eq!(from_i64, from_u64, "i64 vs u64 disagree for {v}");
+        assert_eq!(from_i64, from_number, "i64 vs Number disagree for {v}");
+    }
+
+    // i64 vs Number (negative values)
+    for v in [
+        -1i64,
+        -0x80,
+        -0x81,
+        -0xff,
+        -0x100,
+        -0x7fff,
+        -0x8000,
+        -0x8001,
+        -0x7fffff,
+        -0x800000,
+        -0x7fffffff,
+        -0x80000000,
+        -0x7fffffffff,
+        -0x8000000000,
+        -0x7fffffffffff,
+        -0x800000000000,
+        -0x7fffffffffffff,
+        -0x80000000000000,
+        -0x7fffffffffffffff,
+        i64::MIN,
+    ] {
+        let from_i64 = v.limbs();
+        let from_number = Number::from(v).limbs();
+        assert_eq!(from_i64, from_number, "i64 vs Number disagree for {v}");
+    }
 }
 
 fn malloc_cost(a: &Allocator, cost: Cost, ptr: NodePtr) -> Reduction {
@@ -646,7 +779,7 @@ pub fn op_multiply(
 
             total *= n1;
         }
-        l0 = limbs_for_int(&total);
+        l0 = total.limbs();
         if flags.contains(ClvmFlags::LIMITS) && l0 > 1024 {
             return Err(EvalErr::InvalidOpArg(arg, "*".to_string()));
         }
@@ -924,7 +1057,7 @@ pub fn op_ash(a: &mut Allocator, input: NodePtr, _max_cost: Cost, _flags: ClvmFl
     }
 
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
-    let l1 = limbs_for_int(&v);
+    let l1 = v.limbs();
     let r = a.new_number(v)?;
     let cost = ASHIFT_BASE_COST + ((l0 + l1) as Cost) * ASHIFT_COST_PER_BYTE;
     Ok(malloc_cost(a, cost, r))
@@ -993,7 +1126,7 @@ pub fn op_lsh(a: &mut Allocator, input: NodePtr, _max_cost: Cost, _flags: ClvmFl
 
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
 
-    let l1 = limbs_for_int(&v);
+    let l1 = v.limbs();
     let r = a.new_number(v)?;
     let cost = LSHIFT_BASE_COST + ((l0 + l1) as Cost) * LSHIFT_COST_PER_BYTE;
     Ok(malloc_cost(a, cost, r))
