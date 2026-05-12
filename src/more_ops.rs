@@ -10,9 +10,11 @@ use crate::chia_dialect::ClvmFlags;
 use crate::cost::{Cost, check_cost};
 use crate::error::EvalErr;
 use crate::number::{Number, number_from_u8};
+#[cfg(not(feature = "no-fastpath"))]
+use crate::op_utils::match_args;
 use crate::op_utils::{
     MALLOC_COST_PER_BYTE, atom, atom_len, get_args, get_varargs, i32_atom, int_atom,
-    malachite_int_atom, match_args, mod_group_order, new_atom_and_cost, nilp, u32_from_u8,
+    malachite_int_atom, mod_group_order, new_atom_and_cost, nilp, u32_from_u8,
 };
 use crate::reduction::{Reduction, Response};
 use chia_bls::G1Element;
@@ -380,6 +382,7 @@ pub fn op_sha256(
 ) -> Response {
     let mut cost = SHA256_BASE_COST;
 
+    #[cfg(not(feature = "no-fastpath"))]
     if let Some([v0, v1]) = match_args::<2>(a, input)
         && a.small_number(v0) == Some(1)
         && let Some(val) = a.small_number(v1)
@@ -416,36 +419,39 @@ pub fn op_add(
 
     let mut cost = ARITH_BASE_COST;
 
-    // Fast path: if every operand is a SmallAtom, try adding as u64
-    let saved_input = input;
-    let fast_total = (|| -> crate::error::Result<Option<u64>> {
-        let mut total: u64 = 0;
-        while let Some((arg, rest)) = a.next(input) {
-            input = rest;
-            cost += ARITH_COST_PER_ARG;
-            let NodeVisitor::U32(val) = a.node(arg) else {
-                return Ok(None);
-            };
-            cost += len_for_value(val) as Cost * ARITH_COST_PER_BYTE;
-            check_cost(cost, max_cost)?;
-            let Some(new_total) = total.checked_add(val as u64) else {
-                return Ok(None);
-            };
-            total = new_total;
-        }
-        Ok(Some(total))
-    })()?;
+    #[cfg(not(feature = "no-fastpath"))]
+    {
+        // Fast path: if every operand is a SmallAtom, try adding as u64
+        let saved_input = input;
+        let fast_total = (|| -> crate::error::Result<Option<u64>> {
+            let mut total: u64 = 0;
+            while let Some((arg, rest)) = a.next(input) {
+                input = rest;
+                cost += ARITH_COST_PER_ARG;
+                let NodeVisitor::U32(val) = a.node(arg) else {
+                    return Ok(None);
+                };
+                cost += len_for_value(val) as Cost * ARITH_COST_PER_BYTE;
+                check_cost(cost, max_cost)?;
+                let Some(new_total) = total.checked_add(val as u64) else {
+                    return Ok(None);
+                };
+                total = new_total;
+            }
+            Ok(Some(total))
+        })()?;
 
-    if let Some(fast_total) = fast_total {
-        let total = a.new_u64(fast_total)?;
-        return Ok(malloc_cost(a, cost, total));
+        if let Some(fast_total) = fast_total {
+            let total = a.new_u64(fast_total)?;
+            return Ok(malloc_cost(a, cost, total));
+        }
+
+        input = saved_input;
+        cost = ARITH_BASE_COST;
     }
 
-    let mut rng = rand::rng();
-
     // Slow path: fall back to bignum arithmetic
-    input = saved_input;
-    cost = ARITH_BASE_COST;
+    let mut rng = rand::rng();
     let mut acc = [Number::from(0), Number::from(0)];
     let mut small_acc: Number = 0.into();
     while let Some((arg, rest)) = a.next(input) {
@@ -487,42 +493,45 @@ pub fn op_subtract(
 
     let mut cost = ARITH_BASE_COST;
 
-    // Fast path: if every operand is a SmallAtom, try subtracting as i64
-    let saved_input = input;
-    let fast_total = (|| -> crate::error::Result<Option<i64>> {
-        let mut total: i64 = 0;
-        let mut is_first = true;
-        while let Some((arg, rest)) = a.next(input) {
-            input = rest;
-            cost += ARITH_COST_PER_ARG;
-            let NodeVisitor::U32(val) = a.node(arg) else {
-                return Ok(None);
-            };
-            cost += len_for_value(val) as Cost * ARITH_COST_PER_BYTE;
-            check_cost(cost, max_cost)?;
-            if is_first {
-                total = val as i64;
-                is_first = false;
-            } else {
-                let Some(new_total) = total.checked_sub(val as i64) else {
+    #[cfg(not(feature = "no-fastpath"))]
+    {
+        // Fast path: if every operand is a SmallAtom, try subtracting as i64
+        let saved_input = input;
+        let fast_total = (|| -> crate::error::Result<Option<i64>> {
+            let mut total: i64 = 0;
+            let mut is_first = true;
+            while let Some((arg, rest)) = a.next(input) {
+                input = rest;
+                cost += ARITH_COST_PER_ARG;
+                let NodeVisitor::U32(val) = a.node(arg) else {
                     return Ok(None);
                 };
-                total = new_total;
+                cost += len_for_value(val) as Cost * ARITH_COST_PER_BYTE;
+                check_cost(cost, max_cost)?;
+                if is_first {
+                    total = val as i64;
+                    is_first = false;
+                } else {
+                    let Some(new_total) = total.checked_sub(val as i64) else {
+                        return Ok(None);
+                    };
+                    total = new_total;
+                }
             }
-        }
-        Ok(Some(total))
-    })()?;
+            Ok(Some(total))
+        })()?;
 
-    if let Some(fast_total) = fast_total {
-        let total = a.new_i64(fast_total)?;
-        return Ok(malloc_cost(a, cost, total));
+        if let Some(fast_total) = fast_total {
+            let total = a.new_i64(fast_total)?;
+            return Ok(malloc_cost(a, cost, total));
+        }
+
+        input = saved_input;
+        cost = ARITH_BASE_COST;
     }
 
-    let mut rng = rand::rng();
-
     // Slow path: fall back to bignum arithmetic
-    input = saved_input;
-    cost = ARITH_BASE_COST;
+    let mut rng = rand::rng();
     let mut acc = [Number::from(0), Number::from(0)];
     let mut small_acc: Number = 0.into();
     let mut is_first = true;
@@ -597,6 +606,7 @@ pub fn op_multiply(
         }
 
         cost += MUL_COST_PER_OP;
+        #[cfg(not(feature = "no-fastpath"))]
         match a.node(arg) {
             NodeVisitor::Buffer(buf) => {
                 let l1 = buf.len() as u64;
@@ -623,6 +633,19 @@ pub fn op_multiply(
                     "Requires Int Argument: *".to_string(),
                 ))?;
             }
+        }
+        #[cfg(feature = "no-fastpath")]
+        {
+            let (n1, l1) = int_atom(a, arg, "*")?;
+            let l1 = l1 as u64;
+            if flags.contains(ClvmFlags::LIMITS) && l1 > 256 {
+                return Err(EvalErr::InvalidOpArg(arg, "*".to_string()));
+            }
+            cost += (l0 as Cost + l1) * MUL_LINEAR_COST_PER_BYTE;
+            cost += (l0 as Cost * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
+            check_cost(cost, max_cost)?;
+
+            total *= n1;
         }
         l0 = limbs_for_int(&total);
         if flags.contains(ClvmFlags::LIMITS) && l0 > 1024 {
@@ -788,19 +811,17 @@ fn op_mod_malachite(
 pub fn op_gr(a: &mut Allocator, input: NodePtr, _max_cost: Cost, _flags: ClvmFlags) -> Response {
     let [v0, v1] = get_args::<2>(a, input, ">")?;
 
-    match (a.small_number(v0), a.small_number(v1)) {
-        (Some(lhs), Some(rhs)) => {
-            let cost =
-                GR_BASE_COST + (len_for_value(lhs) + len_for_value(rhs)) as Cost * GR_COST_PER_BYTE;
-            Ok(Reduction(cost, if lhs > rhs { a.one() } else { a.nil() }))
-        }
-        _ => {
-            let (v0, v0_len) = int_atom(a, v0, ">")?;
-            let (v1, v1_len) = int_atom(a, v1, ">")?;
-            let cost = GR_BASE_COST + (v0_len + v1_len) as Cost * GR_COST_PER_BYTE;
-            Ok(Reduction(cost, if v0 > v1 { a.one() } else { a.nil() }))
-        }
+    #[cfg(not(feature = "no-fastpath"))]
+    if let (Some(lhs), Some(rhs)) = (a.small_number(v0), a.small_number(v1)) {
+        let cost =
+            GR_BASE_COST + (len_for_value(lhs) + len_for_value(rhs)) as Cost * GR_COST_PER_BYTE;
+        return Ok(Reduction(cost, if lhs > rhs { a.one() } else { a.nil() }));
     }
+
+    let (v0, v0_len) = int_atom(a, v0, ">")?;
+    let (v1, v1_len) = int_atom(a, v1, ">")?;
+    let cost = GR_BASE_COST + (v0_len + v1_len) as Cost * GR_COST_PER_BYTE;
+    Ok(Reduction(cost, if v0 > v1 { a.one() } else { a.nil() }))
 }
 
 pub fn op_gr_bytes(

@@ -1,7 +1,9 @@
-use super::traverse_path::{traverse_path, traverse_path_fast};
-use crate::allocator::{
-    Allocator, Checkpoint, MaybeRestore, NodePtr, NodeVisitor, SExp, TransparentCheckpoint,
-};
+use super::traverse_path::traverse_path;
+#[cfg(not(feature = "no-fastpath"))]
+use super::traverse_path::traverse_path_fast;
+#[cfg(not(feature = "no-fastpath"))]
+use crate::allocator::NodeVisitor;
+use crate::allocator::{Allocator, Checkpoint, MaybeRestore, NodePtr, SExp, TransparentCheckpoint};
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::error::{EvalErr, Result};
@@ -289,6 +291,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         // put a bunch of ops on op_stack
         let SExp::Pair(op_node, op_list) = self.allocator.sexp(program) else {
             // the program is just a bitfield path through the env tree
+            #[cfg(not(feature = "no-fastpath"))]
             let r = match self.allocator.node(program) {
                 NodeVisitor::Buffer(buf) => traverse_path(self.allocator, buf, env)?,
                 NodeVisitor::U32(val) => traverse_path_fast(self.allocator, val, env)?,
@@ -299,6 +302,10 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                     ))?;
                 }
             };
+
+            #[cfg(feature = "no-fastpath")]
+            let r: Reduction = traverse_path(self.allocator, &self.allocator.atom(program), env)?;
+
             self.push(r.1)?;
             return Ok(r.0);
         };
