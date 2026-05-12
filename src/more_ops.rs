@@ -386,15 +386,14 @@ pub fn op_sha256(
     if let Some([v0, v1]) = match_args::<2>(a, input)
         && a.small_number(v0) == Some(1)
         && let Some(val) = a.small_number(v1)
+        && (val as usize) < PRECOMPUTED_HASHES.len()
     {
         // in this case, we're hashing 1 concatenated with a small
         // integer, we may have a pre-computed hash for this
-        if (val as usize) < PRECOMPUTED_HASHES.len() {
-            let num_bytes: Cost = if val > 0 { 2 } else { 1 };
-            cost += num_bytes * SHA256_COST_PER_BYTE + 2 as Cost * SHA256_COST_PER_ARG;
-            check_cost(cost, max_cost)?;
-            return new_atom_and_cost(a, cost, &PRECOMPUTED_HASHES[val as usize]);
-        }
+        let num_bytes: Cost = if val > 0 { 2 } else { 1 };
+        cost += num_bytes * SHA256_COST_PER_BYTE + 2 as Cost * SHA256_COST_PER_ARG;
+        check_cost(cost, max_cost)?;
+        return new_atom_and_cost(a, cost, &PRECOMPUTED_HASHES[val as usize]);
     }
 
     let mut hasher = Sha256::new();
