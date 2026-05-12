@@ -67,6 +67,11 @@ bitflags! {
 
         /// Use malachite-bigint instead of num-bigint for div, divmod, mod, and modpow.
         const MALACHITE = 0x1000;
+
+        /// Use the revised cost model for operators (if, listp, substr,
+        /// sha256, multiply, div, divmod, mod, modpow, coinid, g2_multiply,
+        /// keccak256). Off by default.
+        const NEW_COST_MODEL = 0x2000;
     }
 }
 
