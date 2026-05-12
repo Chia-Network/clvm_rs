@@ -26,4 +26,4 @@ $ git tag 0.1.20
 $ git push --tags
 ```
 
-The GitHub tag will trigger the official publication workflows for crates.io and PyPI.
+The Git tag will trigger the official publication workflows for crates.io and PyPI.
