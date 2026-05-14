@@ -109,7 +109,10 @@ pub fn deserialize_2026_body_from_stream<R: Read>(
                 stack.push(*atoms.get(ai).ok_or(EvalErr::SerializationError)?);
             }
             n => {
-                let pi = (-n - 2) as usize;
+                let pi = n
+                    .checked_neg()
+                    .and_then(|x| x.checked_sub(2))
+                    .ok_or(EvalErr::SerializationError)? as usize;
                 stack.push(*pairs.get(pi).ok_or(EvalErr::SerializationError)?);
             }
         }

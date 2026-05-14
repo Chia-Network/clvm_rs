@@ -127,6 +127,7 @@ pub fn read_varint<R: Read>(r: &mut R, strict: bool) -> Result<i64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
     use std::io::Cursor;
 
     fn encode_varint(value: i64) -> Vec<u8> {
@@ -135,48 +136,54 @@ mod tests {
         buf
     }
 
-    #[test]
-    fn test_encode_varint() {
-        // Test single byte encoding
-        assert_eq!(encode_varint(0), vec![0x00]);
-        assert_eq!(encode_varint(1), vec![0x01]);
-        assert_eq!(encode_varint(-1), vec![0x7f]);
-        assert_eq!(encode_varint(63), vec![0x3f]);
-        assert_eq!(encode_varint(-64), vec![0x40]);
+    #[rstest]
+    #[case(0, vec![0x00])]
+    #[case(1, vec![0x01])]
+    #[case(-1, vec![0x7f])]
+    #[case(63, vec![0x3f])]
+    #[case(-64, vec![0x40])]
+    #[case(64, vec![0x80, 0x40])]
+    #[case(8191, vec![0x9f, 0xff])]
+    #[case(-65, vec![0xbf, 0xbf])]
+    #[case(-8192, vec![0xa0, 0x00])]
+    fn test_encode_varint(#[case] value: i64, #[case] expected: Vec<u8>) {
+        assert_eq!(encode_varint(value), expected);
+    }
 
-        // Test two byte encoding
-        assert_eq!(encode_varint(64), vec![0x80, 0x40]);
-        assert_eq!(encode_varint(8191), vec![0x9f, 0xff]);
-        assert_eq!(encode_varint(-65), vec![0xbf, 0xbf]);
-        assert_eq!(encode_varint(-8192), vec![0xa0, 0x00]);
+    #[rstest]
+    #[case(&[0x00], 0)]
+    #[case(&[0x01], 1)]
+    #[case(&[0x7f], -1)]
+    #[case(&[0x80, 0x40], 64)]
+    #[case(&[0x9f, 0xff], 8191)]
+    #[case(&[0xbf, 0xbf], -65)]
+    fn test_read_varint(#[case] bytes: &[u8], #[case] expected: i64) {
+        assert_eq!(
+            read_varint(&mut Cursor::new(bytes), false).unwrap(),
+            expected
+        );
     }
 
     #[test]
-    fn test_read_varint() {
-        assert_eq!(
-            read_varint(&mut Cursor::new(&[0x00][..]), false).unwrap(),
-            0
-        );
-        assert_eq!(
-            read_varint(&mut Cursor::new(&[0x01][..]), false).unwrap(),
-            1
-        );
-        assert_eq!(
-            read_varint(&mut Cursor::new(&[0x7f][..]), false).unwrap(),
-            -1
-        );
-        assert_eq!(
-            read_varint(&mut Cursor::new(&[0x80, 0x40][..]), false).unwrap(),
-            64
-        );
-        assert_eq!(
-            read_varint(&mut Cursor::new(&[0x9f, 0xff][..]), false).unwrap(),
-            8191
-        );
-        assert_eq!(
-            read_varint(&mut Cursor::new(&[0xbf, 0xbf][..]), false).unwrap(),
-            -65
-        );
+    #[should_panic(expected = "Value too large to encode")]
+    fn test_encode_varint_rejects_too_large_positive() {
+        let _ = encode_varint(1i64 << 55); // 2^55, just over the limit
+    }
+
+    #[test]
+    #[should_panic(expected = "Value too large to encode")]
+    fn test_encode_varint_rejects_too_large_negative() {
+        let _ = encode_varint(-(1i64 << 55) - 1); // -2^55 - 1, just under the limit
+    }
+
+    #[test]
+    fn test_encode_varint_accepts_boundary_values() {
+        let max_value = (1i64 << 55) - 1; // 2^55 - 1
+        let min_value = -(1i64 << 55); // -2^55
+        
+        // Should not panic
+        let _ = encode_varint(max_value);
+        let _ = encode_varint(min_value);
     }
 
     #[test]
