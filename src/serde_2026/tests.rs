@@ -229,47 +229,34 @@ fn test_serialized_length() {
 /// `serialized_length_serde_2026` must reject every header-time condition
 /// that `deserialize_2026_body` rejects, so callers can use the length helper to
 /// gate before deserializing without observing Ok-then-Err mismatches.
-#[test]
-fn test_serialized_length_rejects_what_deserialize_rejects() {
-    let mk = |group_count: i64, instruction_count: i64, atom_table: &[u8]| {
-        let mut blob = Vec::new();
-        blob.extend_from_slice(&SERDE_2026_MAGIC_PREFIX);
-        blob.extend_from_slice(&encode_varint(group_count));
-        blob.extend_from_slice(atom_table);
-        blob.extend_from_slice(&encode_varint(instruction_count));
-        blob
-    };
+fn mk_malformed_blob(group_count: i64, instruction_count: i64, atom_table: &[u8]) -> Vec<u8> {
+    let mut blob = Vec::new();
+    blob.extend_from_slice(&SERDE_2026_MAGIC_PREFIX);
+    blob.extend_from_slice(&encode_varint(group_count));
+    blob.extend_from_slice(atom_table);
+    blob.extend_from_slice(&encode_varint(instruction_count));
+    blob
+}
 
-    // Cases that deserialize_2026_body rejects at header time. For each one,
-    // serialized_length_serde_2026 must also reject.
-    let cases: &[(&str, Vec<u8>)] = &[
-        // instruction_count = 0 with non-empty atom table
-        (
-            "instruction_count == 0",
-            mk(1, 0, &[0x01, b'A']), // one group, length=1, atom='A'
-        ),
-        // group with length = 0
-        ("group length == 0", mk(1, 1, &[0x00])),
-        // multi-atom group with count = 0
-        (
-            "multi-atom group count == 0",
-            mk(1, 1, &[0x7f, 0x00, b'A']), // length=-1 (multi-atom), count=0
-        ),
-    ];
-
+#[rstest]
+// instruction_count = 0 with non-empty atom table
+#[case::instruction_count_zero(mk_malformed_blob(1, 0, &[0x01, b'A']))]
+// group with length = 0
+#[case::group_length_zero(mk_malformed_blob(1, 1, &[0x00]))]
+// multi-atom group with count = 0
+#[case::multi_atom_group_count_zero(mk_malformed_blob(1, 1, &[0x7f, 0x00, b'A']))]
+fn test_serialized_length_rejects_what_deserialize_rejects(#[case] blob: Vec<u8>) {
     let mut a = Allocator::new();
-    for (label, blob) in cases {
-        // Use the prefix-aware deserializer so the asymmetry under test
-        // (header-time rejections) is what fails, not the magic-prefix check.
-        assert!(
-            deserialize_2026(&mut a, blob, TEST_MAX_ATOM_LEN, false).is_err(),
-            "{label}: deserialize must reject"
-        );
-        assert!(
-            serialized_length_serde_2026(blob, TEST_MAX_ATOM_LEN, false).is_err(),
-            "{label}: serialized_length must reject (mirrors deserialize)"
-        );
-    }
+    // Use the prefix-aware deserializer so the asymmetry under test
+    // (header-time rejections) is what fails, not the magic-prefix check.
+    assert!(
+        deserialize_2026(&mut a, &blob, TEST_MAX_ATOM_LEN, false).is_err(),
+        "deserialize must reject"
+    );
+    assert!(
+        serialized_length_serde_2026(&blob, TEST_MAX_ATOM_LEN, false).is_err(),
+        "serialized_length must reject (mirrors deserialize)"
+    );
 }
 
 // ---------------------------------------------------------------------------
