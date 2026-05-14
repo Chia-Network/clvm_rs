@@ -60,7 +60,7 @@ def deserialize(
     fmt: str = "auto",
     *,
     max_atom_len: int | None = None,
-    strict: bool = False,
+    strict: bool = True,
 ):
     """Deserialize bytes into a LazyNode.
 
