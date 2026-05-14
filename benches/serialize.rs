@@ -3,7 +3,6 @@ use clvmr::serde::{
     Serializer, node_from_bytes, node_from_bytes_backrefs, node_to_bytes_backrefs,
     node_to_bytes_limit,
 };
-use clvmr::serde_2026::serialize_2026;
 use criterion::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
 use std::include_bytes;
@@ -54,14 +53,6 @@ fn serialize_benchmark(c: &mut Criterion) {
                 let mut ser = Serializer::new(None);
                 let _ = ser.add(&a, node);
                 black_box(ser.into_inner());
-                start.elapsed()
-            })
-        });
-
-        group.bench_function(format!("serialize_2026 {name}"), |b| {
-            b.iter(|| {
-                let start = Instant::now();
-                black_box(serialize_2026(&a, node, 0).expect("serialize_2026"));
                 start.elapsed()
             })
         });
