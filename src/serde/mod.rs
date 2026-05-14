@@ -41,3 +41,9 @@ pub use tools::{
     tree_hash_from_stream,
 };
 pub use tree_cache::{TreeCache, TreeCacheCheckpoint};
+
+pub use crate::serde_2026::{
+    SERDE_2026_MAGIC_PREFIX, deserialize_2026, deserialize_2026_body_from_stream,
+    deserialize_2026_from_stream, serialize_2026, serialize_2026_to_stream,
+    serialized_length_serde_2026,
+};
