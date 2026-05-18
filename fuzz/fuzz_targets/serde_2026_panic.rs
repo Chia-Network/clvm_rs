@@ -44,21 +44,21 @@ fuzz_target!(|data: &[u8]| {
         // it has its own opportunity to allocate or recurse pathologically.
         if let Ok(claimed_length) = serialized_length_serde_2026(data, FUZZ_MAX_ATOM_LEN, strict) {
             // Verify the length function agrees with actual deserialization.
-            let mut cursor = Cursor::new(data);
-            let mut a = Allocator::new();
-            if deserialize_2026_body_from_stream(
-                &mut a,
-                &mut cursor,
-                FUZZ_MAX_ATOM_LEN,
-                strict,
-            )
-            .is_ok()
-            {
-                let consumed = cursor.position() as usize;
-                assert_eq!(
-                    claimed_length, consumed,
-                    "serialized_length_serde_2026 returned {claimed_length} but deserializer consumed {consumed}"
-                );
+            // serialized_length_serde_2026 requires and includes the magic prefix in its
+            // return value, so skip the prefix before calling the body deserializer.
+            let prefix_len = clvmr::serde_2026::SERDE_2026_MAGIC_PREFIX.len();
+            if data.len() >= prefix_len {
+                let mut cursor = Cursor::new(&data[prefix_len..]);
+                let mut a = Allocator::new();
+                if deserialize_2026_body_from_stream(&mut a, &mut cursor, FUZZ_MAX_ATOM_LEN, strict)
+                    .is_ok()
+                {
+                    let consumed = prefix_len as u64 + cursor.position();
+                    assert_eq!(
+                        claimed_length, consumed,
+                        "serialized_length_serde_2026 returned {claimed_length} but deserializer consumed {consumed}"
+                    );
+                }
             }
         }
     }

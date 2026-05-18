@@ -38,10 +38,7 @@ fn roundtrip_check(label: &str, a: &mut Allocator, original: NodePtr, blob: &[u8
     let checkpoint = a.checkpoint();
     let decoded = deserialize_2026(a, blob, FUZZ_MAX_ATOM_LEN, false)
         .unwrap_or_else(|e| panic!("{label}: deserialize failed: {e:?}"));
-    assert!(
-        node_eq(a, original, decoded),
-        "{label}: tree mismatch"
-    );
+    assert!(node_eq(a, original, decoded), "{label}: tree mismatch");
     a.restore_checkpoint(&checkpoint);
 }
 

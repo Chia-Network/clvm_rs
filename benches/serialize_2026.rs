@@ -2,7 +2,7 @@ use clvmr::allocator::Allocator;
 use clvmr::serde::node_from_bytes_backrefs;
 use clvmr::serde_2026::serialize_2026;
 use criterion::black_box;
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use std::include_bytes;
 use std::time::Instant;
 

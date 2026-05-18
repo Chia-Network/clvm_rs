@@ -180,7 +180,7 @@ mod tests {
     fn test_encode_varint_accepts_boundary_values() {
         let max_value = (1i64 << 55) - 1; // 2^55 - 1
         let min_value = -(1i64 << 55); // -2^55
-        
+
         // Should not panic
         let _ = encode_varint(max_value);
         let _ = encode_varint(min_value);
