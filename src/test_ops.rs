@@ -272,36 +272,34 @@ mod tests {
         }
     }
 
+    const NONE: ClvmFlags = ClvmFlags::empty();
+    const MALA: ClvmFlags = ClvmFlags::MALACHITE;
+
     #[rstest]
-    #[case("test-core-ops", false)]
-    #[case("test-more-ops", false)]
-    #[case("test-bls-ops", false)]
-    #[case("test-blspy-g1", false)]
-    #[case("test-blspy-g2", false)]
-    #[case("test-blspy-hash", false)]
-    #[case("test-blspy-pairing", false)]
-    #[case("test-blspy-verify", false)]
-    #[case("test-bls-zk", false)]
-    #[case("test-secp-verify", false)]
-    #[case("test-secp256k1", false)]
-    #[case("test-secp256r1", false)]
-    #[case("test-modpow", false)]
-    #[case("test-sha256", false)]
-    #[case("test-sha256tree", false)]
-    #[case("test-sha256tree-hash", false)]
-    #[case("test-keccak256", false)]
-    #[case("test-keccak256-generated", false)]
-    #[case("test-more-ops", true)]
-    #[case("test-modpow", true)]
-    fn test_ops(#[case] filename: &str, #[case] malachite: bool) {
+    #[case("test-core-ops", NONE)]
+    #[case("test-more-ops", NONE)]
+    #[case("test-more-ops", MALA)]
+    #[case("test-bls-ops", NONE)]
+    #[case("test-blspy-g1", NONE)]
+    #[case("test-blspy-g2", NONE)]
+    #[case("test-blspy-hash", NONE)]
+    #[case("test-blspy-pairing", NONE)]
+    #[case("test-blspy-verify", NONE)]
+    #[case("test-bls-zk", NONE)]
+    #[case("test-secp-verify", NONE)]
+    #[case("test-secp256k1", NONE)]
+    #[case("test-secp256r1", NONE)]
+    #[case("test-modpow", NONE)]
+    #[case("test-modpow", MALA)]
+    #[case("test-sha256", NONE)]
+    #[case("test-sha256tree", NONE)]
+    #[case("test-sha256tree-hash", NONE)]
+    #[case("test-keccak256", NONE)]
+    #[case("test-keccak256-generated", NONE)]
+    fn test_ops(#[case] filename: &str, #[case] flags: ClvmFlags) {
         use std::fs::read_to_string;
 
         let filename = format!("op-tests/{filename}.txt");
-        let flags = if malachite {
-            ClvmFlags::MALACHITE
-        } else {
-            ClvmFlags::empty()
-        };
 
         let funs = HashMap::from([
             ("i", op_if as Opf),

@@ -34,6 +34,12 @@ allocator-debug = []
 # with OpenSSL when enabled
 openssl = ["chia-sha2/openssl"]
 
+# when enabled, all fast-path optimizations (e.g. using native i64/u64
+# arithmetic for small operands) are disabled, forcing the generic bignum code
+# paths. This is useful for testing that the optimized paths produce the same
+# results as the fallback.
+no-fastpath = []
+
 [profile.release]
 lto = "thin"
 
