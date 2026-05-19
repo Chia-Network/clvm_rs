@@ -1,10 +1,8 @@
 use clvmr::allocator::Allocator;
 use clvmr::serde::node_from_bytes_backrefs;
 use clvmr::serde_2026::serialize_2026;
-use criterion::black_box;
-use criterion::{Criterion, criterion_group, criterion_main};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use std::include_bytes;
-use std::time::Instant;
 
 fn serialize_2026_benchmark(c: &mut Criterion) {
     let generators = [
@@ -22,11 +20,7 @@ fn serialize_2026_benchmark(c: &mut Criterion) {
         let node = node_from_bytes_backrefs(&mut a, block).expect("node_from_bytes_backrefs");
 
         group.bench_function(format!("serialize_2026 {name}"), |b| {
-            b.iter(|| {
-                let start = Instant::now();
-                black_box(serialize_2026(&a, node, 0).expect("serialize_2026"));
-                start.elapsed()
-            })
+            b.iter(|| black_box(serialize_2026(&a, node, 0).expect("serialize_2026")))
         });
     }
 
