@@ -46,4 +46,14 @@ impl LazyNode {
             node: n,
         }
     }
+
+    // Rust-side serializers need direct access to the backing allocator/node.
+    // These are intentionally crate-local; Python only sees the atom/pair view.
+    pub fn allocator(&self) -> &Allocator {
+        &self.allocator
+    }
+
+    pub fn node(&self) -> NodePtr {
+        self.node
+    }
 }

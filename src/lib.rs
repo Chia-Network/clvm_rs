@@ -15,6 +15,7 @@ pub mod run_program;
 pub mod runtime_dialect;
 pub mod secp_ops;
 pub mod serde;
+pub mod serde_2026;
 pub mod sha_tree_op;
 pub mod traverse_path;
 pub mod treehash;
