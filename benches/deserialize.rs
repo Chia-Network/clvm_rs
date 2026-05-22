@@ -23,7 +23,9 @@ fn deserialize_benchmark(c: &mut Criterion) {
         (compressed_block.as_ref(), "-compressed"),
     ] {
         group.bench_function(format!("serialized_length_from_bytes{name_suffix}"), |b| {
-            b.iter(|| black_box(serialized_length_from_bytes(bl).expect("serialized_length_from_bytes")))
+            b.iter(|| {
+                black_box(serialized_length_from_bytes(bl).expect("serialized_length_from_bytes"))
+            })
         });
 
         group.bench_function(
