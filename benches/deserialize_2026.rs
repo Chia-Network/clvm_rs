@@ -3,9 +3,9 @@ use clvmr::serde::node_from_bytes_backrefs;
 use clvmr::serde_2026::{deserialize_2026, serialize_2026};
 
 const BENCH_MAX_ATOM_LEN: usize = 1 << 20;
-use criterion::{Criterion, criterion_group, criterion_main};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use std::include_bytes;
-use std::time::Instant;
+use std::time::Duration;
 
 fn deserialize_2026_benchmark(c: &mut Criterion) {
     let blocks = [
@@ -27,12 +27,18 @@ fn deserialize_2026_benchmark(c: &mut Criterion) {
         let mut a = Allocator::new();
         let iter_checkpoint = a.checkpoint();
         group.bench_function(format!("deserialize_2026 {name}"), |b| {
-            b.iter(|| {
-                a.restore_checkpoint(&iter_checkpoint);
-                let start = Instant::now();
-                deserialize_2026(&mut a, &serialized_2026, BENCH_MAX_ATOM_LEN, false)
-                    .expect("deserialize_2026");
-                start.elapsed()
+            b.iter_custom(|iters| {
+                let mut total = Duration::ZERO;
+                for _ in 0..iters {
+                    a.restore_checkpoint(&iter_checkpoint);
+                    let start = std::time::Instant::now();
+                    black_box(
+                        deserialize_2026(&mut a, &serialized_2026, BENCH_MAX_ATOM_LEN, false)
+                            .expect("deserialize_2026"),
+                    );
+                    total += start.elapsed();
+                }
+                total
             })
         });
     }
