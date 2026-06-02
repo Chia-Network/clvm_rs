@@ -17,6 +17,12 @@ pub enum OperatorSet {
     /// The keccak256 operator, which is only available inside the softfork guard.
     /// This uses softfork extension 1, which does not conflict with the BLS fork.
     Keccak,
+
+    /// After the 3.0 hard fork, any extension from before the fork is assigned
+    /// this operator set. It means that it's exempt from the cost check, since
+    /// the hard fork changed costs. Any *new* extension is expected to match
+    /// the new cost model
+    PreHardFork,
 }
 
 pub trait Dialect {

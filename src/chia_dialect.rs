@@ -160,6 +160,10 @@ impl Dialect for ChiaDialect {
 
                 // Keccak is allowed as if it were a default operator, inside of the softfork guard.
                 OperatorSet::Keccak => ClvmFlags::ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
+
+                // Everything introduced before the hard fork is available in
+                // the cost-exempt mode.
+                OperatorSet::PreHardFork => ClvmFlags::ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
             };
 
         let op_len = allocator.atom_len(o);
@@ -276,18 +280,25 @@ impl Dialect for ChiaDialect {
     // interpret the extension argument passed to the softfork operator, and
     // return the Operators it enables (or None) if we don't know what it means
     fn softfork_extension(&self, ext: u32) -> OperatorSet {
-        match ext {
-            // Extension 0 is for the BLS operators, and is still valid.
-            // However, the extension doesn't add any addition opcodes,
-            // because the BLS operators were hardforked into the main set.
-            0 => OperatorSet::Bls,
+        if self.flags.contains(ClvmFlags::NEW_COST_MODEL) {
+            match ext {
+                0 | 1 => OperatorSet::PreHardFork,
+                _ => OperatorSet::Default,
+            }
+        } else {
+            match ext {
+                // Extension 0 is for the BLS operators, and is still valid.
+                // However, the extension doesn't add any addition opcodes,
+                // because the BLS operators were hardforked into the main set.
+                0 => OperatorSet::Bls,
 
-            // Extension 1 is for the keccak256 operator.
-            1 => OperatorSet::Keccak,
+                // Extension 1 is for the keccak256 operator.
+                1 => OperatorSet::Keccak,
 
-            // Extensions 2 and beyond are considered invalid by the mempool.
-            // However, all future extensions are valid in consensus mode and reserved for future softforks.
-            _ => OperatorSet::Default,
+                // Extensions 2 and beyond are considered invalid by the mempool.
+                // However, all future extensions are valid in consensus mode and reserved for future softforks.
+                _ => OperatorSet::Default,
+            }
         }
     }
 
