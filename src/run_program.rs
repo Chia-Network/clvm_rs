@@ -4,6 +4,7 @@ use super::traverse_path::traverse_path_fast;
 #[cfg(not(feature = "no-fastpath"))]
 use crate::allocator::NodeVisitor;
 use crate::allocator::{Allocator, Checkpoint, MaybeRestore, NodePtr, SExp, TransparentCheckpoint};
+use crate::chia_dialect::ClvmFlags;
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::error::{EvalErr, Result};
@@ -410,6 +411,10 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                     return Err(err);
                 }
             };
+
+            if self.dialect.flags().contains(ClvmFlags::LIMITS) && self.softfork_stack.len() >= 20 {
+                return Err(EvalErr::SoftforkStackDepthExceeded);
+            }
 
             self.softfork_stack.push(SoftforkGuard {
                 expected_cost: current_cost + expected_cost,
@@ -1644,6 +1649,46 @@ mod tests {
             err,
         };
         run_test_case(&t);
+    }
+
+    fn build_nested_softfork(depth: usize) -> (String, Cost) {
+        let mut program = "(q . 42)".to_string();
+        let mut cost: Cost = QUOTE_COST;
+
+        for _ in 0..depth {
+            let softfork_param = GUARD_COST + cost;
+            program = format!("(softfork (q . {softfork_param}) (q . 0) (q . {program}) (q . ()))");
+            cost = OP_COST + 4 * QUOTE_COST + softfork_param;
+        }
+
+        (program, cost)
+    }
+
+    #[rstest]
+    #[case::at_limit_with_flag(20, ClvmFlags::LIMITS, "")]
+    #[case::over_limit_with_flag(21, ClvmFlags::LIMITS, "softfork stack depth exceeded")]
+    #[case::over_limit_without_flag(21, ClvmFlags::empty(), "")]
+    fn test_limit_softfork_stack(
+        #[case] depth: usize,
+        #[case] flags: ClvmFlags,
+        #[case] err: &str,
+    ) {
+        use crate::chia_dialect::ChiaDialect;
+
+        let (prg, cost) = build_nested_softfork(depth);
+        let mut a = Allocator::new();
+        let program = check(parse_exp(&mut a, &prg));
+        let args = check(parse_exp(&mut a, "()"));
+        let dialect = ChiaDialect::new(flags);
+        match run_program(&mut a, &dialect, program, args, cost) {
+            Ok(Reduction(actual_cost, _)) => {
+                assert_eq!(err, "");
+                assert_eq!(actual_cost, cost);
+            }
+            Err(e) => {
+                assert_eq!(e.to_string(), err);
+            }
+        }
     }
 
     #[cfg(feature = "counters")]

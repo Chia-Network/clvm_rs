@@ -76,6 +76,9 @@ pub enum EvalErr {
 
     #[error("Secp256 Verify Error: failed")]
     Secp256Failed(NodePtr),
+
+    #[error("softfork stack depth exceeded")]
+    SoftforkStackDepthExceeded,
 }
 impl From<std::io::Error> for EvalErr {
     fn from(_: std::io::Error) -> Self {
