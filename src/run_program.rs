@@ -99,7 +99,7 @@ struct SoftforkGuard {
 
 impl SoftforkGuard {
     fn cost_exempt(&self) -> bool {
-        // puzzles prior to the 3.0 hard fork that used the softfork oeprator
+        // puzzles prior to the 3.0 hard fork that used the softfork operator
         // for OperatorSet 0 (BLS) or 1 (KECCAK) will have specified the cost
         // based on the pre-hardfork cost model. They are grandfathered-in by
         // ignoring the specified cost, and just apply the new cost model to the

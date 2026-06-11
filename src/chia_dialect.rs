@@ -68,9 +68,11 @@ bitflags! {
         /// Use malachite-bigint instead of num-bigint for div, divmod, mod, and modpow.
         const MALACHITE = 0x1000;
 
-        /// Use the revised cost model for operators (if, listp, substr,
-        /// sha256, multiply, div, divmod, mod, modpow, coinid, g2_multiply,
-        /// keccak256). Off by default.
+        /// Use the revised cost model for operators (if, listp, sha256,
+        /// add, subtract, multiply, div, divmod, mod, gr, substr, logand,
+        /// logior, logxor, coinid, g1_multiply, g2_multiply, g1_map,
+        /// g2_map, bls_pairing_identity, bls_verify, modpow, keccak256,
+        /// sha256tree). Off by default.
         const NEW_COST_MODEL = 0x2000;
     }
 }
@@ -281,6 +283,9 @@ impl Dialect for ChiaDialect {
     // return the Operators it enables (or None) if we don't know what it means
     fn softfork_extension(&self, ext: u32) -> OperatorSet {
         if self.flags.contains(ClvmFlags::NEW_COST_MODEL) {
+            // Both ext-0 (BLS) and ext-1 (keccak) become PreHardFork, which
+            // broadens ext-0 to also allow keccak256. This is fine because the
+            // new cost model is itself a hard fork, activated at the same height.
             match ext {
                 0 | 1 => OperatorSet::PreHardFork,
                 _ => OperatorSet::Default,

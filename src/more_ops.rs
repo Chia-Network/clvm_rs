@@ -24,7 +24,6 @@ const ARITH_BASE_COST: Cost = 99;
 const ARITH_COST_PER_ARG: Cost = 320;
 const ARITH_COST_PER_BYTE: Cost = 3;
 
-const NEW_ARITH_BASE_COST: Cost = 99;
 const NEW_ARITH_COST_PER_ARG: Cost = 500;
 const NEW_ARITH_COST_PER_BYTE: Cost = 4;
 
@@ -64,20 +63,13 @@ const DIVMOD_COST_PER_BYTE: Cost = 6;
 const DIV_BASE_COST: Cost = 988;
 const DIV_COST_PER_BYTE: Cost = 4;
 
-const SHA256_BASE_COST: Cost = 87;
-const SHA256_COST_PER_ARG: Cost = 134;
-const SHA256_COST_PER_BYTE: Cost = 2;
-
-const MODPOW_COST_PER_BYTE_BASE_VALUE: Cost = 38;
-const MODPOW_COST_PER_BYTE_EXPONENT: Cost = 3;
-const MODPOW_COST_PER_BYTE_MOD: Cost = 21;
-
-const SUBSTR_COST: Cost = 1;
-
-// --- New cost model ---
 const NEW_DIV_BASE_COST: Cost = 1000;
 const NEW_DIV_LINEAR_COST_PER_BYTE: Cost = 50;
 const NEW_DIV_SQUARE_COST_PER_BYTE_DIVIDER: Cost = 10;
+
+const SHA256_BASE_COST: Cost = 87;
+const SHA256_COST_PER_ARG: Cost = 134;
+const SHA256_COST_PER_BYTE: Cost = 2;
 
 const NEW_SHA256_BASE_COST: Cost = 1000;
 const NEW_SHA256_COST_PER_ARG: Cost = 160;
@@ -120,6 +112,10 @@ const NEW_COINID_COST: Cost =
         - 153;
 
 const MODPOW_BASE_COST: Cost = 17000;
+const MODPOW_COST_PER_BYTE_BASE_VALUE: Cost = 38;
+const MODPOW_COST_PER_BYTE_EXPONENT: Cost = 3;
+const MODPOW_COST_PER_BYTE_MOD: Cost = 21;
+
 const NEW_MODPOW_PER_ITERATION_COST: Cost = 4000;
 const NEW_MODPOW_EXPONENT_MULTIPLIER: Cost = 8;
 
@@ -171,8 +167,6 @@ impl Limbs for i64 {
     fn limbs(&self) -> usize {
         if *self == 0 {
             0
-        } else if *self > 0 {
-            (*self as u64).limbs()
         } else {
             self.unsigned_abs().limbs()
         }
@@ -593,13 +587,17 @@ pub fn op_sha256(
     new_atom_and_cost(a, cost, &hasher.finalize())
 }
 
+// In the new cost model, the accumulator size is measured with .limbs()
+// (intermediate values are bignums, never with leading zeros) while argument
+// sizes use the raw atom length (buf.len() / len_for_value) to account for
+// possible leading-zero padding in CLVM-serialized atoms.
 pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost, flags: ClvmFlags) -> Response {
     use rand::Rng;
 
     let new_cost_model = flags.contains(ClvmFlags::NEW_COST_MODEL);
     let (base_cost, cost_per_arg, cost_per_byte) = if new_cost_model {
         (
-            NEW_ARITH_BASE_COST,
+            ARITH_BASE_COST,
             NEW_ARITH_COST_PER_ARG,
             NEW_ARITH_COST_PER_BYTE,
         )
@@ -702,6 +700,10 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost, flags: Clvm
     Ok(malloc_cost(a, cost, total))
 }
 
+// In the new cost model, the accumulator size is measured with .limbs()
+// (intermediate values are bignums, never with leading zeros) while argument
+// sizes use the raw atom length (buf.len() / len_for_value) to account for
+// possible leading-zero padding in CLVM-serialized atoms.
 pub fn op_subtract(
     a: &mut Allocator,
     mut input: NodePtr,
@@ -714,7 +716,7 @@ pub fn op_subtract(
     let new_cost_model = flags.contains(ClvmFlags::NEW_COST_MODEL);
     let (base_cost, cost_per_arg, cost_per_byte) = if new_cost_model {
         (
-            NEW_ARITH_BASE_COST,
+            ARITH_BASE_COST,
             NEW_ARITH_COST_PER_ARG,
             NEW_ARITH_COST_PER_BYTE,
         )
@@ -924,6 +926,9 @@ pub fn op_multiply(
     Ok(malloc_cost(a, cost, total))
 }
 
+// In the new cost model, operand sizes use the raw atom length (from
+// int_atom) to account for possible leading-zero padding in CLVM-serialized
+// atoms.
 pub fn op_div(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlags) -> Response {
     if flags.contains(ClvmFlags::MALACHITE) {
         return op_div_malachite(a, input, max_cost, flags);
@@ -988,6 +993,9 @@ fn op_div_malachite(
     Ok(malloc_cost(a, cost, q))
 }
 
+// In the new cost model, operand sizes use the raw atom length (from
+// int_atom) to account for possible leading-zero padding in CLVM-serialized
+// atoms.
 pub fn op_divmod(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlags) -> Response {
     if flags.contains(ClvmFlags::MALACHITE) {
         return op_divmod_malachite(a, input, max_cost, flags);
@@ -1060,6 +1068,9 @@ fn op_divmod_malachite(
     Ok(Reduction(cost + c, r))
 }
 
+// In the new cost model, operand sizes use the raw atom length (from
+// int_atom) to account for possible leading-zero padding in CLVM-serialized
+// atoms.
 pub fn op_mod(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlags) -> Response {
     if flags.contains(ClvmFlags::MALACHITE) {
         return op_mod_malachite(a, input, max_cost, flags);
@@ -1196,11 +1207,7 @@ pub fn op_substr(a: &mut Allocator, input: NodePtr, _max_cost: Cost, flags: Clvm
         ))?
     } else {
         let r = a.new_substr(a0, start as u32, end as u32)?;
-        let cost = if new_cost_model {
-            NEW_SUBSTR_COST
-        } else {
-            SUBSTR_COST
-        };
+        let cost = if new_cost_model { NEW_SUBSTR_COST } else { 1 };
         Ok(Reduction(cost, r))
     }
 }

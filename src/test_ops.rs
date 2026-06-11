@@ -307,9 +307,9 @@ mod tests {
     #[case("test-sha256", NONE)]
     #[case("test-sha256-v2", NEW_COST)]
     #[case("test-sha256tree", NONE)]
-    #[case("test-sha256tree", NEW_COST)]
+    #[case("test-sha256tree-v2", NEW_COST)]
     #[case("test-sha256tree-hash", NONE)]
-    #[case("test-sha256tree-hash", NEW_COST)]
+    #[case("test-sha256tree-hash-v2", NEW_COST)]
     #[case("test-keccak256", NONE)]
     #[case("test-keccak256-generated", NONE)]
     fn test_ops(#[case] filename: &str, #[case] flags: ClvmFlags) {
