@@ -612,7 +612,6 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost, flags: Clvm
         let saved_input = input;
         let fast_total = (|| -> crate::error::Result<Option<u64>> {
             let mut total: u64 = 0;
-            let mut is_first = true;
             while let Some((arg, rest)) = a.next(input) {
                 input = rest;
                 cost += cost_per_arg;
@@ -620,13 +619,10 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost, flags: Clvm
                     return Ok(None);
                 };
                 if new_cost_model {
-                    if !is_first {
-                        cost += (total.limbs().max(val.limbs()) as Cost) * cost_per_byte;
-                    }
+                    cost += (total.limbs().max(len_for_value(val)) as Cost) * cost_per_byte;
                 } else {
                     cost += len_for_value(val) as Cost * cost_per_byte;
                 }
-                is_first = false;
                 check_cost(cost, max_cost)?;
                 let Some(new_total) = total.checked_add(val as u64) else {
                     return Ok(None);
@@ -650,7 +646,6 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost, flags: Clvm
     // acc is not used for the new cost model
     let mut acc = [Number::from(0), Number::from(0)];
     let mut small_acc: Number = 0.into();
-    let mut is_first = true;
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += cost_per_arg;
@@ -658,9 +653,7 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost, flags: Clvm
         match a.node(arg) {
             NodeVisitor::Buffer(buf) => {
                 if new_cost_model {
-                    if !is_first {
-                        cost += (small_acc.limbs().max(buf.len()) as Cost) * cost_per_byte;
-                    }
+                    cost += (small_acc.limbs().max(buf.len()) as Cost) * cost_per_byte;
                 } else {
                     cost += cost_per_byte * (buf.len() as Cost);
                 }
@@ -674,9 +667,7 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost, flags: Clvm
             }
             NodeVisitor::U32(val) => {
                 if new_cost_model {
-                    if !is_first {
-                        cost += (small_acc.limbs().max(val.limbs()) as Cost) * cost_per_byte;
-                    }
+                    cost += (small_acc.limbs().max(len_for_value(val)) as Cost) * cost_per_byte;
                 } else {
                     cost += len_for_value(val) as Cost * cost_per_byte;
                 }
@@ -690,7 +681,6 @@ pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost, flags: Clvm
                 ))?;
             }
         }
-        is_first = false;
     }
     let total = if new_cost_model {
         a.new_number(small_acc)?
@@ -739,9 +729,7 @@ pub fn op_subtract(
                     return Ok(None);
                 };
                 if new_cost_model {
-                    if !is_first {
-                        cost += (total.limbs().max(val.limbs()) as Cost) * cost_per_byte;
-                    }
+                    cost += (total.limbs().max(len_for_value(val)) as Cost) * cost_per_byte;
                 } else {
                     cost += len_for_value(val) as Cost * cost_per_byte;
                 }
@@ -781,18 +769,24 @@ pub fn op_subtract(
             match a.node(arg) {
                 NodeVisitor::Buffer(buf) => {
                     if new_cost_model {
-                        small_acc += number_from_u8(buf);
+                        cost += (small_acc.limbs().max(buf.len()) as Cost) * cost_per_byte;
                     } else {
                         cost += buf.len() as Cost * cost_per_byte;
-                        check_cost(cost, max_cost)?;
+                    }
+                    check_cost(cost, max_cost)?;
+                    if new_cost_model {
+                        small_acc += number_from_u8(buf);
+                    } else {
                         acc[rng.random_range(0..2)] += number_from_u8(buf);
                     }
                 }
                 NodeVisitor::U32(val) => {
-                    if !new_cost_model {
+                    if new_cost_model {
+                        cost += (small_acc.limbs().max(len_for_value(val)) as Cost) * cost_per_byte;
+                    } else {
                         cost += len_for_value(val) as Cost * cost_per_byte;
-                        check_cost(cost, max_cost)?;
                     }
+                    check_cost(cost, max_cost)?;
                     small_acc += val;
                 }
                 NodeVisitor::Pair(_, _) => {
@@ -807,17 +801,19 @@ pub fn op_subtract(
                 NodeVisitor::Buffer(buf) => {
                     if new_cost_model {
                         cost += (small_acc.limbs().max(buf.len()) as Cost) * cost_per_byte;
-                        check_cost(cost, max_cost)?;
-                        small_acc -= number_from_u8(buf);
                     } else {
                         cost += buf.len() as Cost * cost_per_byte;
-                        check_cost(cost, max_cost)?;
+                    }
+                    check_cost(cost, max_cost)?;
+                    if new_cost_model {
+                        small_acc -= number_from_u8(buf);
+                    } else {
                         acc[rng.random_range(0..2)] -= number_from_u8(buf);
                     }
                 }
                 NodeVisitor::U32(val) => {
                     if new_cost_model {
-                        cost += (small_acc.limbs().max(val.limbs()) as Cost) * cost_per_byte;
+                        cost += (small_acc.limbs().max(len_for_value(val)) as Cost) * cost_per_byte;
                     } else {
                         cost += len_for_value(val) as Cost * cost_per_byte;
                     }
@@ -1376,28 +1372,24 @@ fn binop_reduction(
 
     // neg_acc is not used in the new cost model
     let mut neg_acc = initial_value;
-    let mut arg_size: usize = 0;
     let mut cost = LOG_BASE_COST;
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         let (n0, len) = int_atom(a, arg, op_name)?;
-        let effective_len = if n0.sign() == num_bigint::Sign::Minus {
-            if new_cost_model {
-                op_f(&mut pos_acc, &n0);
-                len.max(pos_acc.limbs())
-            } else {
-                op_f(&mut neg_acc, &n0);
-                len
-            }
-        } else {
+        if new_cost_model {
+            cost += (len.max(pos_acc.limbs()) as Cost) * LOG_COST_PER_BYTE;
             op_f(&mut pos_acc, &n0);
-            len
-        };
-        arg_size += effective_len;
+        } else {
+            cost += (len as Cost) * LOG_COST_PER_BYTE;
+            if n0.sign() == Sign::Minus {
+                op_f(&mut neg_acc, &n0);
+            } else {
+                op_f(&mut pos_acc, &n0);
+            }
+        }
         cost += LOG_COST_PER_ARG;
-        check_cost(cost + (arg_size as Cost * LOG_COST_PER_BYTE), max_cost)?;
+        check_cost(cost, max_cost)?;
     }
-    cost += arg_size as Cost * LOG_COST_PER_BYTE;
     if !new_cost_model {
         op_f(&mut pos_acc, &neg_acc);
     }

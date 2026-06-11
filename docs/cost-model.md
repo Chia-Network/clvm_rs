@@ -37,7 +37,7 @@ cost = BASE_COST
 The new cost model instead tracks the accumulator and charges per-step based on the magnitude of the numbers involved:
 
 ```
-cost = BASE_COST + sum over each operator application:
+cost = BASE_COST + sum over each argument:
     COST_PER_ARG + max(accumulator.limbs, arg.limbs) * COST_PER_BYTE
 ```
 
@@ -48,11 +48,14 @@ right model. The old formula, which summed raw atom lengths, could
 over-charge for many small arguments and under-charge when a large
 accumulator dominates.
 
-The first argument is special, it doesn't carry any cost since it's just loading
-the accumulator, which will be charged for when the addition/subtraction
-operation is applied to it.
+Every argument pays `max(accumulator.limbs, arg.limbs) * COST_PER_BYTE`.
+For the first argument, the accumulator is zero (0 limbs), so it simply pays
+`arg.limbs * COST_PER_BYTE`. This matches the treatment of the first
+argument in the bitwise logical operators (logand, logior, logxor).
 
 Note that `limbs` is the magnitude of the _value_ (like `Number::bits().div_ceil(8)`), not the atom encoding length. This means leading zero bytes in the atom representation don't inflate the cost.
+
+**Ordering quirk:** For two arguments of different sizes, putting the smaller one first is cheaper. For example, `(+ small large)` costs `small.limbs * PER_BYTE + max(small.limbs, large.limbs) * PER_BYTE` = `small + large`, while `(+ large small)` costs `large.limbs * PER_BYTE + max(large.limbs, small.limbs) * PER_BYTE` = `large + large`. The difference is `(large - small) * PER_BYTE`. This reflects the real execution cost: after loading a small first argument, the accumulator is small, so adding a large second argument is dominated by the large argument. After loading a large first argument, the accumulator is already large, making even a small addition touch all those limbs for carry propagation.
 
 ### multiply
 
@@ -108,9 +111,11 @@ The old cost model used a relatively high base cost and low per-argument cost. M
 
 ### logand / logior / logxor
 
-The cost formula is `BASE + n_args * PER_ARG + effective_bytes * PER_BYTE`, with the same constants as the old model. What changed is how `effective_bytes` is computed for negative arguments.
+The cost formula is `BASE + n_args * PER_ARG + effective_bytes * PER_BYTE`, with the same constants as the old model. What changed is how `effective_bytes` is computed when signs differ between the accumulator and an argument.
 
-In the old model, negative arguments contribute their raw atom length to `effective_bytes`, and positive and negative values are accumulated separately then combined at the end. In the new model, negative arguments are folded into the positive accumulator immediately, and their effective length is `max(atom_len, accumulator.limbs)`. This better reflects that bitwise operations on a small negative number and a large accumulator still touch all limbs of the accumulator (because negative numbers are sign-extended).
+In the old model, negative arguments contribute their raw atom length to `effective_bytes`, and positive and negative values are accumulated separately then combined at the end. In the new model, all arguments are folded into a single accumulator immediately. When the accumulator and argument have **different signs**, the effective length is `max(atom_len, accumulator.limbs)`, reflecting that sign extension forces the operation to touch all limbs of the larger operand. When signs are the **same**, the effective length is just `atom_len`, since the high bytes are trivially handled (AND with zero truncates, OR/XOR with zero is a no-op).
+
+**Ordering quirk:** The first argument is always charged its own `atom_len` (it's loaded into the accumulator, no binary operation occurs). Subsequent arguments are charged based on the operation with the accumulator. This means that for two arguments of different signs and different sizes, putting the smaller one first is cheaper: it loads cheaply, and then the larger argument pays for itself. Reversing the order makes the small argument pay `max(small, large)` against the already-large accumulator. The cost difference is bounded by one copy of the smaller argument's size times `PER_BYTE`.
 
 ### Operators with only constant changes
 
