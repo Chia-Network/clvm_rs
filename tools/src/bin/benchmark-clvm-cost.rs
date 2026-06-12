@@ -402,6 +402,42 @@ const OPERATORS: &[OpDef] = &[
         variadic: 0,
     },
     OpDef {
+        name: "bls_map_to_g1_dst",
+        opcode: 56,
+        steps: 100,
+        params: &[
+            ParamDef::FixedAtom {
+                name: "msg",
+                data: &[1, 2, 3, 4],
+            },
+            ParamDef::Bytes {
+                name: "dst",
+                size: 1..10_000_000,
+                fixed: &[43],
+                fill: AtomFill::Random,
+            },
+        ],
+        variadic: 0,
+    },
+    OpDef {
+        name: "bls_map_to_g2_dst",
+        opcode: 57,
+        steps: 100,
+        params: &[
+            ParamDef::FixedAtom {
+                name: "msg",
+                data: &[1, 2, 3, 4],
+            },
+            ParamDef::Bytes {
+                name: "dst",
+                size: 1..10_000_000,
+                fixed: &[43],
+                fill: AtomFill::Random,
+            },
+        ],
+        variadic: 0,
+    },
+    OpDef {
         name: "point_add",
         opcode: 29,
         steps: 1000,
@@ -1234,7 +1270,7 @@ const OPERATORS: &[OpDef] = &[
                 name: "exponent",
                 size: 1..10_000,
                 fixed: &[1, 50, 500],
-                fill: AtomFill::Random,
+                fill: AtomFill::Ones,
             },
             ParamDef::Bytes {
                 name: "modulus",
@@ -1435,7 +1471,8 @@ fn ones_atom(a: &mut Allocator, size: usize) -> NodePtr {
     if size == 0 {
         return a.one();
     }
-    let buf = vec![1u8; size];
+    let mut buf = vec![0xffu8; size];
+    buf[0] = 0x7f;
     a.new_atom(&buf).unwrap()
 }
 
