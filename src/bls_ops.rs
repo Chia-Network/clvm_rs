@@ -44,12 +44,14 @@ const BLS_MAP_TO_G1_BASE_COST: Cost = 195000;
 const BLS_MAP_TO_G1_COST_PER_BYTE: Cost = 4;
 const BLS_MAP_TO_G1_COST_PER_DST_BYTE: Cost = 4;
 const NEW_BLS_MAP_TO_G1_COST_PER_BYTE: Cost = 3;
+const NEW_BLS_MAP_TO_G1_COST_PER_DST_BYTE: Cost = 2;
 const NEW_BLS_MAP_TO_G1_BASE_COST: Cost = 700_000;
 
 const BLS_MAP_TO_G2_BASE_COST: Cost = 815000;
 const BLS_MAP_TO_G2_COST_PER_BYTE: Cost = 4;
 const BLS_MAP_TO_G2_COST_PER_DST_BYTE: Cost = 4;
 const NEW_BLS_MAP_TO_G2_COST_PER_BYTE: Cost = 3;
+const NEW_BLS_MAP_TO_G2_COST_PER_DST_BYTE: Cost = 2;
 const NEW_BLS_MAP_TO_G2_BASE_COST: Cost = 2_700_000;
 
 const BLS_PAIRING_BASE_COST: Cost = 3000000;
@@ -300,10 +302,19 @@ pub fn op_bls_map_to_g1(
             format!("g1_map takes exactly 1 or 2 arguments, got {argc}"),
         ))?;
     }
-    let (mut cost, cost_per_byte) = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
-        (NEW_BLS_MAP_TO_G1_BASE_COST, NEW_BLS_MAP_TO_G1_COST_PER_BYTE)
+    let (mut cost, cost_per_byte, cost_per_dst_byte) = if flags.contains(ClvmFlags::NEW_COST_MODEL)
+    {
+        (
+            NEW_BLS_MAP_TO_G1_BASE_COST,
+            NEW_BLS_MAP_TO_G1_COST_PER_BYTE,
+            NEW_BLS_MAP_TO_G1_COST_PER_DST_BYTE,
+        )
     } else {
-        (BLS_MAP_TO_G1_BASE_COST, BLS_MAP_TO_G1_COST_PER_BYTE)
+        (
+            BLS_MAP_TO_G1_BASE_COST,
+            BLS_MAP_TO_G1_COST_PER_BYTE,
+            BLS_MAP_TO_G1_COST_PER_DST_BYTE,
+        )
     };
     check_cost(cost, max_cost)?;
 
@@ -317,7 +328,7 @@ pub fn op_bls_map_to_g1(
         Atom::Borrowed(b"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_AUG_".as_slice())
     };
 
-    cost += dst.as_ref().len() as Cost * BLS_MAP_TO_G1_COST_PER_DST_BYTE;
+    cost += dst.as_ref().len() as Cost * cost_per_dst_byte;
     check_cost(cost, max_cost)?;
 
     let point = hash_to_g1_with_dst(msg.as_ref(), dst.as_ref());
@@ -340,10 +351,19 @@ pub fn op_bls_map_to_g2(
             format!("g2_map takes exactly 1 or 2 arguments, got {argc}"),
         ))?;
     }
-    let (mut cost, cost_per_byte) = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
-        (NEW_BLS_MAP_TO_G2_BASE_COST, NEW_BLS_MAP_TO_G2_COST_PER_BYTE)
+    let (mut cost, cost_per_byte, cost_per_dst_byte) = if flags.contains(ClvmFlags::NEW_COST_MODEL)
+    {
+        (
+            NEW_BLS_MAP_TO_G2_BASE_COST,
+            NEW_BLS_MAP_TO_G2_COST_PER_BYTE,
+            NEW_BLS_MAP_TO_G2_COST_PER_DST_BYTE,
+        )
     } else {
-        (BLS_MAP_TO_G2_BASE_COST, BLS_MAP_TO_G2_COST_PER_BYTE)
+        (
+            BLS_MAP_TO_G2_BASE_COST,
+            BLS_MAP_TO_G2_COST_PER_BYTE,
+            BLS_MAP_TO_G2_COST_PER_DST_BYTE,
+        )
     };
     check_cost(cost, max_cost)?;
 
@@ -356,7 +376,7 @@ pub fn op_bls_map_to_g2(
         Atom::Borrowed(DST_G2.as_slice())
     };
 
-    cost += dst.as_ref().len() as Cost * BLS_MAP_TO_G2_COST_PER_DST_BYTE;
+    cost += dst.as_ref().len() as Cost * cost_per_dst_byte;
     check_cost(cost, max_cost)?;
 
     let point = hash_to_g2_with_dst(msg.as_ref(), dst.as_ref());
@@ -413,11 +433,22 @@ pub fn op_bls_verify(
     max_cost: Cost,
     flags: ClvmFlags,
 ) -> Response {
-    let (mut cost, cost_per_arg) = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
-        (NEW_BLS_PAIRING_BASE_COST, NEW_BLS_PAIRING_COST_PER_ARG)
-    } else {
-        (BLS_PAIRING_BASE_COST, BLS_PAIRING_COST_PER_ARG)
-    };
+    let (mut cost, cost_per_arg, cost_per_byte, cost_per_dst_byte) =
+        if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+            (
+                NEW_BLS_PAIRING_BASE_COST,
+                NEW_BLS_PAIRING_COST_PER_ARG,
+                NEW_BLS_MAP_TO_G2_COST_PER_BYTE,
+                NEW_BLS_MAP_TO_G2_COST_PER_DST_BYTE,
+            )
+        } else {
+            (
+                BLS_PAIRING_BASE_COST,
+                BLS_PAIRING_COST_PER_ARG,
+                BLS_MAP_TO_G2_COST_PER_BYTE,
+                BLS_MAP_TO_G2_COST_PER_DST_BYTE,
+            )
+        };
     check_cost(cost, max_cost)?;
 
     let mut args = input;
@@ -436,8 +467,8 @@ pub fn op_bls_verify(
         args = rest(a, args)?;
 
         cost += cost_per_arg;
-        cost += msg.as_ref().len() as Cost * BLS_MAP_TO_G2_COST_PER_BYTE;
-        cost += DST_G2.len() as Cost * BLS_MAP_TO_G2_COST_PER_DST_BYTE;
+        cost += msg.as_ref().len() as Cost * cost_per_byte;
+        cost += DST_G2.len() as Cost * cost_per_dst_byte;
         check_cost(cost, max_cost)?;
 
         items.push((pk, msg));
