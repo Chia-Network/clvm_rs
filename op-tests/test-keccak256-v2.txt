@@ -1,0 +1,13 @@
+; the format for these test cases are:
+; expression => expected result | expected-cost
+; These use the NEW_COST_MODEL: base=2350, per_arg=100, per_byte=10, malloc=10/byte
+
+keccak256 "foobar" => 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e | 2830
+keccak256 "f" "oobar" => 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e | 2930
+keccak256 "f" "o" "obar" => 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e | 3030
+keccak256 "f" "o" "o" "bar" => 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e | 3130
+keccak256 "f" "o" "o" "b" "a" "r" => 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e | 3330
+
+keccak256 "foo" => 0x41b1a0649752af1b28b3dc29a1556eee781e4a4c3a1f7f53f90fa834de098c4d | 2800
+keccak256 "fo" "o" => 0x41b1a0649752af1b28b3dc29a1556eee781e4a4c3a1f7f53f90fa834de098c4d | 2900
+keccak256 "f" "o" "o" => 0x41b1a0649752af1b28b3dc29a1556eee781e4a4c3a1f7f53f90fa834de098c4d | 3000

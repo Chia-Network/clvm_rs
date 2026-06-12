@@ -311,7 +311,9 @@ mod tests {
     #[case("test-sha256tree-hash", NONE)]
     #[case("test-sha256tree-hash-v2", NEW_COST)]
     #[case("test-keccak256", NONE)]
+    #[case("test-keccak256-v2", NEW_COST)]
     #[case("test-keccak256-generated", NONE)]
+    #[case("test-keccak256-generated-v2", NEW_COST)]
     fn test_ops(#[case] filename: &str, #[case] flags: ClvmFlags) {
         use std::fs::read_to_string;
 
