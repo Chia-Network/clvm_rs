@@ -17,6 +17,7 @@ const QUOTE_COST: Cost = 20;
 const APPLY_COST: Cost = 90;
 // the cost of entering a softfork guard
 const GUARD_COST: Cost = 140;
+const NEW_GUARD_COST: Cost = 500;
 // mandatory base cost for every operator we execute
 const OP_COST: Cost = 1;
 
@@ -457,7 +458,12 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             // specified match the true cost. We also free heap allocations
             self.op_stack.push(Operation::ExitGuard);
 
-            self.eval_pair(prg, env).map(|c| c + GUARD_COST)
+            let guard_cost = if self.dialect.flags().contains(ClvmFlags::NEW_COST_MODEL) {
+                NEW_GUARD_COST
+            } else {
+                GUARD_COST
+            };
+            self.eval_pair(prg, env).map(|c| c + guard_cost)
         } else {
             let current_extensions = if let Some(sf) = self.softfork_stack.last() {
                 sf.operator_set
@@ -1275,7 +1281,7 @@ mod tests {
             args: "()",
             flags: ClvmFlags::NEW_COST_MODEL,
             result: Some("()"),
-            cost: 241,
+            cost: 601,
             err: "",
         },
         RunProgramTest {
@@ -1283,7 +1289,7 @@ mod tests {
             args: "()",
             flags: ClvmFlags::NEW_COST_MODEL,
             result: Some("()"),
-            cost: 241,
+            cost: 601,
             err: "",
         },
         // without the flag to enable the keccak extensions, it's an unknown extension
@@ -1508,34 +1514,34 @@ mod tests {
 
     // Test that with NEW_COST_MODEL, grandfathered-in softfork extensions (0=BLS,
     // 1=Keccak) tolerate a specified cost that doesn't match the actual execution
-    // cost. The inner program `(q . 42)` costs QUOTE(20) + GUARD(140) = 160
+    // cost. The inner program `(q . 42)` costs QUOTE(20) + NEW_GUARD(500) = 520
     // inside the guard. The outer cost (4 quoted args evaluated) = 81.
-    // actual_total = 81 + 160 = 241.
+    // actual_total = 81 + 520 = 601.
     #[rstest]
     // Extension 0 (BLS): specified cost 200 > actual 160, grandfathered-in
     #[case::ext0_cost_above_new_cost(
         "(softfork (q . 200) (q . 0) (q . (q . 42)) (q . ()))",
         ClvmFlags::NEW_COST_MODEL,
-        500,
-        Some(241),
+        700,
+        Some(601),
         ""
     )]
     // Extension 0, mempool mode
     #[case::ext0_cost_above_new_cost_mempool(
         "(softfork (q . 200) (q . 0) (q . (q . 42)) (q . ()))",
-        ClvmFlags::NEW_COST_MODEL.union(ClvmFlags::NO_UNKNOWN_OPS), 500, Some(241), "")]
+        ClvmFlags::NEW_COST_MODEL.union(ClvmFlags::NO_UNKNOWN_OPS), 700, Some(601), "")]
     // Extension 1 (Keccak): specified cost 200 > actual 160, grandfathered-in
     #[case::ext1_cost_above_new_cost(
         "(softfork (q . 200) (q . 1) (q . (q . 42)) (q . ()))",
         ClvmFlags::NEW_COST_MODEL,
-        500,
-        Some(241),
+        700,
+        Some(601),
         ""
     )]
     // Extension 1, mempool mode
     #[case::ext1_cost_above_new_cost_mempool(
         "(softfork (q . 200) (q . 1) (q . (q . 42)) (q . ()))",
-        ClvmFlags::NEW_COST_MODEL.union(ClvmFlags::NO_UNKNOWN_OPS), 500, Some(241), "")]
+        ClvmFlags::NEW_COST_MODEL.union(ClvmFlags::NO_UNKNOWN_OPS), 700, Some(601), "")]
     // Without NEW_COST_MODEL, the same mismatch on extension 0 fails
     #[case::ext0_cost_above_old_cost(
         "(softfork (q . 200) (q . 0) (q . (q . 42)) (q . ()))",
@@ -1556,16 +1562,16 @@ mod tests {
     #[case::ext0_exact_match_new_cost(
         "(softfork (q . 160) (q . 0) (q . (q . 42)) (q . ()))",
         ClvmFlags::NEW_COST_MODEL,
-        500,
-        Some(241),
+        700,
+        Some(601),
         ""
     )]
     // With NEW_COST_MODEL, specified cost barely above actual (161 > 160)
     #[case::ext0_cost_barely_above_new_cost(
         "(softfork (q . 161) (q . 0) (q . (q . 42)) (q . ()))",
         ClvmFlags::NEW_COST_MODEL,
-        500,
-        Some(241),
+        700,
+        Some(601),
         ""
     )]
     // With NEW_COST_MODEL, specified cost below actual (100 < 160) also succeeds
@@ -1573,15 +1579,15 @@ mod tests {
     #[case::ext0_cost_below_new_cost(
         "(softfork (q . 100) (q . 0) (q . (q . 42)) (q . ()))",
         ClvmFlags::NEW_COST_MODEL,
-        500,
-        Some(241),
+        700,
+        Some(601),
         ""
     )]
     #[case::ext1_cost_below_new_cost(
         "(softfork (q . 100) (q . 1) (q . (q . 42)) (q . ()))",
         ClvmFlags::NEW_COST_MODEL,
-        500,
-        Some(241),
+        700,
+        Some(601),
         ""
     )]
     // Without NEW_COST_MODEL, cost below actual fails because the specified cost
@@ -1879,7 +1885,7 @@ mod tests {
     // where INNER is:
     //   (softfork (q . C_inner) (q . E_inner) (q . (q . 42)) (q . ()))
     //
-    // Cost breakdown:
+    // Cost breakdown (old cost model, GUARD=140):
     //   outer arg eval: 4*QUOTE(20) + OP_COST(1) = 81
     //   outer guard + eval_pair of inner: GUARD(140) + OP_COST(1) = 141
     //   inner arg eval: 4*QUOTE(20) = 80
@@ -1888,6 +1894,9 @@ mod tests {
     //
     //   Inner program cost (for inner guard validation): 160
     //   Outer program cost (for outer guard validation): 141 + 80 + 160 = 381
+    //
+    // With NEW_COST_MODEL (NEW_GUARD=500):
+    //   81 + 501 + 80 + 520 = 1182
     #[rstest]
     // Old cost model: nested softfork with correct costs
     #[case::old_nested_correct(
@@ -1932,60 +1941,63 @@ mod tests {
     )]
     // New cost model: nested PreHardFork softforks, specified costs are
     // irrelevant (cost-exempt). Arbitrary values succeed.
+    // With NEW_COST_MODEL, NEW_GUARD_COST=500 applies:
+    //   outer arg eval: 81, outer guard+eval_pair: 501, inner args: 80,
+    //   inner guard+quote: 520. Total = 1182.
     #[case::new_nested_prehf_arbitrary_costs(
         "(softfork (q . 1) (q . 0) (q . (softfork (q . 1) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
         ClvmFlags::NEW_COST_MODEL,
-        500,
-        Some(462),
+        1300,
+        Some(1182),
         ""
     )]
     // New cost model: nested PreHardFork with ext 0 outer, ext 1 inner
     #[case::new_nested_prehf_mixed_ext(
         "(softfork (q . 1) (q . 0) (q . (softfork (q . 1) (q . 1) (q . (q . 42)) (q . ()))) (q . ()))",
         ClvmFlags::NEW_COST_MODEL,
-        500,
-        Some(462),
+        1300,
+        Some(1182),
         ""
     )]
     // New cost model: nested PreHardFork, budget exactly matches actual cost
     #[case::new_nested_prehf_tight_budget(
         "(softfork (q . 1) (q . 0) (q . (softfork (q . 1) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
         ClvmFlags::NEW_COST_MODEL,
-        462,
-        Some(462),
+        1182,
+        Some(1182),
         ""
     )]
     // New cost model: nested PreHardFork, budget too tight by 1
     #[case::new_nested_prehf_budget_exceeded(
         "(softfork (q . 1) (q . 0) (q . (softfork (q . 1) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
         ClvmFlags::NEW_COST_MODEL,
-        461,
+        1181,
         None,
         "cost exceeded or below zero"
     )]
     // New cost model: PreHardFork outer, unknown inner extension (ext=9).
     // In consensus mode, the unknown inner softfork consumes its specified cost.
-    // Total = outer_overhead(81) + outer_guard+eval_pair(141) + inner_args(80) + inner_specified(100) = 402
+    // Total = outer_overhead(81) + outer_guard+eval_pair(501) + inner_args(80) + inner_specified(100) = 762
     #[case::new_nested_prehf_outer_unknown_inner(
         "(softfork (q . 1) (q . 0) (q . (softfork (q . 100) (q . 9) (q x) (q . ()))) (q . ()))",
         ClvmFlags::NEW_COST_MODEL,
-        500,
-        Some(402),
+        800,
+        Some(762),
         ""
     )]
     // Same as above but budget is exactly right
     #[case::new_nested_prehf_outer_unknown_inner_tight(
         "(softfork (q . 1) (q . 0) (q . (softfork (q . 100) (q . 9) (q x) (q . ()))) (q . ()))",
         ClvmFlags::NEW_COST_MODEL,
-        402,
-        Some(402),
+        762,
+        Some(762),
         ""
     )]
     // Same but budget too tight - should fail
     #[case::new_nested_prehf_outer_unknown_inner_exceeded(
         "(softfork (q . 1) (q . 0) (q . (softfork (q . 100) (q . 9) (q x) (q . ()))) (q . ()))",
         ClvmFlags::NEW_COST_MODEL,
-        401,
+        761,
         None,
         "cost exceeded or below zero"
     )]
@@ -1993,7 +2005,7 @@ mod tests {
     #[case::new_nested_prehf_outer_unknown_inner_mempool(
         "(softfork (q . 1) (q . 0) (q . (softfork (q . 100) (q . 9) (q x) (q . ()))) (q . ()))",
         ClvmFlags::NEW_COST_MODEL.union(ClvmFlags::NO_UNKNOWN_OPS),
-        500,
+        800,
         None,
         "unknown softfork extension"
     )]
