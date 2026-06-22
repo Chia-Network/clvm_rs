@@ -72,7 +72,7 @@ bitflags! {
         /// add, subtract, multiply, div, divmod, mod, gr, substr, logand,
         /// logior, logxor, coinid, g1_multiply, g2_multiply, g1_map,
         /// g2_map, bls_pairing_identity, bls_verify, modpow, keccak256,
-        /// sha256tree). Off by default.
+        /// sha256tree, softfork). Off by default.
         const NEW_COST_MODEL = 0x2000;
     }
 }
