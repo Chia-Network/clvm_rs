@@ -1249,7 +1249,7 @@ pub fn op_coinid(
 
 pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlags) -> Response {
     if flags.contains(ClvmFlags::MALACHITE) {
-        return op_modpow_malachite(a, input, max_cost);
+        return op_modpow_malachite(a, input, max_cost, flags);
     }
     let [base, exponent, modulus] = get_args::<3>(a, input, "modpow")?;
 
@@ -1262,6 +1262,10 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmF
     let (modulus, msize) = int_atom(a, modulus, "modpow")?;
     cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
     check_cost(cost, max_cost)?;
+
+    if flags.contains(ClvmFlags::LIMITS) && (bsize > 256 || esize > 256 || msize > 256) {
+        return Err(EvalErr::InvalidOpArg(input, "modpow".to_string()));
+    }
 
     if exponent.sign() == Sign::Minus {
         return Err(EvalErr::InvalidOpArg(
@@ -1279,7 +1283,12 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmF
     Ok(malloc_cost(a, cost, ret))
 }
 
-fn op_modpow_malachite(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+fn op_modpow_malachite(
+    a: &mut Allocator,
+    input: NodePtr,
+    max_cost: Cost,
+    flags: ClvmFlags,
+) -> Response {
     let [base, exponent, modulus] = get_args::<3>(a, input, "modpow")?;
 
     let mut cost = MODPOW_BASE_COST;
@@ -1291,6 +1300,10 @@ fn op_modpow_malachite(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Res
     let (modulus, msize) = malachite_int_atom(a, modulus, "modpow")?;
     cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
     check_cost(cost, max_cost)?;
+
+    if flags.contains(ClvmFlags::LIMITS) && (bsize > 256 || esize > 256 || msize > 256) {
+        return Err(EvalErr::InvalidOpArg(input, "modpow".to_string()));
+    }
 
     if exponent.sign() == malachite_bigint::Sign::Minus {
         return Err(EvalErr::InvalidOpArg(
@@ -1465,6 +1478,116 @@ mod tests {
             println!("{name} (arg_size={arg_size}, num_args={num_args}, flags={flags:?})");
             let mut a = Allocator::new();
             check_large_operand(&mut a, op, arg_size, num_args, flags, expect);
+        }
+    }
+
+    fn modpow_args(a: &mut Allocator, base: &[u8], exp: &[u8], modulus: &[u8]) -> NodePtr {
+        let nil = a.nil();
+        let m = a.new_atom(modulus).unwrap();
+        let args = a.new_pair(m, nil).unwrap();
+        let e = a.new_atom(exp).unwrap();
+        let args = a.new_pair(e, args).unwrap();
+        let b = a.new_atom(base).unwrap();
+        a.new_pair(b, args).unwrap()
+    }
+
+    fn val_of_len(len: usize) -> Vec<u8> {
+        let mut v = vec![0u8; len];
+        // leading byte is 0x00 to keep the integer positive
+        for (i, b) in v.iter_mut().enumerate().skip(1) {
+            *b = ((i * 137 + 43) % 256) as u8;
+        }
+        v
+    }
+
+    #[rstest]
+    #[case(ClvmFlags::empty())]
+    #[case(ClvmFlags::MALACHITE)]
+    fn test_modpow_basic(#[case] flags: ClvmFlags) {
+        let mut a = Allocator::new();
+
+        // 3^10 mod 7 = 59049 mod 7 = 4
+        let args = modpow_args(&mut a, &[3], &[10], &[7]);
+        let Reduction(_, result) = op_modpow(&mut a, args, u64::MAX, flags).unwrap();
+        assert_eq!(a.atom(result).as_ref(), &[4]);
+
+        // x^0 mod m = 1
+        let args = modpow_args(&mut a, &[42], &[], &[7]);
+        let Reduction(_, result) = op_modpow(&mut a, args, u64::MAX, flags).unwrap();
+        assert_eq!(a.atom(result).as_ref(), &[1]);
+
+        // negative exponent (0xff = -1 in two's complement)
+        let args = modpow_args(&mut a, &[3], &[0xff], &[7]);
+        assert!(matches!(
+            op_modpow(&mut a, args, u64::MAX, flags),
+            Err(EvalErr::InvalidOpArg(_, _))
+        ));
+
+        // zero modulus
+        let args = modpow_args(&mut a, &[3], &[10], &[]);
+        assert!(matches!(
+            op_modpow(&mut a, args, u64::MAX, flags),
+            Err(EvalErr::DivisionByZero(_))
+        ));
+    }
+
+    #[rstest]
+    #[case(ClvmFlags::empty())]
+    #[case(ClvmFlags::LIMITS)]
+    #[case(ClvmFlags::MALACHITE)]
+    #[case(ClvmFlags::MALACHITE | ClvmFlags::LIMITS)]
+    fn test_modpow_at_256_byte_limit(#[case] flags: ClvmFlags) {
+        let mut a = Allocator::new();
+        let v = val_of_len(256);
+        let mut modulus = v.clone();
+        *modulus.last_mut().unwrap() |= 1;
+        let args = modpow_args(&mut a, &v, &[2], &modulus);
+        assert!(op_modpow(&mut a, args, u64::MAX, flags).is_ok());
+    }
+
+    #[rstest]
+    // with LIMITS: 257-byte operands must be rejected
+    #[case(true, false, false, ClvmFlags::LIMITS, false)]
+    #[case(false, true, false, ClvmFlags::LIMITS, false)]
+    #[case(false, false, true, ClvmFlags::LIMITS, false)]
+    #[case(true, true, true, ClvmFlags::LIMITS, false)]
+    #[case(true, false, false, ClvmFlags::MALACHITE | ClvmFlags::LIMITS, false)]
+    #[case(false, true, false, ClvmFlags::MALACHITE | ClvmFlags::LIMITS, false)]
+    #[case(false, false, true, ClvmFlags::MALACHITE | ClvmFlags::LIMITS, false)]
+    #[case(true, true, true, ClvmFlags::MALACHITE | ClvmFlags::LIMITS, false)]
+    // without LIMITS: 257-byte operands must be allowed
+    #[case(true, false, false, ClvmFlags::empty(), true)]
+    #[case(false, true, false, ClvmFlags::empty(), true)]
+    #[case(false, false, true, ClvmFlags::empty(), true)]
+    #[case(true, true, true, ClvmFlags::empty(), true)]
+    #[case(true, false, false, ClvmFlags::MALACHITE, true)]
+    #[case(false, true, false, ClvmFlags::MALACHITE, true)]
+    #[case(false, false, true, ClvmFlags::MALACHITE, true)]
+    #[case(true, true, true, ClvmFlags::MALACHITE, true)]
+    fn test_modpow_oversized(
+        #[case] big_base: bool,
+        #[case] big_exp: bool,
+        #[case] big_mod: bool,
+        #[case] flags: ClvmFlags,
+        #[case] expect_ok: bool,
+    ) {
+        let small = val_of_len(256);
+        let big = val_of_len(257);
+        let base = if big_base { &big } else { &small };
+        let exp = if big_exp { &big } else { &[2u8] as &[u8] };
+        let mut modulus = if big_mod { big.clone() } else { small.clone() };
+        *modulus.last_mut().unwrap() |= 1;
+
+        let mut a = Allocator::new();
+        let args = modpow_args(&mut a, base, exp, &modulus);
+        let result = op_modpow(&mut a, args, u64::MAX, flags);
+        if expect_ok {
+            assert!(result.is_ok(), "expected Ok with {flags:?}, got {result:?}");
+        } else {
+            assert!(
+                matches!(result, Err(EvalErr::InvalidOpArg(_, _))),
+                "expected InvalidOpArg with {flags:?}, got {result:?}"
+            );
         }
     }
 }
