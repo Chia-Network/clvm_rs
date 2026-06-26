@@ -84,7 +84,6 @@ const FLAGS: &[ClvmFlags] = &[
     ClvmFlags::DISABLE_OP,
     ClvmFlags::MALACHITE,
     ClvmFlags::RELAXED_BLS,
-    ClvmFlags::LIMITS,
 ];
 
 fuzz_target!(|data: &[u8]| {

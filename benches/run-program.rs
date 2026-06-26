@@ -205,7 +205,7 @@ fn run_program_benchmark(c: &mut Criterion) {
         ("compressed-2000", prev_generator),
         ("concat", tuple3::<16, 397>),
         ("count-even", generate_list::<15000>),
-        ("factorial", single_value::<10000>),
+        ("factorial", single_value::<300>),
         ("hash-string", long_strings),
         ("hash-tree", large_tree::<16>),
         ("large-block", large_block),
