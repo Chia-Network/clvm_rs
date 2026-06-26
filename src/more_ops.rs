@@ -1398,7 +1398,13 @@ mod tests {
         // billion limit)
         let result = op(a, args, 6_000_000_000, flags);
         if let Some(expect) = expect {
-            assert_eq!(result.unwrap_err(), *expect);
+            let err = result.unwrap_err();
+            match (expect, &err) {
+                (EvalErr::InvalidOpArg(_, expected_msg), EvalErr::InvalidOpArg(_, actual_msg)) => {
+                    assert_eq!(actual_msg, expected_msg);
+                }
+                _ => assert_eq!(err, *expect),
+            }
         } else {
             assert!(result.is_ok());
             println!("cost: {}", result.unwrap().0);
@@ -1412,13 +1418,16 @@ mod tests {
     #[case::add(op_add, 28, 20, Some(EvalErr::CostExceeded))]
     #[case::sub(op_subtract, 27, 3, None)]
     #[case::sub(op_subtract, 28, 20, Some(EvalErr::CostExceeded))]
-    #[case::mul(op_multiply, 19, 2, None)]
-    #[case::mul(op_multiply, 19, 3, Some(EvalErr::CostExceeded))]
-    #[case::mul(op_multiply, 21, 2, Some(EvalErr::CostExceeded))]
-    #[case::mul(op_multiply, 27, 2, Some(EvalErr::CostExceeded))]
-    #[case::div(op_div, 9, 2, None)]
-    #[case::divmod(op_divmod, 9, 2, None)]
-    #[case::modulus(op_mod, 9, 2, None)]
+    #[case::mul(op_multiply, 8, 2, None)]
+    #[case::mul(op_multiply, 8, 4, None)]
+    #[case::mul(op_multiply, 9, 2, Some(EvalErr::InvalidOpArg(NodePtr::NIL, "*".to_string())))]
+    #[case::mul(op_multiply, 8, 5, Some(EvalErr::InvalidOpArg(NodePtr::NIL, "*".to_string())))]
+    #[case::div(op_div, 8, 2, None)]
+    #[case::div(op_div, 9, 2, Some(EvalErr::InvalidOpArg(NodePtr::NIL, "div".to_string())))]
+    #[case::divmod(op_divmod, 8, 2, None)]
+    #[case::divmod(op_divmod, 9, 2, Some(EvalErr::InvalidOpArg(NodePtr::NIL, "divmod".to_string())))]
+    #[case::modulus(op_mod, 8, 2, None)]
+    #[case::modulus(op_mod, 9, 2, Some(EvalErr::InvalidOpArg(NodePtr::NIL, "mod".to_string())))]
     #[case::gr(op_gr, 30, 2, None)]
     #[case::gr_bytes(op_gr_bytes, 30, 2, None)]
     #[case::strlen(op_strlen, 30, 1, None)]
@@ -1437,7 +1446,8 @@ mod tests {
     #[case::all(op_all, 27, 1, None)]
     #[case::pubkey(op_pubkey_for_exp, 27, 1, None)]
     #[case::pubkey(op_pubkey_for_exp, 28, 1, Some(EvalErr::CostExceeded))]
-    #[case::modpow(op_modpow, 27, 3, Some(EvalErr::CostExceeded))]
+    #[case::modpow(op_modpow, 8, 3, None)]
+    #[case::modpow(op_modpow, 9, 3, Some(EvalErr::InvalidOpArg(NodePtr::NIL, "modpow".to_string())))]
     #[ignore = "slow: run with `cargo test -- --include-ignored`"]
     fn test_large_operand(
         #[case] op: fn(&mut Allocator, NodePtr, Cost, ClvmFlags) -> Response,
@@ -1458,20 +1468,13 @@ mod tests {
         type Op = fn(&mut Allocator, NodePtr, Cost, ClvmFlags) -> Response;
         #[allow(clippy::type_complexity)]
         let cases: &[(&str, Op, u32, u32, ClvmFlags, Option<EvalErr>)] = &[
-            ("div", op_div, 9, 2, ClvmFlags::DISABLE_OP, None),
-            ("div", op_div, 9, 2, ClvmFlags::MALACHITE, None),
-            ("divmod", op_divmod, 9, 2, ClvmFlags::DISABLE_OP, None),
-            ("divmod", op_divmod, 9, 2, ClvmFlags::MALACHITE, None),
-            ("modulus", op_mod, 9, 2, ClvmFlags::DISABLE_OP, None),
-            ("modulus", op_mod, 9, 2, ClvmFlags::MALACHITE, None),
-            (
-                "modpow",
-                op_modpow,
-                27,
-                3,
-                ClvmFlags::MALACHITE,
-                Some(EvalErr::CostExceeded),
-            ),
+            ("div", op_div, 8, 2, ClvmFlags::DISABLE_OP, None),
+            ("div", op_div, 8, 2, ClvmFlags::MALACHITE, None),
+            ("divmod", op_divmod, 8, 2, ClvmFlags::DISABLE_OP, None),
+            ("divmod", op_divmod, 8, 2, ClvmFlags::MALACHITE, None),
+            ("modulus", op_mod, 8, 2, ClvmFlags::DISABLE_OP, None),
+            ("modulus", op_mod, 8, 2, ClvmFlags::MALACHITE, None),
+            ("modpow", op_modpow, 8, 3, ClvmFlags::MALACHITE, None),
         ];
 
         for &(name, op, arg_size, num_args, flags, ref expect) in cases {
