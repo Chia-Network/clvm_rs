@@ -587,7 +587,7 @@ pub fn op_multiply(
     a: &mut Allocator,
     mut input: NodePtr,
     max_cost: Cost,
-    flags: ClvmFlags,
+    _flags: ClvmFlags,
 ) -> Response {
     let mut cost: Cost = MUL_BASE_COST;
     let mut first_iter: bool = true;
@@ -597,7 +597,7 @@ pub fn op_multiply(
         input = rest;
         if first_iter {
             (total, l0) = int_atom(a, arg, "*")?;
-            if flags.contains(ClvmFlags::LIMITS) && l0 > 256 {
+            if l0 > 256 {
                 return Err(EvalErr::InvalidOpArg(arg, "*".to_string()));
             }
             first_iter = false;
@@ -609,7 +609,7 @@ pub fn op_multiply(
         match a.node(arg) {
             NodeVisitor::Buffer(buf) => {
                 let l1 = buf.len() as u64;
-                if flags.contains(ClvmFlags::LIMITS) && l1 > 256 {
+                if l1 > 256 {
                     return Err(EvalErr::InvalidOpArg(arg, "*".to_string()));
                 }
                 cost += (l0 as Cost + l1) * MUL_LINEAR_COST_PER_BYTE;
@@ -637,7 +637,7 @@ pub fn op_multiply(
         {
             let (n1, l1) = int_atom(a, arg, "*")?;
             let l1 = l1 as u64;
-            if flags.contains(ClvmFlags::LIMITS) && l1 > 256 {
+            if l1 > 256 {
                 return Err(EvalErr::InvalidOpArg(arg, "*".to_string()));
             }
             cost += (l0 as Cost + l1) * MUL_LINEAR_COST_PER_BYTE;
@@ -647,7 +647,7 @@ pub fn op_multiply(
             total *= n1;
         }
         l0 = limbs_for_int(&total);
-        if flags.contains(ClvmFlags::LIMITS) && l0 > 1024 {
+        if l0 > 1024 {
             return Err(EvalErr::InvalidOpArg(arg, "*".to_string()));
         }
     }
@@ -665,7 +665,7 @@ pub fn op_div(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlag
     if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
         return Err(EvalErr::InvalidOpArg(input, "div".to_string()));
     }
-    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
+    if a0_len > 256 || a1_len > 1024 {
         return Err(EvalErr::InvalidOpArg(input, "div".to_string()));
     }
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
@@ -690,7 +690,7 @@ fn op_div_malachite(
     if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
         return Err(EvalErr::InvalidOpArg(input, "div".to_string()));
     }
-    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
+    if a0_len > 256 || a1_len > 1024 {
         return Err(EvalErr::InvalidOpArg(input, "div".to_string()));
     }
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
@@ -713,7 +713,7 @@ pub fn op_divmod(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmF
     if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
         return Err(EvalErr::InvalidOpArg(input, "divmod".to_string()));
     }
-    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
+    if a0_len > 256 || a1_len > 1024 {
         return Err(EvalErr::InvalidOpArg(input, "divmod".to_string()));
     }
     let cost = DIVMOD_BASE_COST + ((a0_len + a1_len) as Cost) * DIVMOD_COST_PER_BYTE;
@@ -742,7 +742,7 @@ fn op_divmod_malachite(
     if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
         return Err(EvalErr::InvalidOpArg(input, "divmod".to_string()));
     }
-    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
+    if a0_len > 256 || a1_len > 1024 {
         return Err(EvalErr::InvalidOpArg(input, "divmod".to_string()));
     }
     let cost = DIVMOD_BASE_COST + ((a0_len + a1_len) as Cost) * DIVMOD_COST_PER_BYTE;
@@ -769,7 +769,7 @@ pub fn op_mod(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlag
     if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
         return Err(EvalErr::InvalidOpArg(input, "mod".to_string()));
     }
-    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
+    if a0_len > 256 || a1_len > 1024 {
         return Err(EvalErr::InvalidOpArg(input, "mod".to_string()));
     }
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
@@ -794,7 +794,7 @@ fn op_mod_malachite(
     if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
         return Err(EvalErr::InvalidOpArg(input, "mod".to_string()));
     }
-    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
+    if a0_len > 256 || a1_len > 1024 {
         return Err(EvalErr::InvalidOpArg(input, "mod".to_string()));
     }
     let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
@@ -1263,7 +1263,7 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmF
     cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
     check_cost(cost, max_cost)?;
 
-    if flags.contains(ClvmFlags::LIMITS) && (bsize > 256 || esize > 256 || msize > 256) {
+    if bsize > 256 || esize > 256 || msize > 256 {
         return Err(EvalErr::InvalidOpArg(input, "modpow".to_string()));
     }
 
@@ -1287,7 +1287,7 @@ fn op_modpow_malachite(
     a: &mut Allocator,
     input: NodePtr,
     max_cost: Cost,
-    flags: ClvmFlags,
+    _flags: ClvmFlags,
 ) -> Response {
     let [base, exponent, modulus] = get_args::<3>(a, input, "modpow")?;
 
@@ -1301,7 +1301,7 @@ fn op_modpow_malachite(
     cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
     check_cost(cost, max_cost)?;
 
-    if flags.contains(ClvmFlags::LIMITS) && (bsize > 256 || esize > 256 || msize > 256) {
+    if bsize > 256 || esize > 256 || msize > 256 {
         return Err(EvalErr::InvalidOpArg(input, "modpow".to_string()));
     }
 
@@ -1533,9 +1533,7 @@ mod tests {
 
     #[rstest]
     #[case(ClvmFlags::empty())]
-    #[case(ClvmFlags::LIMITS)]
     #[case(ClvmFlags::MALACHITE)]
-    #[case(ClvmFlags::MALACHITE | ClvmFlags::LIMITS)]
     fn test_modpow_at_256_byte_limit(#[case] flags: ClvmFlags) {
         let mut a = Allocator::new();
         let v = val_of_len(256);
@@ -1546,24 +1544,15 @@ mod tests {
     }
 
     #[rstest]
-    // with LIMITS: 257-byte operands must be rejected
-    #[case(true, false, false, ClvmFlags::LIMITS, false)]
-    #[case(false, true, false, ClvmFlags::LIMITS, false)]
-    #[case(false, false, true, ClvmFlags::LIMITS, false)]
-    #[case(true, true, true, ClvmFlags::LIMITS, false)]
-    #[case(true, false, false, ClvmFlags::MALACHITE | ClvmFlags::LIMITS, false)]
-    #[case(false, true, false, ClvmFlags::MALACHITE | ClvmFlags::LIMITS, false)]
-    #[case(false, false, true, ClvmFlags::MALACHITE | ClvmFlags::LIMITS, false)]
-    #[case(true, true, true, ClvmFlags::MALACHITE | ClvmFlags::LIMITS, false)]
-    // without LIMITS: 257-byte operands must be allowed
-    #[case(true, false, false, ClvmFlags::empty(), true)]
-    #[case(false, true, false, ClvmFlags::empty(), true)]
-    #[case(false, false, true, ClvmFlags::empty(), true)]
-    #[case(true, true, true, ClvmFlags::empty(), true)]
-    #[case(true, false, false, ClvmFlags::MALACHITE, true)]
-    #[case(false, true, false, ClvmFlags::MALACHITE, true)]
-    #[case(false, false, true, ClvmFlags::MALACHITE, true)]
-    #[case(true, true, true, ClvmFlags::MALACHITE, true)]
+    // 257-byte operands must be rejected
+    #[case(true, false, false, ClvmFlags::empty(), false)]
+    #[case(false, true, false, ClvmFlags::empty(), false)]
+    #[case(false, false, true, ClvmFlags::empty(), false)]
+    #[case(true, true, true, ClvmFlags::empty(), false)]
+    #[case(true, false, false, ClvmFlags::MALACHITE, false)]
+    #[case(false, true, false, ClvmFlags::MALACHITE, false)]
+    #[case(false, false, true, ClvmFlags::MALACHITE, false)]
+    #[case(true, true, true, ClvmFlags::MALACHITE, false)]
     fn test_modpow_oversized(
         #[case] big_base: bool,
         #[case] big_exp: bool,
@@ -1582,11 +1571,11 @@ mod tests {
         let args = modpow_args(&mut a, base, exp, &modulus);
         let result = op_modpow(&mut a, args, u64::MAX, flags);
         if expect_ok {
-            assert!(result.is_ok(), "expected Ok with {flags:?}, got {result:?}");
+            assert!(result.is_ok(), "expected Ok, got {result:?}");
         } else {
             assert!(
                 matches!(result, Err(EvalErr::InvalidOpArg(_, _))),
-                "expected InvalidOpArg with {flags:?}, got {result:?}"
+                "expected InvalidOpArg, got {result:?}"
             );
         }
     }

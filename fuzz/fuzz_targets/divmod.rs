@@ -27,9 +27,8 @@ fn canonical_atom_len(n: &Number) -> usize {
     slice.len()
 }
 
-fn exceeds_limits(a: &Number, b: &Number, flags: ClvmFlags) -> bool {
-    flags.contains(ClvmFlags::LIMITS)
-        && (canonical_atom_len(a) > 256 || canonical_atom_len(b) > 1024)
+fn exceeds_limits(a: &Number, b: &Number) -> bool {
+    canonical_atom_len(a) > 256 || canonical_atom_len(b) > 1024
 }
 
 fn check_binary_op(
@@ -43,12 +42,12 @@ fn check_binary_op(
     let mut alloc = Allocator::new();
     let args = build_args(&mut alloc, &[a, b]);
     let clvm_result = op(&mut alloc, args, MAX_COST, flags);
-    if b.sign() == Sign::NoSign || exceeds_limits(a, b, flags) {
+    if b.sign() == Sign::NoSign || exceeds_limits(a, b) {
         assert!(
             clvm_result.is_err(),
             "{name}({a}, {b}): CLVM should fail (div_by_zero={}, exceeds_limits={})",
             b.sign() == Sign::NoSign,
-            exceeds_limits(a, b, flags)
+            exceeds_limits(a, b)
         );
         return;
     }
@@ -66,12 +65,12 @@ fn check_divmod(op: Opf, a: &Number, b: &Number, name: &str, flags: ClvmFlags) {
     let mut alloc = Allocator::new();
     let args = build_args(&mut alloc, &[a, b]);
     let clvm_result = op(&mut alloc, args, MAX_COST, flags);
-    if b.sign() == Sign::NoSign || exceeds_limits(a, b, flags) {
+    if b.sign() == Sign::NoSign || exceeds_limits(a, b) {
         assert!(
             clvm_result.is_err(),
             "{name}({a}, {b}): CLVM should fail (div_by_zero={}, exceeds_limits={})",
             b.sign() == Sign::NoSign,
-            exceeds_limits(a, b, flags)
+            exceeds_limits(a, b)
         );
         return;
     }
@@ -98,12 +97,7 @@ fuzz_target!(|input: (Vec<u8>, Vec<u8>)| {
     let a = Number::from_signed_bytes_be(&input.0);
     let b = Number::from_signed_bytes_be(&input.1);
 
-    for flags in [
-        ClvmFlags::empty(),
-        ClvmFlags::MALACHITE,
-        ClvmFlags::LIMITS,
-        ClvmFlags::MALACHITE.union(ClvmFlags::LIMITS),
-    ] {
+    for flags in [ClvmFlags::empty(), ClvmFlags::MALACHITE] {
         check_binary_op(op_div, |a, b| a.div_floor(b), &a, &b, "div", flags);
         check_binary_op(op_mod, |a, b| a.mod_floor(b), &a, &b, "mod", flags);
         check_divmod(op_divmod, &a, &b, "divmod", flags);

@@ -42,7 +42,7 @@ bitflags! {
         const RELAXED_BLS = 0x0008;
 
         /// some limits for mempool mode
-        const LIMITS = 0x0010;
+        const LIMIT_SOFTFORK = 0x0010;
 
         /// When set, operators that return nil/one may be treated as GC
         /// candidates (allocator checkpoint/restore). When not set,
@@ -73,7 +73,7 @@ pub const MEMPOOL_MODE: ClvmFlags = ClvmFlags::NO_UNKNOWN_OPS
     .union(ClvmFlags::LIMIT_HEAP)
     .union(ClvmFlags::DISABLE_OP)
     .union(ClvmFlags::CANONICAL_INTS)
-    .union(ClvmFlags::LIMITS);
+    .union(ClvmFlags::LIMIT_SOFTFORK);
 
 fn unknown_operator(
     allocator: &mut Allocator,

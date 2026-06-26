@@ -412,7 +412,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 }
             };
 
-            if self.dialect.flags().contains(ClvmFlags::LIMITS) && self.softfork_stack.len() >= 20 {
+            if self.dialect.flags().contains(ClvmFlags::LIMIT_SOFTFORK)
+                && self.softfork_stack.len() >= 20
+            {
                 return Err(EvalErr::SoftforkStackDepthExceeded);
             }
 
@@ -1665,8 +1667,8 @@ mod tests {
     }
 
     #[rstest]
-    #[case::at_limit_with_flag(20, ClvmFlags::LIMITS, "")]
-    #[case::over_limit_with_flag(21, ClvmFlags::LIMITS, "softfork stack depth exceeded")]
+    #[case::at_limit_with_flag(20, ClvmFlags::LIMIT_SOFTFORK, "")]
+    #[case::over_limit_with_flag(21, ClvmFlags::LIMIT_SOFTFORK, "softfork stack depth exceeded")]
     #[case::over_limit_without_flag(21, ClvmFlags::empty(), "")]
     fn test_limit_softfork_stack(
         #[case] depth: usize,
