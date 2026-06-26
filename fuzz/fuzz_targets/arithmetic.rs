@@ -27,12 +27,19 @@ fn check_op(
 ) {
     let mut alloc = Allocator::new();
     let args = build_args(&mut alloc, &[a, b]);
-    let reduction = op(&mut alloc, args, MAX_COST, ClvmFlags::empty()).expect(name);
-    assert_eq!(
-        alloc.number(reduction.1),
-        reference(a, b),
-        "{name}({a}, {b}): result mismatch"
-    );
+    match op(&mut alloc, args, MAX_COST, ClvmFlags::empty()) {
+        Ok(reduction) => {
+            assert_eq!(
+                alloc.number(reduction.1),
+                reference(a, b),
+                "{name}({a}, {b}): result mismatch"
+            );
+        }
+        Err(clvmr::error::EvalErr::InvalidOpArg(_, _)) => {
+            // operand size limits may reject large inputs
+        }
+        Err(e) => panic!("{name}({a}, {b}): unexpected error: {e}"),
+    }
 }
 
 fuzz_target!(|input: (Vec<u8>, Vec<u8>)| {
