@@ -1702,10 +1702,10 @@ mod tests {
 
         let program = check(parse_exp(
             &mut a,
-            "(a (q 2 2 (c 2 (c 5 (c 11 ())))) (c (q 2 (i (= 11 ()) (q 1 . 1) (q 18 5 (a 2 (c 2 (c 5 (c (- 11 (q . 1)) ())))))) 1) 1))",
+            "(a (q 2 2 (c 2 (c 5 (c 11 ())))) (c (q 2 (i (= 11 ()) (q 1 . 1) (q 16 5 (a 2 (c 2 (c 5 (c (- 11 (q . 1)) ())))))) 1) 1))",
         ));
         let args = check(parse_exp(&mut a, "(5033 1000)"));
-        let cost = 15073165;
+        let cost = 2546283;
 
         let (counters, result) = run_program_with_counters(
             &mut a,
@@ -1718,11 +1718,11 @@ mod tests {
         assert_eq!(counters.val_stack_usage, 3015);
         assert_eq!(counters.env_stack_usage, 1005);
         assert_eq!(counters.op_stack_usage, 6017);
-        assert_eq!(counters.allocated_atom_count, 972);
+        assert_eq!(counters.allocated_atom_count, 0);
         assert_eq!(counters.atom_count, 2040);
-        assert_eq!(counters.allocated_pair_count, 21419);
+        assert_eq!(counters.allocated_pair_count, 167);
         assert_eq!(counters.pair_count, 22077);
-        assert_eq!(counters.heap_size, 771880);
+        assert_eq!(counters.heap_size, 4905);
 
         assert_eq!(result.unwrap().0, cost);
     }
