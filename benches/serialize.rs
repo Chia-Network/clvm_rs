@@ -18,6 +18,7 @@ fn serialize_benchmark(c: &mut Criterion) {
     let block2: &[u8] = include_bytes!("2.generator");
     let block3: &[u8] = include_bytes!("3.generator");
     let block4: &[u8] = include_bytes!("4.generator");
+    let block5: &[u8] = include_bytes!("5.generator");
 
     let mut group = c.benchmark_group("serialize");
 
@@ -27,6 +28,7 @@ fn serialize_benchmark(c: &mut Criterion) {
         (&block2, "2"),
         (&block3, "3"),
         (&block4, "4"),
+        (&block5, "5"),
     ] {
         let mut a = Allocator::new();
         let node = node_from_bytes_backrefs(&mut a, block).expect("node_from_bytes_backrefs");
