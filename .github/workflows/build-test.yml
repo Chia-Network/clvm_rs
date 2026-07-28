@@ -287,7 +287,7 @@ jobs:
           python -c 'with open("pre_rust_cov.info") as f: lines = [l for l in f if not (l.startswith("DA:") and int(l.split(",")[1].strip()) >= 2**63)]; open("rust_cov.info", "w").writelines(lines)'
           lcov --add-tracefile rust_cov.info -a py_cov.info -o lcov.info
       - name: Upload to Coveralls
-        uses: coverallsapp/github-action@v2
+        uses: coverallsapp/github-action@v2.3.6
         if: always()
         continue-on-error: true
         env:
