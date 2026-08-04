@@ -28,7 +28,7 @@ fuzz_target!(|data: &[u8]| -> Corpus {
         MEMPOOL_MODE,
         ClvmFlags::LIMIT_SOFTFORK,
     ] {
-        let dialect = ChiaDialect::new(flags.union(ClvmFlags::DISABLE_OP));
+        let dialect = ChiaDialect::new(flags.union(ClvmFlags::DISABLE_OP).union(ClvmFlags::LIMITS));
         allocator.restore_checkpoint(&allocator_checkpoint);
 
         let result = run_program(
