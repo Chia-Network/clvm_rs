@@ -184,19 +184,19 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chia-bls"
-version = "0.38.2"
+version = "0.45.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a70dfe8540688eaed5bdecffd51c26df489b8bc610890b613b81461411f90cc9"
+checksum = "edf90111a4cbe2e0f6fe73e5e1323d0c1c87ba9cad0bb0a11447b5a886570796"
 dependencies = [
  "arbitrary",
  "blst",
- "chia-sha2",
+ "chia-sha2 0.45.0",
  "chia-traits",
  "hex",
  "hkdf",
  "linked-hash-map",
  "sha2 0.10.9",
- "thiserror 1.0.69",
+ "thiserror",
 ]
 
 [[package]]
@@ -210,21 +210,30 @@ dependencies = [
 ]
 
 [[package]]
-name = "chia-traits"
-version = "0.38.2"
+name = "chia-sha2"
+version = "0.45.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b13ea36e3ae5ede1d015d873fdfa91ea4d7a8790c6859c78b6b74065c7ddbbbd"
+checksum = "ff33f5dc89bc32f723d48d5bfa2aff0bf4e94b8a51c1c5bd0ec0a86a96db5e6d"
 dependencies = [
- "chia-sha2",
+ "sha2 0.10.9",
+]
+
+[[package]]
+name = "chia-traits"
+version = "0.45.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4db3c5a598309697d3a971ae7f981028b75cfea60ee0a18f23f934930193f411"
+dependencies = [
+ "chia-sha2 0.45.0",
  "chia_streamable_macro",
- "thiserror 1.0.69",
+ "thiserror",
 ]
 
 [[package]]
 name = "chia_streamable_macro"
-version = "0.38.2"
+version = "0.45.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4450a65b83cd89f8ccad2b4d5f8dc23e89ab0b6ae86d8c535ffde9fdc9d9c6c5"
+checksum = "b533d9e1446ffb79c02cb38e225626c7473ed11c095dfb0b1ac15c06eba8e9af"
 dependencies = [
  "proc-macro-crate 1.3.1",
  "proc-macro2",
@@ -306,7 +315,7 @@ dependencies = [
  "anyhow",
  "arbitrary",
  "chia-bls",
- "chia-sha2",
+ "chia-sha2 0.38.2",
  "clap",
  "clvmr",
  "hex",
@@ -360,7 +369,7 @@ dependencies = [
  "bitvec",
  "bumpalo",
  "chia-bls",
- "chia-sha2",
+ "chia-sha2 0.38.2",
  "criterion",
  "hex",
  "hex-literal",
@@ -375,7 +384,7 @@ dependencies = [
  "rstest",
  "sha1",
  "sha3",
- "thiserror 2.0.18",
+ "thiserror",
 ]
 
 [[package]]
@@ -1740,31 +1749,11 @@ checksum = "adb6935a6f5c20170eeceb1a3835a49e12e19d792f6dd344ccc76a985ca5a6ca"
 
 [[package]]
 name = "thiserror"
-version = "1.0.69"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6aaf5339b578ea85b50e080feb250a3e8ae8cfcdff9a461c9ec2904bc923f52"
-dependencies = [
- "thiserror-impl 1.0.69",
-]
-
-[[package]]
-name = "thiserror"
 version = "2.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4288b5bcbc7920c07a1149a35cf9590a2aa808e0bc1eafaade0b80947865fbc4"
 dependencies = [
- "thiserror-impl 2.0.18",
-]
-
-[[package]]
-name = "thiserror-impl"
-version = "1.0.69"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.101",
+ "thiserror-impl",
 ]
 
 [[package]]
