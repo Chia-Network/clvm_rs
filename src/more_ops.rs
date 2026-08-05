@@ -24,6 +24,9 @@ const ARITH_BASE_COST: Cost = 99;
 const ARITH_COST_PER_ARG: Cost = 320;
 const ARITH_COST_PER_BYTE: Cost = 3;
 
+const NEW_ARITH_COST_PER_ARG: Cost = 500;
+const NEW_ARITH_COST_PER_BYTE: Cost = 4;
+
 const LOG_BASE_COST: Cost = 100;
 const LOG_COST_PER_ARG: Cost = 264;
 const LOG_COST_PER_BYTE: Cost = 3;
@@ -36,8 +39,13 @@ const MUL_COST_PER_OP: Cost = 885;
 const MUL_LINEAR_COST_PER_BYTE: Cost = 6;
 const MUL_SQUARE_COST_PER_BYTE_DIVIDER: Cost = 128;
 
+const NEW_MUL_BASE_COST: Cost = 2000;
+const NEW_MUL_SQUARE_COST_PER_BYTE_DIVIDER: Cost = 16;
+
 const GR_BASE_COST: Cost = 498;
 const GR_COST_PER_BYTE: Cost = 2;
+const NEW_GR_BASE_COST: Cost = 1000;
+const NEW_GR_COST_PER_BYTE: Cost = 4;
 
 const GRS_BASE_COST: Cost = 117;
 const GRS_COST_PER_BYTE: Cost = 1;
@@ -55,9 +63,17 @@ const DIVMOD_COST_PER_BYTE: Cost = 6;
 const DIV_BASE_COST: Cost = 988;
 const DIV_COST_PER_BYTE: Cost = 4;
 
+const NEW_DIV_BASE_COST: Cost = 1000;
+const NEW_DIV_LINEAR_COST_PER_BYTE: Cost = 50;
+const NEW_DIV_SQUARE_COST_PER_BYTE_DIVIDER: Cost = 10;
+
 const SHA256_BASE_COST: Cost = 87;
 const SHA256_COST_PER_ARG: Cost = 134;
 const SHA256_COST_PER_BYTE: Cost = 2;
+
+const NEW_SHA256_BASE_COST: Cost = 1000;
+const NEW_SHA256_COST_PER_ARG: Cost = 160;
+const NEW_SHA256_COST_PER_BYTE: Cost = 6;
 
 const ASHIFT_BASE_COST: Cost = 596;
 const ASHIFT_COST_PER_BYTE: Cost = 3;
@@ -67,6 +83,8 @@ const LSHIFT_COST_PER_BYTE: Cost = 3;
 
 const BOOL_BASE_COST: Cost = 200;
 const BOOL_COST_PER_ARG: Cost = 300;
+
+const NEW_SUBSTR_COST: Cost = 2000;
 
 // Raspberry PI 4 is about 7.679960 / 1.201742 = 6.39 times slower
 // in the point_add benchmark
@@ -89,22 +107,75 @@ const PUBKEY_COST_PER_BYTE: Cost = 38;
 // than "naked" sha256
 const COINID_COST: Cost =
     SHA256_BASE_COST + SHA256_COST_PER_ARG * 3 + SHA256_COST_PER_BYTE * (32 + 32 + 8) - 153;
+const NEW_COINID_COST: Cost =
+    NEW_SHA256_BASE_COST + NEW_SHA256_COST_PER_ARG * 3 + NEW_SHA256_COST_PER_BYTE * (32 + 32 + 8)
+        - 153;
 
 const MODPOW_BASE_COST: Cost = 17000;
 const MODPOW_COST_PER_BYTE_BASE_VALUE: Cost = 38;
-// the cost for exponent and modular scale by the square of the size of the
-// respective operands
 const MODPOW_COST_PER_BYTE_EXPONENT: Cost = 3;
 const MODPOW_COST_PER_BYTE_MOD: Cost = 21;
 
-fn limbs_for_int(v: &Number) -> usize {
-    v.bits().div_ceil(8) as usize
+const NEW_MODPOW_PER_ITERATION_COST: Cost = 4000;
+const NEW_MODPOW_EXPONENT_MULTIPLIER: Cost = 8;
+
+fn compute_new_div_cost(a0_len: usize, a1_len: usize) -> Result<u64, EvalErr> {
+    let mut cost = NEW_DIV_BASE_COST;
+    cost += (a0_len as u64 + a1_len as u64) * NEW_DIV_LINEAR_COST_PER_BYTE;
+    let square_term = (a0_len as u64)
+        .checked_mul(a1_len as u64)
+        .ok_or(EvalErr::CostExceeded)?;
+    Ok(cost + square_term / NEW_DIV_SQUARE_COST_PER_BYTE_DIVIDER)
+}
+
+/// The number of limbs (magnitude bytes) for a BigInt representation.
+///
+/// This matches `Number::bits().div_ceil(8)` — it counts the magnitude bytes,
+/// NOT the signed atom encoding length (which may include a sign-extension
+/// byte). This is consensus-critical in cost computation.
+trait Limbs {
+    fn limbs(&self) -> usize;
+}
+
+impl Limbs for Number {
+    fn limbs(&self) -> usize {
+        self.bits().div_ceil(8) as usize
+    }
+}
+
+impl Limbs for u32 {
+    fn limbs(&self) -> usize {
+        if *self == 0 {
+            0
+        } else {
+            ((32 - self.leading_zeros()) as usize).div_ceil(8)
+        }
+    }
+}
+
+impl Limbs for u64 {
+    fn limbs(&self) -> usize {
+        if *self == 0 {
+            0
+        } else {
+            ((64 - self.leading_zeros()) as usize).div_ceil(8)
+        }
+    }
+}
+
+impl Limbs for i64 {
+    fn limbs(&self) -> usize {
+        if *self == 0 {
+            0
+        } else {
+            self.unsigned_abs().limbs()
+        }
+    }
 }
 
 #[cfg(test)]
 fn limb_test_helper(bytes: &[u8]) {
     let bigint = Number::from_signed_bytes_be(bytes);
-    println!("{} bits: {}", &bigint, &bigint.bits());
 
     // redundant leading zeros don't count, since they aren't stored internally
     let expected = if !bytes.is_empty() && bytes[0] == 0 {
@@ -112,11 +183,11 @@ fn limb_test_helper(bytes: &[u8]) {
     } else {
         bytes.len()
     };
-    assert_eq!(limbs_for_int(&bigint), expected);
+    assert_eq!(bigint.limbs(), expected);
 }
 
 #[test]
-fn test_limbs_for_int() {
+fn test_limbs_number() {
     limb_test_helper(&[]);
     limb_test_helper(&[0x1]);
     limb_test_helper(&[0x80]);
@@ -150,6 +221,96 @@ fn test_limbs_for_int() {
     limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0, 0]);
     limb_test_helper(&[0x80, 0, 0, 0, 0, 0, 0, 0]);
+}
+
+#[test]
+fn test_limbs_agreement() {
+    // All Limbs impls must agree for overlapping input ranges.
+
+    // u64 vs Number (positive values)
+    for v in [
+        0u64,
+        1,
+        0x7f,
+        0x80,
+        0xff,
+        0x100,
+        0x7fff,
+        0x8000,
+        0xffff,
+        0x7fffff,
+        0x800000,
+        0xffffff,
+        0x7fffffff,
+        0x80000000,
+        0xffffffff,
+        0x100000000,
+        0x7fffffffff,
+        0x8000000000,
+        0x7fffffffffff,
+        0xffffffffffff,
+        0x7fffffffffffff,
+        0xffffffffffffff,
+        0x7fffffffffffffff,
+        0xffffffffffffffff,
+    ] {
+        let from_u64 = v.limbs();
+        let from_number = Number::from(v).limbs();
+        assert_eq!(from_u64, from_number, "u64 vs Number disagree for {v}");
+    }
+
+    // i64 vs u64 (positive values that fit in both)
+    for v in [
+        0i64,
+        1,
+        127,
+        128,
+        255,
+        256,
+        32767,
+        32768,
+        65535,
+        65536,
+        0x7fffff,
+        0x800000,
+        0x7fffffff,
+        0x80000000,
+        0x7fffffffffffffff,
+    ] {
+        let from_i64 = v.limbs();
+        let from_u64 = (v as u64).limbs();
+        let from_number = Number::from(v).limbs();
+        assert_eq!(from_i64, from_u64, "i64 vs u64 disagree for {v}");
+        assert_eq!(from_i64, from_number, "i64 vs Number disagree for {v}");
+    }
+
+    // i64 vs Number (negative values)
+    for v in [
+        -1i64,
+        -0x80,
+        -0x81,
+        -0xff,
+        -0x100,
+        -0x7fff,
+        -0x8000,
+        -0x8001,
+        -0x7fffff,
+        -0x800000,
+        -0x7fffffff,
+        -0x80000000,
+        -0x7fffffffff,
+        -0x8000000000,
+        -0x7fffffffffff,
+        -0x800000000000,
+        -0x7fffffffffffff,
+        -0x80000000000000,
+        -0x7fffffffffffffff,
+        i64::MIN,
+    ] {
+        let from_i64 = v.limbs();
+        let from_number = Number::from(v).limbs();
+        assert_eq!(from_i64, from_number, "i64 vs Number disagree for {v}");
+    }
 }
 
 fn malloc_cost(a: &Allocator, cost: Cost, ptr: NodePtr) -> Reduction {
@@ -378,9 +539,27 @@ pub fn op_sha256(
     a: &mut Allocator,
     mut input: NodePtr,
     max_cost: Cost,
-    _flags: ClvmFlags,
+    flags: ClvmFlags,
 ) -> Response {
-    let mut cost = SHA256_BASE_COST;
+    let (base_cost, cost_per_arg, cost_per_byte) = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+        (
+            NEW_SHA256_BASE_COST,
+            NEW_SHA256_COST_PER_ARG,
+            NEW_SHA256_COST_PER_BYTE,
+        )
+    } else {
+        (SHA256_BASE_COST, SHA256_COST_PER_ARG, SHA256_COST_PER_BYTE)
+    };
+
+    let mut cost = base_cost;
+
+    if input == NodePtr::NIL {
+        return new_atom_and_cost(
+            a,
+            cost,
+            &hex!("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
+        );
+    }
 
     #[cfg(not(feature = "no-fastpath"))]
     if let Some([v0, v1]) = match_args::<2>(a, input)
@@ -391,7 +570,7 @@ pub fn op_sha256(
         // in this case, we're hashing 1 concatenated with a small
         // integer, we may have a pre-computed hash for this
         let num_bytes: Cost = if val > 0 { 2 } else { 1 };
-        cost += num_bytes * SHA256_COST_PER_BYTE + 2 as Cost * SHA256_COST_PER_ARG;
+        cost += num_bytes * cost_per_byte + 2 as Cost * cost_per_arg;
         check_cost(cost, max_cost)?;
         return new_atom_and_cost(a, cost, &PRECOMPUTED_HASHES[val as usize]);
     }
@@ -399,24 +578,33 @@ pub fn op_sha256(
     let mut hasher = Sha256::new();
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
-        cost += SHA256_COST_PER_ARG;
+        cost += cost_per_arg;
         let blob = atom(a, arg, "sha256")?;
-        cost += blob.as_ref().len() as Cost * SHA256_COST_PER_BYTE;
+        cost += blob.as_ref().len() as Cost * cost_per_byte;
         check_cost(cost, max_cost)?;
         hasher.update(blob);
     }
     new_atom_and_cost(a, cost, &hasher.finalize())
 }
 
-pub fn op_add(
-    a: &mut Allocator,
-    mut input: NodePtr,
-    max_cost: Cost,
-    _flags: ClvmFlags,
-) -> Response {
+// In the new cost model, the accumulator size is measured with .limbs()
+// (intermediate values are bignums, never with leading zeros) while argument
+// sizes use the raw atom length (buf.len() / len_for_value) to account for
+// possible leading-zero padding in CLVM-serialized atoms.
+pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost, flags: ClvmFlags) -> Response {
     use rand::Rng;
 
-    let mut cost = ARITH_BASE_COST;
+    let new_cost_model = flags.contains(ClvmFlags::NEW_COST_MODEL);
+    let (base_cost, cost_per_arg, cost_per_byte) = if new_cost_model {
+        (
+            ARITH_BASE_COST,
+            NEW_ARITH_COST_PER_ARG,
+            NEW_ARITH_COST_PER_BYTE,
+        )
+    } else {
+        (ARITH_BASE_COST, ARITH_COST_PER_ARG, ARITH_COST_PER_BYTE)
+    };
+    let mut cost = base_cost;
 
     #[cfg(not(feature = "no-fastpath"))]
     {
@@ -426,11 +614,15 @@ pub fn op_add(
             let mut total: u64 = 0;
             while let Some((arg, rest)) = a.next(input) {
                 input = rest;
-                cost += ARITH_COST_PER_ARG;
+                cost += cost_per_arg;
                 let NodeVisitor::U32(val) = a.node(arg) else {
                     return Ok(None);
                 };
-                cost += len_for_value(val) as Cost * ARITH_COST_PER_BYTE;
+                if new_cost_model {
+                    cost += (total.limbs().max(len_for_value(val)) as Cost) * cost_per_byte;
+                } else {
+                    cost += len_for_value(val) as Cost * cost_per_byte;
+                }
                 check_cost(cost, max_cost)?;
                 let Some(new_total) = total.checked_add(val as u64) else {
                     return Ok(None);
@@ -446,26 +638,39 @@ pub fn op_add(
         }
 
         input = saved_input;
-        cost = ARITH_BASE_COST;
+        cost = base_cost;
     }
 
     // Slow path: fall back to bignum arithmetic
     let mut rng = rand::rng();
+    // acc is not used for the new cost model
     let mut acc = [Number::from(0), Number::from(0)];
     let mut small_acc: Number = 0.into();
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
-        cost += ARITH_COST_PER_ARG;
+        cost += cost_per_arg;
 
         match a.node(arg) {
             NodeVisitor::Buffer(buf) => {
-                cost += ARITH_COST_PER_BYTE * (buf.len() as Cost);
+                if new_cost_model {
+                    cost += (small_acc.limbs().max(buf.len()) as Cost) * cost_per_byte;
+                } else {
+                    cost += cost_per_byte * (buf.len() as Cost);
+                }
                 check_cost(cost, max_cost)?;
                 let val = number_from_u8(buf);
-                acc[rng.random_range(0..2)] += val;
+                if new_cost_model {
+                    small_acc += val;
+                } else {
+                    acc[rng.random_range(0..2)] += val;
+                }
             }
             NodeVisitor::U32(val) => {
-                cost += len_for_value(val) as Cost * ARITH_COST_PER_BYTE;
+                if new_cost_model {
+                    cost += (small_acc.limbs().max(len_for_value(val)) as Cost) * cost_per_byte;
+                } else {
+                    cost += len_for_value(val) as Cost * cost_per_byte;
+                }
                 check_cost(cost, max_cost)?;
                 small_acc += val;
             }
@@ -477,20 +682,38 @@ pub fn op_add(
             }
         }
     }
-    let total = a.new_number(&acc[0] + &acc[1] + small_acc)?;
+    let total = if new_cost_model {
+        a.new_number(small_acc)?
+    } else {
+        a.new_number(&acc[0] + &acc[1] + small_acc)?
+    };
     Ok(malloc_cost(a, cost, total))
 }
 
+// In the new cost model, the accumulator size is measured with .limbs()
+// (intermediate values are bignums, never with leading zeros) while argument
+// sizes use the raw atom length (buf.len() / len_for_value) to account for
+// possible leading-zero padding in CLVM-serialized atoms.
 pub fn op_subtract(
     a: &mut Allocator,
     mut input: NodePtr,
     max_cost: Cost,
-    _flags: ClvmFlags,
+    flags: ClvmFlags,
 ) -> Response {
     use crate::number::number_from_u8;
     use rand::Rng;
 
-    let mut cost = ARITH_BASE_COST;
+    let new_cost_model = flags.contains(ClvmFlags::NEW_COST_MODEL);
+    let (base_cost, cost_per_arg, cost_per_byte) = if new_cost_model {
+        (
+            ARITH_BASE_COST,
+            NEW_ARITH_COST_PER_ARG,
+            NEW_ARITH_COST_PER_BYTE,
+        )
+    } else {
+        (ARITH_BASE_COST, ARITH_COST_PER_ARG, ARITH_COST_PER_BYTE)
+    };
+    let mut cost = base_cost;
 
     #[cfg(not(feature = "no-fastpath"))]
     {
@@ -501,11 +724,15 @@ pub fn op_subtract(
             let mut is_first = true;
             while let Some((arg, rest)) = a.next(input) {
                 input = rest;
-                cost += ARITH_COST_PER_ARG;
+                cost += cost_per_arg;
                 let NodeVisitor::U32(val) = a.node(arg) else {
                     return Ok(None);
                 };
-                cost += len_for_value(val) as Cost * ARITH_COST_PER_BYTE;
+                if new_cost_model {
+                    cost += (total.limbs().max(len_for_value(val)) as Cost) * cost_per_byte;
+                } else {
+                    cost += len_for_value(val) as Cost * cost_per_byte;
+                }
                 check_cost(cost, max_cost)?;
                 if is_first {
                     total = val as i64;
@@ -526,7 +753,7 @@ pub fn op_subtract(
         }
 
         input = saved_input;
-        cost = ARITH_BASE_COST;
+        cost = base_cost;
     }
 
     // Slow path: fall back to bignum arithmetic
@@ -536,17 +763,29 @@ pub fn op_subtract(
     let mut is_first = true;
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
-        cost += ARITH_COST_PER_ARG;
+        cost += cost_per_arg;
         check_cost(cost, max_cost)?;
         if is_first {
             match a.node(arg) {
                 NodeVisitor::Buffer(buf) => {
-                    cost += buf.len() as Cost * ARITH_COST_PER_BYTE;
+                    if new_cost_model {
+                        cost += (small_acc.limbs().max(buf.len()) as Cost) * cost_per_byte;
+                    } else {
+                        cost += buf.len() as Cost * cost_per_byte;
+                    }
                     check_cost(cost, max_cost)?;
-                    acc[rng.random_range(0..2)] += number_from_u8(buf);
+                    if new_cost_model {
+                        small_acc += number_from_u8(buf);
+                    } else {
+                        acc[rng.random_range(0..2)] += number_from_u8(buf);
+                    }
                 }
                 NodeVisitor::U32(val) => {
-                    cost += len_for_value(val) as Cost * ARITH_COST_PER_BYTE;
+                    if new_cost_model {
+                        cost += (small_acc.limbs().max(len_for_value(val)) as Cost) * cost_per_byte;
+                    } else {
+                        cost += len_for_value(val) as Cost * cost_per_byte;
+                    }
                     check_cost(cost, max_cost)?;
                     small_acc += val;
                 }
@@ -560,12 +799,24 @@ pub fn op_subtract(
         } else {
             match a.node(arg) {
                 NodeVisitor::Buffer(buf) => {
-                    cost += buf.len() as Cost * ARITH_COST_PER_BYTE;
+                    if new_cost_model {
+                        cost += (small_acc.limbs().max(buf.len()) as Cost) * cost_per_byte;
+                    } else {
+                        cost += buf.len() as Cost * cost_per_byte;
+                    }
                     check_cost(cost, max_cost)?;
-                    acc[rng.random_range(0..2)] -= number_from_u8(buf);
+                    if new_cost_model {
+                        small_acc -= number_from_u8(buf);
+                    } else {
+                        acc[rng.random_range(0..2)] -= number_from_u8(buf);
+                    }
                 }
                 NodeVisitor::U32(val) => {
-                    cost += len_for_value(val) as Cost * ARITH_COST_PER_BYTE;
+                    if new_cost_model {
+                        cost += (small_acc.limbs().max(len_for_value(val)) as Cost) * cost_per_byte;
+                    } else {
+                        cost += len_for_value(val) as Cost * cost_per_byte;
+                    }
                     check_cost(cost, max_cost)?;
                     small_acc -= val;
                 }
@@ -579,7 +830,11 @@ pub fn op_subtract(
         }
         is_first = false;
     }
-    let total = a.new_number(&acc[0] + &acc[1] + small_acc)?;
+    let total = if new_cost_model {
+        a.new_number(small_acc)?
+    } else {
+        a.new_number(&acc[0] + &acc[1] + &small_acc)?
+    };
     Ok(malloc_cost(a, cost, total))
 }
 
@@ -589,15 +844,27 @@ pub fn op_multiply(
     max_cost: Cost,
     flags: ClvmFlags,
 ) -> Response {
-    let mut cost: Cost = MUL_BASE_COST;
+    let new_cost_model = flags.contains(ClvmFlags::NEW_COST_MODEL);
     let mut first_iter: bool = true;
     let mut total: Number = 1.into();
     let mut l0: usize = 0;
+
+    let mut cost = if new_cost_model {
+        NEW_MUL_BASE_COST
+    } else {
+        MUL_BASE_COST
+    };
+    let square_divider = if new_cost_model {
+        NEW_MUL_SQUARE_COST_PER_BYTE_DIVIDER
+    } else {
+        MUL_SQUARE_COST_PER_BYTE_DIVIDER
+    };
+
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         if first_iter {
             (total, l0) = int_atom(a, arg, "*")?;
-            if flags.contains(ClvmFlags::LIMITS) && l0 > 256 {
+            if flags.contains(ClvmFlags::LIMITS) && !new_cost_model && l0 > 256 {
                 return Err(EvalErr::InvalidOpArg(arg, "*".to_string()));
             }
             first_iter = false;
@@ -609,11 +876,11 @@ pub fn op_multiply(
         match a.node(arg) {
             NodeVisitor::Buffer(buf) => {
                 let l1 = buf.len() as u64;
-                if flags.contains(ClvmFlags::LIMITS) && l1 > 256 {
+                if flags.contains(ClvmFlags::LIMITS) && !new_cost_model && l1 > 256 {
                     return Err(EvalErr::InvalidOpArg(arg, "*".to_string()));
                 }
                 cost += (l0 as Cost + l1) * MUL_LINEAR_COST_PER_BYTE;
-                cost += (l0 as Cost * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
+                cost += (l0 as Cost * l1) / square_divider;
                 check_cost(cost, max_cost)?;
 
                 total *= number_from_u8(buf);
@@ -621,7 +888,7 @@ pub fn op_multiply(
             NodeVisitor::U32(val) => {
                 let l1 = len_for_value(val) as u64;
                 cost += (l0 as Cost + l1) * MUL_LINEAR_COST_PER_BYTE;
-                cost += (l0 as Cost * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
+                cost += (l0 as Cost * l1) / square_divider;
                 check_cost(cost, max_cost)?;
 
                 total *= val;
@@ -637,17 +904,17 @@ pub fn op_multiply(
         {
             let (n1, l1) = int_atom(a, arg, "*")?;
             let l1 = l1 as u64;
-            if flags.contains(ClvmFlags::LIMITS) && l1 > 256 {
+            if flags.contains(ClvmFlags::LIMITS) && !new_cost_model && l1 > 256 {
                 return Err(EvalErr::InvalidOpArg(arg, "*".to_string()));
             }
             cost += (l0 as Cost + l1) * MUL_LINEAR_COST_PER_BYTE;
-            cost += (l0 as Cost * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
+            cost += (l0 as Cost * l1) / square_divider;
             check_cost(cost, max_cost)?;
 
             total *= n1;
         }
-        l0 = limbs_for_int(&total);
-        if flags.contains(ClvmFlags::LIMITS) && l0 > 1024 {
+        l0 = total.limbs();
+        if flags.contains(ClvmFlags::LIMITS) && !new_cost_model && l0 > 1024 {
             return Err(EvalErr::InvalidOpArg(arg, "*".to_string()));
         }
     }
@@ -655,6 +922,9 @@ pub fn op_multiply(
     Ok(malloc_cost(a, cost, total))
 }
 
+// In the new cost model, operand sizes use the raw atom length (from
+// int_atom) to account for possible leading-zero padding in CLVM-serialized
+// atoms.
 pub fn op_div(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlags) -> Response {
     if flags.contains(ClvmFlags::MALACHITE) {
         return op_div_malachite(a, input, max_cost, flags);
@@ -662,14 +932,26 @@ pub fn op_div(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlag
     let [v0, v1] = get_args::<2>(a, input, "/")?;
     let (a0, a0_len) = int_atom(a, v0, "/")?;
     let (a1, a1_len) = int_atom(a, v1, "/")?;
-    if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
+    if flags.contains(ClvmFlags::DISABLE_OP)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && a0_len > 2048
+    {
         return Err(EvalErr::InvalidOpArg(input, "div".to_string()));
     }
-    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
+    if flags.contains(ClvmFlags::LIMITS)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && (a0_len > 256 || a1_len > 1024)
+    {
         return Err(EvalErr::InvalidOpArg(input, "div".to_string()));
     }
-    let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
+
+    let cost = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+        compute_new_div_cost(a0_len, a1_len)?
+    } else {
+        DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE
+    };
     check_cost(cost, max_cost)?;
+
     if a1.sign() == Sign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
     }
@@ -687,13 +969,23 @@ fn op_div_malachite(
     let [v0, v1] = get_args::<2>(a, input, "/")?;
     let (a0, a0_len) = malachite_int_atom(a, v0, "/")?;
     let (a1, a1_len) = malachite_int_atom(a, v1, "/")?;
-    if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
+    if flags.contains(ClvmFlags::DISABLE_OP)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && a0_len > 2048
+    {
         return Err(EvalErr::InvalidOpArg(input, "div".to_string()));
     }
-    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
+    if flags.contains(ClvmFlags::LIMITS)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && (a0_len > 256 || a1_len > 1024)
+    {
         return Err(EvalErr::InvalidOpArg(input, "div".to_string()));
     }
-    let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
+    let cost = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+        compute_new_div_cost(a0_len, a1_len)?
+    } else {
+        DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE
+    };
     check_cost(cost, max_cost)?;
     if a1.sign() == malachite_bigint::Sign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
@@ -703,6 +995,9 @@ fn op_div_malachite(
     Ok(malloc_cost(a, cost, q))
 }
 
+// In the new cost model, operand sizes use the raw atom length (from
+// int_atom) to account for possible leading-zero padding in CLVM-serialized
+// atoms.
 pub fn op_divmod(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlags) -> Response {
     if flags.contains(ClvmFlags::MALACHITE) {
         return op_divmod_malachite(a, input, max_cost, flags);
@@ -710,14 +1005,26 @@ pub fn op_divmod(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmF
     let [v0, v1] = get_args::<2>(a, input, "divmod")?;
     let (a0, a0_len) = int_atom(a, v0, "divmod")?;
     let (a1, a1_len) = int_atom(a, v1, "divmod")?;
-    if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
+    if flags.contains(ClvmFlags::DISABLE_OP)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && a0_len > 2048
+    {
         return Err(EvalErr::InvalidOpArg(input, "divmod".to_string()));
     }
-    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
+    if flags.contains(ClvmFlags::LIMITS)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && (a0_len > 256 || a1_len > 1024)
+    {
         return Err(EvalErr::InvalidOpArg(input, "divmod".to_string()));
     }
-    let cost = DIVMOD_BASE_COST + ((a0_len + a1_len) as Cost) * DIVMOD_COST_PER_BYTE;
+
+    let cost = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+        compute_new_div_cost(a0_len, a1_len)?
+    } else {
+        DIVMOD_BASE_COST + ((a0_len + a1_len) as Cost) * DIVMOD_COST_PER_BYTE
+    };
     check_cost(cost, max_cost)?;
+
     if a1.sign() == Sign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
     }
@@ -739,13 +1046,23 @@ fn op_divmod_malachite(
     let [v0, v1] = get_args::<2>(a, input, "divmod")?;
     let (a0, a0_len) = malachite_int_atom(a, v0, "divmod")?;
     let (a1, a1_len) = malachite_int_atom(a, v1, "divmod")?;
-    if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
+    if flags.contains(ClvmFlags::DISABLE_OP)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && a0_len > 2048
+    {
         return Err(EvalErr::InvalidOpArg(input, "divmod".to_string()));
     }
-    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
+    if flags.contains(ClvmFlags::LIMITS)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && (a0_len > 256 || a1_len > 1024)
+    {
         return Err(EvalErr::InvalidOpArg(input, "divmod".to_string()));
     }
-    let cost = DIVMOD_BASE_COST + ((a0_len + a1_len) as Cost) * DIVMOD_COST_PER_BYTE;
+    let cost = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+        compute_new_div_cost(a0_len, a1_len)?
+    } else {
+        DIVMOD_BASE_COST + ((a0_len + a1_len) as Cost) * DIVMOD_COST_PER_BYTE
+    };
     check_cost(cost, max_cost)?;
     if a1.sign() == malachite_bigint::Sign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
@@ -759,6 +1076,9 @@ fn op_divmod_malachite(
     Ok(Reduction(cost + c, r))
 }
 
+// In the new cost model, operand sizes use the raw atom length (from
+// int_atom) to account for possible leading-zero padding in CLVM-serialized
+// atoms.
 pub fn op_mod(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlags) -> Response {
     if flags.contains(ClvmFlags::MALACHITE) {
         return op_mod_malachite(a, input, max_cost, flags);
@@ -766,14 +1086,26 @@ pub fn op_mod(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlag
     let [v0, v1] = get_args::<2>(a, input, "mod")?;
     let (a0, a0_len) = int_atom(a, v0, "mod")?;
     let (a1, a1_len) = int_atom(a, v1, "mod")?;
-    if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
+    if flags.contains(ClvmFlags::DISABLE_OP)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && a0_len > 2048
+    {
         return Err(EvalErr::InvalidOpArg(input, "mod".to_string()));
     }
-    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
+    if flags.contains(ClvmFlags::LIMITS)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && (a0_len > 256 || a1_len > 1024)
+    {
         return Err(EvalErr::InvalidOpArg(input, "mod".to_string()));
     }
-    let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
+
+    let cost = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+        compute_new_div_cost(a0_len, a1_len)?
+    } else {
+        DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE
+    };
     check_cost(cost, max_cost)?;
+
     if a1.sign() == Sign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
     }
@@ -791,13 +1123,23 @@ fn op_mod_malachite(
     let [v0, v1] = get_args::<2>(a, input, "mod")?;
     let (a0, a0_len) = malachite_int_atom(a, v0, "mod")?;
     let (a1, a1_len) = malachite_int_atom(a, v1, "mod")?;
-    if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
+    if flags.contains(ClvmFlags::DISABLE_OP)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && a0_len > 2048
+    {
         return Err(EvalErr::InvalidOpArg(input, "mod".to_string()));
     }
-    if flags.contains(ClvmFlags::LIMITS) && (a0_len > 256 || a1_len > 1024) {
+    if flags.contains(ClvmFlags::LIMITS)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && (a0_len > 256 || a1_len > 1024)
+    {
         return Err(EvalErr::InvalidOpArg(input, "mod".to_string()));
     }
-    let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
+    let cost = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+        compute_new_div_cost(a0_len, a1_len)?
+    } else {
+        DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE
+    };
     check_cost(cost, max_cost)?;
     if a1.sign() == malachite_bigint::Sign::NoSign {
         return Err(EvalErr::DivisionByZero(input));
@@ -807,19 +1149,23 @@ fn op_mod_malachite(
     Ok(Reduction(cost + c, q))
 }
 
-pub fn op_gr(a: &mut Allocator, input: NodePtr, _max_cost: Cost, _flags: ClvmFlags) -> Response {
+pub fn op_gr(a: &mut Allocator, input: NodePtr, _max_cost: Cost, flags: ClvmFlags) -> Response {
     let [v0, v1] = get_args::<2>(a, input, ">")?;
+    let (base_cost, cost_per_byte) = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+        (NEW_GR_BASE_COST, NEW_GR_COST_PER_BYTE)
+    } else {
+        (GR_BASE_COST, GR_COST_PER_BYTE)
+    };
 
     #[cfg(not(feature = "no-fastpath"))]
     if let (Some(lhs), Some(rhs)) = (a.small_number(v0), a.small_number(v1)) {
-        let cost =
-            GR_BASE_COST + (len_for_value(lhs) + len_for_value(rhs)) as Cost * GR_COST_PER_BYTE;
+        let cost = base_cost + (len_for_value(lhs) + len_for_value(rhs)) as Cost * cost_per_byte;
         return Ok(Reduction(cost, if lhs > rhs { a.one() } else { a.nil() }));
     }
 
     let (v0, v0_len) = int_atom(a, v0, ">")?;
     let (v1, v1_len) = int_atom(a, v1, ">")?;
-    let cost = GR_BASE_COST + (v0_len + v1_len) as Cost * GR_COST_PER_BYTE;
+    let cost = base_cost + (v0_len + v1_len) as Cost * cost_per_byte;
     Ok(Reduction(cost, if v0 > v1 { a.one() } else { a.nil() }))
 }
 
@@ -851,12 +1197,8 @@ pub fn op_strlen(
     Ok(malloc_cost(a, cost, size_node))
 }
 
-pub fn op_substr(
-    a: &mut Allocator,
-    input: NodePtr,
-    _max_cost: Cost,
-    _flags: ClvmFlags,
-) -> Response {
+pub fn op_substr(a: &mut Allocator, input: NodePtr, _max_cost: Cost, flags: ClvmFlags) -> Response {
+    let new_cost_model = flags.contains(ClvmFlags::NEW_COST_MODEL);
     let ([a0, start, end], argc) = get_varargs::<3>(a, input, "substr")?;
     if !(2..=3).contains(&argc) {
         Err(EvalErr::InvalidOpArg(
@@ -879,7 +1221,7 @@ pub fn op_substr(
         ))?
     } else {
         let r = a.new_substr(a0, start as u32, end as u32)?;
-        let cost: Cost = 1;
+        let cost = if new_cost_model { NEW_SUBSTR_COST } else { 1 };
         Ok(Reduction(cost, r))
     }
 }
@@ -924,7 +1266,7 @@ pub fn op_ash(a: &mut Allocator, input: NodePtr, _max_cost: Cost, _flags: ClvmFl
     }
 
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
-    let l1 = limbs_for_int(&v);
+    let l1 = v.limbs();
     let r = a.new_number(v)?;
     let cost = ASHIFT_BASE_COST + ((l0 + l1) as Cost) * ASHIFT_COST_PER_BYTE;
     Ok(malloc_cost(a, cost, r))
@@ -993,7 +1335,7 @@ pub fn op_lsh(a: &mut Allocator, input: NodePtr, _max_cost: Cost, _flags: ClvmFl
 
     let v: Number = if a1 > 0 { i0 << a1 } else { i0 >> -a1 };
 
-    let l1 = limbs_for_int(&v);
+    let l1 = v.limbs();
     let r = a.new_number(v)?;
     let cost = LSHIFT_BASE_COST + ((l0 + l1) as Cost) * LSHIFT_COST_PER_BYTE;
     Ok(malloc_cost(a, cost, r))
@@ -1041,25 +1383,34 @@ fn binop_reduction(
     mut input: NodePtr,
     max_cost: Cost,
     op_f: fn(&mut Number, &Number) -> (),
+    flags: ClvmFlags,
 ) -> Response {
+    let new_cost_model = flags.contains(ClvmFlags::NEW_COST_MODEL);
     let mut pos_acc = initial_value.clone();
+
+    // neg_acc is not used in the new cost model
     let mut neg_acc = initial_value;
-    let mut arg_size: usize = 0;
     let mut cost = LOG_BASE_COST;
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         let (n0, len) = int_atom(a, arg, op_name)?;
-        if n0.sign() == num_bigint::Sign::Minus {
-            op_f(&mut neg_acc, &n0);
-        } else {
+        if new_cost_model {
+            cost += (len.max(pos_acc.limbs()) as Cost) * LOG_COST_PER_BYTE;
             op_f(&mut pos_acc, &n0);
+        } else {
+            cost += (len as Cost) * LOG_COST_PER_BYTE;
+            if n0.sign() == Sign::Minus {
+                op_f(&mut neg_acc, &n0);
+            } else {
+                op_f(&mut pos_acc, &n0);
+            }
         }
-        arg_size += len;
         cost += LOG_COST_PER_ARG;
-        check_cost(cost + (arg_size as Cost * LOG_COST_PER_BYTE), max_cost)?;
+        check_cost(cost, max_cost)?;
     }
-    cost += arg_size as Cost * LOG_COST_PER_BYTE;
-    op_f(&mut pos_acc, &neg_acc);
+    if !new_cost_model {
+        op_f(&mut pos_acc, &neg_acc);
+    }
     let total = a.new_number(pos_acc)?;
     Ok(malloc_cost(a, cost, total))
 }
@@ -1068,27 +1419,27 @@ fn logand_op(a: &mut Number, b: &Number) {
     a.bitand_assign(b);
 }
 
-pub fn op_logand(a: &mut Allocator, input: NodePtr, max_cost: Cost, _flags: ClvmFlags) -> Response {
+pub fn op_logand(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlags) -> Response {
     let v: Number = (-1).into();
-    binop_reduction("logand", a, v, input, max_cost, logand_op)
+    binop_reduction("logand", a, v, input, max_cost, logand_op, flags)
 }
 
 fn logior_op(a: &mut Number, b: &Number) {
     a.bitor_assign(b);
 }
 
-pub fn op_logior(a: &mut Allocator, input: NodePtr, max_cost: Cost, _flags: ClvmFlags) -> Response {
+pub fn op_logior(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlags) -> Response {
     let v: Number = 0.into();
-    binop_reduction("logior", a, v, input, max_cost, logior_op)
+    binop_reduction("logior", a, v, input, max_cost, logior_op, flags)
 }
 
 fn logxor_op(a: &mut Number, b: &Number) {
     a.bitxor_assign(b);
 }
 
-pub fn op_logxor(a: &mut Allocator, input: NodePtr, max_cost: Cost, _flags: ClvmFlags) -> Response {
+pub fn op_logxor(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlags) -> Response {
     let v: Number = 0.into();
-    binop_reduction("logxor", a, v, input, max_cost, logxor_op)
+    binop_reduction("logxor", a, v, input, max_cost, logxor_op, flags)
 }
 
 pub fn op_lognot(
@@ -1187,12 +1538,8 @@ pub fn op_point_add(
     ))
 }
 
-pub fn op_coinid(
-    a: &mut Allocator,
-    input: NodePtr,
-    _max_cost: Cost,
-    _flags: ClvmFlags,
-) -> Response {
+pub fn op_coinid(a: &mut Allocator, input: NodePtr, _max_cost: Cost, flags: ClvmFlags) -> Response {
+    let new_cost_model = flags.contains(ClvmFlags::NEW_COST_MODEL);
     let [parent_coin, puzzle_hash, amount] = get_args::<3>(a, input, "coinid")?;
 
     let parent_coin = atom(a, parent_coin, "coinid")?;
@@ -1244,26 +1591,51 @@ pub fn op_coinid(
         .try_into()
         .expect("sha256 hash is not 32 bytes");
 
-    new_atom_and_cost(a, COINID_COST, &ret)
+    let cost = if new_cost_model {
+        NEW_COINID_COST
+    } else {
+        COINID_COST
+    };
+    new_atom_and_cost(a, cost, &ret)
 }
 
 pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlags) -> Response {
     if flags.contains(ClvmFlags::MALACHITE) {
         return op_modpow_malachite(a, input, max_cost, flags);
     }
+    let new_cost_model = flags.contains(ClvmFlags::NEW_COST_MODEL);
     let [base, exponent, modulus] = get_args::<3>(a, input, "modpow")?;
 
     let mut cost = MODPOW_BASE_COST;
     let (base, bsize) = int_atom(a, base, "modpow")?;
-    cost += bsize as Cost * MODPOW_COST_PER_BYTE_BASE_VALUE;
     let (exponent, esize) = int_atom(a, exponent, "modpow")?;
-    cost += (esize * esize) as Cost * MODPOW_COST_PER_BYTE_EXPONENT;
-    check_cost(cost, max_cost)?;
     let (modulus, msize) = int_atom(a, modulus, "modpow")?;
-    cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
+
+    if new_cost_model {
+        let m = msize as u64;
+        cost += (esize as u64)
+            .checked_mul(NEW_MODPOW_EXPONENT_MULTIPLIER)
+            .ok_or(EvalErr::CostExceeded)?
+            .checked_mul(
+                m.checked_mul(m)
+                    .ok_or(EvalErr::CostExceeded)?
+                    .checked_add(NEW_MODPOW_PER_ITERATION_COST)
+                    .ok_or(EvalErr::CostExceeded)?,
+            )
+            .ok_or(EvalErr::CostExceeded)?;
+        cost += (bsize as u64).checked_mul(m).ok_or(EvalErr::CostExceeded)?;
+    } else {
+        cost += bsize as Cost * MODPOW_COST_PER_BYTE_BASE_VALUE;
+        cost += (esize * esize) as Cost * MODPOW_COST_PER_BYTE_EXPONENT;
+        cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
+    }
+
     check_cost(cost, max_cost)?;
 
-    if flags.contains(ClvmFlags::LIMITS) && (bsize > 256 || esize > 256 || msize > 256) {
+    if flags.contains(ClvmFlags::LIMITS)
+        && !new_cost_model
+        && (bsize > 256 || esize > 256 || msize > 256)
+    {
         return Err(EvalErr::InvalidOpArg(input, "modpow".to_string()));
     }
 
@@ -1289,19 +1661,39 @@ fn op_modpow_malachite(
     max_cost: Cost,
     flags: ClvmFlags,
 ) -> Response {
+    let new_cost_model = flags.contains(ClvmFlags::NEW_COST_MODEL);
     let [base, exponent, modulus] = get_args::<3>(a, input, "modpow")?;
 
     let mut cost = MODPOW_BASE_COST;
     let (base, bsize) = malachite_int_atom(a, base, "modpow")?;
-    cost += bsize as Cost * MODPOW_COST_PER_BYTE_BASE_VALUE;
     let (exponent, esize) = malachite_int_atom(a, exponent, "modpow")?;
-    cost += (esize * esize) as Cost * MODPOW_COST_PER_BYTE_EXPONENT;
-    check_cost(cost, max_cost)?;
     let (modulus, msize) = malachite_int_atom(a, modulus, "modpow")?;
-    cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
+
+    if new_cost_model {
+        let m = msize as u64;
+        cost += (esize as u64)
+            .checked_mul(NEW_MODPOW_EXPONENT_MULTIPLIER)
+            .ok_or(EvalErr::CostExceeded)?
+            .checked_mul(
+                m.checked_mul(m)
+                    .ok_or(EvalErr::CostExceeded)?
+                    .checked_add(NEW_MODPOW_PER_ITERATION_COST)
+                    .ok_or(EvalErr::CostExceeded)?,
+            )
+            .ok_or(EvalErr::CostExceeded)?;
+        cost += (bsize as u64).checked_mul(m).ok_or(EvalErr::CostExceeded)?;
+    } else {
+        cost += bsize as Cost * MODPOW_COST_PER_BYTE_BASE_VALUE;
+        cost += (esize * esize) as Cost * MODPOW_COST_PER_BYTE_EXPONENT;
+        cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
+    }
+
     check_cost(cost, max_cost)?;
 
-    if flags.contains(ClvmFlags::LIMITS) && (bsize > 256 || esize > 256 || msize > 256) {
+    if flags.contains(ClvmFlags::LIMITS)
+        && !new_cost_model
+        && (bsize > 256 || esize > 256 || msize > 256)
+    {
         return Err(EvalErr::InvalidOpArg(input, "modpow".to_string()));
     }
 
@@ -1465,11 +1857,22 @@ mod tests {
         #[allow(clippy::type_complexity)]
         let cases: &[(&str, Op, u32, u32, ClvmFlags, Option<EvalErr>)] = &[
             ("div", op_div, 9, 2, ClvmFlags::DISABLE_OP, None),
+            ("div", op_div, 9, 2, ClvmFlags::NEW_COST_MODEL, None),
             ("div", op_div, 9, 2, ClvmFlags::MALACHITE, None),
             ("divmod", op_divmod, 9, 2, ClvmFlags::DISABLE_OP, None),
+            ("divmod", op_divmod, 9, 2, ClvmFlags::NEW_COST_MODEL, None),
             ("divmod", op_divmod, 9, 2, ClvmFlags::MALACHITE, None),
             ("modulus", op_mod, 9, 2, ClvmFlags::DISABLE_OP, None),
             ("modulus", op_mod, 9, 2, ClvmFlags::MALACHITE, None),
+            ("modulus", op_mod, 9, 2, ClvmFlags::NEW_COST_MODEL, None),
+            (
+                "modpow",
+                op_modpow,
+                27,
+                3,
+                ClvmFlags::NEW_COST_MODEL,
+                Some(EvalErr::CostExceeded),
+            ),
             (
                 "modpow",
                 op_modpow,

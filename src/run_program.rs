@@ -17,6 +17,7 @@ const QUOTE_COST: Cost = 20;
 const APPLY_COST: Cost = 90;
 // the cost of entering a softfork guard
 const GUARD_COST: Cost = 140;
+const NEW_GUARD_COST: Cost = 500;
 // mandatory base cost for every operator we execute
 const OP_COST: Cost = 1;
 
@@ -95,6 +96,17 @@ struct SoftforkGuard {
 
     #[cfg(test)]
     start_cost: Cost,
+}
+
+impl SoftforkGuard {
+    fn cost_exempt(&self) -> bool {
+        // puzzles prior to the 3.0 hard fork that used the softfork operator
+        // for OperatorSet 0 (BLS) or 1 (KECCAK) will have specified the cost
+        // based on the pre-hardfork cost model. They are grandfathered-in by
+        // ignoring the specified cost, and just apply the new cost model to the
+        // puzzle instead.
+        matches!(self.operator_set, OperatorSet::PreHardFork)
+    }
 }
 
 // `run_program` has three stacks:
@@ -418,8 +430,24 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 return Err(EvalErr::SoftforkStackDepthExceeded);
             }
 
+            let expected_cost = if matches!(ext, OperatorSet::PreHardFork) {
+                // if this soft-fork uses a pre-hard fork extension, its specified
+                // cost is ignored, both for purposes of validating the true cost of
+                // the program when we exit the soft-fork and for setting a new
+                // upper limit on the execution cost. When we don't have a
+                // limit, use the same limit as the current soft-fork, or the
+                // default max_cost
+                if let Some(sf) = self.softfork_stack.last() {
+                    sf.expected_cost
+                } else {
+                    current_cost + max_cost
+                }
+            } else {
+                current_cost + expected_cost
+            };
+
             self.softfork_stack.push(SoftforkGuard {
-                expected_cost: current_cost + expected_cost,
+                expected_cost,
                 allocator_state: self.allocator.checkpoint(),
                 operator_set: ext,
                 #[cfg(test)]
@@ -430,7 +458,12 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             // specified match the true cost. We also free heap allocations
             self.op_stack.push(Operation::ExitGuard);
 
-            self.eval_pair(prg, env).map(|c| c + GUARD_COST)
+            let guard_cost = if self.dialect.flags().contains(ClvmFlags::NEW_COST_MODEL) {
+                NEW_GUARD_COST
+            } else {
+                GUARD_COST
+            };
+            self.eval_pair(prg, env).map(|c| c + guard_cost)
         } else {
             let current_extensions = if let Some(sf) = self.softfork_stack.last() {
                 sf.operator_set
@@ -458,7 +491,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             .pop()
             .expect("internal error. exiting a softfork that's already been popped");
 
-        if current_cost != guard.expected_cost {
+        if !guard.cost_exempt() && current_cost != guard.expected_cost {
             #[cfg(test)]
             println!(
                 "actual cost: {} specified cost: {}",
@@ -1220,6 +1253,45 @@ mod tests {
             cost: 10000,
             err: "softfork specified cost mismatch",
         },
+        // with NEW_COST_MODEL, a non-grandfathered extension (9) still requires
+        // exact cost match. In consensus mode the unknown extension is ignored
+        // but the specified cost is still consumed.
+        RunProgramTest {
+            prg: "(softfork (q . 919) (q . 9) (q x) (q . ()))",
+            args: "()",
+            flags: ClvmFlags::NEW_COST_MODEL,
+            result: Some("()"),
+            cost: 1000,
+            err: "",
+        },
+        // in mempool mode with NEW_COST_MODEL, unknown extensions are rejected
+        RunProgramTest {
+            prg: "(softfork (q . 919) (q . 9) (q x) (q . ()))",
+            args: "()",
+            flags: ClvmFlags::NEW_COST_MODEL.union(ClvmFlags::NO_UNKNOWN_OPS),
+            result: None,
+            cost: 1000,
+            err: "unknown softfork extension",
+        },
+        // with NEW_COST_MODEL, specifying a cost lower than actual also
+        // succeeds for grandfathered extensions because the specified cost is
+        // not used as a budget limit inside the guard (cost_exempt = true)
+        RunProgramTest {
+            prg: "(softfork (q . 100) (q . 0) (q . (q . 42)) (q . ()))",
+            args: "()",
+            flags: ClvmFlags::NEW_COST_MODEL,
+            result: Some("()"),
+            cost: 601,
+            err: "",
+        },
+        RunProgramTest {
+            prg: "(softfork (q . 100) (q . 1) (q . (q . 42)) (q . ()))",
+            args: "()",
+            flags: ClvmFlags::NEW_COST_MODEL,
+            result: Some("()"),
+            cost: 601,
+            err: "",
+        },
         // without the flag to enable the keccak extensions, it's an unknown extension
         RunProgramTest {
             prg: "(softfork (q . 161) (q . 2) (q . (q . 42)) (q . ()))",
@@ -1437,6 +1509,120 @@ mod tests {
     fn test_run_program() {
         for t in TEST_CASES {
             run_test_case(t);
+        }
+    }
+
+    // Test that with NEW_COST_MODEL, grandfathered-in softfork extensions (0=BLS,
+    // 1=Keccak) tolerate a specified cost that doesn't match the actual execution
+    // cost. The inner program `(q . 42)` costs QUOTE(20) + NEW_GUARD(500) = 520
+    // inside the guard. The outer cost (4 quoted args evaluated) = 81.
+    // actual_total = 81 + 520 = 601.
+    #[rstest]
+    // Extension 0 (BLS): specified cost 200 > actual 160, grandfathered-in
+    #[case::ext0_cost_above_new_cost(
+        "(softfork (q . 200) (q . 0) (q . (q . 42)) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        700,
+        Some(601),
+        ""
+    )]
+    // Extension 0, mempool mode
+    #[case::ext0_cost_above_new_cost_mempool(
+        "(softfork (q . 200) (q . 0) (q . (q . 42)) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL.union(ClvmFlags::NO_UNKNOWN_OPS), 700, Some(601), "")]
+    // Extension 1 (Keccak): specified cost 200 > actual 160, grandfathered-in
+    #[case::ext1_cost_above_new_cost(
+        "(softfork (q . 200) (q . 1) (q . (q . 42)) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        700,
+        Some(601),
+        ""
+    )]
+    // Extension 1, mempool mode
+    #[case::ext1_cost_above_new_cost_mempool(
+        "(softfork (q . 200) (q . 1) (q . (q . 42)) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL.union(ClvmFlags::NO_UNKNOWN_OPS), 700, Some(601), "")]
+    // Without NEW_COST_MODEL, the same mismatch on extension 0 fails
+    #[case::ext0_cost_above_old_cost(
+        "(softfork (q . 200) (q . 0) (q . (q . 42)) (q . ()))",
+        ClvmFlags::empty(),
+        500,
+        None,
+        "softfork specified cost mismatch"
+    )]
+    // Without NEW_COST_MODEL, the same mismatch on extension 1 fails
+    #[case::ext1_cost_above_old_cost(
+        "(softfork (q . 200) (q . 1) (q . (q . 42)) (q . ()))",
+        ClvmFlags::empty(),
+        500,
+        None,
+        "softfork specified cost mismatch"
+    )]
+    // With NEW_COST_MODEL, exact match still works
+    #[case::ext0_exact_match_new_cost(
+        "(softfork (q . 160) (q . 0) (q . (q . 42)) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        700,
+        Some(601),
+        ""
+    )]
+    // With NEW_COST_MODEL, specified cost barely above actual (161 > 160)
+    #[case::ext0_cost_barely_above_new_cost(
+        "(softfork (q . 161) (q . 0) (q . (q . 42)) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        700,
+        Some(601),
+        ""
+    )]
+    // With NEW_COST_MODEL, specified cost below actual (100 < 160) also succeeds
+    // because cost_exempt skips both the budget limit and cost validation
+    #[case::ext0_cost_below_new_cost(
+        "(softfork (q . 100) (q . 0) (q . (q . 42)) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        700,
+        Some(601),
+        ""
+    )]
+    #[case::ext1_cost_below_new_cost(
+        "(softfork (q . 100) (q . 1) (q . (q . 42)) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        700,
+        Some(601),
+        ""
+    )]
+    // Without NEW_COST_MODEL, cost below actual fails because the specified cost
+    // IS used as the execution budget inside the guard
+    #[case::ext0_cost_below_old_cost(
+        "(softfork (q . 100) (q . 0) (q . (q . 42)) (q . ()))",
+        ClvmFlags::empty(),
+        500,
+        None,
+        "cost exceeded or below zero"
+    )]
+    fn test_softfork_new_cost_model_grandfathered(
+        #[case] prg: &str,
+        #[case] flags: ClvmFlags,
+        #[case] budget: Cost,
+        #[case] expected_cost: Option<Cost>,
+        #[case] err: &str,
+    ) {
+        use crate::chia_dialect::ChiaDialect;
+        use crate::test_ops::node_eq;
+
+        let mut allocator = Allocator::new();
+        let program = check(parse_exp(&mut allocator, prg));
+        let args = check(parse_exp(&mut allocator, "()"));
+        let dialect = ChiaDialect::new(flags.union(ClvmFlags::ENABLE_GC));
+
+        match run_program(&mut allocator, &dialect, program, args, budget) {
+            Ok(Reduction(cost, result)) => {
+                assert_eq!(cost, expected_cost.expect("expected error but succeeded"));
+                assert!(node_eq(&allocator, result, allocator.nil()));
+            }
+            Err(e) => {
+                assert!(expected_cost.is_none(), "expected success but got: {e}");
+                assert_eq!(e.to_string(), err);
+            }
         }
     }
 
@@ -1686,6 +1872,176 @@ mod tests {
                 assert_eq!(actual_cost, cost);
             }
             Err(e) => {
+                assert_eq!(e.to_string(), err);
+            }
+        }
+    }
+
+    // Nested softfork tests: validate that cost limits propagate correctly
+    // through nested softfork guards.
+    //
+    // The nested program is:
+    //   (softfork (q . C_outer) (q . E_outer) (q . INNER) (q . ()))
+    // where INNER is:
+    //   (softfork (q . C_inner) (q . E_inner) (q . (q . 42)) (q . ()))
+    //
+    // Cost breakdown (old cost model, GUARD=140):
+    //   outer arg eval: 4*QUOTE(20) + OP_COST(1) = 81
+    //   outer guard + eval_pair of inner: GUARD(140) + OP_COST(1) = 141
+    //   inner arg eval: 4*QUOTE(20) = 80
+    //   inner guard + eval_pair of (q.42): GUARD(140) + QUOTE(20) = 160
+    //   Total: 81 + 141 + 80 + 160 = 462
+    //
+    //   Inner program cost (for inner guard validation): 160
+    //   Outer program cost (for outer guard validation): 141 + 80 + 160 = 381
+    //
+    // With NEW_COST_MODEL (NEW_GUARD=500):
+    //   81 + 501 + 80 + 520 = 1182
+    #[rstest]
+    // Old cost model: nested softfork with correct costs
+    #[case::old_nested_correct(
+        "(softfork (q . 381) (q . 0) (q . (softfork (q . 160) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::empty(),
+        462,
+        Some(462),
+        ""
+    )]
+    // Old cost model: wrong inner cost (too high). Outer cost must be large
+    // enough that the inner specified cost doesn't exceed the remaining budget.
+    #[case::old_nested_inner_too_high(
+        "(softfork (q . 382) (q . 0) (q . (softfork (q . 161) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::empty(),
+        10000,
+        None,
+        "softfork specified cost mismatch"
+    )]
+    // Old cost model: wrong inner cost (too low, hits budget limit)
+    #[case::old_nested_inner_too_low(
+        "(softfork (q . 381) (q . 0) (q . (softfork (q . 159) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::empty(),
+        10000,
+        None,
+        "cost exceeded or below zero"
+    )]
+    // Old cost model: wrong outer cost (too high)
+    #[case::old_nested_outer_too_high(
+        "(softfork (q . 382) (q . 0) (q . (softfork (q . 160) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::empty(),
+        10000,
+        None,
+        "softfork specified cost mismatch"
+    )]
+    // Old cost model: wrong outer cost (too low, hits budget limit)
+    #[case::old_nested_outer_too_low(
+        "(softfork (q . 380) (q . 0) (q . (softfork (q . 160) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::empty(),
+        10000,
+        None,
+        "cost exceeded or below zero"
+    )]
+    // New cost model: nested PreHardFork softforks, specified costs are
+    // irrelevant (cost-exempt). Arbitrary values succeed.
+    // With NEW_COST_MODEL, NEW_GUARD_COST=500 applies:
+    //   outer arg eval: 81, outer guard+eval_pair: 501, inner args: 80,
+    //   inner guard+quote: 520. Total = 1182.
+    #[case::new_nested_prehf_arbitrary_costs(
+        "(softfork (q . 1) (q . 0) (q . (softfork (q . 1) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        1300,
+        Some(1182),
+        ""
+    )]
+    // New cost model: nested PreHardFork with ext 0 outer, ext 1 inner
+    #[case::new_nested_prehf_mixed_ext(
+        "(softfork (q . 1) (q . 0) (q . (softfork (q . 1) (q . 1) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        1300,
+        Some(1182),
+        ""
+    )]
+    // New cost model: nested PreHardFork, budget exactly matches actual cost
+    #[case::new_nested_prehf_tight_budget(
+        "(softfork (q . 1) (q . 0) (q . (softfork (q . 1) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        1182,
+        Some(1182),
+        ""
+    )]
+    // New cost model: nested PreHardFork, budget too tight by 1
+    #[case::new_nested_prehf_budget_exceeded(
+        "(softfork (q . 1) (q . 0) (q . (softfork (q . 1) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        1181,
+        None,
+        "cost exceeded or below zero"
+    )]
+    // New cost model: PreHardFork outer, unknown inner extension (ext=9).
+    // In consensus mode, the unknown inner softfork consumes its specified cost.
+    // Total = outer_overhead(81) + outer_guard+eval_pair(501) + inner_args(80) + inner_specified(100) = 762
+    #[case::new_nested_prehf_outer_unknown_inner(
+        "(softfork (q . 1) (q . 0) (q . (softfork (q . 100) (q . 9) (q x) (q . ()))) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        800,
+        Some(762),
+        ""
+    )]
+    // Same as above but budget is exactly right
+    #[case::new_nested_prehf_outer_unknown_inner_tight(
+        "(softfork (q . 1) (q . 0) (q . (softfork (q . 100) (q . 9) (q x) (q . ()))) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        762,
+        Some(762),
+        ""
+    )]
+    // Same but budget too tight - should fail
+    #[case::new_nested_prehf_outer_unknown_inner_exceeded(
+        "(softfork (q . 1) (q . 0) (q . (softfork (q . 100) (q . 9) (q x) (q . ()))) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        761,
+        None,
+        "cost exceeded or below zero"
+    )]
+    // New cost model in mempool: unknown inner extension is rejected
+    #[case::new_nested_prehf_outer_unknown_inner_mempool(
+        "(softfork (q . 1) (q . 0) (q . (softfork (q . 100) (q . 9) (q x) (q . ()))) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL.union(ClvmFlags::NO_UNKNOWN_OPS),
+        800,
+        None,
+        "unknown softfork extension"
+    )]
+    fn test_nested_softfork(
+        #[case] prg: &str,
+        #[case] flags: ClvmFlags,
+        #[case] budget: Cost,
+        #[case] expected_cost: Option<Cost>,
+        #[case] err: &str,
+    ) {
+        use crate::chia_dialect::ChiaDialect;
+        use crate::test_ops::node_eq;
+
+        let mut allocator = Allocator::new();
+        let program = check(parse_exp(&mut allocator, prg));
+        let args = check(parse_exp(&mut allocator, "()"));
+        let dialect = ChiaDialect::new(flags.union(ClvmFlags::ENABLE_GC));
+
+        println!("prg: {prg}");
+        println!("flags: {flags:?}, budget: {budget}");
+        match run_program(&mut allocator, &dialect, program, args, budget) {
+            Ok(Reduction(cost, result)) => {
+                let exp = expected_cost.expect("expected error but succeeded");
+                assert_eq!(cost, exp, "cost mismatch: got {cost}, expected {exp}");
+                assert!(node_eq(&allocator, result, allocator.nil()));
+
+                // verify budget - 1 fails with CostExceeded
+                let err =
+                    run_program(&mut allocator, &dialect, program, args, cost - 1).unwrap_err();
+                assert_eq!(err, EvalErr::CostExceeded);
+            }
+            Err(e) => {
+                assert!(
+                    expected_cost.is_none(),
+                    "expected cost {expected_cost:?} but got error: {e}"
+                );
                 assert_eq!(e.to_string(), err);
             }
         }

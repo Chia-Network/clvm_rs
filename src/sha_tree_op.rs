@@ -9,8 +9,8 @@ pub fn op_sha256_tree(
     a: &mut Allocator,
     input: NodePtr,
     max_cost: Cost,
-    _flags: ClvmFlags,
+    flags: ClvmFlags,
 ) -> Response {
     let [n] = get_args::<1>(a, input, "sha256tree")?;
-    tree_hash_costed(a, n, max_cost)
+    tree_hash_costed(a, n, max_cost, flags)
 }

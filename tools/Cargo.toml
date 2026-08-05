@@ -15,8 +15,8 @@ openssl = ["clvmr/openssl"]
 
 [dependencies]
 hex = { workspace = true }
+hex-literal = { workspace = true }
 rand = { workspace = true }
-linreg = { workspace = true }
 bitflags = { workspace = true }
 clvmr = { workspace = true, features = ["counters"] }
 chia-bls = { workspace = true }

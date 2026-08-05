@@ -222,8 +222,6 @@ mod tests {
     #[cfg(feature = "pre-eval")]
     use std::collections::HashSet;
 
-    // Allows move closures to tear off a reference and move it.
-    // Allows interior mutability inside Fn traits.
     #[cfg(feature = "pre-eval")]
     use std::rc::Rc;
 
@@ -273,29 +271,49 @@ mod tests {
     }
 
     const NONE: ClvmFlags = ClvmFlags::empty();
+    const NEW_COST: ClvmFlags = ClvmFlags::NEW_COST_MODEL;
     const MALA: ClvmFlags = ClvmFlags::MALACHITE;
 
     #[rstest]
     #[case("test-core-ops", NONE)]
+    #[case("test-core-ops-v2", NEW_COST)]
     #[case("test-more-ops", NONE)]
     #[case("test-more-ops", MALA)]
+    #[case("test-more-ops-v2", NEW_COST)]
+    #[case("test-more-ops-v2", NEW_COST.union(MALA))]
     #[case("test-bls-ops", NONE)]
     #[case("test-blspy-g1", NONE)]
+    #[case("test-blspy-g1-v2", NEW_COST)]
     #[case("test-blspy-g2", NONE)]
+    #[case("test-blspy-g2-v2", NEW_COST)]
     #[case("test-blspy-hash", NONE)]
+    #[case("test-blspy-hash-v2", NEW_COST)]
     #[case("test-blspy-pairing", NONE)]
+    #[case("test-blspy-pairing-v2", NEW_COST)]
     #[case("test-blspy-verify", NONE)]
+    #[case("test-blspy-verify-v2", NEW_COST)]
     #[case("test-bls-zk", NONE)]
+    #[case("test-bls-zk-v2", NEW_COST)]
     #[case("test-secp-verify", NONE)]
+    #[case("test-secp-verify", NEW_COST)]
     #[case("test-secp256k1", NONE)]
+    #[case("test-secp256k1", NEW_COST)]
     #[case("test-secp256r1", NONE)]
+    #[case("test-secp256r1", NEW_COST)]
     #[case("test-modpow", NONE)]
     #[case("test-modpow", MALA)]
+    #[case("test-modpow-v2", NEW_COST)]
+    #[case("test-modpow-v2", NEW_COST.union(MALA))]
     #[case("test-sha256", NONE)]
+    #[case("test-sha256-v2", NEW_COST)]
     #[case("test-sha256tree", NONE)]
+    #[case("test-sha256tree-v2", NEW_COST)]
     #[case("test-sha256tree-hash", NONE)]
+    #[case("test-sha256tree-hash-v2", NEW_COST)]
     #[case("test-keccak256", NONE)]
+    #[case("test-keccak256-v2", NEW_COST)]
     #[case("test-keccak256-generated", NONE)]
+    #[case("test-keccak256-generated-v2", NEW_COST)]
     fn test_ops(#[case] filename: &str, #[case] flags: ClvmFlags) {
         use std::fs::read_to_string;
 

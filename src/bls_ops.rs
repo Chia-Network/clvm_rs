@@ -18,6 +18,8 @@ const BLS_G1_SUBTRACT_COST_PER_ARG: Cost = 1343980;
 
 const BLS_G1_MULTIPLY_BASE_COST: Cost = 705500;
 const BLS_G1_MULTIPLY_COST_PER_BYTE: Cost = 10;
+const NEW_BLS_G1_MULTIPLY_BASE_COST: Cost = 1_900_000;
+const NEW_BLS_G1_MULTIPLY_COST_PER_BYTE: Cost = 24;
 
 // this is the same cost as XORing the top bit (minus the heap allocation of the
 // return value, which the operator is adding back)
@@ -31,6 +33,8 @@ const BLS_G2_SUBTRACT_COST_PER_ARG: Cost = 1950000;
 
 const BLS_G2_MULTIPLY_BASE_COST: Cost = 2100000;
 const BLS_G2_MULTIPLY_COST_PER_BYTE: Cost = 5;
+const NEW_BLS_G2_MULTIPLY_BASE_COST: Cost = 3_000_000;
+const NEW_BLS_G2_MULTIPLY_COST_PER_BYTE: Cost = 23;
 
 // this is the same cost as XORing the top bit (minus the heap allocation of the
 // return value, which the operator is adding back)
@@ -39,13 +43,21 @@ const BLS_G2_NEGATE_BASE_COST: Cost = 2164 - 960;
 const BLS_MAP_TO_G1_BASE_COST: Cost = 195000;
 const BLS_MAP_TO_G1_COST_PER_BYTE: Cost = 4;
 const BLS_MAP_TO_G1_COST_PER_DST_BYTE: Cost = 4;
+const NEW_BLS_MAP_TO_G1_COST_PER_BYTE: Cost = 3;
+const NEW_BLS_MAP_TO_G1_COST_PER_DST_BYTE: Cost = 2;
+const NEW_BLS_MAP_TO_G1_BASE_COST: Cost = 700_000;
 
 const BLS_MAP_TO_G2_BASE_COST: Cost = 815000;
 const BLS_MAP_TO_G2_COST_PER_BYTE: Cost = 4;
 const BLS_MAP_TO_G2_COST_PER_DST_BYTE: Cost = 4;
+const NEW_BLS_MAP_TO_G2_COST_PER_BYTE: Cost = 3;
+const NEW_BLS_MAP_TO_G2_COST_PER_DST_BYTE: Cost = 2;
+const NEW_BLS_MAP_TO_G2_BASE_COST: Cost = 2_700_000;
 
 const BLS_PAIRING_BASE_COST: Cost = 3000000;
 const BLS_PAIRING_COST_PER_ARG: Cost = 1200000;
+const NEW_BLS_PAIRING_BASE_COST: Cost = 1_000_000;
+const NEW_BLS_PAIRING_COST_PER_ARG: Cost = 5_000_000;
 
 const DST_G2: &[u8; 43] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_AUG_";
 
@@ -85,15 +97,27 @@ pub fn op_bls_g1_multiply(
 ) -> Response {
     let [point, scalar] = get_args::<2>(a, input, "g1_multiply")?;
 
-    let mut cost = BLS_G1_MULTIPLY_BASE_COST;
+    let mut cost = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+        NEW_BLS_G1_MULTIPLY_BASE_COST
+    } else {
+        BLS_G1_MULTIPLY_BASE_COST
+    };
     check_cost(cost, max_cost)?;
 
     let mut total = a.g1(point)?;
     let (scalar, scalar_len) = int_atom(a, scalar, "g1_multiply")?;
-    if flags.contains(ClvmFlags::LIMITS) && scalar_len > 1024 {
+    if flags.contains(ClvmFlags::LIMITS)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && scalar_len > 1024
+    {
         return Err(EvalErr::InvalidOpArg(input, "g1_multiply".to_string()));
     }
-    cost += scalar_len as Cost * BLS_G1_MULTIPLY_COST_PER_BYTE;
+    let cost_per_byte = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+        NEW_BLS_G1_MULTIPLY_COST_PER_BYTE
+    } else {
+        BLS_G1_MULTIPLY_COST_PER_BYTE
+    };
+    cost += scalar_len as Cost * cost_per_byte;
     check_cost(cost, max_cost)?;
 
     let scalar = mod_group_order(scalar);
@@ -198,15 +222,27 @@ pub fn op_bls_g2_multiply(
 ) -> Response {
     let [point, scalar] = get_args::<2>(a, input, "g2_multiply")?;
 
-    let mut cost = BLS_G2_MULTIPLY_BASE_COST;
+    let mut cost = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+        NEW_BLS_G2_MULTIPLY_BASE_COST
+    } else {
+        BLS_G2_MULTIPLY_BASE_COST
+    };
     check_cost(cost, max_cost)?;
 
     let mut total = a.g2(point)?;
     let (scalar, scalar_len) = int_atom(a, scalar, "g2_multiply")?;
-    if flags.contains(ClvmFlags::LIMITS) && scalar_len > 1024 {
+    if flags.contains(ClvmFlags::LIMITS)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && scalar_len > 1024
+    {
         return Err(EvalErr::InvalidOpArg(input, "g2_multiply".to_string()));
     }
-    cost += scalar_len as Cost * BLS_G2_MULTIPLY_COST_PER_BYTE;
+    let cost_per_byte = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+        NEW_BLS_G2_MULTIPLY_COST_PER_BYTE
+    } else {
+        BLS_G2_MULTIPLY_COST_PER_BYTE
+    };
+    cost += scalar_len as Cost * cost_per_byte;
     check_cost(cost, max_cost)?;
 
     let scalar = mod_group_order(scalar);
@@ -257,7 +293,7 @@ pub fn op_bls_map_to_g1(
     a: &mut Allocator,
     input: NodePtr,
     max_cost: Cost,
-    _flags: ClvmFlags,
+    flags: ClvmFlags,
 ) -> Response {
     let ([msg, dst], argc) = get_varargs::<2>(a, input, "g1_map")?;
     if !(1..=2).contains(&argc) {
@@ -266,11 +302,24 @@ pub fn op_bls_map_to_g1(
             format!("g1_map takes exactly 1 or 2 arguments, got {argc}"),
         ))?;
     }
-    let mut cost: Cost = BLS_MAP_TO_G1_BASE_COST;
+    let (mut cost, cost_per_byte, cost_per_dst_byte) = if flags.contains(ClvmFlags::NEW_COST_MODEL)
+    {
+        (
+            NEW_BLS_MAP_TO_G1_BASE_COST,
+            NEW_BLS_MAP_TO_G1_COST_PER_BYTE,
+            NEW_BLS_MAP_TO_G1_COST_PER_DST_BYTE,
+        )
+    } else {
+        (
+            BLS_MAP_TO_G1_BASE_COST,
+            BLS_MAP_TO_G1_COST_PER_BYTE,
+            BLS_MAP_TO_G1_COST_PER_DST_BYTE,
+        )
+    };
     check_cost(cost, max_cost)?;
 
     let msg = atom(a, msg, "g1_map")?;
-    cost += msg.as_ref().len() as Cost * BLS_MAP_TO_G1_COST_PER_BYTE;
+    cost += msg.as_ref().len() as Cost * cost_per_byte;
     check_cost(cost, max_cost)?;
 
     let dst = if argc == 2 {
@@ -279,7 +328,7 @@ pub fn op_bls_map_to_g1(
         Atom::Borrowed(b"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_AUG_".as_slice())
     };
 
-    cost += dst.as_ref().len() as Cost * BLS_MAP_TO_G1_COST_PER_DST_BYTE;
+    cost += dst.as_ref().len() as Cost * cost_per_dst_byte;
     check_cost(cost, max_cost)?;
 
     let point = hash_to_g1_with_dst(msg.as_ref(), dst.as_ref());
@@ -293,7 +342,7 @@ pub fn op_bls_map_to_g2(
     a: &mut Allocator,
     input: NodePtr,
     max_cost: Cost,
-    _flags: ClvmFlags,
+    flags: ClvmFlags,
 ) -> Response {
     let ([msg, dst], argc) = get_varargs::<2>(a, input, "g2_map")?;
     if !(1..=2).contains(&argc) {
@@ -302,11 +351,24 @@ pub fn op_bls_map_to_g2(
             format!("g2_map takes exactly 1 or 2 arguments, got {argc}"),
         ))?;
     }
-    let mut cost: Cost = BLS_MAP_TO_G2_BASE_COST;
+    let (mut cost, cost_per_byte, cost_per_dst_byte) = if flags.contains(ClvmFlags::NEW_COST_MODEL)
+    {
+        (
+            NEW_BLS_MAP_TO_G2_BASE_COST,
+            NEW_BLS_MAP_TO_G2_COST_PER_BYTE,
+            NEW_BLS_MAP_TO_G2_COST_PER_DST_BYTE,
+        )
+    } else {
+        (
+            BLS_MAP_TO_G2_BASE_COST,
+            BLS_MAP_TO_G2_COST_PER_BYTE,
+            BLS_MAP_TO_G2_COST_PER_DST_BYTE,
+        )
+    };
     check_cost(cost, max_cost)?;
 
     let msg = atom(a, msg, "g2_map")?;
-    cost += msg.as_ref().len() as Cost * BLS_MAP_TO_G2_COST_PER_BYTE;
+    cost += msg.as_ref().len() as Cost * cost_per_byte;
 
     let dst = if argc == 2 {
         atom(a, dst, "g2_map")?
@@ -314,7 +376,7 @@ pub fn op_bls_map_to_g2(
         Atom::Borrowed(DST_G2.as_slice())
     };
 
-    cost += dst.as_ref().len() as Cost * BLS_MAP_TO_G2_COST_PER_DST_BYTE;
+    cost += dst.as_ref().len() as Cost * cost_per_dst_byte;
     check_cost(cost, max_cost)?;
 
     let point = hash_to_g2_with_dst(msg.as_ref(), dst.as_ref());
@@ -333,15 +395,19 @@ pub fn op_bls_pairing_identity(
     a: &mut Allocator,
     input: NodePtr,
     max_cost: Cost,
-    _flags: ClvmFlags,
+    flags: ClvmFlags,
 ) -> Response {
-    let mut cost = BLS_PAIRING_BASE_COST;
+    let (mut cost, cost_per_arg) = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+        (NEW_BLS_PAIRING_BASE_COST, NEW_BLS_PAIRING_COST_PER_ARG)
+    } else {
+        (BLS_PAIRING_BASE_COST, BLS_PAIRING_COST_PER_ARG)
+    };
     check_cost(cost, max_cost)?;
     let mut items = Vec::<(G1Element, G2Element)>::new();
 
     let mut args = input;
     while !nilp(a, args) {
-        cost += BLS_PAIRING_COST_PER_ARG;
+        cost += cost_per_arg;
         check_cost(cost, max_cost)?;
         let g1 = a.g1(first(a, args)?)?;
         args = rest(a, args)?;
@@ -365,9 +431,24 @@ pub fn op_bls_verify(
     a: &mut Allocator,
     input: NodePtr,
     max_cost: Cost,
-    _flags: ClvmFlags,
+    flags: ClvmFlags,
 ) -> Response {
-    let mut cost = BLS_PAIRING_BASE_COST;
+    let (mut cost, cost_per_arg, cost_per_byte, cost_per_dst_byte) =
+        if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+            (
+                NEW_BLS_PAIRING_BASE_COST,
+                NEW_BLS_PAIRING_COST_PER_ARG,
+                NEW_BLS_MAP_TO_G2_COST_PER_BYTE,
+                NEW_BLS_MAP_TO_G2_COST_PER_DST_BYTE,
+            )
+        } else {
+            (
+                BLS_PAIRING_BASE_COST,
+                BLS_PAIRING_COST_PER_ARG,
+                BLS_MAP_TO_G2_COST_PER_BYTE,
+                BLS_MAP_TO_G2_COST_PER_DST_BYTE,
+            )
+        };
     check_cost(cost, max_cost)?;
 
     let mut args = input;
@@ -385,9 +466,9 @@ pub fn op_bls_verify(
         let msg = atom(a, first(a, args)?, "bls_verify message")?;
         args = rest(a, args)?;
 
-        cost += BLS_PAIRING_COST_PER_ARG;
-        cost += msg.as_ref().len() as Cost * BLS_MAP_TO_G2_COST_PER_BYTE;
-        cost += DST_G2.len() as Cost * BLS_MAP_TO_G2_COST_PER_DST_BYTE;
+        cost += cost_per_arg;
+        cost += msg.as_ref().len() as Cost * cost_per_byte;
+        cost += DST_G2.len() as Cost * cost_per_dst_byte;
         check_cost(cost, max_cost)?;
 
         items.push((pk, msg));
