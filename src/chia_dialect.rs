@@ -79,12 +79,15 @@ bitflags! {
 
 /// The default mode when running generators in mempool-mode (i.e. the stricter
 /// mode).
+///
+/// `LIMITS` is deliberately excluded: callers OR flags onto `MEMPOOL_MODE` and
+/// can't remove a baked-in flag, so `LIMITS` is set explicitly only when
+/// enforcing pre-hard-fork operand size limits.
 pub const MEMPOOL_MODE: ClvmFlags = ClvmFlags::NO_UNKNOWN_OPS
     .union(ClvmFlags::LIMIT_HEAP)
     .union(ClvmFlags::DISABLE_OP)
     .union(ClvmFlags::CANONICAL_INTS)
-    .union(ClvmFlags::LIMIT_SOFTFORK)
-    .union(ClvmFlags::LIMITS);
+    .union(ClvmFlags::LIMIT_SOFTFORK);
 
 fn unknown_operator(
     allocator: &mut Allocator,
@@ -105,7 +108,12 @@ pub struct ChiaDialect {
 }
 
 impl ChiaDialect {
-    pub fn new(flags: ClvmFlags) -> ChiaDialect {
+    pub fn new(mut flags: ClvmFlags) -> ChiaDialect {
+        // The caller is responsible for setting LIMITS and NEW_COST_MODEL as
+        // mutually exclusive flags. This normalization is purely defensive.
+        if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+            flags.remove(ClvmFlags::LIMITS);
+        }
         ChiaDialect { flags }
     }
 }
@@ -252,7 +260,10 @@ impl Dialect for ChiaDialect {
             58 => op_bls_pairing_identity,
             59 => op_bls_verify,
             60 => {
-                if flags.contains(ClvmFlags::DISABLE_OP) {
+                // DISABLE_OP disables modpow, unless the cost model bounds it.
+                if flags.contains(ClvmFlags::DISABLE_OP)
+                    && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+                {
                     return Err(EvalErr::Unimplemented(o))?;
                 }
                 op_modpow
@@ -334,5 +345,21 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn mempool_mode_excludes_limits() {
+        assert!(!MEMPOOL_MODE.contains(ClvmFlags::LIMITS));
+    }
+
+    #[test]
+    fn new_cost_model_clears_limits() {
+        // NEW_COST_MODEL drops LIMITS; the two are mutually exclusive.
+        let dialect = ChiaDialect::new(ClvmFlags::NEW_COST_MODEL | ClvmFlags::LIMITS);
+        assert!(dialect.flags().contains(ClvmFlags::NEW_COST_MODEL));
+        assert!(!dialect.flags().contains(ClvmFlags::LIMITS));
+
+        let dialect = ChiaDialect::new(ClvmFlags::LIMITS);
+        assert!(dialect.flags().contains(ClvmFlags::LIMITS));
     }
 }

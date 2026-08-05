@@ -932,7 +932,10 @@ pub fn op_div(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlag
     let [v0, v1] = get_args::<2>(a, input, "/")?;
     let (a0, a0_len) = int_atom(a, v0, "/")?;
     let (a1, a1_len) = int_atom(a, v1, "/")?;
-    if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
+    if flags.contains(ClvmFlags::DISABLE_OP)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && a0_len > 2048
+    {
         return Err(EvalErr::InvalidOpArg(input, "div".to_string()));
     }
     if flags.contains(ClvmFlags::LIMITS)
@@ -966,7 +969,10 @@ fn op_div_malachite(
     let [v0, v1] = get_args::<2>(a, input, "/")?;
     let (a0, a0_len) = malachite_int_atom(a, v0, "/")?;
     let (a1, a1_len) = malachite_int_atom(a, v1, "/")?;
-    if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
+    if flags.contains(ClvmFlags::DISABLE_OP)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && a0_len > 2048
+    {
         return Err(EvalErr::InvalidOpArg(input, "div".to_string()));
     }
     if flags.contains(ClvmFlags::LIMITS)
@@ -999,7 +1005,10 @@ pub fn op_divmod(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmF
     let [v0, v1] = get_args::<2>(a, input, "divmod")?;
     let (a0, a0_len) = int_atom(a, v0, "divmod")?;
     let (a1, a1_len) = int_atom(a, v1, "divmod")?;
-    if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
+    if flags.contains(ClvmFlags::DISABLE_OP)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && a0_len > 2048
+    {
         return Err(EvalErr::InvalidOpArg(input, "divmod".to_string()));
     }
     if flags.contains(ClvmFlags::LIMITS)
@@ -1037,7 +1046,10 @@ fn op_divmod_malachite(
     let [v0, v1] = get_args::<2>(a, input, "divmod")?;
     let (a0, a0_len) = malachite_int_atom(a, v0, "divmod")?;
     let (a1, a1_len) = malachite_int_atom(a, v1, "divmod")?;
-    if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
+    if flags.contains(ClvmFlags::DISABLE_OP)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && a0_len > 2048
+    {
         return Err(EvalErr::InvalidOpArg(input, "divmod".to_string()));
     }
     if flags.contains(ClvmFlags::LIMITS)
@@ -1074,7 +1086,10 @@ pub fn op_mod(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmFlag
     let [v0, v1] = get_args::<2>(a, input, "mod")?;
     let (a0, a0_len) = int_atom(a, v0, "mod")?;
     let (a1, a1_len) = int_atom(a, v1, "mod")?;
-    if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
+    if flags.contains(ClvmFlags::DISABLE_OP)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && a0_len > 2048
+    {
         return Err(EvalErr::InvalidOpArg(input, "mod".to_string()));
     }
     if flags.contains(ClvmFlags::LIMITS)
@@ -1108,7 +1123,10 @@ fn op_mod_malachite(
     let [v0, v1] = get_args::<2>(a, input, "mod")?;
     let (a0, a0_len) = malachite_int_atom(a, v0, "mod")?;
     let (a1, a1_len) = malachite_int_atom(a, v1, "mod")?;
-    if flags.contains(ClvmFlags::DISABLE_OP) && a0_len > 2048 {
+    if flags.contains(ClvmFlags::DISABLE_OP)
+        && !flags.contains(ClvmFlags::NEW_COST_MODEL)
+        && a0_len > 2048
+    {
         return Err(EvalErr::InvalidOpArg(input, "mod".to_string()));
     }
     if flags.contains(ClvmFlags::LIMITS)
