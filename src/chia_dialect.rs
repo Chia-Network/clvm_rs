@@ -99,7 +99,7 @@ fn unknown_operator(
     if flags.contains(ClvmFlags::NO_UNKNOWN_OPS) {
         Err(EvalErr::Unimplemented(o))?
     } else {
-        op_unknown(allocator, o, args, max_cost)
+        op_unknown(allocator, o, args, max_cost, flags)
     }
 }
 
