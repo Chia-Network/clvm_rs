@@ -56,7 +56,7 @@ impl Dialect for RuntimeDialect {
         if self.flags.contains(ClvmFlags::NO_UNKNOWN_OPS) {
             Err(EvalErr::Unimplemented(o))?
         } else {
-            op_unknown(allocator, o, argument_list, max_cost)
+            op_unknown(allocator, o, argument_list, max_cost, self.flags)
         }
     }
 

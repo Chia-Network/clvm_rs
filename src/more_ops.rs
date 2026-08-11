@@ -323,6 +323,7 @@ pub fn op_unknown(
     o: NodePtr,
     mut args: NodePtr,
     max_cost: Cost,
+    flags: ClvmFlags,
 ) -> Response {
     // unknown opcode in lenient mode
     // unknown ops are reserved if they start with 0xffff
@@ -348,6 +349,9 @@ pub fn op_unknown(
     // 1: computed like operator add, multiplied by (multiplier + 1)
     // 2: computed like operator mul, multiplied by (multiplier + 1)
     // 3: computed like operator concat, multiplied by (multiplier + 1)
+    // With NEW_COST_MODEL, 1 and 2 use the new constants. Sizes come from argument
+    // atom lengths only (no arithmetic on values): add uses max(acc_len, arg_len),
+    // mul grows the running size as l0 += l1.
 
     // this means that unknown ops where cost_function is 1, 2, or 3, may still be
     // fatal errors if the arguments passed are not atoms.
@@ -367,37 +371,85 @@ pub fn op_unknown(
         }
     };
 
+    let new_cost_model = flags.contains(ClvmFlags::NEW_COST_MODEL);
+
     let mut cost = match cost_function {
         0 => 1,
         1 => {
+            let (cost_per_arg, cost_per_byte) = if new_cost_model {
+                (NEW_ARITH_COST_PER_ARG, NEW_ARITH_COST_PER_BYTE)
+            } else {
+                (ARITH_COST_PER_ARG, ARITH_COST_PER_BYTE)
+            };
             let mut cost = ARITH_BASE_COST;
-            let mut byte_count: u64 = 0;
+            let mut acc_size: usize = 0;
             while let Some((arg, rest)) = allocator.next(args) {
                 args = rest;
-                cost += ARITH_COST_PER_ARG;
                 let len = atom_len(allocator, arg, "unknown op")?;
-                byte_count += len as u64;
-                check_cost(cost + (byte_count as Cost * ARITH_COST_PER_BYTE), max_cost)?;
+                if new_cost_model {
+                    cost = cost
+                        .checked_add(cost_per_arg)
+                        .ok_or(EvalErr::CostExceeded)?;
+                    cost = cost
+                        .checked_add(
+                            (acc_size.max(len) as Cost)
+                                .checked_mul(cost_per_byte)
+                                .ok_or(EvalErr::CostExceeded)?,
+                        )
+                        .ok_or(EvalErr::CostExceeded)?;
+                    acc_size = acc_size.max(len);
+                } else {
+                    cost += cost_per_arg;
+                    cost += len as Cost * cost_per_byte;
+                }
+                check_cost(cost, max_cost)?;
             }
-            cost + (byte_count * ARITH_COST_PER_BYTE)
+            cost
         }
         2 => {
-            let mut cost = MUL_BASE_COST;
-            let mut first_iter: bool = true;
+            let mut cost = if new_cost_model {
+                NEW_MUL_BASE_COST
+            } else {
+                MUL_BASE_COST
+            };
+            let square_divider = if new_cost_model {
+                NEW_MUL_SQUARE_COST_PER_BYTE_DIVIDER
+            } else {
+                MUL_SQUARE_COST_PER_BYTE_DIVIDER
+            };
+            let mut first_iter = true;
             let mut l0: u64 = 0;
             while let Some((arg, rest)) = allocator.next(args) {
                 args = rest;
-                let len = atom_len(allocator, arg, "unknown op")?;
+                let len = atom_len(allocator, arg, "unknown op")? as u64;
                 if first_iter {
-                    l0 = len as u64;
+                    l0 = len;
                     first_iter = false;
                     continue;
                 }
-                let l1 = len as u64;
-                cost += MUL_COST_PER_OP;
-                cost += (l0 + l1) * MUL_LINEAR_COST_PER_BYTE;
-                cost += (l0 * l1) / MUL_SQUARE_COST_PER_BYTE_DIVIDER;
-                l0 += l1;
+                if new_cost_model {
+                    cost = cost
+                        .checked_add(MUL_COST_PER_OP)
+                        .ok_or(EvalErr::CostExceeded)?;
+                    cost = cost
+                        .checked_add(
+                            l0.checked_add(len)
+                                .ok_or(EvalErr::CostExceeded)?
+                                .checked_mul(MUL_LINEAR_COST_PER_BYTE)
+                                .ok_or(EvalErr::CostExceeded)?,
+                        )
+                        .ok_or(EvalErr::CostExceeded)?;
+                    cost = cost
+                        .checked_add(
+                            l0.checked_mul(len).ok_or(EvalErr::CostExceeded)? / square_divider,
+                        )
+                        .ok_or(EvalErr::CostExceeded)?;
+                } else {
+                    cost += MUL_COST_PER_OP;
+                    cost += (l0 + len) * MUL_LINEAR_COST_PER_BYTE;
+                    cost += (l0 * len) / square_divider;
+                }
+                l0 += len;
                 check_cost(cost, max_cost)?;
             }
             cost
@@ -419,7 +471,13 @@ pub fn op_unknown(
     assert!(cost > 0);
 
     check_cost(cost, max_cost)?;
-    cost *= cost_multiplier + 1;
+    if new_cost_model {
+        cost = cost
+            .checked_mul(cost_multiplier + 1)
+            .ok_or(EvalErr::CostExceeded)?;
+    } else {
+        cost = cost.wrapping_mul(cost_multiplier + 1);
+    }
     if cost > u32::MAX as u64 {
         Err(EvalErr::Invalid(o))?
     } else {
@@ -430,7 +488,7 @@ pub fn op_unknown(
 #[cfg(test)]
 fn test_op_unknown(buf: &[u8], a: &mut Allocator, n: NodePtr) -> Response {
     let buf = a.new_atom(buf)?;
-    op_unknown(a, buf, n, 1000000)
+    op_unknown(a, buf, n, 1000000, ClvmFlags::empty())
 }
 
 #[test]
@@ -1998,5 +2056,224 @@ mod tests {
                 "expected InvalidOpArg with {flags:?}, got {result:?}"
             );
         }
+    }
+
+    fn list_from_atoms(a: &mut Allocator, atoms: &[&[u8]]) -> NodePtr {
+        let mut args = a.nil();
+        for bytes in atoms.iter().rev() {
+            let atom = a.new_atom(bytes).unwrap();
+            args = a.new_pair(atom, args).unwrap();
+        }
+        args
+    }
+
+    type OpFn = fn(&mut Allocator, NodePtr, Cost, ClvmFlags) -> Response;
+
+    #[derive(Clone, Copy)]
+    enum UnknownOpArgs {
+        Slice(&'static [&'static [u8]]),
+        Repeat(&'static [u8], usize),
+    }
+
+    impl UnknownOpArgs {
+        fn atoms(self) -> Vec<&'static [u8]> {
+            match self {
+                Self::Slice(s) => s.to_vec(),
+                Self::Repeat(atom, n) => vec![atom; n],
+            }
+        }
+    }
+
+    /// Length-based cost that `op_unknown` is supposed to charge (multiplier = 0).
+    fn expected_unknown_op_cost(cost_function: u8, flags: ClvmFlags, atoms: &[&[u8]]) -> Cost {
+        let new_cost_model = flags.contains(ClvmFlags::NEW_COST_MODEL);
+        match cost_function {
+            1 => {
+                let (cost_per_arg, cost_per_byte) = if new_cost_model {
+                    (NEW_ARITH_COST_PER_ARG, NEW_ARITH_COST_PER_BYTE)
+                } else {
+                    (ARITH_COST_PER_ARG, ARITH_COST_PER_BYTE)
+                };
+                let mut cost = ARITH_BASE_COST;
+                let mut acc_size = 0usize;
+                for atom in atoms {
+                    let len = atom.len();
+                    cost += cost_per_arg;
+                    if new_cost_model {
+                        cost += acc_size.max(len) as Cost * cost_per_byte;
+                        acc_size = acc_size.max(len);
+                    } else {
+                        cost += len as Cost * cost_per_byte;
+                    }
+                }
+                cost
+            }
+            2 => {
+                let mut cost = if new_cost_model {
+                    NEW_MUL_BASE_COST
+                } else {
+                    MUL_BASE_COST
+                };
+                let square_divider = if new_cost_model {
+                    NEW_MUL_SQUARE_COST_PER_BYTE_DIVIDER
+                } else {
+                    MUL_SQUARE_COST_PER_BYTE_DIVIDER
+                };
+                let mut first = true;
+                let mut l0 = 0u64;
+                for atom in atoms {
+                    let len = atom.len() as u64;
+                    if first {
+                        l0 = len;
+                        first = false;
+                        continue;
+                    }
+                    cost += MUL_COST_PER_OP;
+                    cost += (l0 + len) * MUL_LINEAR_COST_PER_BYTE;
+                    cost += (l0 * len) / square_divider;
+                    l0 += len;
+                }
+                cost
+            }
+            3 => {
+                let mut cost = CONCAT_BASE_COST;
+                for atom in atoms {
+                    cost += CONCAT_COST_PER_ARG;
+                    cost += CONCAT_COST_PER_BYTE * atom.len() as Cost;
+                }
+                cost
+            }
+            _ => 1,
+        }
+    }
+
+    fn ceil_log256(n: Cost) -> Cost {
+        if n <= 1 {
+            0
+        } else {
+            ((64 - (n - 1).leading_zeros()) as Cost).div_ceil(8)
+        }
+    }
+
+    fn atom_padding_bytes(atom: &[u8]) -> Cost {
+        (atom.len() as Cost).saturating_sub(number_from_u8(atom).limbs() as Cost)
+    }
+
+    /// How far the length-based unknown model may drift from the real operator.
+    fn unknown_vs_real_slack(cost_function: u8, flags: ClvmFlags, atoms: &[&[u8]]) -> Cost {
+        let n = atoms.len() as Cost;
+        let total_bytes: Cost = atoms.iter().map(|b| b.len() as Cost).sum();
+        let padding: Cost = atoms.iter().map(|a| atom_padding_bytes(a)).sum();
+        match cost_function {
+            1 if flags.contains(ClvmFlags::NEW_COST_MODEL) => {
+                // Overcharge from leading-zero / sign padding; undercharge from
+                // O(log n) limb growth when summing many similar-magnitude args.
+                NEW_ARITH_COST_PER_BYTE * (padding + n * ceil_log256(n).max(1))
+            }
+            2 => {
+                if !flags.contains(ClvmFlags::NEW_COST_MODEL) && n <= 2 {
+                    return 0;
+                }
+                let divider = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+                    NEW_MUL_SQUARE_COST_PER_BYTE_DIVIDER
+                } else {
+                    MUL_SQUARE_COST_PER_BYTE_DIVIDER
+                };
+                let steps = n.saturating_sub(1);
+                // Unknown grows l0 by full atom lengths; real uses product limbs.
+                steps * MUL_LINEAR_COST_PER_BYTE * (total_bytes + padding)
+                    + steps * (total_bytes * total_bytes) / divider
+            }
+            _ => 0,
+        }
+    }
+
+    // Unknown ops return nil, so the comparable real-operator cost excludes malloc
+    // on the result (add/mul) or on input bytes (concat). Exact match checks the
+    // length-based formula; the band around the real operator allows limb vs length drift.
+    #[rstest]
+    #[case::add_empty(1, op_add, UnknownOpArgs::Slice(&[]))]
+    #[case::add_one(1, op_add, UnknownOpArgs::Slice(&[&[1u8]]))]
+    #[case::add_two(1, op_add, UnknownOpArgs::Slice(&[&[1u8, 2, 3], &[4u8, 5]]))]
+    #[case::add_many(
+        1,
+        op_add,
+        UnknownOpArgs::Slice(&[&[1u8], &[2u8], &[3u8], &[4u8], &[5u8]])
+    )]
+    #[case::add_small_then_large(
+        1,
+        op_add,
+        UnknownOpArgs::Slice(&[&[1u8], &[0x7fu8, 0xff, 0xff, 0xff]])
+    )]
+    #[case::add_large_then_small(
+        1,
+        op_add,
+        UnknownOpArgs::Slice(&[&[0x7fu8, 0xff, 0xff, 0xff], &[1u8]])
+    )]
+    #[case::add_leading_zeros(
+        1,
+        op_add,
+        UnknownOpArgs::Slice(&[&[0x00u8, 0x00, 0x01], &[0x02u8]])
+    )]
+    #[case::add_large_n(1, op_add, UnknownOpArgs::Repeat(&[0x7f], 200))]
+    #[case::mul_empty(2, op_multiply, UnknownOpArgs::Slice(&[]))]
+    #[case::mul_one(2, op_multiply, UnknownOpArgs::Slice(&[&[7u8]]))]
+    #[case::mul_two(2, op_multiply, UnknownOpArgs::Slice(&[&[1u8, 2], &[3u8, 4]]))]
+    #[case::mul_three(2, op_multiply, UnknownOpArgs::Slice(&[&[2u8], &[3u8], &[4u8]]))]
+    #[case::mul_leading_zeros(
+        2,
+        op_multiply,
+        UnknownOpArgs::Slice(&[&[0x00u8, 0x02], &[0x00u8, 0x03]])
+    )]
+    #[case::mul_large_n(2, op_multiply, UnknownOpArgs::Repeat(&[0x7f], 200))]
+    #[case::concat_empty(3, op_concat, UnknownOpArgs::Slice(&[]))]
+    #[case::concat_one(3, op_concat, UnknownOpArgs::Slice(&[&[1u8, 2, 3]]))]
+    #[case::concat_two(3, op_concat, UnknownOpArgs::Slice(&[&[1u8, 2], &[3u8, 4, 5]]))]
+    #[case::concat_three(
+        3,
+        op_concat,
+        UnknownOpArgs::Slice(&[&[1u8], &[2u8, 3], &[4u8, 5, 6]])
+    )]
+    #[case::concat_with_nil(3, op_concat, UnknownOpArgs::Slice(&[&[], &[1u8], &[]]))]
+    #[case::concat_large_n(3, op_concat, UnknownOpArgs::Repeat(&[0x7f], 200))]
+    fn test_unknown_op_cost_matches_operator(
+        #[case] cost_function: u8,
+        #[case] op: OpFn,
+        #[case] args: UnknownOpArgs,
+        #[values(ClvmFlags::empty(), ClvmFlags::NEW_COST_MODEL)] flags: ClvmFlags,
+    ) {
+        let atoms = args.atoms();
+        let mut a = Allocator::new();
+        let arg_list = list_from_atoms(&mut a, &atoms);
+
+        let opcode = a.new_atom(&[cost_function << 6]).unwrap();
+        let Reduction(unknown_cost, _) =
+            op_unknown(&mut a, opcode, arg_list, u64::MAX, flags).unwrap();
+
+        assert_eq!(
+            unknown_cost,
+            expected_unknown_op_cost(cost_function, flags, &atoms),
+            "length-model mismatch: cost_function={cost_function} flags={flags:?}"
+        );
+
+        let Reduction(op_cost, result) = op(&mut a, arg_list, u64::MAX, flags).unwrap();
+        let malloc_adjustment = if cost_function == 3 {
+            atoms.iter().map(|b| b.len() as Cost).sum::<Cost>() * MALLOC_COST_PER_BYTE
+        } else {
+            a.atom_len(result) as Cost * MALLOC_COST_PER_BYTE
+        };
+        let real_adjusted = op_cost - malloc_adjustment;
+        let slack = unknown_vs_real_slack(cost_function, flags, &atoms);
+        let lower = real_adjusted.saturating_sub(slack);
+        let upper = real_adjusted.saturating_add(slack);
+
+        assert!(
+            unknown_cost >= lower,
+            "below lower bound: unknown={unknown_cost} lower={lower} real={real_adjusted} slack={slack} cost_function={cost_function} flags={flags:?}"
+        );
+        assert!(
+            unknown_cost <= upper,
+            "above upper bound: unknown={unknown_cost} upper={upper} real={real_adjusted} slack={slack} cost_function={cost_function} flags={flags:?}"
+        );
     }
 }
