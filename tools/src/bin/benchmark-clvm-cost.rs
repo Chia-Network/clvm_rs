@@ -24,6 +24,7 @@ const BENCHMARK_TIME_PER_COST: f64 = 0.5;
 enum AtomFill {
     Random,
     Ones,
+    Zeros,
 }
 
 #[derive(Clone, Copy)]
@@ -266,6 +267,18 @@ const OPERATORS: &[OpDef] = &[
         variadic: 550,
     },
     OpDef {
+        name: "add-unary",
+        opcode: 16,
+        steps: 30,
+        params: &[ParamDef::Bytes {
+            name: "a",
+            size: 0..400_000_000,
+            fixed: &[25000],
+            fill: AtomFill::Zeros,
+        }],
+        variadic: 0,
+    },
+    OpDef {
         name: "subtract",
         opcode: 17,
         steps: 30,
@@ -286,6 +299,18 @@ const OPERATORS: &[OpDef] = &[
         variadic: 550,
     },
     OpDef {
+        name: "subtract-unary",
+        opcode: 17,
+        steps: 30,
+        params: &[ParamDef::Bytes {
+            name: "a",
+            size: 0..400_000_000,
+            fixed: &[5_000_000],
+            fill: AtomFill::Zeros,
+        }],
+        variadic: 0,
+    },
+    OpDef {
         name: "multiply",
         opcode: 18,
         steps: 20,
@@ -304,6 +329,18 @@ const OPERATORS: &[OpDef] = &[
             },
         ],
         variadic: 30,
+    },
+    OpDef {
+        name: "multiply-unary",
+        opcode: 18,
+        steps: 20,
+        params: &[ParamDef::Bytes {
+            name: "a",
+            size: 0..400_000_000,
+            fixed: &[8000],
+            fill: AtomFill::Zeros,
+        }],
+        variadic: 0,
     },
     OpDef {
         name: "div",
@@ -614,6 +651,18 @@ const OPERATORS: &[OpDef] = &[
         variadic: 0,
     },
     OpDef {
+        name: "logand-unary",
+        opcode: 24,
+        steps: 30,
+        params: &[ParamDef::Bytes {
+            name: "a",
+            size: 0..400_000_000,
+            fixed: &[5_000_000],
+            fill: AtomFill::Zeros,
+        }],
+        variadic: 0,
+    },
+    OpDef {
         name: "logior",
         opcode: 25,
         steps: 30,
@@ -634,6 +683,18 @@ const OPERATORS: &[OpDef] = &[
         variadic: 0,
     },
     OpDef {
+        name: "logior-unary",
+        opcode: 25,
+        steps: 30,
+        params: &[ParamDef::Bytes {
+            name: "a",
+            size: 0..400_000_000,
+            fixed: &[5_000_000],
+            fill: AtomFill::Zeros,
+        }],
+        variadic: 0,
+    },
+    OpDef {
         name: "logxor",
         opcode: 26,
         steps: 30,
@@ -651,6 +712,18 @@ const OPERATORS: &[OpDef] = &[
                 fill: AtomFill::Random,
             },
         ],
+        variadic: 0,
+    },
+    OpDef {
+        name: "logxor-unary",
+        opcode: 26,
+        steps: 30,
+        params: &[ParamDef::Bytes {
+            name: "a",
+            size: 0..400_000_000,
+            fixed: &[5_000_000],
+            fill: AtomFill::Zeros,
+        }],
         variadic: 0,
     },
     OpDef {
@@ -1476,6 +1549,10 @@ fn ones_atom(a: &mut Allocator, size: usize) -> NodePtr {
     a.new_atom(&buf).unwrap()
 }
 
+fn zeros_atom(a: &mut Allocator, size: usize) -> NodePtr {
+    a.new_atom(&vec![0u8; size]).unwrap()
+}
+
 fn random_g1_atom(a: &mut Allocator, rng: &mut StdRng) -> NodePtr {
     let mut scalar = [0u8; 32];
     rng.fill_bytes(&mut scalar);
@@ -1523,6 +1600,7 @@ fn make_atom_sized(a: &mut Allocator, pdef: &ParamDef, sz: i64, rng: &mut StdRng
             match fill {
                 AtomFill::Random => random_atom(a, byte_count, sz < 0, rng),
                 AtomFill::Ones => ones_atom(a, byte_count),
+                AtomFill::Zeros => zeros_atom(a, byte_count),
             }
         }
         ParamDef::G1Point { kind, .. } => match kind {

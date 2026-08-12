@@ -60,15 +60,19 @@ Note that `limbs` is the magnitude of the _value_ (like `Number::bits().div_ceil
 ### multiply
 
 ```
-cost = MUL_BASE_COST + sum over each pair (accumulator, arg):
-    MUL_COST_PER_OP
-    + (l0 + l1) * MUL_LINEAR_COST_PER_BYTE
-    + (l0 * l1) / MUL_SQUARE_COST_DIVIDER
+cost = MUL_BASE_COST
+    + first_arg.limbs * MUL_LINEAR_COST_PER_BYTE
+    + sum over each subsequent pair (accumulator, arg):
+        MUL_COST_PER_OP
+        + (l0 + l1) * MUL_LINEAR_COST_PER_BYTE
+        + (l0 * l1) / MUL_SQUARE_COST_DIVIDER
 ```
 
 Where `l0` is the accumulator magnitude and `l1` is the next argument's magnitude.
+The first argument is loaded into the accumulator (and parsed) without performing a
+multiply, but still pays a linear per-byte cost for that parse/load.
 
-The formula has the same shape as the old cost model, but the base cost and the quadratic divisor are adjusted based on measurements. The quadratic term `(l0 * l1)` reflects that bigint multiplication is fundamentally O(n\*m) in operand sizes.
+The formula has the same shape as the old cost model for the multiply steps, but the base cost and the quadratic divisor are adjusted based on measurements. The quadratic term `(l0 * l1)` reflects that bigint multiplication is fundamentally O(n\*m) in operand sizes.
 
 ### divmod
 
