@@ -37,16 +37,14 @@ pub fn op_keccak256(
 
     let mut cost = base_cost;
 
-    let mut byte_count: usize = 0;
     let mut hasher = Keccak256::new();
     while let Some((arg, rest)) = a.next(input) {
         input = rest;
         cost += cost_per_arg;
-        check_cost(cost + byte_count as Cost * cost_per_byte, max_cost)?;
         let blob = atom(a, arg, "keccak256")?;
-        byte_count += blob.as_ref().len();
+        cost += blob.as_ref().len() as Cost * cost_per_byte;
+        check_cost(cost, max_cost)?;
         hasher.update(blob);
     }
-    cost += byte_count as Cost * cost_per_byte;
     new_atom_and_cost(a, cost, &hasher.finalize())
 }
