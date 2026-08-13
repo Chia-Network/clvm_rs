@@ -10,7 +10,7 @@ use crate::keccak256_ops::op_keccak256;
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
     op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not,
-    op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
+    op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract, op_unknown,
 };
 use crate::number::Number;
 use crate::reduction::{Reduction, Response};
@@ -110,6 +110,17 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
             "secp256r1_verify_65" => a.new_atom(&[65]).unwrap(),
             "keccak256" => a.new_atom(&[62]).unwrap(),
             "sha256tree" => a.new_atom(&[63]).unwrap(),
+
+            // synthetic names for the 4 unknown-op cost_function modes (multiplier 0)
+            "unknown" => a.new_atom(&[0x00]).unwrap(),
+            "unknown_add" => a.new_atom(&[0x40]).unwrap(),
+            "unknown_mul" => a.new_atom(&[0x80]).unwrap(),
+            "unknown_concat" => a.new_atom(&[0xc0]).unwrap(),
+            // same modes with multiplier 1 (cost *= 2)
+            "unknown_x2" => a.new_atom(&[0x01, 0x00]).unwrap(),
+            "unknown_add_x2" => a.new_atom(&[0x01, 0x40]).unwrap(),
+            "unknown_mul_x2" => a.new_atom(&[0x01, 0x80]).unwrap(),
+            "unknown_concat_x2" => a.new_atom(&[0x01, 0xc0]).unwrap(),
             _ => {
                 panic!("atom not supported \"{v}\"");
             }
@@ -247,6 +258,89 @@ mod tests {
         op_bls_g2_negate(a, input, max_cost, flags | ClvmFlags::RELAXED_BLS)
     }
 
+    // Unknown ops encode cost_function in the top 2 bits of the last opcode byte.
+    // Multiplier 0 wrappers: cost equals the length-based model.
+    // Multiplier 1 (_x2) wrappers: cost is doubled.
+    fn op_unknown_const(
+        a: &mut Allocator,
+        input: NodePtr,
+        max_cost: Cost,
+        flags: ClvmFlags,
+    ) -> Response {
+        let op = a.new_atom(&[0x00])?;
+        op_unknown(a, op, input, max_cost, flags)
+    }
+
+    fn op_unknown_add(
+        a: &mut Allocator,
+        input: NodePtr,
+        max_cost: Cost,
+        flags: ClvmFlags,
+    ) -> Response {
+        let op = a.new_atom(&[0x40])?;
+        op_unknown(a, op, input, max_cost, flags)
+    }
+
+    fn op_unknown_mul(
+        a: &mut Allocator,
+        input: NodePtr,
+        max_cost: Cost,
+        flags: ClvmFlags,
+    ) -> Response {
+        let op = a.new_atom(&[0x80])?;
+        op_unknown(a, op, input, max_cost, flags)
+    }
+
+    fn op_unknown_concat(
+        a: &mut Allocator,
+        input: NodePtr,
+        max_cost: Cost,
+        flags: ClvmFlags,
+    ) -> Response {
+        let op = a.new_atom(&[0xc0])?;
+        op_unknown(a, op, input, max_cost, flags)
+    }
+
+    fn op_unknown_const_x2(
+        a: &mut Allocator,
+        input: NodePtr,
+        max_cost: Cost,
+        flags: ClvmFlags,
+    ) -> Response {
+        let op = a.new_atom(&[0x01, 0x00])?;
+        op_unknown(a, op, input, max_cost, flags)
+    }
+
+    fn op_unknown_add_x2(
+        a: &mut Allocator,
+        input: NodePtr,
+        max_cost: Cost,
+        flags: ClvmFlags,
+    ) -> Response {
+        let op = a.new_atom(&[0x01, 0x40])?;
+        op_unknown(a, op, input, max_cost, flags)
+    }
+
+    fn op_unknown_mul_x2(
+        a: &mut Allocator,
+        input: NodePtr,
+        max_cost: Cost,
+        flags: ClvmFlags,
+    ) -> Response {
+        let op = a.new_atom(&[0x01, 0x80])?;
+        op_unknown(a, op, input, max_cost, flags)
+    }
+
+    fn op_unknown_concat_x2(
+        a: &mut Allocator,
+        input: NodePtr,
+        max_cost: Cost,
+        flags: ClvmFlags,
+    ) -> Response {
+        let op = a.new_atom(&[0x01, 0xc0])?;
+        op_unknown(a, op, input, max_cost, flags)
+    }
+
     // the input is a list of test cases, each item is a tuple of:
     // (function pointer to test, list of arguments, optional result)
     // if the result is None, the call is expected to fail
@@ -314,6 +408,8 @@ mod tests {
     #[case("test-keccak256-v2", NEW_COST)]
     #[case("test-keccak256-generated", NONE)]
     #[case("test-keccak256-generated-v2", NEW_COST)]
+    #[case("test-unknown-ops", NONE)]
+    #[case("test-unknown-ops-v2", NEW_COST)]
     fn test_ops(#[case] filename: &str, #[case] flags: ClvmFlags) {
         use std::fs::read_to_string;
 
@@ -372,6 +468,14 @@ mod tests {
             ("modpow", op_modpow as Opf),
             ("keccak256", op_keccak256 as Opf),
             ("sha256tree", op_sha256_tree as Opf),
+            ("unknown", op_unknown_const as Opf),
+            ("unknown_add", op_unknown_add as Opf),
+            ("unknown_mul", op_unknown_mul as Opf),
+            ("unknown_concat", op_unknown_concat as Opf),
+            ("unknown_x2", op_unknown_const_x2 as Opf),
+            ("unknown_add_x2", op_unknown_add_x2 as Opf),
+            ("unknown_mul_x2", op_unknown_mul_x2 as Opf),
+            ("unknown_concat_x2", op_unknown_concat_x2 as Opf),
         ]);
 
         println!("Test cases from: {filename}");
