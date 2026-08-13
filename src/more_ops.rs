@@ -128,6 +128,40 @@ fn compute_new_div_cost(a0_len: usize, a1_len: usize) -> Result<u64, EvalErr> {
     Ok(cost + square_term / NEW_DIV_SQUARE_COST_PER_BYTE_DIVIDER)
 }
 
+fn compute_modpow_cost(
+    bsize: usize,
+    esize: usize,
+    msize: usize,
+    new_cost_model: bool,
+) -> Result<Cost, EvalErr> {
+    let mut cost = MODPOW_BASE_COST;
+    if new_cost_model {
+        let m = msize as u64;
+        cost = cost
+            .checked_add(
+                (esize as u64)
+                    .checked_mul(NEW_MODPOW_EXPONENT_MULTIPLIER)
+                    .ok_or(EvalErr::CostExceeded)?
+                    .checked_mul(
+                        m.checked_mul(m)
+                            .ok_or(EvalErr::CostExceeded)?
+                            .checked_add(NEW_MODPOW_PER_ITERATION_COST)
+                            .ok_or(EvalErr::CostExceeded)?,
+                    )
+                    .ok_or(EvalErr::CostExceeded)?,
+            )
+            .ok_or(EvalErr::CostExceeded)?;
+        cost = cost
+            .checked_add((bsize as u64).checked_mul(m).ok_or(EvalErr::CostExceeded)?)
+            .ok_or(EvalErr::CostExceeded)?;
+    } else {
+        cost += bsize as Cost * MODPOW_COST_PER_BYTE_BASE_VALUE;
+        cost += (esize * esize) as Cost * MODPOW_COST_PER_BYTE_EXPONENT;
+        cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
+    }
+    Ok(cost)
+}
+
 /// The number of limbs (magnitude bytes) for a BigInt representation.
 ///
 /// This matches `Number::bits().div_ceil(8)` — it counts the magnitude bytes,
@@ -1677,30 +1711,11 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmF
     let new_cost_model = flags.contains(ClvmFlags::NEW_COST_MODEL);
     let [base, exponent, modulus] = get_args::<3>(a, input, "modpow")?;
 
-    let mut cost = MODPOW_BASE_COST;
     let (base, bsize) = int_atom(a, base, "modpow")?;
     let (exponent, esize) = int_atom(a, exponent, "modpow")?;
     let (modulus, msize) = int_atom(a, modulus, "modpow")?;
 
-    if new_cost_model {
-        let m = msize as u64;
-        cost += (esize as u64)
-            .checked_mul(NEW_MODPOW_EXPONENT_MULTIPLIER)
-            .ok_or(EvalErr::CostExceeded)?
-            .checked_mul(
-                m.checked_mul(m)
-                    .ok_or(EvalErr::CostExceeded)?
-                    .checked_add(NEW_MODPOW_PER_ITERATION_COST)
-                    .ok_or(EvalErr::CostExceeded)?,
-            )
-            .ok_or(EvalErr::CostExceeded)?;
-        cost += (bsize as u64).checked_mul(m).ok_or(EvalErr::CostExceeded)?;
-    } else {
-        cost += bsize as Cost * MODPOW_COST_PER_BYTE_BASE_VALUE;
-        cost += (esize * esize) as Cost * MODPOW_COST_PER_BYTE_EXPONENT;
-        cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
-    }
-
+    let cost = compute_modpow_cost(bsize, esize, msize, new_cost_model)?;
     check_cost(cost, max_cost)?;
 
     if flags.contains(ClvmFlags::LIMITS)
@@ -1735,30 +1750,11 @@ fn op_modpow_malachite(
     let new_cost_model = flags.contains(ClvmFlags::NEW_COST_MODEL);
     let [base, exponent, modulus] = get_args::<3>(a, input, "modpow")?;
 
-    let mut cost = MODPOW_BASE_COST;
     let (base, bsize) = malachite_int_atom(a, base, "modpow")?;
     let (exponent, esize) = malachite_int_atom(a, exponent, "modpow")?;
     let (modulus, msize) = malachite_int_atom(a, modulus, "modpow")?;
 
-    if new_cost_model {
-        let m = msize as u64;
-        cost += (esize as u64)
-            .checked_mul(NEW_MODPOW_EXPONENT_MULTIPLIER)
-            .ok_or(EvalErr::CostExceeded)?
-            .checked_mul(
-                m.checked_mul(m)
-                    .ok_or(EvalErr::CostExceeded)?
-                    .checked_add(NEW_MODPOW_PER_ITERATION_COST)
-                    .ok_or(EvalErr::CostExceeded)?,
-            )
-            .ok_or(EvalErr::CostExceeded)?;
-        cost += (bsize as u64).checked_mul(m).ok_or(EvalErr::CostExceeded)?;
-    } else {
-        cost += bsize as Cost * MODPOW_COST_PER_BYTE_BASE_VALUE;
-        cost += (esize * esize) as Cost * MODPOW_COST_PER_BYTE_EXPONENT;
-        cost += (msize * msize) as Cost * MODPOW_COST_PER_BYTE_MOD;
-    }
-
+    let cost = compute_modpow_cost(bsize, esize, msize, new_cost_model)?;
     check_cost(cost, max_cost)?;
 
     if flags.contains(ClvmFlags::LIMITS)
@@ -2023,6 +2019,30 @@ mod tests {
         *modulus.last_mut().unwrap() |= 1;
         let args = modpow_args(&mut a, &v, &[2], &modulus);
         assert!(op_modpow(&mut a, args, u64::MAX, flags).is_ok());
+    }
+
+    #[test]
+    fn test_modpow_cost_overflow_fails_closed() {
+        const MIB: usize = 1024 * 1024;
+
+        assert!(compute_modpow_cost(32, 32, 32, false).is_ok());
+        assert!(compute_modpow_cost(32, 32, 32, true).is_ok());
+
+        assert!(compute_modpow_cost(1, 3, 800 * MIB, true).is_ok());
+        assert_eq!(
+            compute_modpow_cost(1, 4, 800 * MIB, true),
+            Err(EvalErr::CostExceeded)
+        );
+        assert!(compute_modpow_cost(1, 209, 100 * MIB, true).is_ok());
+        assert_eq!(
+            compute_modpow_cost(1, 210, 100 * MIB, true),
+            Err(EvalErr::CostExceeded)
+        );
+        assert!(compute_modpow_cost(1, MIB, MIB, true).is_ok());
+        assert_eq!(
+            compute_modpow_cost(1, 2 * MIB, 2 * MIB, true),
+            Err(EvalErr::CostExceeded)
+        );
     }
 
     #[rstest]
