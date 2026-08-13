@@ -424,6 +424,15 @@ pub fn op_unknown(
                 let len = atom_len(allocator, arg, "unknown op")? as u64;
                 if first_iter {
                     l0 = len;
+                    if new_cost_model {
+                        cost = cost
+                            .checked_add(
+                                l0.checked_mul(MUL_LINEAR_COST_PER_BYTE)
+                                    .ok_or(EvalErr::CostExceeded)?,
+                            )
+                            .ok_or(EvalErr::CostExceeded)?;
+                        check_cost(cost, max_cost)?;
+                    }
                     first_iter = false;
                     continue;
                 }
@@ -924,6 +933,10 @@ pub fn op_multiply(
             (total, l0) = int_atom(a, arg, "*")?;
             if flags.contains(ClvmFlags::LIMITS) && !new_cost_model && l0 > 256 {
                 return Err(EvalErr::InvalidOpArg(arg, "*".to_string()));
+            }
+            if new_cost_model {
+                cost += (l0 as Cost) * MUL_LINEAR_COST_PER_BYTE;
+                check_cost(cost, max_cost)?;
             }
             first_iter = false;
             continue;
@@ -2125,6 +2138,9 @@ mod tests {
                     let len = atom.len() as u64;
                     if first {
                         l0 = len;
+                        if new_cost_model {
+                            cost += l0 * MUL_LINEAR_COST_PER_BYTE;
+                        }
                         first = false;
                         continue;
                     }
