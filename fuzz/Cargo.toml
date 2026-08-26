@@ -126,6 +126,12 @@ test = false
 doc = false
 
 [[bin]]
+name = "reject-non-canonical"
+path = "fuzz_targets/reject_non_canonical.rs"
+test = false
+doc = false
+
+[[bin]]
 name = "intern"
 path = "fuzz_targets/intern.rs"
 test = false
