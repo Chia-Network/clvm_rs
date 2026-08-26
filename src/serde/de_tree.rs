@@ -112,7 +112,7 @@ type ParsedTriplesOutput = (Vec<ParsedTriple>, Option<Vec<[u8; 32]>>);
 ///
 /// Since these values are offsets into the original buffer, that buffer needs
 /// to be kept around to get the original atoms.
-pub fn parse_triples<R: io::Read>(
+pub fn parse_triples<R: io::Read + io::Seek>(
     f: &mut R,
     calculate_tree_hashes: bool,
 ) -> Result<ParsedTriplesOutput> {

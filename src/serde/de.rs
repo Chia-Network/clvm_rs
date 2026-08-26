@@ -2,7 +2,7 @@ use std::io::{Cursor, Read};
 
 use super::parse_atom::parse_atom;
 use crate::allocator::{Allocator, NodePtr};
-use crate::error::Result;
+use crate::error::{EvalErr, Result};
 
 const CONS_BOX_MARKER: u8 = 0xff;
 
@@ -43,5 +43,10 @@ pub fn node_from_stream(allocator: &mut Allocator, f: &mut Cursor<&[u8]>) -> Res
 
 pub fn node_from_bytes(allocator: &mut Allocator, b: &[u8]) -> Result<NodePtr> {
     let mut buffer = Cursor::new(b);
-    node_from_stream(allocator, &mut buffer)
+    let node = node_from_stream(allocator, &mut buffer)?;
+    if buffer.position() as usize != b.len() {
+        Err(EvalErr::SerializationError)
+    } else {
+        Ok(node)
+    }
 }

@@ -184,8 +184,8 @@ fn is_canonical_atom(f: &mut Cursor<&[u8]>, first_byte: u8) -> bool {
         2 => 1 << 6,
         3 => 1 << (5 + 8),
         4 => 1 << (4 + 8 + 8),
-        5 => 1 << (4 + 8 + 8 + 8),
-        6 => 1 << (4 + 8 + 8 + 8 + 8),
+        5 => 1 << (3 + 8 + 8 + 8),
+        6 => 1 << (2 + 8 + 8 + 8 + 8),
         _ => panic!("unexpected atom length prefix {prefix_len}"),
     };
 
@@ -596,23 +596,23 @@ ae5c3c40c50832a7aecc0b3ba4646568a00c01289c45e1f03b2b488080808080"
     #[case("f807ffffff")]
     #[case("fc0000000000")]
     #[case("fc03ffffffff")]
-    #[case("c000")]
-    #[case("c03f")]
-    #[case("e00000")]
-    #[case("e01fff")]
-    #[case("f0000000")]
-    #[case("f00fffff")]
-    #[case("f800000000")]
-    #[case("f807ffffff")]
-    #[case("fc0000000000")]
-    #[case("fc03ffffffff")]
-    #[case("ff808080")]
+    #[case("8100")]
     #[case("8101")]
     #[case("817f")]
-    fn test_clvm_not_canonical(#[case] input: &str) {
-        assert!(!is_canonical_serialization(
-            &hex::decode(input).expect("invalid hex in test case")
-        ));
+    fn test_clvm_not_canonical_atom(#[case] input: &str) {
+        let buf = hex::decode(input).expect("invalid hex in test case");
+        assert!(!is_canonical_serialization(&buf));
+        let mut allocator = Allocator::new();
+        assert!(node_from_bytes_backrefs(&mut allocator, &buf).is_err());
+    }
+
+    #[test]
+    fn test_clvm_not_canonical_trailing_bytes() {
+        // valid encoding of (nil . nil) plus a trailing byte
+        let buf = hex::decode("ff808080").unwrap();
+        assert!(!is_canonical_serialization(&buf));
+        let mut allocator = Allocator::new();
+        assert!(node_from_bytes_backrefs(&mut allocator, &buf).is_err());
     }
 
     #[rstest]
@@ -623,5 +623,19 @@ ae5c3c40c50832a7aecc0b3ba4646568a00c01289c45e1f03b2b488080808080"
         let mut input = hex::decode(input).expect("invalid hex in test case");
         input.resize(size, 0);
         assert!(is_canonical_serialization(input.as_slice()));
+        let mut allocator = Allocator::new();
+        assert!(node_from_bytes_backrefs(&mut allocator, &input).is_ok());
+    }
+
+    #[test]
+    fn test_is_canonical_matches_deserializer() {
+        for hex in ["01", "80", "ff8080", "83666f6f", "c040"] {
+            let buf = hex::decode(hex).unwrap();
+            let mut allocator = Allocator::new();
+            assert_eq!(
+                is_canonical_serialization(&buf),
+                node_from_bytes_backrefs(&mut allocator, &buf).is_ok()
+            );
+        }
     }
 }
