@@ -10,6 +10,11 @@ use crate::dialect::{Dialect, OperatorSet};
 use crate::error::{EvalErr, Result};
 use crate::op_utils::{first, get_args, uint_atom};
 use crate::reduction::{Reduction, Response};
+use std::time::{Duration, Instant};
+
+/// How often (in CLVM cost units) to check whether the wall-clock timeout has
+/// been exceeded. Checking the clock on every operator would be too expensive.
+const TIMEOUT_CHECK_INTERVAL: Cost = 1_000_000;
 
 // lowered from 46
 const QUOTE_COST: Cost = 20;
@@ -123,6 +128,10 @@ struct RunProgramContext<'a, D> {
     op_stack: Vec<Operation>,
     softfork_stack: Vec<SoftforkGuard>,
     allocator_stack: Vec<TransparentCheckpoint>,
+    /// When set, execution fails with [`EvalErr::Timeout`] once wall-clock
+    /// time exceeds this duration (checked every [`TIMEOUT_CHECK_INTERVAL`]
+    /// cost units via a monotonic clock).
+    timeout: Option<Duration>,
     #[cfg(feature = "counters")]
     pub counters: Counters,
 
@@ -208,6 +217,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             op_stack: Vec::new(),
             softfork_stack: Vec::new(),
             allocator_stack: Vec::new(),
+            timeout: None,
             #[cfg(feature = "counters")]
             counters: Counters::new(),
             pre_eval,
@@ -224,6 +234,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             op_stack: Vec::new(),
             softfork_stack: Vec::new(),
             allocator_stack: Vec::new(),
+            timeout: None,
             #[cfg(feature = "counters")]
             counters: Counters::new(),
             #[cfg(feature = "pre-eval")]
@@ -231,6 +242,12 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             #[cfg(feature = "pre-eval")]
             posteval_stack: Vec::new(),
         }
+    }
+
+    fn new_with_timeout(allocator: &'a mut Allocator, dialect: &'a D, timeout: Duration) -> Self {
+        let mut rpc = Self::new(allocator, dialect);
+        rpc.timeout = Some(timeout);
+        rpc
     }
 
     fn cons_op(&mut self) -> Result<Cost> {
@@ -531,6 +548,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         self.allocator.add_ghost_atom(1)?;
         let mut cost: Cost = 0;
 
+        // Monotonic start time for optional wall-clock timeout. Instant is
+        // guaranteed not to go backwards across sleep/NTP adjustments.
+        let timeout = self.timeout.map(|limit| (limit, Instant::now()));
+        let mut next_timeout_check = TIMEOUT_CHECK_INTERVAL;
+
         cost += self.eval_pair(program, env)?;
 
         loop {
@@ -547,6 +569,18 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             if cost > effective_max_cost {
                 return Err(EvalErr::CostExceeded);
             }
+
+            // Check wall-clock timeout every TIMEOUT_CHECK_INTERVAL cost units
+            // rather than on every operator, to keep the clock read cheap.
+            if let Some((limit, start)) = timeout
+                && cost >= next_timeout_check
+            {
+                if start.elapsed() > limit {
+                    return Err(EvalErr::Timeout);
+                }
+                next_timeout_check = cost + TIMEOUT_CHECK_INTERVAL;
+            }
+
             let top = self.op_stack.pop();
             let op = match top {
                 Some(f) => f,
@@ -602,6 +636,23 @@ pub fn run_program<'a, D: Dialect>(
     max_cost: Cost,
 ) -> Response {
     let mut rpc = RunProgramContext::new(allocator, dialect);
+    rpc.run_program(program, env, max_cost)
+}
+
+/// Run a program with a wall-clock timeout.
+///
+/// The timeout is checked with a monotonic clock roughly every 1_000_000 cost
+/// units. Programs that finish before the first check threshold are unaffected.
+/// If the elapsed time exceeds `timeout`, returns [`EvalErr::Timeout`].
+pub fn run_program_with_timeout<'a, D: Dialect>(
+    allocator: &'a mut Allocator,
+    dialect: &'a D,
+    program: NodePtr,
+    env: NodePtr,
+    max_cost: Cost,
+    timeout: Duration,
+) -> Response {
+    let mut rpc = RunProgramContext::new_with_timeout(allocator, dialect, timeout);
     rpc.run_program(program, env, max_cost)
 }
 
@@ -2079,5 +2130,52 @@ mod tests {
         assert_eq!(counters.heap_size, 4905);
 
         assert_eq!(result.unwrap().0, cost);
+    }
+
+    /// Recursive sum program that costs ~25M — enough to cross many
+    /// TIMEOUT_CHECK_INTERVAL boundaries even in release builds (~10ms).
+    const EXPENSIVE_PRG: &str = "(a (q 2 2 (c 2 (c 5 (c 11 ())))) (c (q 2 (i (= 11 ()) (q 1 . 1) (q 16 5 (a 2 (c 2 (c 5 (c (- 11 (q . 1)) ())))))) 1) 1))";
+    const EXPENSIVE_ARGS: &str = "(5033 10000)";
+    const EXPENSIVE_COST: Cost = 25577622;
+
+    #[rstest]
+    // A 1µs timeout is far too short for a ~2.5M-cost program.
+    #[case::expires_1us(
+        EXPENSIVE_PRG,
+        EXPENSIVE_ARGS,
+        EXPENSIVE_COST,
+        Duration::from_micros(1),
+        None
+    )]
+    #[case::expires_zero(EXPENSIVE_PRG, EXPENSIVE_ARGS, EXPENSIVE_COST, Duration::ZERO, None)]
+    #[case::completes(
+        EXPENSIVE_PRG,
+        EXPENSIVE_ARGS,
+        EXPENSIVE_COST,
+        Duration::from_secs(60),
+        Some(EXPENSIVE_COST)
+    )]
+    // A cheap quote finishes under TIMEOUT_CHECK_INTERVAL, so even a zero
+    // timeout must not fire.
+    #[case::below_interval("(q . 42)", "()", 1000, Duration::ZERO, Some(20))]
+    fn test_timeout(
+        #[case] prg: &str,
+        #[case] args_str: &str,
+        #[case] max_cost: Cost,
+        #[case] timeout: Duration,
+        #[case] expected_cost: Option<Cost>,
+    ) {
+        use crate::chia_dialect::ChiaDialect;
+
+        let mut a = Allocator::new();
+        let program = check(parse_exp(&mut a, prg));
+        let args = check(parse_exp(&mut a, args_str));
+        let dialect = ChiaDialect::new(ClvmFlags::ENABLE_GC);
+
+        let result = run_program_with_timeout(&mut a, &dialect, program, args, max_cost, timeout);
+        match expected_cost {
+            Some(cost) => assert_eq!(result.unwrap().0, cost),
+            None => assert_eq!(result.unwrap_err(), EvalErr::Timeout),
+        }
     }
 }
