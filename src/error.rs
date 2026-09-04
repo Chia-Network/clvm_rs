@@ -26,6 +26,9 @@ pub enum EvalErr {
     #[error("cost exceeded or below zero")]
     CostExceeded,
 
+    #[error("timeout")]
+    Timeout,
+
     #[error("unknown softfork extension")]
     UnknownSoftforkExtension,
 

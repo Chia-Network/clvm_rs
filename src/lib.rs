@@ -22,7 +22,7 @@ pub mod treehash;
 
 pub use allocator::{Allocator, Atom, NodePtr, ObjectType, SExp};
 pub use chia_dialect::ChiaDialect;
-pub use run_program::run_program;
+pub use run_program::{run_program, run_program_with_timeout};
 
 pub use chia_dialect::{ClvmFlags, MEMPOOL_MODE};
 
