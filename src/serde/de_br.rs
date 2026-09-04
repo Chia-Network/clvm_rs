@@ -113,12 +113,22 @@ fn node_from_stream_backrefs_old(
 
 pub fn node_from_bytes_backrefs(allocator: &mut Allocator, b: &[u8]) -> Result<NodePtr> {
     let mut buffer = Cursor::new(b);
-    node_from_stream_backrefs(allocator, &mut buffer, |_node| {})
+    let node = node_from_stream_backrefs(allocator, &mut buffer, |_node| {})?;
+    if buffer.position() as usize != b.len() {
+        Err(EvalErr::SerializationError)
+    } else {
+        Ok(node)
+    }
 }
 
 pub fn node_from_bytes_backrefs_old(allocator: &mut Allocator, b: &[u8]) -> Result<NodePtr> {
     let mut buffer = Cursor::new(b);
-    node_from_stream_backrefs_old(allocator, &mut buffer, |_node| {})
+    let node = node_from_stream_backrefs_old(allocator, &mut buffer, |_node| {})?;
+    if buffer.position() as usize != b.len() {
+        Err(EvalErr::SerializationError)
+    } else {
+        Ok(node)
+    }
 }
 
 pub fn traverse_path_with_vec(
