@@ -10,7 +10,12 @@ const MAX_SINGLE_BYTE: u8 = 0x7f;
 /// of the atom and the full length of the atom.
 /// Atoms whose value fit in 7 bits don't have a length prefix, so those should
 /// be handled specially and never passed to this function.
-pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> Result<(u8, u64)> {
+///
+/// Also rejects non-canonical encodings: over-long length prefixes, and a
+/// length-prefixed 1-byte atom whose value is `< 0x80` (those must use the
+/// single-byte form). When `atom_size == 1`, the first payload byte is peeked
+/// (read then seek'd back) so the stream still points at the atom contents.
+pub fn decode_size_with_offset<R: Read + Seek>(f: &mut R, initial_b: u8) -> Result<(u8, u64)> {
     debug_assert!((initial_b & 0x80) != 0);
     if (initial_b & 0x80) == 0 {
         return Err(EvalErr::InternalError(
@@ -44,10 +49,32 @@ pub fn decode_size_with_offset<R: Read>(f: &mut R, initial_b: u8) -> Result<(u8,
     if atom_size >= 0x400000000 {
         return Err(EvalErr::SerializationError);
     }
+    // reject over-long length prefixes (must use the shortest encoding)
+    let min_size: u64 = match atom_start_offset {
+        1 => 0, // 0x80 (empty) through 0xbf (63 bytes)
+        2 => 1 << 6,
+        3 => 1 << (5 + 8),
+        4 => 1 << (4 + 8 + 8),
+        5 => 1 << (3 + 8 + 8 + 8),
+        6 => 1 << (2 + 8 + 8 + 8 + 8),
+        _ => return Err(EvalErr::SerializationError),
+    };
+    if atom_size < min_size {
+        return Err(EvalErr::NonCanonicalSerialization);
+    }
+    // 1-byte values < 0x80 must use the single-byte form (no length prefix)
+    if atom_size == 1 {
+        let mut first = [0_u8];
+        f.read_exact(&mut first)?;
+        f.seek(SeekFrom::Current(-1))?;
+        if first[0] < 0x80 {
+            return Err(EvalErr::NonCanonicalSerialization);
+        }
+    }
     Ok((atom_start_offset as u8, atom_size))
 }
 
-pub fn decode_size<R: Read>(f: &mut R, initial_b: u8) -> Result<u64> {
+pub fn decode_size<R: Read + Seek>(f: &mut R, initial_b: u8) -> Result<u64> {
     decode_size_with_offset(f, initial_b).map(|v| v.1)
 }
 
@@ -104,11 +131,15 @@ mod tests {
     #[rstest]
     // single-byte length prefix
     #[case(0b10100000, &[], (1, 0x20))]
+    // empty atom (0x80): size 0, no payload to peek
+    #[case(0x80, &[], (1, 0))]
+    // length-1 atoms with value >= 0x80 (canonical); payload is peeked then restored
+    #[case(0x81, &[0x80], (1, 1))]
+    #[case(0x81, &[0xff], (1, 1))]
     // two-byte length prefix
     #[case(0b11001111, &[0xaa], (2, 0xfaa))]
-    // this is *just* within what we support
-    // Still a very large blob, probably enough for a DoS attack
-    #[case(0b11111100, &[0x3, 0xff, 0xff, 0xff, 0xff], (6, 0x3ffffffff))]
+    // largest atom that fits in a 5-byte length prefix (canonical)
+    #[case(0b11111011, &[0xff, 0xff, 0xff, 0xff], (5, 0x3ffffffff))]
     #[case(0b11011111, &[0], (2, 0x1f00))]
     #[case(0b11101111, &[0, 0], (3, 0xf0000))]
     #[case(0b11110111, &[0, 0, 0], (4, 0x7000000))]
@@ -119,8 +150,12 @@ mod tests {
         #[case] expect: (u8, u64),
     ) {
         let mut stream = Cursor::new(stream);
+        let pos_before = stream.position();
         let result = decode_size_with_offset(&mut stream, first_b).expect("expect success");
         assert_eq!(result, expect);
+        // length-prefix bytes consumed; payload (if any) left unread
+        let prefix_extra = (expect.0 as u64).saturating_sub(1);
+        assert_eq!(stream.position(), pos_before + prefix_extra);
     }
 
     #[rstest]
@@ -134,10 +169,25 @@ mod tests {
     #[case(0b11111100, &[0xff, 0xfe], "bad encoding")]
     // the stream is truncated
     #[case(0b11111100, &[0x4, 0, 0, 0], "bad encoding")]
+    // length-1 prefix but missing payload byte
+    #[case(0x81, &[], "bad encoding")]
     // atoms are too large
     #[case(0b11111101, &[0, 0, 0, 0, 0], "bad encoding")]
     #[case(0b11111110, &[0x80, 0, 0, 0, 0, 0], "bad encoding")]
     #[case(0b11111111, &[0x80, 0, 0, 0, 0, 0, 0], "bad encoding")]
+    // over-long length prefixes
+    #[case(0xc0, &[0x00], "non-canonical encoding")]
+    #[case(0xc0, &[0x3f], "non-canonical encoding")]
+    // over-long encoding of a length-1 atom (must use 0x81, not 2-byte prefix)
+    #[case(0xc0, &[0x01], "non-canonical encoding")]
+    #[case(0xe0, &[0x00, 0x00], "non-canonical encoding")]
+    #[case(0xe0, &[0x1f, 0xff], "non-canonical encoding")]
+    // 6-byte prefix for a size that fits in 5 bytes
+    #[case(0b11111100, &[0x3, 0xff, 0xff, 0xff, 0xff], "non-canonical encoding")]
+    // length-prefixed single-byte atoms (0x00..=0x7f must be bare)
+    #[case(0x81, &[0x00], "non-canonical encoding")]
+    #[case(0x81, &[0x01], "non-canonical encoding")]
+    #[case(0x81, &[0x7f], "non-canonical encoding")]
     fn test_decode_size_failure(#[case] first_b: u8, #[case] stream: &[u8], #[case] expect: &str) {
         let mut stream = Cursor::new(stream);
         assert_eq!(
@@ -223,5 +273,21 @@ mod tests {
         let ret = parse_atom(&mut allocator, first, &mut cursor);
         let err = ret.unwrap_err();
         assert_eq!(err.to_string(), "bad encoding".to_string());
+    }
+
+    #[rstest]
+    #[case("8100")]
+    #[case("8101")]
+    #[case("817f")]
+    fn test_parse_atom_rejects_length_prefixed_small(#[case] input: &str) {
+        let blob = hex::decode(input).unwrap();
+        let mut cursor = Cursor::<&[u8]>::new(blob.as_slice());
+        let mut first = [0_u8; 1];
+        cursor.read_exact(&mut first).unwrap();
+        let mut allocator = Allocator::new();
+        assert_eq!(
+            parse_atom(&mut allocator, first[0], &mut cursor).unwrap_err(),
+            EvalErr::NonCanonicalSerialization
+        );
     }
 }
