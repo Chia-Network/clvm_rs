@@ -118,6 +118,8 @@ const MODPOW_COST_PER_BYTE_MOD: Cost = 21;
 
 const NEW_MODPOW_PER_ITERATION_COST: Cost = 4000;
 const NEW_MODPOW_EXPONENT_MULTIPLIER: Cost = 8;
+/// Linear per-byte cost for parsing base and modulus BigInts.
+const NEW_MODPOW_COST_PER_BYTE: Cost = 20;
 
 fn compute_new_div_cost(a0_len: usize, a1_len: usize) -> Result<u64, EvalErr> {
     let mut cost = NEW_DIV_BASE_COST;
@@ -137,6 +139,16 @@ fn compute_modpow_cost(
     let mut cost = MODPOW_BASE_COST;
     if new_cost_model {
         let m = msize as u64;
+        let b = bsize as u64;
+        // Pay for parsing |b| and |m| even when e=0 (no e*m^2 term) or |m| is tiny.
+        cost = cost
+            .checked_add(
+                b.checked_add(m)
+                    .ok_or(EvalErr::CostExceeded)?
+                    .checked_mul(NEW_MODPOW_COST_PER_BYTE)
+                    .ok_or(EvalErr::CostExceeded)?,
+            )
+            .ok_or(EvalErr::CostExceeded)?;
         cost = cost
             .checked_add(
                 (esize as u64)
@@ -152,7 +164,7 @@ fn compute_modpow_cost(
             )
             .ok_or(EvalErr::CostExceeded)?;
         cost = cost
-            .checked_add((bsize as u64).checked_mul(m).ok_or(EvalErr::CostExceeded)?)
+            .checked_add(b.checked_mul(m).ok_or(EvalErr::CostExceeded)?)
             .ok_or(EvalErr::CostExceeded)?;
     } else {
         cost += bsize as Cost * MODPOW_COST_PER_BYTE_BASE_VALUE;
@@ -1736,7 +1748,12 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost, flags: ClvmF
         return Err(EvalErr::DivisionByZero(input));
     }
 
-    let ret = base.modpow(&exponent, &modulus);
+    // b^0 mod m == 1 % m; skip Montgomery / plain modpow.
+    let ret = if exponent.sign() == Sign::NoSign {
+        Number::from(1).mod_floor(&modulus)
+    } else {
+        base.modpow(&exponent, &modulus)
+    };
     let ret = a.new_number(ret)?;
     Ok(malloc_cost(a, cost, ret))
 }
@@ -1991,6 +2008,15 @@ mod tests {
         let args = modpow_args(&mut a, &[42], &[], &[7]);
         let Reduction(_, result) = op_modpow(&mut a, args, u64::MAX, flags).unwrap();
         assert_eq!(a.atom(result).as_ref(), &[1]);
+
+        // x^1 mod m = x % m
+        let args = modpow_args(&mut a, &[42], &[1], &[7]);
+        let Reduction(_, result) = op_modpow(&mut a, args, u64::MAX, flags).unwrap();
+        assert_eq!(a.atom(result).as_ref(), &[] as &[u8]); // 42 % 7 = 0
+
+        let args = modpow_args(&mut a, &[10], &[1], &[7]);
+        let Reduction(_, result) = op_modpow(&mut a, args, u64::MAX, flags).unwrap();
+        assert_eq!(a.atom(result).as_ref(), &[3]); // 10 % 7 = 3
 
         // negative exponent (0xff = -1 in two's complement)
         let args = modpow_args(&mut a, &[3], &[0xff], &[7]);
