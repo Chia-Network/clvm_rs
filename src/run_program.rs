@@ -1,10 +1,20 @@
-use super::traverse_path::{traverse_path, traverse_path_fast};
-use crate::allocator::{Allocator, Checkpoint, NodePtr, NodeVisitor, SExp};
+use super::traverse_path::traverse_path;
+#[cfg(not(feature = "no-fastpath"))]
+use super::traverse_path::traverse_path_fast;
+#[cfg(not(feature = "no-fastpath"))]
+use crate::allocator::NodeVisitor;
+use crate::allocator::{Allocator, Checkpoint, MaybeRestore, NodePtr, SExp, TransparentCheckpoint};
+use crate::chia_dialect::ClvmFlags;
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::error::{EvalErr, Result};
 use crate::op_utils::{first, get_args, uint_atom};
 use crate::reduction::{Reduction, Response};
+use std::time::{Duration, Instant};
+
+/// How often (in CLVM cost units) to check whether the wall-clock timeout has
+/// been exceeded. Checking the clock on every operator would be too expensive.
+const TIMEOUT_CHECK_INTERVAL: Cost = 1_000_000;
 
 // lowered from 46
 const QUOTE_COST: Cost = 20;
@@ -12,6 +22,7 @@ const QUOTE_COST: Cost = 20;
 const APPLY_COST: Cost = 90;
 // the cost of entering a softfork guard
 const GUARD_COST: Cost = 140;
+const NEW_GUARD_COST: Cost = 500;
 // mandatory base cost for every operator we execute
 const OP_COST: Cost = 1;
 
@@ -31,6 +42,7 @@ enum Operation {
     Cons,
     ExitGuard,
     SwapEval,
+    RestoreAllocator,
 
     #[cfg(feature = "pre-eval")]
     PostEval,
@@ -91,6 +103,17 @@ struct SoftforkGuard {
     start_cost: Cost,
 }
 
+impl SoftforkGuard {
+    fn cost_exempt(&self) -> bool {
+        // puzzles prior to the 3.0 hard fork that used the softfork operator
+        // for OperatorSet 0 (BLS) or 1 (KECCAK) will have specified the cost
+        // based on the pre-hardfork cost model. They are grandfathered-in by
+        // ignoring the specified cost, and just apply the new cost model to the
+        // puzzle instead.
+        matches!(self.operator_set, OperatorSet::PreHardFork)
+    }
+}
+
 // `run_program` has three stacks:
 // 1. the operand stack of `NodePtr` objects. val_stack
 // 2. the operator stack of Operation. op_stack
@@ -104,6 +127,11 @@ struct RunProgramContext<'a, D> {
     env_stack: Vec<NodePtr>,
     op_stack: Vec<Operation>,
     softfork_stack: Vec<SoftforkGuard>,
+    allocator_stack: Vec<TransparentCheckpoint>,
+    /// When set, execution fails with [`EvalErr::Timeout`] once wall-clock
+    /// time exceeds this duration (checked every [`TIMEOUT_CHECK_INTERVAL`]
+    /// cost units via a monotonic clock).
+    timeout: Option<Duration>,
     #[cfg(feature = "counters")]
     pub counters: Counters,
 
@@ -188,6 +216,8 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             env_stack: Vec::new(),
             op_stack: Vec::new(),
             softfork_stack: Vec::new(),
+            allocator_stack: Vec::new(),
+            timeout: None,
             #[cfg(feature = "counters")]
             counters: Counters::new(),
             pre_eval,
@@ -203,6 +233,8 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             env_stack: Vec::new(),
             op_stack: Vec::new(),
             softfork_stack: Vec::new(),
+            allocator_stack: Vec::new(),
+            timeout: None,
             #[cfg(feature = "counters")]
             counters: Counters::new(),
             #[cfg(feature = "pre-eval")]
@@ -210,6 +242,12 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             #[cfg(feature = "pre-eval")]
             posteval_stack: Vec::new(),
         }
+    }
+
+    fn new_with_timeout(allocator: &'a mut Allocator, dialect: &'a D, timeout: Duration) -> Self {
+        let mut rpc = Self::new(allocator, dialect);
+        rpc.timeout = Some(timeout);
+        rpc
     }
 
     fn cons_op(&mut self) -> Result<Cost> {
@@ -232,6 +270,13 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             self.push(operand_list)?;
             Ok(QUOTE_COST)
         } else {
+            if self.dialect.gc_candidate(self.allocator, operator_node) {
+                self.allocator_stack
+                    .push(self.allocator.transparent_checkpoint());
+                self.op_stack.push(Operation::RestoreAllocator);
+                self.account_op_push();
+            }
+
             self.push_env(env)?;
             self.op_stack.push(Operation::Apply);
             self.account_op_push();
@@ -245,7 +290,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 // evaluated.
                 //
                 // each evaluation pops both, pushes the result list
-                // back, evaluates and the executes the Cons operation
+                // back, evaluates and then executes the Cons operation
                 // to add the most recent result to the list. Leaving
                 // the new list at the top of the stack for the next
                 // pair to be evaluated.
@@ -276,6 +321,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         // put a bunch of ops on op_stack
         let SExp::Pair(op_node, op_list) = self.allocator.sexp(program) else {
             // the program is just a bitfield path through the env tree
+            #[cfg(not(feature = "no-fastpath"))]
             let r = match self.allocator.node(program) {
                 NodeVisitor::Buffer(buf) => traverse_path(self.allocator, buf, env)?,
                 NodeVisitor::U32(val) => traverse_path_fast(self.allocator, val, env)?,
@@ -286,6 +332,10 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                     ))?;
                 }
             };
+
+            #[cfg(feature = "no-fastpath")]
+            let r: Reduction = traverse_path(self.allocator, &self.allocator.atom(program), env)?;
+
             self.push(r.1)?;
             return Ok(r.0);
         };
@@ -391,8 +441,30 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 }
             };
 
+            if self.dialect.flags().contains(ClvmFlags::LIMIT_SOFTFORK)
+                && self.softfork_stack.len() >= 20
+            {
+                return Err(EvalErr::SoftforkStackDepthExceeded);
+            }
+
+            let expected_cost = if matches!(ext, OperatorSet::PreHardFork) {
+                // if this soft-fork uses a pre-hard fork extension, its specified
+                // cost is ignored, both for purposes of validating the true cost of
+                // the program when we exit the soft-fork and for setting a new
+                // upper limit on the execution cost. When we don't have a
+                // limit, use the same limit as the current soft-fork, or the
+                // default max_cost
+                if let Some(sf) = self.softfork_stack.last() {
+                    sf.expected_cost
+                } else {
+                    current_cost + max_cost
+                }
+            } else {
+                current_cost + expected_cost
+            };
+
             self.softfork_stack.push(SoftforkGuard {
-                expected_cost: current_cost + expected_cost,
+                expected_cost,
                 allocator_state: self.allocator.checkpoint(),
                 operator_set: ext,
                 #[cfg(test)]
@@ -403,7 +475,12 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             // specified match the true cost. We also free heap allocations
             self.op_stack.push(Operation::ExitGuard);
 
-            self.eval_pair(prg, env).map(|c| c + GUARD_COST)
+            let guard_cost = if self.dialect.flags().contains(ClvmFlags::NEW_COST_MODEL) {
+                NEW_GUARD_COST
+            } else {
+                GUARD_COST
+            };
+            self.eval_pair(prg, env).map(|c| c + guard_cost)
         } else {
             let current_extensions = if let Some(sf) = self.softfork_stack.last() {
                 sf.operator_set
@@ -431,7 +508,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             .pop()
             .expect("internal error. exiting a softfork that's already been popped");
 
-        if current_cost != guard.expected_cost {
+        if !guard.cost_exempt() && current_cost != guard.expected_cost {
             #[cfg(test)]
             println!(
                 "actual cost: {} specified cost: {}",
@@ -471,6 +548,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         self.allocator.add_ghost_atom(1)?;
         let mut cost: Cost = 0;
 
+        // Monotonic start time for optional wall-clock timeout. Instant is
+        // guaranteed not to go backwards across sleep/NTP adjustments.
+        let timeout = self.timeout.map(|limit| (limit, Instant::now()));
+        let mut next_timeout_check = TIMEOUT_CHECK_INTERVAL;
+
         cost += self.eval_pair(program, env)?;
 
         loop {
@@ -487,6 +569,18 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             if cost > effective_max_cost {
                 return Err(EvalErr::CostExceeded);
             }
+
+            // Check wall-clock timeout every TIMEOUT_CHECK_INTERVAL cost units
+            // rather than on every operator, to keep the clock read cheap.
+            if let Some((limit, start)) = timeout
+                && cost >= next_timeout_check
+            {
+                if start.elapsed() > limit {
+                    return Err(EvalErr::Timeout);
+                }
+                next_timeout_check = cost + TIMEOUT_CHECK_INTERVAL;
+            }
+
             let top = self.op_stack.pop();
             let op = match top {
                 Some(f) => f,
@@ -497,6 +591,29 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 Operation::ExitGuard => self.exit_guard(cost)?,
                 Operation::Cons => self.cons_op()?,
                 Operation::SwapEval => self.swap_eval_op()?,
+                Operation::RestoreAllocator => {
+                    let Some(checkpoint) = self.allocator_stack.pop() else {
+                        return Err(EvalErr::InternalError(
+                            NodePtr::NIL,
+                            "allocator checkpoint stack empty".to_string(),
+                        ));
+                    };
+                    let Some(&top) = self.val_stack.last() else {
+                        return Err(EvalErr::InternalError(
+                            NodePtr::NIL,
+                            "value stack empty".to_string(),
+                        ));
+                    };
+                    match self.allocator.maybe_restore_with_node(&checkpoint, top)? {
+                        MaybeRestore::NoReplace => {}
+                        MaybeRestore::Replace(new_node) => {
+                            self.val_stack.pop().unwrap();
+                            self.val_stack.push(new_node);
+                        }
+                        MaybeRestore::Aborted => {}
+                    }
+                    0
+                }
                 #[cfg(feature = "pre-eval")]
                 Operation::PostEval => {
                     let f = self.posteval_stack.pop().unwrap();
@@ -506,6 +623,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 }
             };
         }
+        self.allocator.clear_validation_caches();
         Ok(Reduction(cost, self.pop()?))
     }
 }
@@ -518,6 +636,23 @@ pub fn run_program<'a, D: Dialect>(
     max_cost: Cost,
 ) -> Response {
     let mut rpc = RunProgramContext::new(allocator, dialect);
+    rpc.run_program(program, env, max_cost)
+}
+
+/// Run a program with a wall-clock timeout.
+///
+/// The timeout is checked with a monotonic clock roughly every 1_000_000 cost
+/// units. Programs that finish before the first check threshold are unaffected.
+/// If the elapsed time exceeds `timeout`, returns [`EvalErr::Timeout`].
+pub fn run_program_with_timeout<'a, D: Dialect>(
+    allocator: &'a mut Allocator,
+    dialect: &'a D,
+    program: NodePtr,
+    env: NodePtr,
+    max_cost: Cost,
+    timeout: Duration,
+) -> Response {
+    let mut rpc = RunProgramContext::new_with_timeout(allocator, dialect, timeout);
     rpc.run_program(program, env, max_cost)
 }
 
@@ -598,15 +733,13 @@ mod tests {
             cost: 1047,
             err: "",
         },
-        // (mod (X N) (defun power (X N) (if (= N 0) 1 (* X (power X (- N 1))))) (power X N))
+        // (mod (X N) (defun sum (X N) (if (= N 0) 1 (+ X (sum X (- N 1))))) (sum X N))
         RunProgramTest {
-            prg: "(a (q 2 2 (c 2 (c 5 (c 11 ())))) (c (q 2 (i (= 11 ()) (q 1 . 1) (q 18 5 (a 2 (c 2 (c 5 (c (- 11 (q . 1)) ())))))) 1) 1))",
+            prg: "(a (q 2 2 (c 2 (c 5 (c 11 ())))) (c (q 2 (i (= 11 ()) (q 1 . 1) (q 16 5 (a 2 (c 2 (c 5 (c (- 11 (q . 1)) ())))))) 1) 1))",
             args: "(5033 1000)",
             flags: ClvmFlags::empty(),
-            result: Some(
-                "0x024d4f505f1f813ca5e0ae8805bad8707347e65c5f7595da4852be5074288431d1df11a0c326d249f1f52ee051579403d1d0c23a7a1e9af18b7d7dc4c63c73542863c434ae9dfa80141a30cf4acee0d6c896aa2e64ea748404427a3bdaa1b97e4e09b8f5e4f8e9c568a4fc219532dbbad5ec54476d19b7408f8e7e7df16b830c20a1e83d90cc0620b0677b7606307f725539ef223561cdb276baf8e92156ee6492d97159c8f64768349ea7e219fd07fa818a59d81d0563b140396402f0ff758840da19808440e0a57c94c48ef84b4ab7ca8c5f010b69b8f443b12b50bd91bdcf2a96208ddac283fa294d6a99f369d57ab41d03eab5bb4809223c141ad94378516e6766a5054e22e997e260978af68a86893890d612f081b40d54fd1e940af35c0d7900c9a917e2458a61ef8a83f7211f519b2c5f015dfa7c2949ef8bedd02d3bad64ca9b2963dc2bb79f24092331133a7a299872079b9d0422b8fc0eeba4e12c7667ac7282cc6ff98a7c670614c9fce5a061b8d5cd4dd3c6d62d245688b62f9713dc2604bdd5bbc85c070c51f784a9ebac0e0eaa2e29e82d93e570887aa7e1a9d25baf0b2c55a4615f35ec0dbe9baa921569700f95e10cd2d4f6ba152a2ac288c37b60980df33dadfa920fd43dbbf55a0b333b88a3237d954e33d80ed6582019faf51db5f1b52e392559323f8bdd945e7fc6cb8f97f2b8417cfc184d7bfbfa5314d4114f95b725847523f1848d13c28ad96662298ee4e2d87af23e7cb4e58d7a20a5c57ae6833b4a37dcafccca0245a0d6ef28f83200d74db390281e03dd3a8b782970895764c3fcef31c5ed6d0b6e4e796a62ad5654691eea0d9db351cc4fee63248405b24c98bd5e68e4a5e0ab11e90e3c7de270c594d3a35639d931853b7010c8c896f6b28b2af719e53da65da89d44b926b6f06123c9217a43be35d751516bd02c18c4f868a2eae78ae3c6deab1115086c8ce58414db4561865d17ab95c7b3d4e1bfc6d0a4d3fbf5f20a0a7d77a9270e4da354c588da55b0063aec76654019ffb310e1503d99a7bc81ccdf5f8b15c8638156038624cf35988d8420bfdb59184c4b86bf5448df65c44aedc2e98eead7f1ba4be8f402baf12d41076b8f0991cfc778e04ba2c05d1440c70488ffaeefde537064035037f729b683e8ff1b3d0b4aa26a2b30bcaa9379f7fcc7072ff9a2c3e801c5979b0ab3e7acf89373de642d596f26514b9fa213ca217181a8429ad69d14445a822b16818c2509480576dc0ff7bac48c557e6d1883039f4daf873fa4f9a4d849130e2e4336049cfaf9e69a7664f0202b901cf07c7065c4dc93c46f98c5ea5c9c9d911b733093490da3bf1c95f43cd18b7be3798535a55ac6da3442946a268b74bde1349ca9807c41d90c7ec218a17efd2c21d5fcd720501f8a488f1dfba0a423dfdb2a877707b77930e80d734ceabcdb24513fad8f2e2470604d041df083bf184edd0e9720dd2b608b1ee1df951d7ce8ec671317b4f5a3946aa75280658b4ef77b3f504ce73e7ecac84eec3c2b45fb62f6fbd5ab78c744abd3bf5d0ab37d7b19124d2470d53db09ddc1f9dd9654b0e6a3a44c95d0a5a5e061bd24813508d3d1c901544dc3e6b84ca38dd2fde5ea60a57cbc12428848c4e3f6fd4941ebd23d709a717a090dd01830436659f7c20fd2d70c916427e9f3f12ac479128c2783f02a9824aa4e31de133c2704e049a50160f656e28aa0a2615b32bd48bb5d5d13d363a487324c1e9b8703be938bc545654465c9282ad5420978263b3e3ba1bb45e1a382554ac68e5a154b896c9c4c2c3853fbbfc877c4fb7dc164cc420f835c413839481b1d2913a68d206e711fb19b284a7bb2bd2033531647cf135833a0f3026b0c1dc0c184120d30ef4865985fdacdfb848ab963d2ae26a784b7b6a64fdb8feacf94febed72dcd0a41dc12be26ed79af88f1d9cba36ed1f95f2da8e6194800469091d2dfc7b04cfe93ab7a7a888b2695bca45a76a1458d08c3b6176ab89e7edc56c7e01142adfff944641b89cd5703a911145ac4ec42164d90b6fcd78b39602398edcd1f935485894fb8a1f416e031624806f02fbd07f398dbfdd48b86dfacf2045f85ecfe5bb1f01fae758dcdb4ae3b1e2aac6f0878f700d1f430b8ca47c9d8254059bd5c006042c4605f33ca98b41",
-            ),
-            cost: 15073165,
+            result: Some("0x4ccc29"),
+            cost: 2546283,
             err: "",
         },
         // '
@@ -1171,6 +1304,45 @@ mod tests {
             cost: 10000,
             err: "softfork specified cost mismatch",
         },
+        // with NEW_COST_MODEL, a non-grandfathered extension (9) still requires
+        // exact cost match. In consensus mode the unknown extension is ignored
+        // but the specified cost is still consumed.
+        RunProgramTest {
+            prg: "(softfork (q . 919) (q . 9) (q x) (q . ()))",
+            args: "()",
+            flags: ClvmFlags::NEW_COST_MODEL,
+            result: Some("()"),
+            cost: 1000,
+            err: "",
+        },
+        // in mempool mode with NEW_COST_MODEL, unknown extensions are rejected
+        RunProgramTest {
+            prg: "(softfork (q . 919) (q . 9) (q x) (q . ()))",
+            args: "()",
+            flags: ClvmFlags::NEW_COST_MODEL.union(ClvmFlags::NO_UNKNOWN_OPS),
+            result: None,
+            cost: 1000,
+            err: "unknown softfork extension",
+        },
+        // with NEW_COST_MODEL, specifying a cost lower than actual also
+        // succeeds for grandfathered extensions because the specified cost is
+        // not used as a budget limit inside the guard (cost_exempt = true)
+        RunProgramTest {
+            prg: "(softfork (q . 100) (q . 0) (q . (q . 42)) (q . ()))",
+            args: "()",
+            flags: ClvmFlags::NEW_COST_MODEL,
+            result: Some("()"),
+            cost: 601,
+            err: "",
+        },
+        RunProgramTest {
+            prg: "(softfork (q . 100) (q . 1) (q . (q . 42)) (q . ()))",
+            args: "()",
+            flags: ClvmFlags::NEW_COST_MODEL,
+            result: Some("()"),
+            cost: 601,
+            err: "",
+        },
         // without the flag to enable the keccak extensions, it's an unknown extension
         RunProgramTest {
             prg: "(softfork (q . 161) (q . 2) (q . (q . 42)) (q . ()))",
@@ -1363,7 +1535,7 @@ mod tests {
         let args = check(parse_exp(&mut allocator, t.args));
         let expected_result = &t.result.map(|v| check(parse_exp(&mut allocator, v)));
 
-        let dialect = ChiaDialect::new(t.flags);
+        let dialect = ChiaDialect::new(t.flags.union(ClvmFlags::ENABLE_GC));
         println!("prg: {}", t.prg);
         match run_program(&mut allocator, &dialect, program, args, t.cost) {
             Ok(Reduction(cost, prg_result)) => {
@@ -1388,6 +1560,120 @@ mod tests {
     fn test_run_program() {
         for t in TEST_CASES {
             run_test_case(t);
+        }
+    }
+
+    // Test that with NEW_COST_MODEL, grandfathered-in softfork extensions (0=BLS,
+    // 1=Keccak) tolerate a specified cost that doesn't match the actual execution
+    // cost. The inner program `(q . 42)` costs QUOTE(20) + NEW_GUARD(500) = 520
+    // inside the guard. The outer cost (4 quoted args evaluated) = 81.
+    // actual_total = 81 + 520 = 601.
+    #[rstest]
+    // Extension 0 (BLS): specified cost 200 > actual 160, grandfathered-in
+    #[case::ext0_cost_above_new_cost(
+        "(softfork (q . 200) (q . 0) (q . (q . 42)) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        700,
+        Some(601),
+        ""
+    )]
+    // Extension 0, mempool mode
+    #[case::ext0_cost_above_new_cost_mempool(
+        "(softfork (q . 200) (q . 0) (q . (q . 42)) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL.union(ClvmFlags::NO_UNKNOWN_OPS), 700, Some(601), "")]
+    // Extension 1 (Keccak): specified cost 200 > actual 160, grandfathered-in
+    #[case::ext1_cost_above_new_cost(
+        "(softfork (q . 200) (q . 1) (q . (q . 42)) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        700,
+        Some(601),
+        ""
+    )]
+    // Extension 1, mempool mode
+    #[case::ext1_cost_above_new_cost_mempool(
+        "(softfork (q . 200) (q . 1) (q . (q . 42)) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL.union(ClvmFlags::NO_UNKNOWN_OPS), 700, Some(601), "")]
+    // Without NEW_COST_MODEL, the same mismatch on extension 0 fails
+    #[case::ext0_cost_above_old_cost(
+        "(softfork (q . 200) (q . 0) (q . (q . 42)) (q . ()))",
+        ClvmFlags::empty(),
+        500,
+        None,
+        "softfork specified cost mismatch"
+    )]
+    // Without NEW_COST_MODEL, the same mismatch on extension 1 fails
+    #[case::ext1_cost_above_old_cost(
+        "(softfork (q . 200) (q . 1) (q . (q . 42)) (q . ()))",
+        ClvmFlags::empty(),
+        500,
+        None,
+        "softfork specified cost mismatch"
+    )]
+    // With NEW_COST_MODEL, exact match still works
+    #[case::ext0_exact_match_new_cost(
+        "(softfork (q . 160) (q . 0) (q . (q . 42)) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        700,
+        Some(601),
+        ""
+    )]
+    // With NEW_COST_MODEL, specified cost barely above actual (161 > 160)
+    #[case::ext0_cost_barely_above_new_cost(
+        "(softfork (q . 161) (q . 0) (q . (q . 42)) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        700,
+        Some(601),
+        ""
+    )]
+    // With NEW_COST_MODEL, specified cost below actual (100 < 160) also succeeds
+    // because cost_exempt skips both the budget limit and cost validation
+    #[case::ext0_cost_below_new_cost(
+        "(softfork (q . 100) (q . 0) (q . (q . 42)) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        700,
+        Some(601),
+        ""
+    )]
+    #[case::ext1_cost_below_new_cost(
+        "(softfork (q . 100) (q . 1) (q . (q . 42)) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        700,
+        Some(601),
+        ""
+    )]
+    // Without NEW_COST_MODEL, cost below actual fails because the specified cost
+    // IS used as the execution budget inside the guard
+    #[case::ext0_cost_below_old_cost(
+        "(softfork (q . 100) (q . 0) (q . (q . 42)) (q . ()))",
+        ClvmFlags::empty(),
+        500,
+        None,
+        "cost exceeded or below zero"
+    )]
+    fn test_softfork_new_cost_model_grandfathered(
+        #[case] prg: &str,
+        #[case] flags: ClvmFlags,
+        #[case] budget: Cost,
+        #[case] expected_cost: Option<Cost>,
+        #[case] err: &str,
+    ) {
+        use crate::chia_dialect::ChiaDialect;
+        use crate::test_ops::node_eq;
+
+        let mut allocator = Allocator::new();
+        let program = check(parse_exp(&mut allocator, prg));
+        let args = check(parse_exp(&mut allocator, "()"));
+        let dialect = ChiaDialect::new(flags.union(ClvmFlags::ENABLE_GC));
+
+        match run_program(&mut allocator, &dialect, program, args, budget) {
+            Ok(Reduction(cost, result)) => {
+                assert_eq!(cost, expected_cost.expect("expected error but succeeded"));
+                assert!(node_eq(&allocator, result, allocator.nil()));
+            }
+            Err(e) => {
+                assert!(expected_cost.is_none(), "expected success but got: {e}");
+                assert_eq!(e.to_string(), err);
+            }
         }
     }
 
@@ -1602,6 +1888,216 @@ mod tests {
         run_test_case(&t);
     }
 
+    fn build_nested_softfork(depth: usize) -> (String, Cost) {
+        let mut program = "(q . 42)".to_string();
+        let mut cost: Cost = QUOTE_COST;
+
+        for _ in 0..depth {
+            let softfork_param = GUARD_COST + cost;
+            program = format!("(softfork (q . {softfork_param}) (q . 0) (q . {program}) (q . ()))");
+            cost = OP_COST + 4 * QUOTE_COST + softfork_param;
+        }
+
+        (program, cost)
+    }
+
+    #[rstest]
+    #[case::at_limit_with_flag(20, ClvmFlags::LIMIT_SOFTFORK, "")]
+    #[case::over_limit_with_flag(21, ClvmFlags::LIMIT_SOFTFORK, "softfork stack depth exceeded")]
+    #[case::over_limit_without_flag(21, ClvmFlags::empty(), "")]
+    fn test_limit_softfork_stack(
+        #[case] depth: usize,
+        #[case] flags: ClvmFlags,
+        #[case] err: &str,
+    ) {
+        use crate::chia_dialect::ChiaDialect;
+
+        let (prg, cost) = build_nested_softfork(depth);
+        let mut a = Allocator::new();
+        let program = check(parse_exp(&mut a, &prg));
+        let args = check(parse_exp(&mut a, "()"));
+        let dialect = ChiaDialect::new(flags);
+        match run_program(&mut a, &dialect, program, args, cost) {
+            Ok(Reduction(actual_cost, _)) => {
+                assert_eq!(err, "");
+                assert_eq!(actual_cost, cost);
+            }
+            Err(e) => {
+                assert_eq!(e.to_string(), err);
+            }
+        }
+    }
+
+    // Nested softfork tests: validate that cost limits propagate correctly
+    // through nested softfork guards.
+    //
+    // The nested program is:
+    //   (softfork (q . C_outer) (q . E_outer) (q . INNER) (q . ()))
+    // where INNER is:
+    //   (softfork (q . C_inner) (q . E_inner) (q . (q . 42)) (q . ()))
+    //
+    // Cost breakdown (old cost model, GUARD=140):
+    //   outer arg eval: 4*QUOTE(20) + OP_COST(1) = 81
+    //   outer guard + eval_pair of inner: GUARD(140) + OP_COST(1) = 141
+    //   inner arg eval: 4*QUOTE(20) = 80
+    //   inner guard + eval_pair of (q.42): GUARD(140) + QUOTE(20) = 160
+    //   Total: 81 + 141 + 80 + 160 = 462
+    //
+    //   Inner program cost (for inner guard validation): 160
+    //   Outer program cost (for outer guard validation): 141 + 80 + 160 = 381
+    //
+    // With NEW_COST_MODEL (NEW_GUARD=500):
+    //   81 + 501 + 80 + 520 = 1182
+    #[rstest]
+    // Old cost model: nested softfork with correct costs
+    #[case::old_nested_correct(
+        "(softfork (q . 381) (q . 0) (q . (softfork (q . 160) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::empty(),
+        462,
+        Some(462),
+        ""
+    )]
+    // Old cost model: wrong inner cost (too high). Outer cost must be large
+    // enough that the inner specified cost doesn't exceed the remaining budget.
+    #[case::old_nested_inner_too_high(
+        "(softfork (q . 382) (q . 0) (q . (softfork (q . 161) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::empty(),
+        10000,
+        None,
+        "softfork specified cost mismatch"
+    )]
+    // Old cost model: wrong inner cost (too low, hits budget limit)
+    #[case::old_nested_inner_too_low(
+        "(softfork (q . 381) (q . 0) (q . (softfork (q . 159) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::empty(),
+        10000,
+        None,
+        "cost exceeded or below zero"
+    )]
+    // Old cost model: wrong outer cost (too high)
+    #[case::old_nested_outer_too_high(
+        "(softfork (q . 382) (q . 0) (q . (softfork (q . 160) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::empty(),
+        10000,
+        None,
+        "softfork specified cost mismatch"
+    )]
+    // Old cost model: wrong outer cost (too low, hits budget limit)
+    #[case::old_nested_outer_too_low(
+        "(softfork (q . 380) (q . 0) (q . (softfork (q . 160) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::empty(),
+        10000,
+        None,
+        "cost exceeded or below zero"
+    )]
+    // New cost model: nested PreHardFork softforks, specified costs are
+    // irrelevant (cost-exempt). Arbitrary values succeed.
+    // With NEW_COST_MODEL, NEW_GUARD_COST=500 applies:
+    //   outer arg eval: 81, outer guard+eval_pair: 501, inner args: 80,
+    //   inner guard+quote: 520. Total = 1182.
+    #[case::new_nested_prehf_arbitrary_costs(
+        "(softfork (q . 1) (q . 0) (q . (softfork (q . 1) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        1300,
+        Some(1182),
+        ""
+    )]
+    // New cost model: nested PreHardFork with ext 0 outer, ext 1 inner
+    #[case::new_nested_prehf_mixed_ext(
+        "(softfork (q . 1) (q . 0) (q . (softfork (q . 1) (q . 1) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        1300,
+        Some(1182),
+        ""
+    )]
+    // New cost model: nested PreHardFork, budget exactly matches actual cost
+    #[case::new_nested_prehf_tight_budget(
+        "(softfork (q . 1) (q . 0) (q . (softfork (q . 1) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        1182,
+        Some(1182),
+        ""
+    )]
+    // New cost model: nested PreHardFork, budget too tight by 1
+    #[case::new_nested_prehf_budget_exceeded(
+        "(softfork (q . 1) (q . 0) (q . (softfork (q . 1) (q . 0) (q . (q . 42)) (q . ()))) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        1181,
+        None,
+        "cost exceeded or below zero"
+    )]
+    // New cost model: PreHardFork outer, unknown inner extension (ext=9).
+    // In consensus mode, the unknown inner softfork consumes its specified cost.
+    // Total = outer_overhead(81) + outer_guard+eval_pair(501) + inner_args(80) + inner_specified(100) = 762
+    #[case::new_nested_prehf_outer_unknown_inner(
+        "(softfork (q . 1) (q . 0) (q . (softfork (q . 100) (q . 9) (q x) (q . ()))) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        800,
+        Some(762),
+        ""
+    )]
+    // Same as above but budget is exactly right
+    #[case::new_nested_prehf_outer_unknown_inner_tight(
+        "(softfork (q . 1) (q . 0) (q . (softfork (q . 100) (q . 9) (q x) (q . ()))) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        762,
+        Some(762),
+        ""
+    )]
+    // Same but budget too tight - should fail
+    #[case::new_nested_prehf_outer_unknown_inner_exceeded(
+        "(softfork (q . 1) (q . 0) (q . (softfork (q . 100) (q . 9) (q x) (q . ()))) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL,
+        761,
+        None,
+        "cost exceeded or below zero"
+    )]
+    // New cost model in mempool: unknown inner extension is rejected
+    #[case::new_nested_prehf_outer_unknown_inner_mempool(
+        "(softfork (q . 1) (q . 0) (q . (softfork (q . 100) (q . 9) (q x) (q . ()))) (q . ()))",
+        ClvmFlags::NEW_COST_MODEL.union(ClvmFlags::NO_UNKNOWN_OPS),
+        800,
+        None,
+        "unknown softfork extension"
+    )]
+    fn test_nested_softfork(
+        #[case] prg: &str,
+        #[case] flags: ClvmFlags,
+        #[case] budget: Cost,
+        #[case] expected_cost: Option<Cost>,
+        #[case] err: &str,
+    ) {
+        use crate::chia_dialect::ChiaDialect;
+        use crate::test_ops::node_eq;
+
+        let mut allocator = Allocator::new();
+        let program = check(parse_exp(&mut allocator, prg));
+        let args = check(parse_exp(&mut allocator, "()"));
+        let dialect = ChiaDialect::new(flags.union(ClvmFlags::ENABLE_GC));
+
+        println!("prg: {prg}");
+        println!("flags: {flags:?}, budget: {budget}");
+        match run_program(&mut allocator, &dialect, program, args, budget) {
+            Ok(Reduction(cost, result)) => {
+                let exp = expected_cost.expect("expected error but succeeded");
+                assert_eq!(cost, exp, "cost mismatch: got {cost}, expected {exp}");
+                assert!(node_eq(&allocator, result, allocator.nil()));
+
+                // verify budget - 1 fails with CostExceeded
+                let err =
+                    run_program(&mut allocator, &dialect, program, args, cost - 1).unwrap_err();
+                assert_eq!(err, EvalErr::CostExceeded);
+            }
+            Err(e) => {
+                assert!(
+                    expected_cost.is_none(),
+                    "expected cost {expected_cost:?} but got error: {e}"
+                );
+                assert_eq!(e.to_string(), err);
+            }
+        }
+    }
+
     #[cfg(feature = "counters")]
     #[test]
     fn test_counters() {
@@ -1611,14 +2107,14 @@ mod tests {
 
         let program = check(parse_exp(
             &mut a,
-            "(a (q 2 2 (c 2 (c 5 (c 11 ())))) (c (q 2 (i (= 11 ()) (q 1 . 1) (q 18 5 (a 2 (c 2 (c 5 (c (- 11 (q . 1)) ())))))) 1) 1))",
+            "(a (q 2 2 (c 2 (c 5 (c 11 ())))) (c (q 2 (i (= 11 ()) (q 1 . 1) (q 16 5 (a 2 (c 2 (c 5 (c (- 11 (q . 1)) ())))))) 1) 1))",
         ));
         let args = check(parse_exp(&mut a, "(5033 1000)"));
-        let cost = 15073165;
+        let cost = 2546283;
 
         let (counters, result) = run_program_with_counters(
             &mut a,
-            &ChiaDialect::new(ClvmFlags::empty()),
+            &ChiaDialect::new(ClvmFlags::ENABLE_GC),
             program,
             args,
             cost,
@@ -1626,13 +2122,60 @@ mod tests {
 
         assert_eq!(counters.val_stack_usage, 3015);
         assert_eq!(counters.env_stack_usage, 1005);
-        assert_eq!(counters.op_stack_usage, 3014);
-        assert_eq!(counters.allocated_atom_count, 998);
+        assert_eq!(counters.op_stack_usage, 6017);
+        assert_eq!(counters.allocated_atom_count, 0);
         assert_eq!(counters.atom_count, 2040);
-        assert_eq!(counters.allocated_pair_count, 22077);
+        assert_eq!(counters.allocated_pair_count, 167);
         assert_eq!(counters.pair_count, 22077);
-        assert_eq!(counters.heap_size, 769963);
+        assert_eq!(counters.heap_size, 4905);
 
         assert_eq!(result.unwrap().0, cost);
+    }
+
+    /// Recursive sum program that costs ~25M — enough to cross many
+    /// TIMEOUT_CHECK_INTERVAL boundaries even in release builds (~10ms).
+    const EXPENSIVE_PRG: &str = "(a (q 2 2 (c 2 (c 5 (c 11 ())))) (c (q 2 (i (= 11 ()) (q 1 . 1) (q 16 5 (a 2 (c 2 (c 5 (c (- 11 (q . 1)) ())))))) 1) 1))";
+    const EXPENSIVE_ARGS: &str = "(5033 10000)";
+    const EXPENSIVE_COST: Cost = 25577622;
+
+    #[rstest]
+    // A 1µs timeout is far too short for a ~2.5M-cost program.
+    #[case::expires_1us(
+        EXPENSIVE_PRG,
+        EXPENSIVE_ARGS,
+        EXPENSIVE_COST,
+        Duration::from_micros(1),
+        None
+    )]
+    #[case::expires_zero(EXPENSIVE_PRG, EXPENSIVE_ARGS, EXPENSIVE_COST, Duration::ZERO, None)]
+    #[case::completes(
+        EXPENSIVE_PRG,
+        EXPENSIVE_ARGS,
+        EXPENSIVE_COST,
+        Duration::from_secs(60),
+        Some(EXPENSIVE_COST)
+    )]
+    // A cheap quote finishes under TIMEOUT_CHECK_INTERVAL, so even a zero
+    // timeout must not fire.
+    #[case::below_interval("(q . 42)", "()", 1000, Duration::ZERO, Some(20))]
+    fn test_timeout(
+        #[case] prg: &str,
+        #[case] args_str: &str,
+        #[case] max_cost: Cost,
+        #[case] timeout: Duration,
+        #[case] expected_cost: Option<Cost>,
+    ) {
+        use crate::chia_dialect::ChiaDialect;
+
+        let mut a = Allocator::new();
+        let program = check(parse_exp(&mut a, prg));
+        let args = check(parse_exp(&mut a, args_str));
+        let dialect = ChiaDialect::new(ClvmFlags::ENABLE_GC);
+
+        let result = run_program_with_timeout(&mut a, &dialect, program, args, max_cost, timeout);
+        match expected_cost {
+            Some(cost) => assert_eq!(result.unwrap().0, cost),
+            None => assert_eq!(result.unwrap_err(), EvalErr::Timeout),
+        }
     }
 }

@@ -1,0 +1,73 @@
+; Unknown operators (lenient mode) under NEW_COST_MODEL. Always return NIL.
+; cost_function is encoded in the top 2 bits of the last opcode byte:
+;   unknown         = 0 (constant cost)
+;   unknown_add     = 1 (add-like)
+;   unknown_mul     = 2 (mul-like)
+;   unknown_concat  = 3 (concat-like)
+; Names without a suffix use multiplier 0; *_x2 use multiplier 1 (cost *= 2).
+; Costs must not regress.
+
+; cost_function 0: ignores arguments (including pairs)
+unknown => ( ) | 1
+unknown 1 => ( ) | 1
+unknown 1 2 3 => ( ) | 1
+unknown ( 1 2 ) => ( ) | 1
+unknown "foobar" 0xabcd => ( ) | 1
+unknown_x2 => ( ) | 2
+unknown_x2 1 2 3 => ( ) | 2
+unknown_x2 ( 1 2 ) => ( ) | 2
+
+; cost_function 1: add-like (new cost model: max accumulator size)
+unknown_add => ( ) | 99
+unknown_add 1 => ( ) | 603
+unknown_add 0 => ( ) | 599
+unknown_add "" => ( ) | 599
+unknown_add 1 2 => ( ) | 1107
+unknown_add 1 2 3 4 => ( ) | 2115
+unknown_add 0x1234 0x56 => ( ) | 1115
+unknown_add "foobar" => ( ) | 623
+unknown_add 0x00 0x00 0x7f0000 0x00 => ( ) | 2131
+unknown_add 0x010000000000000000 0x010000000000000000 => ( ) | 1171
+unknown_add ( 1 ) => FAIL
+unknown_add 1 ( 2 ) => FAIL
+unknown_add_x2 => ( ) | 198
+unknown_add_x2 1 => ( ) | 1206
+unknown_add_x2 1 2 => ( ) | 2214
+unknown_add_x2 1 2 3 4 => ( ) | 4230
+unknown_add_x2 "foobar" => ( ) | 1246
+unknown_add_x2 ( 1 ) => FAIL
+
+; cost_function 2: mul-like (new cost model; first arg also pays linear byte cost)
+unknown_mul => ( ) | 2000
+unknown_mul 1 => ( ) | 2006
+unknown_mul 7 2 => ( ) | 2903
+unknown_mul 1 2 3 4 => ( ) | 4715
+unknown_mul "ab" "cd" => ( ) | 2921
+unknown_mul 0x010000 0x010000 => ( ) | 2939
+unknown_mul 0x000000000000000007 0x000000000000000002 => ( ) | 3052
+unknown_mul ( 1 ) => FAIL
+unknown_mul 1 ( 2 ) => FAIL
+unknown_mul_x2 => ( ) | 4000
+unknown_mul_x2 1 => ( ) | 4012
+unknown_mul_x2 7 2 => ( ) | 5806
+unknown_mul_x2 1 2 3 4 => ( ) | 9430
+unknown_mul_x2 "ab" "cd" => ( ) | 5842
+unknown_mul_x2 ( 1 ) => FAIL
+
+; cost_function 3: concat-like (same for old and new cost model)
+unknown_concat => ( ) | 142
+unknown_concat "" => ( ) | 277
+unknown_concat "a" => ( ) | 280
+unknown_concat "a" "b" => ( ) | 418
+unknown_concat "a" "b" "c" => ( ) | 556
+unknown_concat 0xff 0x00 => ( ) | 418
+unknown_concat "foo" "bar" => ( ) | 430
+unknown_concat "" "a" "" => ( ) | 550
+unknown_concat ( 1 ) => FAIL
+unknown_concat "a" ( 2 ) => FAIL
+unknown_concat_x2 => ( ) | 284
+unknown_concat_x2 "" => ( ) | 554
+unknown_concat_x2 "a" => ( ) | 560
+unknown_concat_x2 "a" "b" => ( ) | 836
+unknown_concat_x2 "foo" "bar" => ( ) | 860
+unknown_concat_x2 ( 1 ) => FAIL

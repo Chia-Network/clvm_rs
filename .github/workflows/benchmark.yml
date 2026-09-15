@@ -21,14 +21,14 @@ jobs:
         os: [macos-15-intel, ubuntu-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
       - uses: chia-network/actions/setup-python@main
-        name: Install Python 3.9
+        name: Install Python 3.12
         with:
-          python-version: 3.9
+          python-version: 3.12
 
       - name: Update pip
         run: |
@@ -45,14 +45,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
       - uses: chia-network/actions/setup-python@main
-        name: Install Python 3.9
+        name: Install Python 3.12
         with:
-          python-version: 3.9
+          python-version: 3.12
 
       - name: Update pip
         run: |

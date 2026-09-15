@@ -139,11 +139,11 @@ pub struct TreeCache {
 
 impl TreeCache {
     pub fn new(sentinel: Option<NodePtr>) -> Self {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         Self {
             sentinel_node: sentinel,
             atom_lookup: HashMap::with_hasher(RandomState::default()),
-            salt: rng.r#gen(),
+            salt: rng.random(),
             ..Default::default()
         }
     }
@@ -164,9 +164,8 @@ impl TreeCache {
         for idx in &self.stack {
             self.node_entries[*idx as usize].on_stack -= 1;
         }
-        #[cfg(not(debug_assertions))]
         for e in &self.node_entries {
-            assert_eq!(e.on_stack, 0);
+            debug_assert_eq!(e.on_stack, 0);
         }
 
         self.stack = st.stack;

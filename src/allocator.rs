@@ -1,7 +1,8 @@
 use crate::error::{EvalErr, Result};
-use crate::number::{Number, number_from_u8};
+use crate::number::{Malachite, Number, malachite_number_from_u8, number_from_u8};
 use chia_bls::{G1Element, G2Element};
 use std::borrow::Borrow;
+use std::collections::HashSet;
 use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
@@ -169,12 +170,45 @@ pub struct IntPair {
 // to restore an allocator to a previous state. It cannot be used to re-create
 // the state from some other allocator.
 pub struct Checkpoint {
-    u8s: usize,
-    pairs: usize,
-    atoms: usize,
+    inner: TransparentCheckpoint,
     ghost_atoms: usize,
     ghost_pairs: usize,
     ghost_heap: usize,
+}
+
+pub struct TransparentCheckpoint {
+    u8s: u32,
+    pairs: u32,
+    atoms: u32,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum NodeStatus {
+    /// The node was created before we took the checkpoint, it will still be
+    /// valid after restoring the allocator state to the checkpoint.
+    Before,
+    /// This node was created after we took the checkpoint. It also refers to
+    /// data that was created after the checkpoint. Every aspect of this node will
+    /// become invalid after restoring the allocator to the checkpoint.
+    AfterNewBytes,
+    /// This node was created after the checkpoint, but it's referencing data
+    /// from the heap that was allocated before the checkpoint. This is a case
+    /// that can happen with substr() on a value from the environment. The node
+    /// will become invalid, but the underlying data won't, so we could create a
+    /// new node referencing the same data, after restoring the allocator to the
+    /// checkpoint.
+    AfterOldBytes { start: u32, end: u32 },
+}
+
+/// Result of restoring to a transparent checkpoint while considering a return value.
+#[derive(Debug)]
+pub enum MaybeRestore {
+    /// Restore performed; return value unchanged (still valid).
+    NoReplace,
+    /// Restore performed; caller must replace stack top with this node.
+    Replace(NodePtr),
+    /// Restore not performed (return value not materializable); checkpoint still valid.
+    Aborted,
 }
 
 pub enum NodeVisitor<'a> {
@@ -260,6 +294,12 @@ pub struct Allocator {
     #[cfg(feature = "counters")]
     max_heap_size: usize,
 
+    // Cache of already-validated G1/G2 points, keyed by raw bytes.
+    // Using raw bytes instead of NodePtr since NodePtrs can be invalidated
+    // by restore_checkpoint() inside softfork guards.
+    validated_g1_points: HashSet<[u8; 48]>,
+    validated_g2_points: HashSet<[u8; 96]>,
+
     #[cfg(feature = "allocator-debug")]
     fingerprint: u32,
 
@@ -328,13 +368,15 @@ impl Allocator {
             u8_vec: Vec::new(),
             pair_vec: Vec::new(),
             atom_vec: Vec::new(),
-            // subtract 1 to compensate for the one() we used to allocate unconfitionally
-            heap_limit: heap_limit - 1,
+            heap_limit,
             // initialize this to 2 to behave as if we had allocated atoms for
             // nil() and one(), like we used to
             ghost_atoms: 2,
             ghost_pairs: 0,
-            ghost_heap: 0,
+            // compensate for the one() we used to allocate unconditionally
+            ghost_heap: 1,
+            validated_g1_points: HashSet::new(),
+            validated_g2_points: HashSet::new(),
             #[cfg(feature = "counters")]
             max_atom_count: 0,
             #[cfg(feature = "counters")]
@@ -343,7 +385,7 @@ impl Allocator {
             max_heap_size: 0,
 
             #[cfg(feature = "allocator-debug")]
-            fingerprint: rand::thread_rng().next_u32() & 0x7fffffff,
+            fingerprint: rand::rng().next_u32() & 0x7fffffff,
 
             #[cfg(feature = "allocator-debug")]
             versions: Vec::new(),
@@ -408,14 +450,12 @@ impl Allocator {
         )
     }
 
-    // create a checkpoint for the current state of the allocator. This can be
-    // used to go back to an earlier allocator state by passing the Checkpoint
-    // to restore_checkpoint().
+    /// create a checkpoint for the current state of the allocator. This can be
+    /// used to go back to an earlier allocator state by passing the Checkpoint
+    /// to restore_checkpoint().
     pub fn checkpoint(&self) -> Checkpoint {
         Checkpoint {
-            u8s: self.u8_vec.len(),
-            pairs: self.pair_vec.len(),
-            atoms: self.atom_vec.len(),
+            inner: self.transparent_checkpoint(),
             ghost_atoms: self.ghost_atoms,
             ghost_pairs: self.ghost_pairs,
             ghost_heap: self.ghost_heap,
@@ -423,19 +463,39 @@ impl Allocator {
     }
 
     pub fn restore_checkpoint(&mut self, cp: &Checkpoint) {
+        self.restore_transparent_checkpoint(&cp.inner);
+        self.ghost_atoms = cp.ghost_atoms;
+        self.ghost_pairs = cp.ghost_pairs;
+        self.ghost_heap = cp.ghost_heap;
+    }
+
+    /// create a checkpoint for the current state of the allocator. This is used
+    /// to free all atoms and pairs allocated after this point, without
+    /// affecting counters. i.e. as if they are still allocated
+    pub fn transparent_checkpoint(&self) -> TransparentCheckpoint {
+        TransparentCheckpoint {
+            u8s: self.u8_vec.len() as u32,
+            pairs: self.pair_vec.len() as u32,
+            atoms: self.atom_vec.len() as u32,
+        }
+    }
+
+    /// A transparent checkpoint works the same as a regular one but it doesn't
+    /// restore the counters. The atoms and pair being removed are still counted.
+    pub fn restore_transparent_checkpoint(&mut self, cp: &TransparentCheckpoint) {
         // if any of these asserts fire, it means we're trying to restore to
         // a state that has already been "long-jumped" passed (via another
         // restore to an earlier state). You can only restore backwards in time,
         // not forwards.
-        assert!(self.u8_vec.len() >= cp.u8s);
-        assert!(self.pair_vec.len() >= cp.pairs);
-        assert!(self.atom_vec.len() >= cp.atoms);
-        self.u8_vec.truncate(cp.u8s);
-        self.pair_vec.truncate(cp.pairs);
-        self.atom_vec.truncate(cp.atoms);
-        self.ghost_atoms = cp.ghost_atoms;
-        self.ghost_pairs = cp.ghost_pairs;
-        self.ghost_heap = cp.ghost_heap;
+        assert!(self.u8_vec.len() >= cp.u8s as usize);
+        assert!(self.pair_vec.len() >= cp.pairs as usize);
+        assert!(self.atom_vec.len() >= cp.atoms as usize);
+        self.ghost_heap += self.u8_vec.len() - cp.u8s as usize;
+        self.ghost_pairs += self.pair_vec.len() - cp.pairs as usize;
+        self.ghost_atoms += self.atom_vec.len() - cp.atoms as usize;
+        self.u8_vec.truncate(cp.u8s as usize);
+        self.pair_vec.truncate(cp.pairs as usize);
+        self.atom_vec.truncate(cp.atoms as usize);
 
         // This invalidates all NodePtrs with higher index than this, with a
         // lower version than self.versions.len()
@@ -444,15 +504,128 @@ impl Allocator {
             .push((self.atom_vec.len() as u32, self.pair_vec.len() as u32));
     }
 
+    /// classify whether a node survives a restore to the checkpoint, and
+    /// whether it references bytes allocated before or after that checkpoint.
+    pub fn checkpoint_node_status(
+        &self,
+        checkpoint: &TransparentCheckpoint,
+        node: NodePtr,
+    ) -> NodeStatus {
+        match node.object_type() {
+            ObjectType::Pair => {
+                if node.index() < checkpoint.pairs {
+                    NodeStatus::Before
+                } else {
+                    NodeStatus::AfterNewBytes
+                }
+            }
+            ObjectType::Bytes => {
+                if node.index() < checkpoint.atoms {
+                    NodeStatus::Before
+                } else {
+                    let atom = self.atom_vec[node.index() as usize];
+                    if atom.start < checkpoint.u8s {
+                        NodeStatus::AfterOldBytes {
+                            start: atom.start,
+                            end: atom.end,
+                        }
+                    } else {
+                        NodeStatus::AfterNewBytes
+                    }
+                }
+            }
+            ObjectType::SmallAtom => NodeStatus::Before,
+        }
+    }
+
+    /// Attempt to restore the checkpoint, and preserve the value of the /
+    /// specified node. If the node was allocated after the checkpoint, it will
+    /// be invalidated. Fix up accounting and optionally produce a replacement
+    /// node. Caller must replace the value stack top when `Replace(node)` is
+    /// returned, If the node is a tree or too large to be restored, the
+    /// allocator will not be restored to the checkpoint and Aborted will be
+    /// returned.
+    pub fn maybe_restore_with_node(
+        &mut self,
+        checkpoint: &TransparentCheckpoint,
+        ret: NodePtr,
+    ) -> Result<MaybeRestore> {
+        const CLONE_ATOM_LIMIT: usize = 48;
+        const MIN_SAVINGS: usize = 1024;
+
+        let saved_bytes = (self.u8_vec.len() - checkpoint.u8s as usize)
+            + (self.atom_vec.len() - checkpoint.atoms as usize) * 8
+            + (self.pair_vec.len() - checkpoint.pairs as usize) * 8;
+        if saved_bytes < MIN_SAVINGS {
+            return Ok(MaybeRestore::Aborted);
+        }
+
+        match self.checkpoint_node_status(checkpoint, ret) {
+            NodeStatus::Before => {
+                self.restore_transparent_checkpoint(checkpoint);
+                Ok(MaybeRestore::NoReplace)
+            }
+            NodeStatus::AfterOldBytes { start, end } => {
+                self.restore_transparent_checkpoint(checkpoint);
+                if self.ghost_atoms == 0 {
+                    return Err(EvalErr::InternalError(
+                        NodePtr::NIL,
+                        "ghost atom accounting error".to_string(),
+                    ));
+                }
+                self.ghost_atoms -= 1;
+                if end < start || end as usize > self.u8_vec.len() {
+                    return Err(EvalErr::InternalError(
+                        self.nil(),
+                        "invalid atom byte range".to_string(),
+                    ));
+                }
+                let idx = self.atom_vec.len();
+                self.atom_vec.push(AtomBuf { start, end });
+                let new_ret = self.mk_node(ObjectType::Bytes, idx);
+                Ok(MaybeRestore::Replace(new_ret))
+            }
+            NodeStatus::AfterNewBytes => {
+                let NodeVisitor::Buffer(buf) = self.node(ret) else {
+                    return Ok(MaybeRestore::Aborted);
+                };
+
+                if buf.len() > CLONE_ATOM_LIMIT {
+                    return Ok(MaybeRestore::Aborted);
+                }
+                let mut saved_bytes = [0u8; CLONE_ATOM_LIMIT];
+                let len = buf.len();
+                saved_bytes[..len].copy_from_slice(buf);
+                self.restore_transparent_checkpoint(checkpoint);
+                if self.ghost_atoms == 0 {
+                    return Err(EvalErr::InternalError(
+                        NodePtr::NIL,
+                        "ghost atom accounting error".to_string(),
+                    ));
+                }
+                self.ghost_atoms -= 1;
+                if self.ghost_heap < len {
+                    return Err(EvalErr::InternalError(
+                        NodePtr::NIL,
+                        "ghost heap accounting error".to_string(),
+                    ));
+                }
+                self.ghost_heap -= len;
+                Ok(MaybeRestore::Replace(self.new_atom(&saved_bytes[..len])?))
+            }
+        }
+    }
+
     pub fn new_atom(&mut self, v: &[u8]) -> Result<NodePtr> {
         let start = self.u8_vec.len() as u32;
-        if (self.heap_limit - start as usize - self.ghost_heap) < v.len() {
+        if start as usize + self.ghost_heap + v.len() > self.heap_limit {
             return Err(EvalErr::OutOfMemory);
         }
         let idx = self.atom_vec.len();
         self.check_atom_limit()?;
         if let Some(ret) = fits_in_small_atom(v) {
             self.ghost_atoms += 1;
+            self.ghost_heap += v.len();
             Ok(self.mk_node(ObjectType::SmallAtom, ret as usize))
         } else {
             self.u8_vec.extend_from_slice(v);
@@ -466,9 +639,66 @@ impl Allocator {
 
     pub fn new_small_number(&mut self, v: u32) -> Result<NodePtr> {
         debug_assert!(v <= NODE_PTR_IDX_MASK);
+        let len = len_for_value(v);
+        if self.u8_vec.len() + self.ghost_heap + len > self.heap_limit {
+            return Err(EvalErr::OutOfMemory);
+        }
         self.check_atom_limit()?;
         self.ghost_atoms += 1;
+        self.ghost_heap += len;
         Ok(self.mk_node(ObjectType::SmallAtom, v as usize))
+    }
+
+    pub fn new_u64(&mut self, val: u64) -> Result<NodePtr> {
+        let mut buf = [0u8; 9];
+        buf[1..].copy_from_slice(&val.to_be_bytes());
+        let start = if val == 0 {
+            9
+        } else if val < 0x80 {
+            8
+        } else if val < 0x8000 {
+            7
+        } else if val < 0x80_0000 {
+            6
+        } else if val < 0x8000_0000 {
+            5
+        } else if val < 0x80_0000_0000 {
+            4
+        } else if val < 0x8000_0000_0000 {
+            3
+        } else if val < 0x80_0000_0000_0000 {
+            2
+        } else if val < 0x8000_0000_0000_0000 {
+            1
+        } else {
+            0
+        };
+        self.new_atom(&buf[start..])
+    }
+
+    pub fn new_i64(&mut self, val: i64) -> Result<NodePtr> {
+        if val >= 0 {
+            return self.new_u64(val as u64);
+        }
+        let buf = val.to_be_bytes();
+        let start = if val >= -0x80 {
+            7
+        } else if val >= -0x8000 {
+            6
+        } else if val >= -0x80_0000 {
+            5
+        } else if val >= -0x8000_0000 {
+            4
+        } else if val >= -0x80_0000_0000 {
+            3
+        } else if val >= -0x8000_0000_0000 {
+            2
+        } else if val >= -0x80_0000_0000_0000 {
+            1
+        } else {
+            0
+        };
+        self.new_atom(&buf[start..])
     }
 
     pub fn new_number(&mut self, v: Number) -> Result<NodePtr> {
@@ -491,12 +721,36 @@ impl Allocator {
         self.new_atom(slice)
     }
 
+    pub fn new_malachite_number(&mut self, v: Malachite) -> Result<NodePtr> {
+        use num_traits::ToPrimitive;
+        if let Some(val) = v.to_u32()
+            && val <= NODE_PTR_IDX_MASK
+        {
+            return self.new_small_number(val);
+        }
+        let bytes: Vec<u8> = v.to_signed_bytes_be();
+        let mut slice = bytes.as_slice();
+
+        // make number minimal by removing leading zeros
+        while (!slice.is_empty()) && (slice[0] == 0) {
+            if slice.len() > 1 && (slice[1] & 0x80 == 0x80) {
+                break;
+            }
+            slice = &slice[1..];
+        }
+        self.new_atom(slice)
+    }
+
     pub fn new_g1(&mut self, g1: G1Element) -> Result<NodePtr> {
-        self.new_atom(&g1.to_bytes())
+        let bytes = g1.to_bytes();
+        self.validated_g1_points.insert(bytes);
+        self.new_atom(&bytes)
     }
 
     pub fn new_g2(&mut self, g2: G2Element) -> Result<NodePtr> {
-        self.new_atom(&g2.to_bytes())
+        let bytes = g2.to_bytes();
+        self.validated_g2_points.insert(bytes);
+        self.new_atom(&bytes)
     }
 
     pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr> {
@@ -541,6 +795,7 @@ impl Allocator {
         self.ghost_atoms += amount;
         Ok(())
     }
+
     pub fn new_substr(&mut self, node: NodePtr, start: u32, end: u32) -> Result<NodePtr> {
         #[cfg(feature = "allocator-debug")]
         self.validate_node(node);
@@ -624,7 +879,7 @@ impl Allocator {
 
         self.check_atom_limit()?;
         let start = self.u8_vec.len();
-        if self.heap_limit - start - self.ghost_heap < new_size {
+        if start + self.ghost_heap + new_size > self.heap_limit {
             return Err(EvalErr::OutOfMemory);
         }
 
@@ -831,6 +1086,24 @@ impl Allocator {
         }
     }
 
+    pub fn malachite_number(&self, node: NodePtr) -> Malachite {
+        #[cfg(feature = "allocator-debug")]
+        self.validate_node(node);
+
+        let index = node.index();
+
+        match node.object_type() {
+            ObjectType::Bytes => {
+                let atom = self.atom_vec[index as usize];
+                malachite_number_from_u8(&self.u8_vec[atom.start as usize..atom.end as usize])
+            }
+            ObjectType::SmallAtom => Malachite::from(index),
+            _ => {
+                panic!("number() called on pair");
+            }
+        }
+    }
+
     pub fn g1(&self, node: NodePtr) -> Result<G1Element> {
         #[cfg(feature = "allocator-debug")]
         self.validate_node(node);
@@ -981,7 +1254,42 @@ impl Allocator {
     }
 
     pub fn heap_size(&self) -> usize {
+        self.u8_vec.len() + self.ghost_heap
+    }
+
+    pub fn allocated_heap_size(&self) -> usize {
         self.u8_vec.len()
+    }
+
+    pub fn validate_g1(&mut self, node: NodePtr, bytes: [u8; 48]) -> Result<()> {
+        if !self.validated_g1_points.contains(&bytes) {
+            G1Element::from_bytes(&bytes)
+                .map_err(|_| EvalErr::InvalidOpArg(node, "atom is not a G1 point".to_string()))?;
+            self.validated_g1_points.insert(bytes);
+        }
+        Ok(())
+    }
+
+    pub fn validate_g2(&mut self, node: NodePtr, bytes: [u8; 96]) -> Result<()> {
+        if !self.validated_g2_points.contains(&bytes) {
+            G2Element::from_bytes(&bytes)
+                .map_err(|_| EvalErr::InvalidOpArg(node, "atom is not a G2 point".to_string()))?;
+            self.validated_g2_points.insert(bytes);
+        }
+        Ok(())
+    }
+
+    pub fn add_validated_g1(&mut self, bytes: [u8; 48]) {
+        self.validated_g1_points.insert(bytes);
+    }
+
+    pub fn add_validated_g2(&mut self, bytes: [u8; 96]) {
+        self.validated_g2_points.insert(bytes);
+    }
+
+    pub fn clear_validation_caches(&mut self) {
+        self.validated_g1_points.clear();
+        self.validated_g2_points.clear();
     }
 
     #[cfg(feature = "counters")]
@@ -1189,6 +1497,15 @@ mod tests {
         a.number(pair);
     }
 
+    #[test]
+    #[should_panic]
+    fn test_malachite_number_pair() {
+        let mut a = Allocator::new();
+        let a0 = a.nil();
+        let pair = a.new_pair(a0, a0).unwrap();
+        a.malachite_number(pair);
+    }
+
     #[cfg(not(feature = "allocator-debug"))]
     #[test]
     #[should_panic]
@@ -1275,6 +1592,100 @@ mod tests {
     }
 
     #[test]
+    fn test_new_atom_heap_limit() {
+        let mut a = Allocator::new_limited(6);
+        assert_eq!(a.new_atom(b"foobar").unwrap_err(), EvalErr::OutOfMemory);
+        a.new_atom(b"fooba").unwrap();
+    }
+
+    #[test]
+    fn test_new_atom_small_value_heap_limit() {
+        // small-atom-eligible values still count against the heap
+        // ghost_heap starts at 1, so with limit=1 there are 0 bytes available
+        let mut a = Allocator::new_limited(1);
+        assert_eq!(a.new_atom(&[1]).unwrap_err(), EvalErr::OutOfMemory);
+    }
+
+    #[test]
+    fn test_new_small_number_heap_limit() {
+        let mut a = Allocator::new_limited(1);
+        assert_eq!(a.new_small_number(1).unwrap_err(), EvalErr::OutOfMemory);
+        // len_for_value(0) == 0, so this always fits
+        a.new_small_number(0).unwrap();
+    }
+
+    #[test]
+    fn test_new_number_small_path_heap_limit() {
+        let mut a = Allocator::new_limited(1);
+        assert_eq!(a.new_number(1.into()).unwrap_err(), EvalErr::OutOfMemory);
+    }
+
+    #[test]
+    fn test_new_number_large_path_heap_limit() {
+        // 0xff_ffff_ffff -> [0, 0xff, 0xff, 0xff, 0xff] = 5 bytes, limit allows 4
+        let mut a = Allocator::new_limited(5);
+        assert_eq!(
+            a.new_number(Number::from(0xffffffffff_u64)).unwrap_err(),
+            EvalErr::OutOfMemory
+        );
+    }
+
+    #[test]
+    fn test_new_malachite_number_small_path_heap_limit() {
+        let mut a = Allocator::new_limited(1);
+        assert_eq!(
+            a.new_malachite_number(Malachite::from(1u64)).unwrap_err(),
+            EvalErr::OutOfMemory
+        );
+    }
+
+    #[test]
+    fn test_new_malachite_number_large_path_heap_limit() {
+        let mut a = Allocator::new_limited(5);
+        assert_eq!(
+            a.new_malachite_number(Malachite::from(0xffffffffff_u64))
+                .unwrap_err(),
+            EvalErr::OutOfMemory
+        );
+    }
+
+    #[test]
+    fn test_new_g1_heap_limit() {
+        let g1_bytes = hex::decode(VALID_G1).unwrap();
+        let g1 = G1Element::from_bytes(g1_bytes.as_slice().try_into().unwrap()).unwrap();
+        assert_eq!(
+            Allocator::new_limited(48).new_g1(g1).unwrap_err(),
+            EvalErr::OutOfMemory
+        );
+        let g1 = G1Element::from_bytes(g1_bytes.as_slice().try_into().unwrap()).unwrap();
+        Allocator::new_limited(49).new_g1(g1).unwrap();
+    }
+
+    #[test]
+    fn test_new_g2_heap_limit() {
+        let g2_bytes = hex::decode(VALID_G2).unwrap();
+        let g2 = G2Element::from_bytes(g2_bytes.as_slice().try_into().unwrap()).unwrap();
+        assert_eq!(
+            Allocator::new_limited(96).new_g2(g2).unwrap_err(),
+            EvalErr::OutOfMemory
+        );
+        let g2 = G2Element::from_bytes(g2_bytes.as_slice().try_into().unwrap()).unwrap();
+        Allocator::new_limited(97).new_g2(g2).unwrap();
+    }
+
+    #[test]
+    fn test_new_concat_heap_limit() {
+        let mut a = Allocator::new_limited(5);
+        let atom = a.new_atom(&[0x80]).unwrap(); // 1 real heap byte (negative, not a small atom)
+        // available: 5 - 1 - 1(ghost) = 3
+        assert_eq!(
+            a.new_concat(4, &[atom, atom, atom, atom]).unwrap_err(),
+            EvalErr::OutOfMemory
+        );
+        a.new_concat(3, &[atom, atom, atom]).unwrap();
+    }
+
+    #[test]
     fn test_allocate_atom_limit() {
         let mut a = Allocator::new();
 
@@ -1353,6 +1764,149 @@ mod tests {
 
         assert_eq!(a.new_pair(atom, atom).unwrap_err(), EvalErr::TooManyPairs);
         assert_eq!(a.add_ghost_pair(1).unwrap_err(), EvalErr::TooManyPairs);
+    }
+
+    #[test]
+    fn test_transparent_checkpoint() {
+        let mut a = Allocator::new();
+
+        let atom1 = a.new_atom(&[4, 3, 2, 1]).unwrap();
+        assert!(a.atom(atom1).as_ref() == [4, 3, 2, 1]);
+
+        let checkpoint = a.transparent_checkpoint();
+
+        let atom2 = a.new_atom(&[6, 5, 4, 3]).unwrap();
+        let _pair1 = a.new_pair(atom1, atom2).unwrap();
+        assert!(a.atom(atom1).as_ref() == [4, 3, 2, 1]);
+        assert!(a.atom(atom2).as_ref() == [6, 5, 4, 3]);
+
+        let atom_count_before = a.atom_count();
+        let pair_count_before = a.pair_count();
+
+        // at this point we have two atoms and a checkpoint from before the second
+        // atom was created
+
+        // now, restoring the checkpoint state will make atom2 disappear
+
+        a.restore_transparent_checkpoint(&checkpoint);
+
+        assert_eq!(a.atom_count(), atom_count_before);
+        assert_eq!(a.pair_count(), pair_count_before);
+
+        assert!(a.atom(atom1).as_ref() == [4, 3, 2, 1]);
+        let atom3 = a.new_atom(&[6, 5, 4, 3]).unwrap();
+        assert!(a.atom(atom3).as_ref() == [6, 5, 4, 3]);
+
+        // since atom2 was removed, atom3 should actually be using that slot
+        assert_eq!(atom2, atom3);
+    }
+
+    #[test]
+    fn test_transparent_checkpoint_contains() {
+        let mut a = Allocator::new();
+
+        let atom_before = a.new_atom(b"hello").unwrap();
+        let pair_before = a.new_pair(atom_before, atom_before).unwrap();
+        let small_before = a.new_small_number(1).unwrap();
+
+        let checkpoint = a.transparent_checkpoint();
+
+        let atom_after_new = a.new_atom(b"world").unwrap();
+        let pair_after = a.new_pair(atom_after_new, atom_before).unwrap();
+        let small_after = a.new_small_number(2).unwrap();
+        let atom_after_old = a.new_substr(atom_before, 0, 5).unwrap();
+
+        assert_eq!(
+            a.checkpoint_node_status(&checkpoint, atom_before),
+            NodeStatus::Before
+        );
+        assert_eq!(
+            a.checkpoint_node_status(&checkpoint, pair_before),
+            NodeStatus::Before
+        );
+        assert_eq!(
+            a.checkpoint_node_status(&checkpoint, small_before),
+            NodeStatus::Before
+        );
+        assert_eq!(
+            a.checkpoint_node_status(&checkpoint, small_after),
+            NodeStatus::Before
+        );
+        assert_eq!(
+            a.checkpoint_node_status(&checkpoint, atom_after_new),
+            NodeStatus::AfterNewBytes
+        );
+        assert_eq!(
+            a.checkpoint_node_status(&checkpoint, pair_after),
+            NodeStatus::AfterNewBytes
+        );
+        assert!(matches!(
+            a.checkpoint_node_status(&checkpoint, atom_after_old),
+            NodeStatus::AfterOldBytes { .. }
+        ));
+    }
+
+    fn alloc_filler(a: &mut Allocator) {
+        a.new_atom(&[0u8; 1024]).unwrap();
+    }
+
+    #[test]
+    fn test_restore_node_before_checkpoint() {
+        let mut a = Allocator::new();
+        let atom1 = a.new_atom(&[4, 3, 2, 1]).unwrap();
+        let cp = a.transparent_checkpoint();
+        alloc_filler(&mut a);
+        let out = a.maybe_restore_with_node(&cp, atom1).unwrap();
+        assert!(matches!(out, MaybeRestore::NoReplace));
+        assert_eq!(a.atom(atom1).as_ref(), [4, 3, 2, 1]);
+    }
+
+    #[test]
+    fn test_restore_node_after_old_bytes() {
+        let mut a = Allocator::new();
+        let atom_hello = a.new_atom(b"hello").unwrap();
+        let cp = a.transparent_checkpoint();
+        alloc_filler(&mut a);
+        let substr = a.new_substr(atom_hello, 0, 5).unwrap();
+        assert_eq!(a.atom(substr).as_ref(), b"hello");
+        let out = a.maybe_restore_with_node(&cp, substr).unwrap();
+        let MaybeRestore::Replace(new_node) = out else {
+            panic!("expected Replace");
+        };
+        assert_eq!(a.atom(new_node).as_ref(), b"hello");
+    }
+
+    #[test]
+    fn test_restore_node_after_new_bytes() {
+        let mut a = Allocator::new();
+        let cp = a.transparent_checkpoint();
+        alloc_filler(&mut a);
+        let atom_x = a.new_atom(b"foobar").unwrap();
+        let out = a.maybe_restore_with_node(&cp, atom_x).unwrap();
+        let MaybeRestore::Replace(new_node) = out else {
+            panic!("expected Replace");
+        };
+        assert_eq!(a.atom(new_node).as_ref(), b"foobar");
+    }
+
+    #[test]
+    fn test_restore_aborted_atom_too_large() {
+        let mut a = Allocator::new();
+        let cp = a.transparent_checkpoint();
+        alloc_filler(&mut a);
+        let big: Vec<u8> = (0..49).collect();
+        let atom_big = a.new_atom(&big).unwrap();
+        let out = a.maybe_restore_with_node(&cp, atom_big).unwrap();
+        assert!(matches!(out, MaybeRestore::Aborted));
+    }
+
+    #[test]
+    fn test_restore_aborted_savings_too_small() {
+        let mut a = Allocator::new();
+        let cp = a.transparent_checkpoint();
+        let tiny = a.new_atom(b"x").unwrap();
+        let out = a.maybe_restore_with_node(&cp, tiny).unwrap();
+        assert!(matches!(out, MaybeRestore::Aborted));
     }
 
     #[test]
@@ -1577,7 +2131,8 @@ mod tests {
 
     #[test]
     fn test_concat_limit() {
-        let mut a = Allocator::new_limited(6);
+        // the Allocator::one() is always allocated and uses 1 byte of heap
+        let mut a = Allocator::new_limited(9);
         let atom1 = a.new_atom(b"f").unwrap();
         let atom2 = a.new_atom(b"o").unwrap();
         let atom3 = a.new_atom(b"o").unwrap();
@@ -1620,6 +2175,29 @@ mod tests {
         assert_eq!(a.number(atom), num);
         assert_eq!(a.atom(atom).as_ref(), expected);
         assert_eq!(number_from_u8(expected), num);
+    }
+
+    #[rstest]
+    #[case(Malachite::from(0u64), &[])]
+    #[case(Malachite::from(1u64), &[1])]
+    #[case(Malachite::from(-1i64), &[0xff])]
+    #[case(Malachite::from(0x80u64), &[0, 0x80])]
+    #[case(Malachite::from(0xffu64), &[0, 0xff])]
+    #[case(Malachite::from(0xffffffff_u64), &[0, 0xff, 0xff, 0xff, 0xff])]
+    fn test_new_malachite_number(#[case] num: Malachite, #[case] expected: &[u8]) {
+        let mut a = Allocator::new();
+
+        let atom = a.new_malachite_number(num.clone()).unwrap();
+
+        assert_eq!(a.malachite_number(atom), num);
+        assert_eq!(a.atom(atom).as_ref(), expected);
+        assert_eq!(malachite_number_from_u8(expected), num);
+
+        let atom = a.new_atom(expected).unwrap();
+
+        assert_eq!(a.malachite_number(atom), num);
+        assert_eq!(a.atom(atom).as_ref(), expected);
+        assert_eq!(malachite_number_from_u8(expected), num);
     }
 
     #[test]
@@ -1991,6 +2569,21 @@ c6c886f6b57ec72a6178288c47c33577\
     }
 
     #[rstest]
+    #[case(Malachite::from(0u64), 0)]
+    #[case(Malachite::from(42u64), 1)]
+    #[case(Malachite::from(127u64), 1)]
+    #[case(Malachite::from(1337u64), 2)]
+    #[case(Malachite::from(0x7fffff_u64), 3)]
+    #[case(Malachite::from(0xffffff_u64), 4)]
+    #[case(Malachite::from(-1i64), 1)]
+    #[case(Malachite::from(-128i64), 1)]
+    fn test_atom_len_malachite_number(#[case] value: Malachite, #[case] expected: usize) {
+        let mut a = Allocator::new();
+        let atom = a.new_malachite_number(value).unwrap();
+        assert_eq!(a.atom_len(atom), expected);
+    }
+
+    #[rstest]
     #[case(
         "\
 97f1d3a73197d7942695638c4fa9ac0f\
@@ -2094,6 +2687,58 @@ c6c886f6b57ec72a6178288c47c33577\
     }
 
     #[rstest]
+    #[case(Malachite::from(0u64))]
+    #[case(Malachite::from(1u64))]
+    #[case(Malachite::from(0x7fu64))]
+    #[case(Malachite::from(0x80u64))]
+    #[case(Malachite::from(0xffu64))]
+    #[case(Malachite::from(0x100u64))]
+    #[case(Malachite::from(0x7fffu64))]
+    #[case(Malachite::from(0x8000u64))]
+    #[case(Malachite::from(0xffffu64))]
+    #[case(Malachite::from(0x10000u64))]
+    #[case(Malachite::from(0x7ffffu64))]
+    #[case(Malachite::from(0x80000u64))]
+    #[case(Malachite::from(0xfffffu64))]
+    #[case(Malachite::from(0x100000u64))]
+    #[case(Malachite::from(0x7ffffffu64))]
+    #[case(Malachite::from(0x8000000u64))]
+    #[case(Malachite::from(0xfffffffu64))]
+    #[case(Malachite::from(0x10000000u64))]
+    #[case(Malachite::from(0x7ffffffffu64))]
+    #[case(Malachite::from(0x8000000000u64))]
+    #[case(Malachite::from(0xffffffffffu64))]
+    #[case(Malachite::from(0x10000000000u64))]
+    #[case(Malachite::from(-1i64))]
+    #[case(Malachite::from(-0x7fi64))]
+    #[case(Malachite::from(-0x80i64))]
+    #[case(Malachite::from(-0xffi64))]
+    #[case(Malachite::from(-0x100i64))]
+    #[case(Malachite::from(-0x7fffi64))]
+    #[case(Malachite::from(-0x8000i64))]
+    #[case(Malachite::from(-0xffffi64))]
+    #[case(Malachite::from(-0x10000i64))]
+    #[case(Malachite::from(-0x7ffffi64))]
+    #[case(Malachite::from(-0x80000i64))]
+    #[case(Malachite::from(-0xfffffi64))]
+    #[case(Malachite::from(-0x100000i64))]
+    #[case(Malachite::from(-0x7ffffffi64))]
+    #[case(Malachite::from(-0x8000000i64))]
+    #[case(Malachite::from(-0xfffffffi64))]
+    #[case(Malachite::from(-0x10000000i64))]
+    #[case(Malachite::from(-0x7ffffffffi64))]
+    #[case(Malachite::from(-0x8000000000i64))]
+    #[case(Malachite::from(-0xffffffffffi64))]
+    #[case(Malachite::from(-0x10000000000i64))]
+    fn test_malachite_number_roundtrip(#[case] value: Malachite) {
+        let mut a = Allocator::new();
+        let atom = a
+            .new_malachite_number(value.clone())
+            .expect("new_malachite_number()");
+        assert_eq!(a.malachite_number(atom), value);
+    }
+
+    #[rstest]
     #[case(0)]
     #[case(1)]
     #[case(0x7f)]
@@ -2157,6 +2802,114 @@ c6c886f6b57ec72a6178288c47c33577\
             assert_eq!(v, value.to_u32().unwrap());
         }
         assert_eq!(a.number(atom), value);
+    }
+
+    #[rstest]
+    #[case(Malachite::from(0u64), true)]
+    #[case(Malachite::from(1u64), true)]
+    #[case(Malachite::from(0x3ffffffu64), true)]
+    #[case(Malachite::from(0x4000000u64), false)]
+    #[case(Malachite::from(0x7fu64), true)]
+    #[case(Malachite::from(0x80u64), true)]
+    #[case(Malachite::from(0xffu64), true)]
+    #[case(Malachite::from(0x100u64), true)]
+    #[case(Malachite::from(0x7fffu64), true)]
+    #[case(Malachite::from(0x8000u64), true)]
+    #[case(Malachite::from(0xffffu64), true)]
+    #[case(Malachite::from(0x10000u64), true)]
+    #[case(Malachite::from(0x7ffffu64), true)]
+    #[case(Malachite::from(0x80000u64), true)]
+    #[case(Malachite::from(0xfffffu64), true)]
+    #[case(Malachite::from(0x100000u64), true)]
+    #[case(Malachite::from(0x7ffffffu64), false)]
+    #[case(Malachite::from(0x8000000u64), false)]
+    #[case(Malachite::from(0xfffffffu64), false)]
+    #[case(Malachite::from(0x10000000u64), false)]
+    #[case(Malachite::from(0x7ffffffffu64), false)]
+    #[case(Malachite::from(0x8000000000u64), false)]
+    #[case(Malachite::from(0xffffffffffu64), false)]
+    #[case(Malachite::from(0x10000000000u64), false)]
+    #[case(Malachite::from(-1i64), false)]
+    #[case(Malachite::from(-0x7fi64), false)]
+    #[case(Malachite::from(-0x80i64), false)]
+    #[case(Malachite::from(-0x10000000000i64), false)]
+    fn test_auto_small_malachite_number(#[case] value: Malachite, #[case] expect_small: bool) {
+        let mut a = Allocator::new();
+        let atom = a
+            .new_malachite_number(value.clone())
+            .expect("new_malachite_number()");
+        assert_eq!(a.small_number(atom).is_some(), expect_small);
+        if let Some(v) = a.small_number(atom) {
+            use num_traits::ToPrimitive;
+            assert_eq!(v, value.to_u32().unwrap());
+        }
+        assert_eq!(a.malachite_number(atom), value);
+    }
+
+    #[rstest]
+    #[case(0u64, &[])]
+    #[case(1, &[1])]
+    #[case(0x7f, &[0x7f])]
+    #[case(0x80, &[0x00, 0x80])]
+    #[case(0xff, &[0x00, 0xff])]
+    #[case(0x100, &[0x01, 0x00])]
+    #[case(0x7fff, &[0x7f, 0xff])]
+    #[case(0x8000, &[0x00, 0x80, 0x00])]
+    #[case(0xffff, &[0x00, 0xff, 0xff])]
+    #[case(0x7f_ffff, &[0x7f, 0xff, 0xff])]
+    #[case(0x80_0000, &[0x00, 0x80, 0x00, 0x00])]
+    #[case(0x7fff_ffff, &[0x7f, 0xff, 0xff, 0xff])]
+    #[case(0x8000_0000, &[0x00, 0x80, 0x00, 0x00, 0x00])]
+    #[case(0xffff_ffff, &[0x00, 0xff, 0xff, 0xff, 0xff])]
+    #[case(0x1_0000_0000, &[0x01, 0x00, 0x00, 0x00, 0x00])]
+    #[case(0x7f_ffff_ffff, &[0x7f, 0xff, 0xff, 0xff, 0xff])]
+    #[case(0x80_0000_0000, &[0x00, 0x80, 0x00, 0x00, 0x00, 0x00])]
+    #[case(0x7fff_ffff_ffff, &[0x7f, 0xff, 0xff, 0xff, 0xff, 0xff])]
+    #[case(0x8000_0000_0000, &[0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00])]
+    #[case(0x7f_ffff_ffff_ffff, &[0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])]
+    #[case(0x80_0000_0000_0000, &[0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])]
+    #[case(0x7fff_ffff_ffff_ffff, &[0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])]
+    #[case(0x8000_0000_0000_0000, &[0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])]
+    #[case(u64::MAX, &[0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])]
+    fn test_new_u64(#[case] val: u64, #[case] expected_bytes: &[u8]) {
+        let mut a = Allocator::new();
+        let atom = a.new_u64(val).expect("new_u64()");
+        assert_eq!(a.atom(atom).as_ref(), expected_bytes);
+        let expected_number: Number = val.into();
+        assert_eq!(a.number(atom), expected_number);
+    }
+
+    #[rstest]
+    #[case(0i64, &[])]
+    #[case(1, &[1])]
+    #[case(0x7f, &[0x7f])]
+    #[case(0x80, &[0x00, 0x80])]
+    #[case(-1, &[0xff])]
+    #[case(-0x7f, &[0x81])]
+    #[case(-0x80, &[0x80])]
+    #[case(-0x81, &[0xff, 0x7f])]
+    #[case(-0x100, &[0xff, 0x00])]
+    #[case(-0x7fff, &[0x80, 0x01])]
+    #[case(-0x8000, &[0x80, 0x00])]
+    #[case(-0x8001, &[0xff, 0x7f, 0xff])]
+    #[case(-0x80_0000, &[0x80, 0x00, 0x00])]
+    #[case(-0x80_0001, &[0xff, 0x7f, 0xff, 0xff])]
+    #[case(-0x8000_0000, &[0x80, 0x00, 0x00, 0x00])]
+    #[case(-0x8000_0001, &[0xff, 0x7f, 0xff, 0xff, 0xff])]
+    #[case(-0x80_0000_0000, &[0x80, 0x00, 0x00, 0x00, 0x00])]
+    #[case(-0x80_0000_0001, &[0xff, 0x7f, 0xff, 0xff, 0xff, 0xff])]
+    #[case(-0x8000_0000_0000, &[0x80, 0x00, 0x00, 0x00, 0x00, 0x00])]
+    #[case(-0x8000_0000_0001, &[0xff, 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff])]
+    #[case(-0x80_0000_0000_0000, &[0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])]
+    #[case(-0x80_0000_0000_0001, &[0xff, 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])]
+    #[case(i64::MIN, &[0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])]
+    #[case(i64::MAX, &[0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])]
+    fn test_new_i64(#[case] val: i64, #[case] expected_bytes: &[u8]) {
+        let mut a = Allocator::new();
+        let atom = a.new_i64(val).expect("new_i64()");
+        assert_eq!(a.atom(atom).as_ref(), expected_bytes);
+        let expected_number: Number = val.into();
+        assert_eq!(a.number(atom), expected_number);
     }
 
     #[rstest]
@@ -2243,6 +2996,26 @@ c6c886f6b57ec72a6178288c47c33577\
         let num = number_from_u8(bytes);
         assert_eq!(format!("{num}"), text);
         let ptr = a.new_number(num).unwrap();
+        assert_eq!(a.atom(ptr).as_ref(), buf);
+    }
+
+    #[rstest]
+    #[case(&[0], "0", &[])]
+    #[case(&[1], "1", &[1])]
+    #[case(&[0,0,0,1], "1", &[1])]
+    #[case(&[0,0,0x80], "128", &[0, 0x80])]
+    #[case(&[0,0xff], "255", &[0, 0xff])]
+    #[case(&[0x7f,0xff], "32767", &[0x7f, 0xff])]
+    #[case(&[0xff,0xff], "-1", &[0xff])]
+    #[case(&[0xff], "-1", &[0xff])]
+    #[case(&[0,0,0x80,0], "32768", &[0,0x80,0])]
+    #[case(&[0,0,0x40,0], "16384", &[0x40,0])]
+    fn test_malachite_number_to_atom(#[case] bytes: &[u8], #[case] text: &str, #[case] buf: &[u8]) {
+        let mut a = Allocator::new();
+
+        let num = malachite_number_from_u8(bytes);
+        assert_eq!(format!("{num}"), text);
+        let ptr = a.new_malachite_number(num).unwrap();
         assert_eq!(a.atom(ptr).as_ref(), buf);
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "clvm_rs-fuzz"
-version = "0.17.1"
+version = "0.20.0"
 authors = ["Arvid Norberg <arvid@chia.net>"]
 publish = false
 edition = "2024"
@@ -13,10 +13,19 @@ libfuzzer-sys = { workspace = true }
 clvmr = { workspace = true, features = ["counters", "allocator-debug"] }
 arbitrary = { workspace = true }
 clvm-fuzzing = { workspace = true }
+num-bigint = { workspace = true }
+num-integer = { workspace = true }
+num-traits = { workspace = true }
 
 [[bin]]
 name = "run-program"
 path = "fuzz_targets/run_program.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "garbage-collection"
+path = "fuzz_targets/garbage_collection.rs"
 test = false
 doc = false
 
@@ -117,7 +126,49 @@ test = false
 doc = false
 
 [[bin]]
+name = "reject-non-canonical"
+path = "fuzz_targets/reject_non_canonical.rs"
+test = false
+doc = false
+
+[[bin]]
 name = "intern"
 path = "fuzz_targets/intern.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "arithmetic"
+path = "fuzz_targets/arithmetic.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "divmod"
+path = "fuzz_targets/divmod.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "modpow"
+path = "fuzz_targets/modpow.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "serde-2026"
+path = "fuzz_targets/serde_2026.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "serde-2026-varint"
+path = "fuzz_targets/serde_2026_varint.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "serde-2026-panic"
+path = "fuzz_targets/serde_2026_panic.rs"
 test = false
 doc = false

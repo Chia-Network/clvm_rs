@@ -8,8 +8,8 @@ jobs:
   security_audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: install cargo audit
-        run: cargo install cargo-audit
+        run: cargo install cargo-audit --locked
       - name: cargo audit
         run: cargo audit --ignore RUSTSEC-2025-0020

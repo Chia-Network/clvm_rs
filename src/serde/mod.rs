@@ -29,7 +29,7 @@ pub use de_br::{node_from_bytes_backrefs, node_from_bytes_backrefs_old};
 pub use de_tree::{ParsedTriple, parse_triples};
 pub use identity_hash::RandomState;
 pub use incremental::{Serializer, UndoState};
-pub use intern::{InternedTree, intern};
+pub use intern::{InternedTree, intern_tree, intern_tree_limited};
 pub use object_cache::{ObjectCache, serialized_length, treehash};
 pub use path_builder::{ChildPos, PathBuilder};
 pub use read_cache_lookup::ReadCacheLookup;
@@ -41,3 +41,9 @@ pub use tools::{
     tree_hash_from_stream,
 };
 pub use tree_cache::{TreeCache, TreeCacheCheckpoint};
+
+pub use crate::serde_2026::{
+    SERDE_2026_MAGIC_PREFIX, deserialize_2026, deserialize_2026_body_from_stream,
+    deserialize_2026_from_stream, serialize_2026, serialize_2026_to_stream,
+    serialized_length_serde_2026,
+};

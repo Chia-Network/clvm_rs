@@ -18,16 +18,13 @@ permissions:
 jobs:
   build_wheels:
     name: ARM64 Python Wheels on ARM64 Ubuntu
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [[ARM64, Linux]]
+    runs-on: ubuntu-24.04-arm
 
     steps:
       - uses: Chia-Network/actions/clean-workspace@main
 
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -35,50 +32,43 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/ws --workdir=/ws \
-            quay.io/pypa/manylinux_2_28_aarch64 \
+            ghcr.io/chia-network/build-images/centos-pypa-rust-aarch64 \
             bash -exc '\
               echo $PATH && \
-              curl -L https://sh.rustup.rs > rustup-init.sh && \
-              sh rustup-init.sh -y && \
               yum -y install perl-IPC-Cmd && \
-              yum -y install openssl-devel && \
+              yum -y --disablerepo=epel install openssl-devel && \
               source $HOME/.cargo/env && \
               rustup target add aarch64-unknown-linux-musl && \
               rm -rf venv && \
               export PATH=/opt/python/cp310-cp310/bin/:$PATH && \
-              export PATH=/opt/python/cp39-cp39/bin/:$PATH && \
-              export PATH=/opt/python/cp38-cp38/bin/:$PATH && \
-              /opt/python/cp38-cp38/bin/python -m venv venv && \
+              /opt/python/cp310-cp310/bin/python -m venv venv && \
               if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
               . ./activate && \
-              pip install maturin && \
+              pip install maturin==1.12.2 && \
               CC=gcc maturin build -m wheel/Cargo.toml --release --strip --manylinux 2_28 --features=openssl \
             '
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: wheels
           path: target/wheels/
 
-      - name: Install Twine
-        run: |
-          if [ ! -f "venv" ]; then sudo rm -rf venv; fi
-          sudo apt-get install python3-venv python3-pip -y
-          python3 -m venv venv
-          if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi
-          . ./activate
-          pip install setuptools_rust
+  publish:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: build_wheels
+    if: startsWith(github.event.ref, 'refs/tags')
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: wheels
+          path: target/wheels/
 
       - name: publish (PyPi)
-        if: startsWith(github.event.ref, 'refs/tags')
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: target/wheels/
           skip-existing: true
-
-      - name: Clean up AMR64
-        if: startsWith(matrix.os, 'ARM64')
-        run: |
-          rm -rf venv
-          rm -rf dist

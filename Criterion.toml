@@ -1,0 +1,7 @@
+# Criterion benchmark configuration
+# Minimum viable configuration for CI
+[profile.default]
+sample_size = 50
+measurement_time = 5
+warm_up_time = 1
+

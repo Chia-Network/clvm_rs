@@ -23,10 +23,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-15-intel, ubuntu-latest, windows-latest]
-        python: [3.8]
+        python: ["3.10"]
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -49,7 +49,7 @@ jobs:
       - name: Build MacOs with maturin on Python ${{ matrix.python }}
         if: startsWith(matrix.os, 'macos')
         env:
-          MACOSX_DEPLOYMENT_TARGET: "13.0"
+          MACOSX_DEPLOYMENT_TARGET: "15.0"
         run: |
           python -m venv venv
           ln -s venv/bin/activate
@@ -61,10 +61,8 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/ws --workdir=/ws \
-            quay.io/pypa/manylinux_2_28_x86_64 \
+            ghcr.io/chia-network/build-images/centos-pypa-rust-x86_64 \
             bash -exc '\
-              curl -L https://sh.rustup.rs > rustup-init.sh && \
-              sh rustup-init.sh -y && \
               yum -y install perl-IPC-Cmd && \
               yum -y --disablerepo=epel install openssl-devel && \
               source $HOME/.cargo/env && \
@@ -72,12 +70,8 @@ jobs:
               PY_VERSION=${{ matrix.python }}
               PY_VERSION=${PY_VERSION/.} && \
               echo "Python version with dot removed is $PY_VERSION" && \
-              if [ "$PY_VERSION" = "38" ]; \
-              then export SCND_VERSION="${PY_VERSION}m"; \
-              else export SCND_VERSION="$PY_VERSION"; fi && \
-              echo "Exporting path /opt/python/cp$PY_VERSION-cp$SCND_VERSION/bin" && \
-              export PATH=/opt/python/cp$PY_VERSION-cp$SCND_VERSION/bin/:$PATH && \
-              /opt/python/cp38-cp38/bin/python -m venv /venv && \
+              export PATH=/opt/python/cp$PY_VERSION-cp$PY_VERSION/bin/:$PATH && \
+              python -m venv /venv && \
               . /venv/bin/activate && \
               pip install --upgrade pip && \
               pip install maturin==1.12.2 && \
@@ -127,7 +121,7 @@ jobs:
           # ignoring `clvm_rs.so`, which is pretty important)
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: wheels-${{ matrix.os }}-py-${{ matrix.python }}
           path: ./target/wheels/
@@ -138,7 +132,7 @@ jobs:
     needs: build_wheels
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -165,7 +159,7 @@ jobs:
     runs-on: ubuntu-22.04
     name: Checks
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
       - name: Set up rusts
@@ -184,9 +178,9 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-15-intel, ubuntu-latest]
-        python: [3.8]
+        python: ["3.10"]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
       - name: Set up rusts
@@ -201,34 +195,55 @@ jobs:
           cargo clippy
       - name: cargo-fuzz
         run: cargo install cargo-fuzz
-      # TODO: it would be nice to save and restore the corpus between runs
-      - name: build corpus
+      - name: Restore fuzz corpus
+        uses: actions/cache/restore@v5
+        with:
+          path: fuzz/corpus
+          key: fuzz-corpus-${{ matrix.os }}-${{ hashFiles('fuzz/fuzz_targets/**/*.rs') }}
+          restore-keys: |
+            fuzz-corpus-${{ matrix.os }}-
+      - name: Build all fuzz targets
+        run: cargo +nightly fuzz build
+      - name: Run fuzz targets
         run: |
-          cd tools
-          cargo run --bin generate-fuzz-corpus
-      - name: build
-        run: cargo +nightly fuzz list | xargs -I "%" sh -c "cargo +nightly fuzz run % -- -max_total_time=30 || exit 255"
+          for target in $(cargo +nightly fuzz list); do
+            cargo +nightly fuzz run "$target" -- -max_total_time=30 || exit 1
+          done
+      - name: Save fuzz corpus
+        uses: actions/cache/save@v5
+        if: always()
+        with:
+          path: fuzz/corpus
+          key: fuzz-corpus-${{ matrix.os }}-${{ hashFiles('fuzz/fuzz_targets/**/*.rs') }}-${{ github.run_id }}
 
   unit_tests:
     name: Unit tests
     runs-on: ${{ matrix.os }}
+    env:
+      CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS: true
+      CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS: true
     strategy:
       fail-fast: false
       matrix:
         os: [macos-15-intel, ubuntu-latest, windows-latest]
-        python: [3.8]
+        python: ["3.10"]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
       - name: Set up rusts
         uses: dtolnay/rust-toolchain@1.92.0
 
+      - uses: chia-network/actions/setup-python@main
+        name: Install Python ${{ matrix.python }}
+        with:
+          python-version: ${{ matrix.python }}
+
       - name: build
         run: cargo build --workspace --exclude clvm_rs-fuzz
 
       - name: cargo test (default)
-        run: cargo test && cargo test --release
+        run: cargo test && cargo test --release -- --include-ignored
 
       - name: cargo test (allocator-debug)
         run: cargo test --features allocator-debug && cargo test --features allocator-debug --release
@@ -242,10 +257,13 @@ jobs:
       - name: cargo test (pre-eval and counters)
         run: cargo test --features=pre-eval,counters && cargo test --features=pre-eval,counters --release
 
+      - name: cargo test (no-fastpath)
+        run: cargo test --features=no-fastpath && cargo test --features=no-fastpath --release
+
   coverage:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - name: Run for coverage
         run: |
@@ -271,7 +289,9 @@ jobs:
       - name: Upload to Coveralls
         uses: coverallsapp/github-action@v2
         if: always()
+        continue-on-error: true
         env:
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
         with:
+          fail-on-error: false
           path-to-lcov: "./lcov.info"

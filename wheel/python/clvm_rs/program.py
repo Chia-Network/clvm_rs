@@ -4,7 +4,12 @@ from typing import Iterator, List, Tuple, Optional, BinaryIO
 from .at import at
 from .casts import CastableType, to_clvm_object, int_from_bytes, int_to_bytes
 from .chia_dialect import CHIA_DIALECT
-from .clvm_rs import run_serialized_chia_program
+from .clvm_rs import (
+    clvm_tree_to_lazy_node,
+    deser_auto,
+    run_serialized_chia_program,
+    ser_2026,
+)
 from .clvm_storage import CLVMStorage
 from .clvm_tree import CLVMTree
 from .curry_and_treehash import CurryTreehasher
@@ -12,6 +17,8 @@ from .eval_error import EvalError
 from .replace import replace
 from .ser import sexp_from_stream, sexp_to_stream, sexp_to_bytes
 from .tree_hash import sha256_treehash
+
+SERDE_2026_MAGIC_PREFIX = b"\xfd\xff2026"
 
 
 
@@ -35,25 +42,46 @@ class Program(CLVMStorage):
         sexp_to_stream(self, f)
 
     @classmethod
-    def from_bytes(cls, blob: bytes, calculate_tree_hash: bool = True) -> Program:
-        obj, cursor = cls.from_bytes_with_cursor(
-            blob, 0, calculate_tree_hash=calculate_tree_hash
-        )
-        return obj
+    def from_bytes(cls, blob: bytes) -> Program:
+        """Deserialize from any CLVM format (classic, backrefs, or serde_2026)."""
+        return cls.wrap(deser_auto(blob))
+
+    @classmethod
+    def from_bytes_backrefs(cls, blob: bytes) -> Program:
+        """Deserialize classic or backrefs format only (rejects serde_2026)."""
+        if blob.startswith(SERDE_2026_MAGIC_PREFIX):
+            raise ValueError("unexpected serde_2026 format; use from_bytes() for auto-detection")
+        return cls.wrap(deser_auto(blob))
 
     @classmethod
     def from_bytes_with_cursor(
-        cls, blob: bytes, cursor: int, calculate_tree_hash: bool = True
+        cls, blob: bytes, cursor: int
     ) -> Tuple[Program, int]:
-        tree = CLVMTree.from_bytes(
-            blob[cursor:], calculate_tree_hash=calculate_tree_hash
-        )
+        tree = CLVMTree.from_bytes(blob[cursor:])
         obj = cls.wrap(tree)
         new_cursor = len(bytes(tree)) + cursor
         return obj, new_cursor
 
     @classmethod
-    def fromhex(cls, hexstr: str) -> Program:
+    def from_bytes_2026(cls, blob: bytes) -> "Program":
+        """Deserialize from 2026 format only.
+
+        The blob must begin with the six-byte magic prefix
+        ``fd ff 32 30 32 36``.
+        """
+        if not blob.startswith(SERDE_2026_MAGIC_PREFIX):
+            raise ValueError(
+                "missing 2026 magic prefix (expected first bytes fd ff 32 30 32 36)"
+            )
+        return cls.wrap(deser_auto(blob))
+
+    def to_bytes_2026(self) -> bytes:
+        """Serialize to 2026 format (always includes the magic prefix)."""
+        lazy = clvm_tree_to_lazy_node(self)
+        return ser_2026(lazy)
+
+    @classmethod
+    def fromhex(cls, hexstr: str) -> "Program":
         return cls.from_bytes(bytes.fromhex(hexstr))
 
     def __bytes__(self) -> bytes:

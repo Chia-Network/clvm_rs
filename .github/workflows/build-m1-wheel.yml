@@ -22,7 +22,7 @@ permissions:
 jobs:
   build_wheels:
     name: Build wheel on Mac M1
-    runs-on: [macos-13-arm64]
+    runs-on: [macos-15]
     strategy:
       fail-fast: false
 
@@ -30,7 +30,7 @@ jobs:
       - uses: Chia-Network/actions/clean-workspace@main
 
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -46,12 +46,12 @@ jobs:
 
       - name: Build m1 wheels
         env:
-          MACOSX_DEPLOYMENT_TARGET: "13.0"
+          MACOSX_DEPLOYMENT_TARGET: "15.0"
         run: |
           python3 -m venv venv
           . ./venv/bin/activate
           export PATH=~/.cargo/bin:$PATH
-          pip install maturin
+          pip install maturin==1.12.2
           maturin build -m wheel/Cargo.toml -i python --release --strip --features=openssl
 
       - name: Install clvm_rs wheel
@@ -76,7 +76,7 @@ jobs:
           # ignoring `clvm_rs.so`, which is pretty important)
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: wheels
           path: ./target/wheels/
@@ -87,7 +87,7 @@ jobs:
     needs: build_wheels
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 

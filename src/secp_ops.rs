@@ -1,4 +1,5 @@
 use crate::allocator::{Allocator, NodePtr};
+use crate::chia_dialect::ClvmFlags;
 use crate::cost::{Cost, check_cost};
 use crate::error::EvalErr;
 use crate::op_utils::{atom, get_args};
@@ -11,7 +12,12 @@ const SECP256R1_VERIFY_COST: Cost = 1850000;
 const SECP256K1_VERIFY_COST: Cost = 1300000;
 
 // expects: pubkey msg sig
-pub fn op_secp256r1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+pub fn op_secp256r1_verify(
+    a: &mut Allocator,
+    input: NodePtr,
+    max_cost: Cost,
+    _flags: ClvmFlags,
+) -> Response {
     let cost = SECP256R1_VERIFY_COST;
     check_cost(cost, max_cost)?;
 
@@ -52,7 +58,12 @@ pub fn op_secp256r1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) ->
 }
 
 // expects: pubkey msg sig
-pub fn op_secp256k1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response {
+pub fn op_secp256k1_verify(
+    a: &mut Allocator,
+    input: NodePtr,
+    max_cost: Cost,
+    _flags: ClvmFlags,
+) -> Response {
     let cost = SECP256K1_VERIFY_COST;
     check_cost(cost, max_cost)?;
 

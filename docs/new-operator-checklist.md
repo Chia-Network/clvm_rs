@@ -21,12 +21,17 @@ Follow this checklist when adding operators:
 - If relevant, write a script that generates test vectors, printing them into a
   file under `op-tests/` (see `tools/generate-bls-tests.py`). This is to ensure
   the new operator's behavior match at least one other implementation.
-- Include the new operators in the fuzzer `fuzz/fuzz_targets/operators.rs`
-- Include the new operators and their signatures in `tools/src/bin/generate-fuzz-corpus.rs`.
-  Make sure to run this and fuzz for some time before landing the PR.
+- Include the new operators in the fuzzer `fuzz/fuzz_targets/operators.rs`.
+  Make sure to fuzz for some time before landing the PR.
 - Extend the benchmark-clvm-cost.rs to include benchmarks for the new operator,
   to establish its cost.
 - The opcode decoding and dispatching happens in `src/chia_dialect.rs`
+- The ChiaDialect trait also has a function called gc_candidate(). If the new
+  operator is likely to return a small atom (say 48 bytes or less), this
+  function should return `true` for the new opcode. This allows the interpreter to
+  free all memory allocated by the opcode and any arguments computed for its
+  invocation. As long as the return value is a small atom and can easily be put
+  back in the allocator.
 - Add support for the new operators in `src/test_ops.rs` `parse_atom()`, to
   compile the name of the operator to its corresponding opcode.
 - If the operator(s) are part of an extension to `softfork`, add another value

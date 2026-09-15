@@ -148,7 +148,7 @@ pub fn main() {
 
         let max_cost = std::cmp::max(1, 11_000_000_000 - bytes.len() as u64 * 12_000);
 
-        let dialect = ChiaDialect::new(ClvmFlags::empty());
+        let dialect = ChiaDialect::new(ClvmFlags::ENABLE_GC);
         let start = Instant::now();
         let Reduction(cost, _) =
             clvmr::run_program(&mut a, &dialect, program, NodePtr::NIL, 20_000_000_000)

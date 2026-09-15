@@ -1,5 +1,6 @@
 use crate::allocator::NodeVisitor;
 use crate::allocator::{Allocator, NodePtr};
+use crate::chia_dialect::ClvmFlags;
 use crate::cost::Cost;
 use crate::cost::check_cost;
 use crate::more_ops::PRECOMPUTED_HASHES;
@@ -11,12 +12,16 @@ use chia_sha2::Sha256;
 // the up-front cost of just making the call to sha256tree
 const SHA256TREE_BASE_COST: Cost = 270;
 
-// this cost is applied for every pair. Keep in mind that every atom imply a
-// pair
+// this cost is applied for every pair. Keep in mind that every atom implies a
+// pair. Decomposed as 460 (fixed traversal overhead) + 65 * COST_PER_BYTE
+// (hashing the prefix byte + two 32-byte child hashes).
 const SHA256TREE_PAIR_COST: Cost = 460;
-// this is the cost for every 32 bytes in a sha256 call
-// it is set to the same as sha256
+
+// the cost for each byte in a sha256 call, set to match the sha256 operator
 const SHA256TREE_COST_PER_BYTE: Cost = 2;
+
+// new cost model: only the per-byte cost changes (to match NEW_SHA256_COST_PER_BYTE)
+const NEW_SHA256TREE_COST_PER_BYTE: Cost = 6;
 
 pub fn tree_hash_atom(bytes: &[u8]) -> [u8; 32] {
     let mut sha256 = Sha256::new();
@@ -40,7 +45,18 @@ enum TreeOp {
 
 // this function costs but does not cache
 // we can use it to check that the cache is properly remembering costs
-pub fn tree_hash_costed(a: &mut Allocator, node: NodePtr, cost_remaining: Cost) -> Response {
+pub fn tree_hash_costed(
+    a: &mut Allocator,
+    node: NodePtr,
+    cost_remaining: Cost,
+    flags: ClvmFlags,
+) -> Response {
+    let cost_per_byte = if flags.contains(ClvmFlags::NEW_COST_MODEL) {
+        NEW_SHA256TREE_COST_PER_BYTE
+    } else {
+        SHA256TREE_COST_PER_BYTE
+    };
+
     let mut hashes = Vec::new();
     let mut ops = vec![TreeOp::SExp(node)];
 
@@ -52,20 +68,16 @@ pub fn tree_hash_costed(a: &mut Allocator, node: NodePtr, cost_remaining: Cost) 
                 match a.node(node) {
                     NodeVisitor::Buffer(bytes) => {
                         // +1 byte to length because of prefix before atoms
-                        cost += (bytes.len() + 1) as u64 * SHA256TREE_COST_PER_BYTE;
+                        cost += (bytes.len() + 1) as u64 * cost_per_byte;
                         check_cost(cost, cost_remaining)?;
                         let hash = tree_hash_atom(bytes);
                         hashes.push(hash);
                     }
                     NodeVisitor::U32(val) => {
-                        // This is the case for atoms subject to the small value
-                        // optimization. The atom value is stored directly in
-                        // the NodePtr, and not on the heap.                        // +1 byte to length because of prefix before atoms
-                        cost += (a.atom_len(node) + 1) as u64 * SHA256TREE_COST_PER_BYTE;
+                        // +1 byte to length because of prefix before atoms
+                        cost += (a.atom_len(node) + 1) as u64 * cost_per_byte;
                         check_cost(cost, cost_remaining)?;
                         if (val as usize) < PRECOMPUTED_HASHES.len() {
-                            //  In this case we save time by not needing to
-                            //  allocate a buffer to store the atom in.
                             hashes.push(PRECOMPUTED_HASHES[val as usize]);
                         } else {
                             hashes.push(tree_hash_atom(a.atom(node).as_ref()));

@@ -4,9 +4,9 @@ use clvmr::serde::{
     node_to_bytes_backrefs, serialized_length_from_bytes, serialized_length_from_bytes_trusted,
     tree_hash_from_stream,
 };
-use criterion::{Criterion, criterion_group, criterion_main};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use std::include_bytes;
-use std::time::Instant;
+use std::time::Duration;
 
 fn deserialize_benchmark(c: &mut Criterion) {
     let block = include_bytes!("block_af9c3d98.bin");
@@ -24,9 +24,7 @@ fn deserialize_benchmark(c: &mut Criterion) {
     ] {
         group.bench_function(format!("serialized_length_from_bytes{name_suffix}"), |b| {
             b.iter(|| {
-                let start = Instant::now();
-                serialized_length_from_bytes(bl).expect("serialized_length_from_bytes");
-                start.elapsed()
+                black_box(serialized_length_from_bytes(bl).expect("serialized_length_from_bytes"))
             })
         });
 
@@ -34,10 +32,10 @@ fn deserialize_benchmark(c: &mut Criterion) {
             format!("serialized_length_from_bytes_trusted{name_suffix}"),
             |b| {
                 b.iter(|| {
-                    let start = Instant::now();
-                    serialized_length_from_bytes_trusted(bl)
-                        .expect("serialized_length_from_bytes_truested");
-                    start.elapsed()
+                    black_box(
+                        serialized_length_from_bytes_trusted(bl)
+                            .expect("serialized_length_from_bytes_trusted"),
+                    )
                 })
             },
         );
@@ -47,9 +45,7 @@ fn deserialize_benchmark(c: &mut Criterion) {
             group.bench_function(format!("tree_hash_from_stream{name_suffix}"), |b| {
                 b.iter(|| {
                     let mut cur = std::io::Cursor::new(*bl);
-                    let start = Instant::now();
-                    tree_hash_from_stream(&mut cur).expect("tree_hash_from_stream");
-                    start.elapsed()
+                    black_box(tree_hash_from_stream(&mut cur).expect("tree_hash_from_stream"))
                 })
             });
         }
@@ -58,20 +54,33 @@ fn deserialize_benchmark(c: &mut Criterion) {
         let iter_checkpoint = a.checkpoint();
 
         group.bench_function(format!("node_from_bytes_backrefs{name_suffix}"), |b| {
-            b.iter(|| {
-                a.restore_checkpoint(&iter_checkpoint);
-                let start = Instant::now();
-                node_from_bytes_backrefs(&mut a, bl).expect("node_from_bytes_backrefs");
-                start.elapsed()
+            b.iter_custom(|iters| {
+                let mut total = Duration::ZERO;
+                for _ in 0..iters {
+                    a.restore_checkpoint(&iter_checkpoint);
+                    let start = std::time::Instant::now();
+                    black_box(
+                        node_from_bytes_backrefs(&mut a, bl).expect("node_from_bytes_backrefs"),
+                    );
+                    total += start.elapsed();
+                }
+                total
             })
         });
 
         group.bench_function(format!("node_from_bytes_backrefs_old{name_suffix}"), |b| {
-            b.iter(|| {
-                a.restore_checkpoint(&iter_checkpoint);
-                let start = Instant::now();
-                node_from_bytes_backrefs_old(&mut a, bl).expect("node_from_bytes_backrefs_old");
-                start.elapsed()
+            b.iter_custom(|iters| {
+                let mut total = Duration::ZERO;
+                for _ in 0..iters {
+                    a.restore_checkpoint(&iter_checkpoint);
+                    let start = std::time::Instant::now();
+                    black_box(
+                        node_from_bytes_backrefs_old(&mut a, bl)
+                            .expect("node_from_bytes_backrefs_old"),
+                    );
+                    total += start.elapsed();
+                }
+                total
             })
         });
     }
@@ -79,11 +88,15 @@ fn deserialize_benchmark(c: &mut Criterion) {
     let mut a = Allocator::new();
     let iter_checkpoint = a.checkpoint();
     group.bench_function("node_from_bytes", |b| {
-        b.iter(|| {
-            a.restore_checkpoint(&iter_checkpoint);
-            let start = Instant::now();
-            node_from_bytes(&mut a, block).expect("node_from_bytes");
-            start.elapsed()
+        b.iter_custom(|iters| {
+            let mut total = Duration::ZERO;
+            for _ in 0..iters {
+                a.restore_checkpoint(&iter_checkpoint);
+                let start = std::time::Instant::now();
+                black_box(node_from_bytes(&mut a, block).expect("node_from_bytes"));
+                total += start.elapsed();
+            }
+            total
         })
     });
 
