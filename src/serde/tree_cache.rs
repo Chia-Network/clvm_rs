@@ -135,7 +135,21 @@ pub struct TreeCache {
     /// trees are identical or not. To mitigate malicious SHA-1 hash collisions,
     /// we salt the hashes
     salt: [u8; 8],
+
+    /// Scratch arena for PathBuilder buffers in find_path(). Reset between
+    /// calls; not part of checkpointed state.
+    scratch_arena: Bump,
+
+    /// Scratch visited-set for find_path(). Cleared between calls; not part of
+    /// checkpointed state.
+    scratch_seen: BitSet,
 }
+
+// Bump is !Sync (interior mutability via Cell). TreeCache only touches
+// scratch_arena through &mut self (find_path), so sharing &TreeCache across
+// threads cannot race on it. Sync is required so Serializer can live in PyO3
+// types that release the GIL; that does not imply concurrent access.
+unsafe impl Sync for TreeCache {}
 
 impl TreeCache {
     pub fn new(sentinel: Option<NodePtr>) -> Self {
@@ -384,7 +398,7 @@ impl TreeCache {
     /// where the final tree is being collected as we parse. Nodes are eligible
     /// to be referenced after they've been serialized once. That's when they're
     /// added to the serialized_nodes set.
-    pub fn find_path(&self, node: NodePtr) -> Option<Vec<u8>> {
+    pub fn find_path(&mut self, node: NodePtr) -> Option<Vec<u8>> {
         if node == NodePtr::NIL {
             return None;
         }
@@ -393,21 +407,21 @@ impl TreeCache {
             return None;
         };
 
-        let entry = &self.node_entries[idx as usize];
+        let serialized_length = self.node_entries[idx as usize].serialized_length;
 
         // if there's no serialized length for this node, it means it's the sentinel
         // node, or one of its ancestors. We can't build a path to it
-        if entry.serialized_length == 0 {
+        if serialized_length == 0 {
             return None;
         }
 
-        if entry.serialized_length < MIN_SERIALIZED_LENGTH {
+        if serialized_length < MIN_SERIALIZED_LENGTH {
             return None;
         }
 
         // this limit is 1 bit more than the longest path we're allowed to
         // produce. If we find a path of this length, we won't return it.
-        let path_length_limit = (entry.serialized_length - 1).saturating_mul(8);
+        let path_length_limit = (serialized_length - 1).saturating_mul(8);
 
         // During this search (from `node` to the top of the stack) we need to
         // track all nodes we've already visited. It's critical to terminate any
@@ -415,9 +429,12 @@ impl TreeCache {
         // up stuck in an infinite cycle. We also save time by not
         // re-considering a node via a different path, that we already know will
         // be longer than the one first visiting this node.
-        let mut seen = BitSet::new(self.node_entries.len() as u32);
-
-        let arena = Bump::new();
+        // Reuse scratch buffers across repeated find_path() calls to avoid
+        // alloc/free churn.
+        self.scratch_arena.reset();
+        self.scratch_seen.clear();
+        self.scratch_seen
+            .ensure_size(self.node_entries.len() as u32);
 
         // We perform a breadth-first search from the node we're finding a path
         // to, up through its parents until we find the top of the stack. Note
@@ -425,6 +442,9 @@ impl TreeCache {
         // We aim to have every "partial path" have the same length path, since
         // it's breadth first.
         let mut partial_paths = Vec::<PartialPath>::with_capacity(20);
+
+        let arena = &self.scratch_arena;
+        let seen = &mut self.scratch_seen;
 
         // The search from `node` to the top of the stack is essentially a
         // regular djikstra's algorithm. Instead of a priority queue of the
@@ -449,12 +469,12 @@ impl TreeCache {
         // the ones whose length is "current_length", which is incremented for every pass
         let mut current_length = 0;
 
-        let ret: PathBuilder = loop {
+        let ret: Option<PathBuilder> = loop {
             if partial_paths.is_empty() {
-                return None;
+                break None;
             }
             if cursor == 0 && current_length > path_length_limit {
-                return None;
+                break None;
             }
             let p = &mut partial_paths[cursor];
             if u64::from(p.path.len()) > current_length {
@@ -469,9 +489,9 @@ impl TreeCache {
                 // this path is traversing the stack, not the tree nodes
                 if p.stack_pos == 0 {
                     // we found the shortest path
-                    break partial_paths.swap_remove(cursor).path;
+                    break Some(partial_paths.swap_remove(cursor).path);
                 }
-                p.path.push(&arena, ChildPos::Right);
+                p.path.push(arena, ChildPos::Right);
                 p.stack_pos -= 1;
                 cursor += 1;
                 if cursor >= partial_paths.len() {
@@ -490,7 +510,7 @@ impl TreeCache {
                 }
                 continue;
             }
-            p.path.push(&arena, p.child);
+            p.path.push(arena, p.child);
 
             let entry = &self.node_entries[p.idx as usize];
             let idx = p.idx;
@@ -517,14 +537,14 @@ impl TreeCache {
                 // from now on, we can't use "p" anymore, since we're about to
                 // mutate partial_paths and p is a reference into one of its
                 // elements
-                let mut current_path = p.path.clone(&arena);
+                let mut current_path = p.path.clone(arena);
                 debug_assert_eq!(self.node_entries[idx as usize].tree_hash, entry.tree_hash);
 
                 debug_assert!(remaining_parents.is_empty() || used_p);
                 for parent in remaining_parents {
                     if !seen.is_visited(parent.0) {
                         partial_paths.push(PartialPath {
-                            path: current_path.clone(&arena),
+                            path: current_path.clone(arena),
                             stack_pos: -1,
                             idx: parent.0,
                             child: parent.1,
@@ -533,7 +553,7 @@ impl TreeCache {
                 }
                 if entry.on_stack > 0 {
                     // this is to pick the stack entry (left value)
-                    current_path.push(&arena, ChildPos::Left);
+                    current_path.push(arena, ChildPos::Left);
 
                     // now step down the stack until we find the element
                     // the stack grows downwards (indices going up). Now we're starting from
@@ -566,13 +586,11 @@ impl TreeCache {
         };
 
         // if this path is too long, we can't return it
-        let backref_len = ret.serialized_length();
         // we always need the 0xfe introducer for a back-reference as well, so
         // include that in the serialized size of the path
-        if u64::from(backref_len) + 1 > entry.serialized_length {
-            None
-        } else {
-            Some(ret.done())
+        match ret {
+            Some(ret) if u64::from(ret.serialized_length()) < serialized_length => Some(ret.done()),
+            _ => None,
         }
     }
 }
@@ -661,13 +679,17 @@ mod tests {
 
         // at this point the complete tree is on the parse stack, and we can
         // find paths to all nodes
-        assert_eq!(tree.find_path(c), tree.find_path(b));
-        assert!([vec![0b100], vec![0b110]].contains(&tree.find_path(b).unwrap()));
+        let path_c = tree.find_path(c);
+        let path_b = tree.find_path(b);
+        assert_eq!(path_c, path_b);
+        assert!([vec![0b100], vec![0b110]].contains(&path_b.unwrap()));
         // "foobar is found as the right node of c and b, which are both left
         // and right side of the root. These paths are equally long and so which
         // one we find doesn't really matter
-        assert_eq!(tree.find_path(foo1), tree.find_path(foo2));
-        assert!([vec![0b1100], vec![0b1110]].contains(&tree.find_path(foo1).unwrap()));
+        let path_foo1 = tree.find_path(foo1);
+        let path_foo2 = tree.find_path(foo2);
+        assert_eq!(path_foo1, path_foo2);
+        assert!([vec![0b1100], vec![0b1110]].contains(&path_foo1.unwrap()));
     }
 
     #[rstest]
