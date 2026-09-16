@@ -36,6 +36,21 @@ impl BitSet {
         assert!(max_idx as usize >= self.bits.len());
         self.bits.resize(new_len, 0);
     }
+
+    /// Clears all visited marks without freeing the underlying storage.
+    pub fn clear(&mut self) {
+        for w in &mut self.bits {
+            *w = 0;
+        }
+    }
+
+    /// Grows the bitset if needed to cover `max_idx` nodes. Does not clear.
+    pub fn ensure_size(&mut self, max_idx: u32) {
+        let new_len = (max_idx as usize + Self::BITS) / Self::BITS;
+        if self.bits.len() < new_len {
+            self.bits.resize(new_len, 0);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -92,5 +107,24 @@ mod tests {
             assert!(n.visit(i));
             assert!(n.is_visited(i));
         }
+    }
+
+    #[test]
+    fn test_clear_and_ensure_size() {
+        let mut n = BitSet::new(64);
+        assert!(!n.visit(0));
+        assert!(!n.visit(63));
+        assert!(n.is_visited(0));
+        assert!(n.is_visited(63));
+
+        n.clear();
+        assert!(!n.is_visited(0));
+        assert!(!n.is_visited(63));
+
+        n.ensure_size(128);
+        assert!(!n.visit(127));
+        assert!(n.is_visited(127));
+        n.clear();
+        assert!(!n.is_visited(127));
     }
 }
