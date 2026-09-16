@@ -38,7 +38,7 @@ struct NodeEntry {
     pub on_stack: u32,
 }
 
-const MAX_PARENTS: usize = 8;
+const MAX_PARENTS: usize = 150;
 
 impl NodeEntry {
     fn add_parent(&mut self, parent: u32, pos: ChildPos) {
