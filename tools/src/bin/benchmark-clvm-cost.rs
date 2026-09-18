@@ -23,8 +23,14 @@ const BENCHMARK_TIME_PER_COST: f64 = 0.5;
 #[derive(Clone, Copy)]
 enum AtomFill {
     Random,
+    /// Like [`Random`], but least-significant bit set (odd) — for modpow moduli
+    /// so num-bigint takes the Montgomery path.
+    RandomOdd,
     Ones,
     Zeros,
+    /// Negative: `0xfe` + `0xff…` (near-max m+1 carry). Positive: same as Ones.
+    /// Always odd (LSB forced) for use as a modpow modulus.
+    MaxCarry,
 }
 
 #[derive(Clone, Copy)]
@@ -1335,8 +1341,8 @@ const OPERATORS: &[OpDef] = &[
         params: &[
             ParamDef::Bytes {
                 name: "base",
-                size: 1..10_000,
-                fixed: &[8, 9000],
+                size: -10_000..10_000,
+                fixed: &[-9000, -8, 8, 9000],
                 fill: AtomFill::Random,
             },
             ParamDef::Bytes {
@@ -1349,7 +1355,132 @@ const OPERATORS: &[OpDef] = &[
                 name: "modulus",
                 size: 1..6000,
                 fixed: &[8, 1000],
+                fill: AtomFill::RandomOdd,
+            },
+        ],
+        variadic: 0,
+    },
+    // modpow(b, 0, m): odd MaxCarry modulus → Montgomery when not short-circuited.
+    OpDef {
+        name: "modpow-b0m",
+        opcode: 60,
+        steps: 20,
+        params: &[
+            ParamDef::Bytes {
+                name: "base",
+                size: -1_000_000..1_000_000,
+                fixed: &[-1000, -1, 1, 1000],
                 fill: AtomFill::Random,
+            },
+            ParamDef::FixedAtom {
+                name: "exponent",
+                data: &[],
+            },
+            ParamDef::Bytes {
+                name: "modulus",
+                size: -200_000..200_000,
+                fixed: &[-1000, -1, 1, 1000],
+                fill: AtomFill::MaxCarry,
+            },
+        ],
+        variadic: 0,
+    },
+    // modpow(b, 1, m); odd MaxCarry modulus. Random base so negative sizes are signed.
+    OpDef {
+        name: "modpow-b1m",
+        opcode: 60,
+        steps: 20,
+        params: &[
+            ParamDef::Bytes {
+                name: "base",
+                size: -1_000_000..1_000_000,
+                fixed: &[-9000, -8, 8, 9000],
+                fill: AtomFill::Random,
+            },
+            ParamDef::FixedAtom {
+                name: "exponent",
+                data: &[1],
+            },
+            ParamDef::Bytes {
+                name: "modulus",
+                size: -50_000..50_000,
+                fixed: &[-1000, -1, 1, 1000],
+                fill: AtomFill::MaxCarry,
+            },
+        ],
+        variadic: 0,
+    },
+    // Large base, small odd m, e=2: stresses (b+m) parse/reduction vs cost.
+    OpDef {
+        name: "modpow-large-b-small-m",
+        opcode: 60,
+        steps: 20,
+        params: &[
+            ParamDef::Bytes {
+                name: "base",
+                size: -1_000_000..1_000_000,
+                fixed: &[-9000, -8, 8, 9000],
+                fill: AtomFill::Random,
+            },
+            ParamDef::FixedAtom {
+                name: "exponent",
+                data: &[2],
+            },
+            ParamDef::Bytes {
+                name: "modulus",
+                size: 1..8,
+                fixed: &[1, 8],
+                fill: AtomFill::Ones,
+            },
+        ],
+        variadic: 0,
+    },
+    // Tiny ±base, e=2, large odd m: Montgomery setup vs esize charge.
+    OpDef {
+        name: "modpow-setup",
+        opcode: 60,
+        steps: 30,
+        params: &[
+            ParamDef::Bytes {
+                name: "base",
+                size: -1..1,
+                fixed: &[-1, 1],
+                fill: AtomFill::Random,
+            },
+            ParamDef::FixedAtom {
+                name: "exponent",
+                data: &[2],
+            },
+            ParamDef::Bytes {
+                name: "modulus",
+                size: 1..50_000,
+                fixed: &[8, 1000, 8000],
+                fill: AtomFill::Ones,
+            },
+        ],
+        variadic: 0,
+    },
+    // Tiny ±base, e=1, large odd m: setup still runs (no e=1 short-circuit).
+    OpDef {
+        name: "modpow-setup-e1",
+        opcode: 60,
+        steps: 30,
+        params: &[
+            ParamDef::Bytes {
+                name: "base",
+                size: -1..1,
+                fixed: &[-1, 1],
+                fill: AtomFill::Random,
+            },
+            ParamDef::FixedAtom {
+                name: "exponent",
+                data: &[1],
+            },
+            ParamDef::Bytes {
+                name: "modulus",
+                size: 1..50_000,
+                fixed: &[8, 1000, 8000],
+                fill: AtomFill::Ones,
             },
         ],
         variadic: 0,
@@ -1540,6 +1671,24 @@ fn random_atom(a: &mut Allocator, size: usize, negative: bool, rng: &mut StdRng)
     a.new_atom(&buf).unwrap()
 }
 
+fn random_odd_atom(a: &mut Allocator, size: usize, negative: bool, rng: &mut StdRng) -> NodePtr {
+    if size == 0 {
+        return a.one();
+    }
+    let mut buf = vec![0u8; size];
+    rng.fill_bytes(&mut buf);
+    if negative {
+        buf[0] |= 0x80;
+    } else {
+        buf[0] &= 0x7f;
+        if buf.iter().all(|&b| b == 0) {
+            buf[size - 1] = 1;
+        }
+    }
+    buf[size - 1] |= 1;
+    a.new_atom(&buf).unwrap()
+}
+
 fn ones_atom(a: &mut Allocator, size: usize) -> NodePtr {
     if size == 0 {
         return a.one();
@@ -1599,7 +1748,19 @@ fn make_atom_sized(a: &mut Allocator, pdef: &ParamDef, sz: i64, rng: &mut StdRng
             let byte_count = sz.unsigned_abs() as usize;
             match fill {
                 AtomFill::Random => random_atom(a, byte_count, sz < 0, rng),
+                AtomFill::RandomOdd => random_odd_atom(a, byte_count, sz < 0, rng),
                 AtomFill::Ones => ones_atom(a, byte_count),
+                AtomFill::MaxCarry => {
+                    if sz < 0 {
+                        // 0xfe ff…ff, then force odd (size 1 would otherwise be even 0xfe)
+                        let mut buf = vec![0xffu8; byte_count];
+                        buf[0] = 0xfe;
+                        buf[byte_count - 1] |= 1;
+                        a.new_atom(&buf).unwrap()
+                    } else {
+                        ones_atom(a, byte_count)
+                    }
+                }
                 AtomFill::Zeros => zeros_atom(a, byte_count),
             }
         }

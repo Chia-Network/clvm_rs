@@ -91,17 +91,20 @@ cost = DIV_BASE_COST
 
 The CLVM cost model for `modpow` is:
 
-m = modulus magnitude
-e = exponent magnitude
-b = base magnitude
+m = modulus atom length
+e = exponent atom length
+b = base atom length
 
 ```
 cost = MODPOW_BASE_COST
+    + (b + m) * COST_PER_BYTE
     + e * EXPONENT_MULTIPLIER * (m^2 + PER_ITERATION_COST)
     + b * m
 ```
 
-The dominant term is `e * m^2` which reflects the modular exponentiation algorithm: `e` controls the number of squaring/multiplication iterations, and each modular multiplication is O(m^2).
+The linear `(b + m)` term covers parsing the base and modulus BigInts (including when `e = 0`, or when `|m|` is tiny so `b·m` alone undercharges). The dominant term for typical sizes is still `e * m^2`.
+
+The implementation short-circuits `e = 0` to `1 % m` (after parsing all three args) so it does not pay Montgomery setup; cost still uses this formula.
 
 ### bls_pairing_identity / bls_verify
 

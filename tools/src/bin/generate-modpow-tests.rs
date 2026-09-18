@@ -55,6 +55,7 @@ fn main() {
             + result_len * 10;
 
         let new_cost = 17000
+            + (base_len + modulus_len) * 20
             + exponent_len * 8 * (modulus_len * modulus_len + 4000)
             + base_len * modulus_len
             + result_len * 10;
@@ -67,10 +68,11 @@ fn main() {
         ));
     }
 
+    // `%` immediately after the first 100 modpows so the ChaCha8 stream (and
+    // thus these cases) stays identical to historical test-modpow.txt.
     for _ in 0..100 {
         let base = BigInt::from_signed_bytes_be(&bytes(0, 32));
 
-        // Generate a random exponent, but ensure it's positive.
         let mut modulus = BigInt::from_signed_bytes_be(&bytes(0, 16));
         if modulus == BigInt::ZERO {
             modulus += 1;
@@ -87,6 +89,163 @@ fn main() {
 
         tests.push_str(&format!("% {base} {modulus} => {result} | {cost}\n"));
         tests_v2.push_str(&format!("% {base} {modulus} => {result} | {new_cost}\n"));
+    }
+
+    // 0^0 mod m: result is 1 % m (FAIL when m == 0). Useful edge cases for the
+    // cost model linear terms that charge for |m| even when base and exponent
+    // magnitudes are both zero.
+    tests.push_str("; 0^0 mod m edge cases\n");
+    tests_v2.push_str("; 0^0 mod m edge cases\n");
+    let zero = BigInt::ZERO;
+    for modulus in [
+        BigInt::from(0),
+        BigInt::from(1),
+        BigInt::from(-1),
+        BigInt::from(2),
+        BigInt::from(-2),
+        BigInt::from(3),
+        BigInt::from(-3),
+        BigInt::from(127),
+        BigInt::from(-128),
+        BigInt::from(255),
+        BigInt::from(256),
+        BigInt::from(-256),
+        BigInt::from(1000000007),
+        BigInt::from(-1000000007),
+        BigInt::from(9223372036854775807_i64),
+        BigInt::from(-9223372036854775807_i64),
+        "123456789012345678901234567890123456789012345678901"
+            .parse()
+            .unwrap(),
+        "-123456789012345678901234567890123456789012345678901"
+            .parse()
+            .unwrap(),
+        "115792089237316195423570985008687907853269984665640564039457584007913129639937"
+            .parse()
+            .unwrap(),
+        "-115792089237316195423570985008687907853269984665640564039457584007913129639937"
+            .parse()
+            .unwrap(),
+    ] {
+        if modulus == zero {
+            tests.push_str("modpow 0 0 0 => FAIL\n");
+            tests_v2.push_str("modpow 0 0 0 => FAIL\n");
+            continue;
+        }
+        let result = zero.modpow(&zero, &modulus);
+        let modulus_len = atom_len(modulus.clone());
+        let result_len = atom_len(result.clone());
+        let cost = 17000 + modulus_len * modulus_len * 21 + result_len * 10;
+        let new_cost = 17000 + modulus_len * 20 + result_len * 10;
+        tests.push_str(&format!("modpow 0 0 {modulus} => {result} | {cost}\n"));
+        tests_v2.push_str(&format!("modpow 0 0 {modulus} => {result} | {new_cost}\n"));
+    }
+
+    // b^1 mod m == b % m (mod_floor). Same results in both files; only costs differ.
+    tests.push_str("; b^1 mod m (== b % m) edge cases\n");
+    tests_v2.push_str("; b^1 mod m (== b % m) edge cases\n");
+    let one = BigInt::from(1);
+    for (base, modulus) in [
+        (BigInt::from(0), BigInt::from(1)),
+        (BigInt::from(1), BigInt::from(1)),
+        (BigInt::from(2), BigInt::from(1)),
+        (BigInt::from(0), BigInt::from(7)),
+        (BigInt::from(42), BigInt::from(7)),
+        (BigInt::from(-42), BigInt::from(7)),
+        (BigInt::from(42), BigInt::from(-7)),
+        (BigInt::from(-42), BigInt::from(-7)),
+        (BigInt::from(100), BigInt::from(1)),
+        (BigInt::from(-1), BigInt::from(2)),
+        (BigInt::from(255), BigInt::from(256)),
+        (BigInt::from(256), BigInt::from(255)),
+        (BigInt::from(-128), BigInt::from(127)),
+        (
+            BigInt::from(9223372036854775807_i64),
+            BigInt::from(1000000007),
+        ),
+        (
+            BigInt::from(-9223372036854775807_i64),
+            BigInt::from(-1000000007),
+        ),
+        (
+            "123456789012345678901234567890123456789012345678901"
+                .parse()
+                .unwrap(),
+            BigInt::from(1000000007),
+        ),
+        (
+            "-123456789012345678901234567890123456789012345678901"
+                .parse()
+                .unwrap(),
+            BigInt::from(-1000000007),
+        ),
+        (
+            "115792089237316195423570985008687907853269984665640564039457584007913129639937"
+                .parse()
+                .unwrap(),
+            "115792089237316195423570985008687907853269984665640564039457584007913129639937"
+                .parse()
+                .unwrap(),
+        ),
+    ] {
+        let via_modpow = base.modpow(&one, &modulus);
+        let via_mod = base.mod_floor(&modulus);
+        assert_eq!(
+            via_modpow, via_mod,
+            "modpow(b,1,m) must equal mod_floor(b,m): b={base} m={modulus}"
+        );
+        let result = via_modpow;
+        let base_len = atom_len(base.clone());
+        let exponent_len = atom_len(one.clone());
+        let modulus_len = atom_len(modulus.clone());
+        let result_len = atom_len(result.clone());
+        let cost = 17000
+            + base_len * 38
+            + exponent_len * exponent_len * 3
+            + modulus_len * modulus_len * 21
+            + result_len * 10;
+        let new_cost = 17000
+            + (base_len + modulus_len) * 20
+            + exponent_len * 8 * (modulus_len * modulus_len + 4000)
+            + base_len * modulus_len
+            + result_len * 10;
+        tests.push_str(&format!("modpow {base} 1 {modulus} => {result} | {cost}\n"));
+        tests_v2.push_str(&format!(
+            "modpow {base} 1 {modulus} => {result} | {new_cost}\n"
+        ));
+    }
+
+    for _ in 0..100 {
+        let base = BigInt::from_signed_bytes_be(&bytes(0, 32));
+        let mut modulus = BigInt::from_signed_bytes_be(&bytes(0, 32));
+        if modulus == BigInt::ZERO {
+            modulus += 1;
+        }
+
+        let via_modpow = base.modpow(&one, &modulus);
+        let via_mod = base.mod_floor(&modulus);
+        assert_eq!(via_modpow, via_mod, "random modpow(b,1,m) vs mod_floor");
+        let result = via_modpow;
+
+        let base_len = atom_len(base.clone());
+        let exponent_len = atom_len(one.clone());
+        let modulus_len = atom_len(modulus.clone());
+        let result_len = atom_len(result.clone());
+        let cost = 17000
+            + base_len * 38
+            + exponent_len * exponent_len * 3
+            + modulus_len * modulus_len * 21
+            + result_len * 10;
+        let new_cost = 17000
+            + (base_len + modulus_len) * 20
+            + exponent_len * 8 * (modulus_len * modulus_len + 4000)
+            + base_len * modulus_len
+            + result_len * 10;
+
+        tests.push_str(&format!("modpow {base} 1 {modulus} => {result} | {cost}\n"));
+        tests_v2.push_str(&format!(
+            "modpow {base} 1 {modulus} => {result} | {new_cost}\n"
+        ));
     }
 
     fs::write("../op-tests/test-modpow.txt", tests).unwrap();
