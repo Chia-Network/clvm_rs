@@ -38,7 +38,11 @@ struct NodeEntry {
     pub on_stack: u32,
 }
 
-const MAX_PARENTS: usize = 150;
+const MAX_PARENTS: usize = 100;
+
+/// Cap on nodes visited in a single `find_path()` search. Past this, give up
+/// and serialize without a back-reference.
+const MAX_FIND_PATH_VISITS: usize = 1024;
 
 impl NodeEntry {
     fn add_parent(&mut self, parent: u32, pos: ChildPos) {
@@ -468,6 +472,7 @@ impl TreeCache {
         // in order to advance every partial path in lock step we only advance
         // the ones whose length is "current_length", which is incremented for every pass
         let mut current_length = 0;
+        let mut nodes_visited: usize = 0;
 
         let ret: Option<PathBuilder> = loop {
             if partial_paths.is_empty() {
@@ -509,6 +514,10 @@ impl TreeCache {
                     current_length += 1;
                 }
                 continue;
+            }
+            nodes_visited += 1;
+            if nodes_visited > MAX_FIND_PATH_VISITS {
+                break None;
             }
             p.path.push(arena, p.child);
 
