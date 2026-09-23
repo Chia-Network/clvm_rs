@@ -26,4 +26,4 @@ $ git tag 0.1.20
 $ git push --tags
 ```
 
-The `0.1.20` tag on GitHub will cause the artifacts to be uploaded to crates.io, pypi.org and npmjs.com.
+The Git tag will trigger the official publication workflows for crates.io and PyPI.
