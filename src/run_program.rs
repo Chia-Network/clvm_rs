@@ -10,6 +10,7 @@ use crate::dialect::{Dialect, OperatorSet};
 use crate::error::{EvalErr, Result};
 use crate::op_utils::{first, get_args, uint_atom};
 use crate::reduction::{Reduction, Response};
+use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
 /// How often (in CLVM cost units) to check whether the wall-clock timeout has
@@ -43,9 +44,114 @@ enum Operation {
     ExitGuard,
     SwapEval,
     RestoreAllocator,
+    PopDiagnosticFrame,
 
     #[cfg(feature = "pre-eval")]
     PostEval,
+}
+
+/// A raw CLVM evaluation frame active when evaluation failed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EvalFrame {
+    /// The program being evaluated.
+    pub program: NodePtr,
+    /// The environment the program is evaluated in.
+    pub environment: NodePtr,
+}
+
+/// An evaluation error together with the active evaluation frames.
+#[derive(Debug, PartialEq)]
+pub struct EvalFailure {
+    /// The original evaluator error.
+    pub error: EvalErr,
+    /// Retained active frames, ordered from oldest to newest.
+    pub frames: Vec<EvalFrame>,
+    /// The number of older active frames omitted from `frames`.
+    pub truncated: usize,
+}
+
+/// The result of an evaluator run with failure diagnostics enabled.
+pub type DiagnosticResponse = std::result::Result<Reduction, EvalFailure>;
+
+#[derive(Clone, Copy)]
+struct RetainedEvalFrame {
+    frame: EvalFrame,
+    depth: usize,
+}
+
+struct DiagnosticState {
+    frames: VecDeque<RetainedEvalFrame>,
+    active_depth: usize,
+    max_frames: usize,
+}
+
+impl DiagnosticState {
+    fn new(max_frames: usize) -> Self {
+        Self {
+            frames: VecDeque::new(),
+            active_depth: 0,
+            max_frames,
+        }
+    }
+
+    fn push(&mut self, program: NodePtr, environment: NodePtr) {
+        self.active_depth += 1;
+        if self.max_frames == 0 {
+            return;
+        }
+        if self.frames.len() == self.max_frames {
+            self.frames.pop_front();
+        }
+        self.frames.push_back(RetainedEvalFrame {
+            frame: EvalFrame {
+                program,
+                environment,
+            },
+            depth: self.active_depth,
+        });
+    }
+
+    fn pop(&mut self) {
+        debug_assert!(self.active_depth > 0);
+        if self.frames.back().map(|frame| frame.depth) == Some(self.active_depth) {
+            self.frames.pop_back();
+        }
+        self.active_depth -= 1;
+    }
+
+    fn failure(self, error: EvalErr) -> EvalFailure {
+        EvalFailure {
+            error,
+            truncated: self.active_depth - self.frames.len(),
+            frames: self.frames.into_iter().map(|frame| frame.frame).collect(),
+        }
+    }
+}
+
+trait FrameTracker {
+    fn push(&mut self, program: NodePtr, environment: NodePtr) -> bool;
+    fn pop(&mut self);
+}
+
+impl FrameTracker for () {
+    #[inline(always)]
+    fn push(&mut self, _program: NodePtr, _environment: NodePtr) -> bool {
+        false
+    }
+
+    #[inline(always)]
+    fn pop(&mut self) {}
+}
+
+impl FrameTracker for DiagnosticState {
+    fn push(&mut self, program: NodePtr, environment: NodePtr) -> bool {
+        self.push(program, environment);
+        true
+    }
+
+    fn pop(&mut self) {
+        self.pop();
+    }
 }
 
 #[cfg(feature = "counters")]
@@ -120,7 +226,7 @@ impl SoftforkGuard {
 // 3. the environment stack (points to the environment for the current
 //    operation). env_stack
 
-struct RunProgramContext<'a, D> {
+struct RunProgramContext<'a, D, F = ()> {
     allocator: &'a mut Allocator,
     dialect: &'a D,
     val_stack: Vec<NodePtr>,
@@ -132,6 +238,7 @@ struct RunProgramContext<'a, D> {
     /// time exceeds this duration (checked every [`TIMEOUT_CHECK_INTERVAL`]
     /// cost units via a monotonic clock).
     timeout: Option<Duration>,
+    diagnostics: F,
     #[cfg(feature = "counters")]
     pub counters: Counters,
 
@@ -141,7 +248,7 @@ struct RunProgramContext<'a, D> {
     posteval_stack: Vec<Box<PostEval>>,
 }
 
-impl<'a, D: Dialect> RunProgramContext<'a, D> {
+impl<'a, D: Dialect, F: FrameTracker> RunProgramContext<'a, D, F> {
     #[cfg(feature = "counters")]
     #[inline(always)]
     fn account_val_push(&mut self) {
@@ -202,7 +309,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         self.account_env_push();
         Ok(())
     }
+}
 
+impl<'a, D: Dialect> RunProgramContext<'a, D> {
     #[cfg(feature = "pre-eval")]
     fn new_with_pre_eval(
         allocator: &'a mut Allocator,
@@ -218,6 +327,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             softfork_stack: Vec::new(),
             allocator_stack: Vec::new(),
             timeout: None,
+            diagnostics: (),
             #[cfg(feature = "counters")]
             counters: Counters::new(),
             pre_eval,
@@ -235,6 +345,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             softfork_stack: Vec::new(),
             allocator_stack: Vec::new(),
             timeout: None,
+            diagnostics: (),
             #[cfg(feature = "counters")]
             counters: Counters::new(),
             #[cfg(feature = "pre-eval")]
@@ -249,7 +360,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         rpc.timeout = Some(timeout);
         rpc
     }
+}
 
+impl<'a, D: Dialect, F: FrameTracker> RunProgramContext<'a, D, F> {
     fn cons_op(&mut self) -> Result<Cost> {
         /* Join the top two operands. */
         let v1 = self.pop()?;
@@ -310,6 +423,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     }
 
     fn eval_pair(&mut self, program: NodePtr, env: NodePtr) -> Result<Cost> {
+        if self.diagnostics.push(program, env) {
+            self.op_stack.push(Operation::PopDiagnosticFrame);
+            self.account_op_push();
+        }
+
         #[cfg(feature = "pre-eval")]
         if let Some(pre_eval) = &self.pre_eval
             && let Some(post_eval) = pre_eval(self.allocator, program, env)?
@@ -614,6 +732,10 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                     }
                     0
                 }
+                Operation::PopDiagnosticFrame => {
+                    self.diagnostics.pop();
+                    0
+                }
                 #[cfg(feature = "pre-eval")]
                 Operation::PostEval => {
                     let f = self.posteval_stack.pop().unwrap();
@@ -654,6 +776,42 @@ pub fn run_program_with_timeout<'a, D: Dialect>(
 ) -> Response {
     let mut rpc = RunProgramContext::new_with_timeout(allocator, dialect, timeout);
     rpc.run_program(program, env, max_cost)
+}
+
+/// Run a program and capture the active raw evaluation frames on failure.
+///
+/// Frames are ordered from oldest to newest. At most `max_frames` of the most
+/// recent active frames are retained, and `truncated` reports the number of
+/// older active frames omitted from the result.
+pub fn run_program_with_diagnostics<'a, D: Dialect>(
+    allocator: &'a mut Allocator,
+    dialect: &'a D,
+    program: NodePtr,
+    env: NodePtr,
+    max_cost: Cost,
+    max_frames: usize,
+) -> DiagnosticResponse {
+    let mut rpc = RunProgramContext {
+        allocator,
+        dialect,
+        val_stack: Vec::new(),
+        env_stack: Vec::new(),
+        op_stack: Vec::new(),
+        softfork_stack: Vec::new(),
+        allocator_stack: Vec::new(),
+        timeout: None,
+        diagnostics: DiagnosticState::new(max_frames),
+        #[cfg(feature = "counters")]
+        counters: Counters::new(),
+        #[cfg(feature = "pre-eval")]
+        pre_eval: None,
+        #[cfg(feature = "pre-eval")]
+        posteval_stack: Vec::new(),
+    };
+    match rpc.run_program(program, env, max_cost) {
+        Ok(reduction) => Ok(reduction),
+        Err(error) => Err(rpc.diagnostics.failure(error)),
+    }
 }
 
 #[cfg(feature = "pre-eval")]
@@ -2177,5 +2335,171 @@ mod tests {
             Some(cost) => assert_eq!(result.unwrap().0, cost),
             None => assert_eq!(result.unwrap_err(), EvalErr::Timeout),
         }
+    }
+
+    #[test]
+    fn test_diagnostics_success_matches_run_program() {
+        use crate::chia_dialect::ChiaDialect;
+        use crate::test_ops::node_eq;
+
+        let mut allocator = Allocator::new();
+        let program = check(parse_exp(&mut allocator, "(+ (q . 20) (q . 30))"));
+        let env = allocator.nil();
+        let dialect = ChiaDialect::new(ClvmFlags::empty());
+
+        let Reduction(expected_cost, expected_value) =
+            run_program(&mut allocator, &dialect, program, env, 10000).unwrap();
+        let Reduction(actual_cost, actual_value) =
+            run_program_with_diagnostics(&mut allocator, &dialect, program, env, 10000, 10)
+                .unwrap();
+
+        assert_eq!(actual_cost, expected_cost);
+        assert!(node_eq(&allocator, actual_value, expected_value));
+    }
+
+    #[test]
+    fn test_diagnostics_preserves_exact_error() {
+        use crate::chia_dialect::ChiaDialect;
+
+        let mut allocator = Allocator::new();
+        let program = check(parse_exp(&mut allocator, "(a (q . 0x0fffffffff) (q . ()))"));
+        let env = allocator.nil();
+        let dialect = ChiaDialect::new(ClvmFlags::empty());
+
+        let expected = run_program(&mut allocator, &dialect, program, env, 10000).unwrap_err();
+        let failure =
+            run_program_with_diagnostics(&mut allocator, &dialect, program, env, 10000, 10)
+                .unwrap_err();
+
+        assert_eq!(failure.error, expected);
+    }
+
+    #[test]
+    fn test_diagnostics_nested_apply_frames() {
+        use crate::chia_dialect::ChiaDialect;
+        use crate::test_ops::node_eq;
+
+        let mut allocator = Allocator::new();
+        let program = check(parse_exp(
+            &mut allocator,
+            "(a (q . (/ 2 3)) (q . (10 . 0)))",
+        ));
+        let env = allocator.nil();
+        let dialect = ChiaDialect::new(ClvmFlags::empty());
+
+        let failure =
+            run_program_with_diagnostics(&mut allocator, &dialect, program, env, 10000, 10)
+                .unwrap_err();
+        let inner_program = check(parse_exp(&mut allocator, "(/ 2 3)"));
+        let inner_env = check(parse_exp(&mut allocator, "(10 . 0)"));
+
+        assert_eq!(failure.error.to_string(), "Division by zero");
+        assert_eq!(failure.truncated, 0);
+        assert_eq!(failure.frames.len(), 2);
+        assert_eq!(
+            failure.frames[0],
+            EvalFrame {
+                program,
+                environment: env
+            }
+        );
+        assert!(node_eq(
+            &allocator,
+            failure.frames[1].program,
+            inner_program
+        ));
+        assert!(node_eq(
+            &allocator,
+            failure.frames[1].environment,
+            inner_env
+        ));
+    }
+
+    #[test]
+    fn test_diagnostics_removes_completed_siblings() {
+        use crate::chia_dialect::ChiaDialect;
+
+        let mut allocator = Allocator::new();
+        let program = check(parse_exp(&mut allocator, "(+ (> 3 3) (q . 999))"));
+        let completed_sibling = check(parse_exp(&mut allocator, "(q . 999)"));
+        let env = allocator.nil();
+        let dialect = ChiaDialect::new(ClvmFlags::empty());
+
+        let failure =
+            run_program_with_diagnostics(&mut allocator, &dialect, program, env, 10000, 10)
+                .unwrap_err();
+
+        assert_eq!(failure.error, EvalErr::PathIntoAtom);
+        assert!(failure.frames.iter().all(|frame| !crate::test_ops::node_eq(
+            &allocator,
+            frame.program,
+            completed_sibling
+        )));
+    }
+
+    #[test]
+    fn test_diagnostics_retains_newest_frames_when_truncated() {
+        use crate::chia_dialect::ChiaDialect;
+        use crate::test_ops::node_eq;
+
+        let mut allocator = Allocator::new();
+        let program = check(parse_exp(
+            &mut allocator,
+            "(a (q . (a (q . (> 3 3)) (q . ()))) (q . ()))",
+        ));
+        let env = allocator.nil();
+        let dialect = ChiaDialect::new(ClvmFlags::empty());
+
+        let failure =
+            run_program_with_diagnostics(&mut allocator, &dialect, program, env, 10000, 2)
+                .unwrap_err();
+        let comparison = check(parse_exp(&mut allocator, "(> 3 3)"));
+        let failing_path = check(parse_exp(&mut allocator, "3"));
+
+        assert_eq!(failure.error, EvalErr::PathIntoAtom);
+        assert_eq!(failure.truncated, 2);
+        assert_eq!(failure.frames.len(), 2);
+        assert!(node_eq(&allocator, failure.frames[0].program, comparison));
+        assert!(node_eq(&allocator, failure.frames[1].program, failing_path));
+    }
+
+    #[test]
+    fn test_diagnostics_pops_retained_frames_after_omission() {
+        use crate::chia_dialect::ChiaDialect;
+        use crate::test_ops::node_eq;
+
+        let mut allocator = Allocator::new();
+        let program = check(parse_exp(
+            &mut allocator,
+            "(+ (> 3 3) (a (q . (a (q . 1) (q . ()))) (q . ())))",
+        ));
+        let env = allocator.nil();
+        let dialect = ChiaDialect::new(ClvmFlags::empty());
+
+        let failure =
+            run_program_with_diagnostics(&mut allocator, &dialect, program, env, 10000, 2)
+                .unwrap_err();
+        let comparison = check(parse_exp(&mut allocator, "(> 3 3)"));
+        let failing_path = check(parse_exp(&mut allocator, "3"));
+
+        assert_eq!(failure.error, EvalErr::PathIntoAtom);
+        assert_eq!(failure.truncated, 1);
+        assert_eq!(failure.frames.len(), 2);
+        assert!(node_eq(&allocator, failure.frames[0].program, comparison));
+        assert!(node_eq(&allocator, failure.frames[1].program, failing_path));
+    }
+
+    #[test]
+    fn test_run_program_uses_non_diagnostic_context() {
+        use crate::chia_dialect::ChiaDialect;
+
+        let mut allocator = Allocator::new();
+        let program = check(parse_exp(&mut allocator, "(q . 42)"));
+        let env = allocator.nil();
+        let dialect = ChiaDialect::new(ClvmFlags::empty());
+
+        let result = run_program(&mut allocator, &dialect, program, env, 20);
+        let expected = check(parse_exp(&mut allocator, "42"));
+        assert_eq!(result, Ok(Reduction(20, expected)));
     }
 }
