@@ -44,7 +44,7 @@ enum Operation {
     ExitGuard,
     SwapEval,
     RestoreAllocator,
-    PopDiagnosticFrame,
+    PopDiagnosticFrame(Option<RetainedEvalFrame>),
 
     #[cfg(feature = "pre-eval")]
     PostEval,
@@ -94,14 +94,13 @@ impl DiagnosticState {
         }
     }
 
-    fn push(&mut self, program: NodePtr, environment: NodePtr) {
+    fn push(&mut self, program: NodePtr, environment: NodePtr) -> Option<RetainedEvalFrame> {
         self.active_depth += 1;
         if self.max_frames == 0 {
-            return;
+            return None;
         }
-        if self.frames.len() == self.max_frames {
-            self.frames.pop_front();
-        }
+        let evicted = (self.frames.len() == self.max_frames)
+            .then(|| self.frames.pop_front().expect("non-empty retained frames"));
         self.frames.push_back(RetainedEvalFrame {
             frame: EvalFrame {
                 program,
@@ -109,14 +108,18 @@ impl DiagnosticState {
             },
             depth: self.active_depth,
         });
+        evicted
     }
 
-    fn pop(&mut self) {
+    fn pop(&mut self, evicted: Option<RetainedEvalFrame>) {
         debug_assert!(self.active_depth > 0);
         if self.frames.back().map(|frame| frame.depth) == Some(self.active_depth) {
             self.frames.pop_back();
         }
         self.active_depth -= 1;
+        if let Some(frame) = evicted {
+            self.frames.push_front(frame);
+        }
     }
 
     fn failure(self, error: EvalErr) -> EvalFailure {
@@ -129,28 +132,36 @@ impl DiagnosticState {
 }
 
 trait FrameTracker {
-    fn push(&mut self, program: NodePtr, environment: NodePtr) -> bool;
-    fn pop(&mut self);
+    fn push(&mut self, program: NodePtr, environment: NodePtr)
+    -> (bool, Option<RetainedEvalFrame>);
+    fn pop(&mut self, evicted: Option<RetainedEvalFrame>);
 }
 
 impl FrameTracker for () {
     #[inline(always)]
-    fn push(&mut self, _program: NodePtr, _environment: NodePtr) -> bool {
-        false
+    fn push(
+        &mut self,
+        _program: NodePtr,
+        _environment: NodePtr,
+    ) -> (bool, Option<RetainedEvalFrame>) {
+        (false, None)
     }
 
     #[inline(always)]
-    fn pop(&mut self) {}
+    fn pop(&mut self, _evicted: Option<RetainedEvalFrame>) {}
 }
 
 impl FrameTracker for DiagnosticState {
-    fn push(&mut self, program: NodePtr, environment: NodePtr) -> bool {
-        self.push(program, environment);
-        true
+    fn push(
+        &mut self,
+        program: NodePtr,
+        environment: NodePtr,
+    ) -> (bool, Option<RetainedEvalFrame>) {
+        (true, self.push(program, environment))
     }
 
-    fn pop(&mut self) {
-        self.pop();
+    fn pop(&mut self, evicted: Option<RetainedEvalFrame>) {
+        self.pop(evicted);
     }
 }
 
@@ -423,8 +434,9 @@ impl<'a, D: Dialect, F: FrameTracker> RunProgramContext<'a, D, F> {
     }
 
     fn eval_pair(&mut self, program: NodePtr, env: NodePtr) -> Result<Cost> {
-        if self.diagnostics.push(program, env) {
-            self.op_stack.push(Operation::PopDiagnosticFrame);
+        let (enabled, evicted) = self.diagnostics.push(program, env);
+        if enabled {
+            self.op_stack.push(Operation::PopDiagnosticFrame(evicted));
             self.account_op_push();
         }
 
@@ -732,8 +744,8 @@ impl<'a, D: Dialect, F: FrameTracker> RunProgramContext<'a, D, F> {
                     }
                     0
                 }
-                Operation::PopDiagnosticFrame => {
-                    self.diagnostics.pop();
+                Operation::PopDiagnosticFrame(evicted) => {
+                    self.diagnostics.pop(evicted);
                     0
                 }
                 #[cfg(feature = "pre-eval")]
@@ -2487,6 +2499,27 @@ mod tests {
         assert_eq!(failure.frames.len(), 2);
         assert!(node_eq(&allocator, failure.frames[0].program, comparison));
         assert!(node_eq(&allocator, failure.frames[1].program, failing_path));
+    }
+
+    #[test]
+    fn test_diagnostics_restores_ancestors_after_deep_completed_sibling() {
+        use crate::chia_dialect::ChiaDialect;
+
+        let mut allocator = Allocator::new();
+        let program = check(parse_exp(
+            &mut allocator,
+            "(+ (> 3 3) (a (q . (a (q . 1) (q . ()))) (q . ())))",
+        ));
+        let env = allocator.nil();
+        let dialect = ChiaDialect::new(ClvmFlags::empty());
+
+        let failure =
+            run_program_with_diagnostics(&mut allocator, &dialect, program, env, 10000, 3)
+                .unwrap_err();
+
+        assert_eq!(failure.error, EvalErr::PathIntoAtom);
+        assert_eq!(failure.truncated, 0);
+        assert_eq!(failure.frames.len(), 3);
     }
 
     #[test]
