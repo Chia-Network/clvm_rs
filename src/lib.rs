@@ -10,6 +10,8 @@ pub mod keccak256_ops;
 pub mod more_ops;
 pub mod number;
 pub mod op_utils;
+#[cfg(feature = "pre-eval")]
+pub mod pre_eval_diagnostics;
 pub mod reduction;
 pub mod run_program;
 pub mod runtime_dialect;
@@ -31,6 +33,11 @@ pub use run_program::run_program_with_counters;
 
 #[cfg(feature = "pre-eval")]
 pub use run_program::run_program_with_pre_eval;
+
+#[cfg(feature = "pre-eval")]
+pub use pre_eval_diagnostics::{
+    DiagnosticResponse, EvalFailure, EvalFrame, run_program_with_diagnostics,
+};
 
 #[cfg(feature = "counters")]
 pub use run_program::Counters;
