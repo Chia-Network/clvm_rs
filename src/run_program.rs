@@ -48,6 +48,25 @@ enum Operation {
     PostEval,
 }
 
+impl Operation {
+    /// Project this op onto the small, stable [`crate::stack_trace::OpKind`]
+    /// enum used by the read-only failure-trace decoder (see
+    /// `src/stack_trace.rs`). This keeps the decoder decoupled from
+    /// `Operation`'s own definition.
+    fn kind(&self) -> crate::stack_trace::OpKind {
+        use crate::stack_trace::OpKind;
+        match self {
+            Operation::Apply => OpKind::Apply,
+            Operation::Cons => OpKind::Cons,
+            Operation::ExitGuard => OpKind::ExitGuard,
+            Operation::SwapEval => OpKind::SwapEval,
+            Operation::RestoreAllocator => OpKind::RestoreAllocator,
+            #[cfg(feature = "pre-eval")]
+            Operation::PostEval => OpKind::Other,
+        }
+    }
+}
+
 #[cfg(feature = "counters")]
 #[derive(Debug)]
 pub struct Counters {
@@ -201,6 +220,18 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         self.env_stack.push(env);
         self.account_env_push();
         Ok(())
+    }
+
+    /// Read-only snapshot of the evaluator's three stacks, for the
+    /// stack-walking failure-trace decoder (`src/stack_trace.rs`). Intended
+    /// to be called right after `run_program` returns `Err`, while the
+    /// context (and its stacks) are still intact.
+    pub(crate) fn stack_snapshot(&self) -> crate::stack_trace::StackSnapshot {
+        crate::stack_trace::StackSnapshot {
+            op_stack: self.op_stack.iter().map(Operation::kind).collect(),
+            val_stack: self.val_stack.clone(),
+            env_stack: self.env_stack.clone(),
+        }
     }
 
     #[cfg(feature = "pre-eval")]
@@ -654,6 +685,62 @@ pub fn run_program_with_timeout<'a, D: Dialect>(
 ) -> Response {
     let mut rpc = RunProgramContext::new_with_timeout(allocator, dialect, timeout);
     rpc.run_program(program, env, max_cost)
+}
+
+/// An evaluation error together with the failure trace decoded from the
+/// evaluator's own stacks (see `src/stack_trace.rs`).
+///
+/// `error` holds the original [`EvalErr`]; `trace` holds the decoded frames,
+/// oldest to newest. A frame's program is a
+/// [`crate::stack_trace::ProgramSource`], not a bare `NodePtr`, because an
+/// apply of a computed (non-quote) operator has no source position to
+/// report (`ProgramSource::Opaque`). There's no truncation count: nothing
+/// is bookkept or evicted here, so there's nothing to bound in advance --
+/// `trace.frames` is exactly as deep as the call stack was at the moment of
+/// failure.
+#[derive(Debug)]
+pub struct EvalFailure {
+    /// The original evaluator error.
+    pub error: EvalErr,
+    /// The decoded failure trace: frames oldest (root) to newest, plus any
+    /// notes about where/why the decoder stopped or had to guess.
+    pub trace: crate::stack_trace::DecodedTrace,
+}
+
+/// Run a program and, on failure, decode a failure trace from the
+/// evaluator's own stacks instead of dropping them.
+///
+/// This does no bookkeeping during evaluation: `op_stack`/`val_stack`/
+/// `env_stack` are read only after `run_program` has already returned
+/// `Err`, while this function's `RunProgramContext` is still alive (same
+/// precedent as `run_program_with_pre_eval` keeping its context around for
+/// the duration of the call). The op-stack shape during evaluation is
+/// byte-for-byte identical to plain [`run_program`] -- no new `Operation`
+/// variant, no per-eval cost, nothing to evict.
+pub fn run_program_with_diagnostics<'a, D: Dialect>(
+    allocator: &'a mut Allocator,
+    dialect: &'a D,
+    program: NodePtr,
+    env: NodePtr,
+    max_cost: Cost,
+) -> std::result::Result<Reduction, EvalFailure> {
+    let mut rpc = RunProgramContext::new(allocator, dialect);
+    match rpc.run_program(program, env, max_cost) {
+        Ok(reduction) => Ok(reduction),
+        Err(error) => {
+            let snapshot = rpc.stack_snapshot();
+            let trace = crate::stack_trace::decode_failure_trace(
+                rpc.allocator,
+                dialect.quote_kw(),
+                dialect.apply_kw(),
+                program,
+                env,
+                &error,
+                &snapshot,
+            );
+            Err(EvalFailure { error, trace })
+        }
+    }
 }
 
 #[cfg(feature = "pre-eval")]

@@ -17,12 +17,15 @@ pub mod secp_ops;
 pub mod serde;
 pub mod serde_2026;
 pub mod sha_tree_op;
+pub mod stack_trace;
 pub mod traverse_path;
 pub mod treehash;
 
 pub use allocator::{Allocator, Atom, NodePtr, ObjectType, SExp};
 pub use chia_dialect::ChiaDialect;
-pub use run_program::{run_program, run_program_with_timeout};
+pub use run_program::{
+    EvalFailure, run_program, run_program_with_diagnostics, run_program_with_timeout,
+};
 
 pub use chia_dialect::{ClvmFlags, MEMPOOL_MODE};
 
@@ -40,3 +43,6 @@ mod tests;
 
 #[cfg(test)]
 mod test_ops;
+
+#[cfg(test)]
+mod stack_trace_tests;
