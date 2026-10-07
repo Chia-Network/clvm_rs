@@ -1,4 +1,4 @@
-//! Failure-trace capture built as a client of `run_program_with_pre_eval`.
+//! Failure-trace capture built as an `EvalHooks` client of the evaluator.
 //!
 //! This is one of three competing designs for recovering the active
 //! `(program, env)` call frames at the point an evaluation fails:
@@ -16,7 +16,7 @@
 //!   *successfully* — on `Err` the evaluator's `?`-propagation abandons
 //!   whatever `PostEval` ops are still pending on `op_stack` without
 //!   draining them, so whatever this module's bookkeeping has not yet
-//!   popped when `run_program_with_pre_eval` returns `Err` is exactly the
+//!   popped when `run_program_with_hooks` returns `Err` is exactly the
 //!   set of frames active at the moment of failure. No inference: every
 //!   frame recorded here was handed directly to a hook by the evaluator.
 //!
@@ -28,20 +28,17 @@
 //! here and trimming to the newest `max_frames` on failure yields the same
 //! `frames`/`truncated` as #845.
 //!
-//! Both hooks are zero-sized, non-capturing functions, so boxing them does
-//! not allocate. They reach the stack through a thread-local that
-//! `run_program_with_diagnostics` installs for the duration of the run.
-//! Per `eval_pair`, the remaining cost is the `pre-eval` mechanism itself
-//! (two indirect calls, a `posteval_stack` push/pop, one extra op) plus a
-//! `Vec` push/pop. The build must enable the `pre-eval` cargo feature.
+//! The hooks are a statically dispatched `EvalHooks` impl that owns the
+//! frame stack, so per `eval_pair` the cost is an inlined `Vec` push/pop
+//! plus one extra op on the evaluator's op stack. The build must enable
+//! the `pre-eval` cargo feature.
 
 use crate::allocator::{Allocator, NodePtr};
 use crate::cost::Cost;
 use crate::dialect::Dialect;
 use crate::error::{EvalErr, Result};
 use crate::reduction::Reduction;
-use crate::run_program::{PostEval, PreEval, run_program_with_pre_eval};
-use std::cell::RefCell;
+use crate::run_program::{EvalHooks, run_program_with_hooks};
 
 /// A raw CLVM evaluation frame active when evaluation failed.
 ///
@@ -71,59 +68,34 @@ pub struct EvalFailure {
 /// The result of an evaluator run with failure diagnostics enabled.
 pub type DiagnosticResponse = std::result::Result<Reduction, EvalFailure>;
 
-thread_local! {
-    /// Active frames of the `run_program_with_diagnostics` call running on
-    /// this thread, oldest first.
-    static ACTIVE_FRAMES: RefCell<Vec<EvalFrame>> = const { RefCell::new(Vec::new()) };
+/// Records every active frame, oldest first.
+struct FrameCapture {
+    frames: Vec<EvalFrame>,
 }
 
-fn push_frame(
-    _allocator: &mut Allocator,
-    program: NodePtr,
-    environment: NodePtr,
-) -> Result<Option<Box<PostEval>>> {
-    ACTIVE_FRAMES.with_borrow_mut(|frames| {
-        frames.push(EvalFrame {
+impl EvalHooks for FrameCapture {
+    #[inline(always)]
+    fn pre_eval(
+        &mut self,
+        _allocator: &mut Allocator,
+        program: NodePtr,
+        environment: NodePtr,
+    ) -> Result<bool> {
+        self.frames.push(EvalFrame {
             program,
             environment,
-        })
-    });
-    Ok(Some(Box::new(pop_frame)))
-}
-
-fn pop_frame(_allocator: &mut Allocator, _result: Option<NodePtr>) {
-    ACTIVE_FRAMES.with_borrow_mut(|frames| frames.pop());
-}
-
-/// Owns the thread's previous `ACTIVE_FRAMES` while a run uses a fresh
-/// stack, and puts it back on drop (including on unwind). This keeps a
-/// `run_program_with_diagnostics` nested inside another one's evaluation
-/// (e.g. from a custom `Dialect` operator) from disturbing the outer run.
-struct ActiveFramesScope {
-    outer: Vec<EvalFrame>,
-}
-
-impl ActiveFramesScope {
-    fn enter() -> Self {
-        Self {
-            outer: ACTIVE_FRAMES.take(),
-        }
+        });
+        Ok(true)
     }
 
-    /// Ends the scope, returning this run's active frames.
-    fn exit(self) -> Vec<EvalFrame> {
-        ACTIVE_FRAMES.take()
-    }
-}
-
-impl Drop for ActiveFramesScope {
-    fn drop(&mut self) {
-        ACTIVE_FRAMES.set(std::mem::take(&mut self.outer));
+    #[inline(always)]
+    fn post_eval(&mut self, _allocator: &mut Allocator, _result: Option<NodePtr>) {
+        self.frames.pop();
     }
 }
 
 /// Run a program and capture the active evaluation frames on failure, via
-/// a `pre_eval`/`post_eval` client of [`run_program_with_pre_eval`].
+/// an [`EvalHooks`] client of [`run_program_with_hooks`].
 ///
 /// Frames are ordered from oldest to newest. At most `max_frames` of the
 /// most recent active frames are retained, and `truncated` reports the
@@ -138,11 +110,9 @@ pub fn run_program_with_diagnostics<D: Dialect>(
     max_cost: Cost,
     max_frames: usize,
 ) -> DiagnosticResponse {
-    let scope = ActiveFramesScope::enter();
-    let pre_eval: PreEval = Box::new(push_frame);
-    let result =
-        run_program_with_pre_eval(allocator, dialect, program, env, max_cost, Some(pre_eval));
-    let mut frames = scope.exit();
+    let mut capture = FrameCapture { frames: Vec::new() };
+    let result = run_program_with_hooks(allocator, dialect, program, env, max_cost, &mut capture);
+    let mut frames = capture.frames;
     match result {
         Ok(reduction) => Ok(reduction),
         Err(error) => {

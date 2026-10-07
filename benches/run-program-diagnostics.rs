@@ -17,13 +17,19 @@
 //!   `post_eval` -- the floor of the `pre_eval`/`post_eval` mechanism
 //!   itself (indirect calls, `posteval_stack` push/pop, extra op), with
 //!   no client work and no heap allocation.
+//! - `noop-trait`: an `EvalHooks` impl whose `pre_eval` schedules a no-op
+//!   `post_eval` -- the floor of the statically dispatched hook mechanism
+//!   (one extra op per eval).
 //!
 //! Requires the `pre-eval` cargo feature.
 
 use clvmr::allocator::{Allocator, NodePtr};
 use clvmr::chia_dialect::{ChiaDialect, ClvmFlags};
+use clvmr::error::Result;
 use clvmr::run_program;
-use clvmr::run_program::{PostEval, PreEval, run_program_with_pre_eval};
+use clvmr::run_program::{
+    EvalHooks, PostEval, PreEval, run_program_with_hooks, run_program_with_pre_eval,
+};
 use clvmr::run_program_with_diagnostics;
 use criterion::{Criterion, SamplingMode, criterion_group, criterion_main};
 use std::fs::read_to_string;
@@ -62,6 +68,16 @@ fn matrix<const W: i32, const H: i32>(a: &mut Allocator) -> NodePtr {
 }
 
 type EnvFn = fn(&mut Allocator) -> NodePtr;
+
+struct NoopHooks;
+
+impl EvalHooks for NoopHooks {
+    fn pre_eval(&mut self, _: &mut Allocator, _: NodePtr, _: NodePtr) -> Result<bool> {
+        Ok(true)
+    }
+
+    fn post_eval(&mut self, _: &mut Allocator, _: Option<NodePtr>) {}
+}
 
 fn run_program_diagnostics_benchmark(c: &mut Criterion) {
     let mut a = Allocator::new();
@@ -140,6 +156,16 @@ fn run_program_diagnostics_benchmark(c: &mut Criterion) {
                     Ok(Some(post_eval))
                 });
                 run_program_with_pre_eval(&mut a, &dialect, prg, env, max_cost, Some(pre_eval))
+                    .expect("benchmark program failed");
+                start.elapsed()
+            })
+        });
+
+        group.bench_function(format!("{test}/noop-trait"), |b| {
+            b.iter(|| {
+                a.restore_checkpoint(&iter_checkpoint);
+                let start = Instant::now();
+                run_program_with_hooks(&mut a, &dialect, prg, env, max_cost, &mut NoopHooks)
                     .expect("benchmark program failed");
                 start.elapsed()
             })

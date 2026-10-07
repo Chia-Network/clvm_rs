@@ -36,6 +36,94 @@ pub type PreEval = Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option
 #[cfg(feature = "pre-eval")]
 pub type PostEval = dyn Fn(&mut Allocator, Option<NodePtr>);
 
+mod hooks {
+    use crate::allocator::{Allocator, NodePtr};
+    use crate::error::Result;
+
+    /// Callbacks the evaluator makes around every `eval_pair`, dispatched
+    /// statically through the evaluator's type parameter.
+    pub trait EvalHooks {
+        /// Called before `program` is evaluated in `env`. Returning `true`
+        /// schedules a matching `post_eval` call for when this evaluation
+        /// completes successfully; an `Err` aborts the run.
+        fn pre_eval(
+            &mut self,
+            allocator: &mut Allocator,
+            program: NodePtr,
+            env: NodePtr,
+        ) -> Result<bool>;
+
+        /// Called with the top of the value stack when an evaluation whose
+        /// `pre_eval` returned `true` completes. Calls nest like the
+        /// evaluations they belong to.
+        fn post_eval(&mut self, allocator: &mut Allocator, result: Option<NodePtr>);
+    }
+
+    impl<H: EvalHooks + ?Sized> EvalHooks for &mut H {
+        #[inline(always)]
+        fn pre_eval(
+            &mut self,
+            allocator: &mut Allocator,
+            program: NodePtr,
+            env: NodePtr,
+        ) -> Result<bool> {
+            (**self).pre_eval(allocator, program, env)
+        }
+
+        #[inline(always)]
+        fn post_eval(&mut self, allocator: &mut Allocator, result: Option<NodePtr>) {
+            (**self).post_eval(allocator, result)
+        }
+    }
+
+    /// The hooks of plain `run_program`: no callbacks scheduled.
+    pub struct NoHooks;
+
+    impl EvalHooks for NoHooks {
+        #[inline(always)]
+        fn pre_eval(&mut self, _: &mut Allocator, _: NodePtr, _: NodePtr) -> Result<bool> {
+            Ok(false)
+        }
+
+        #[inline(always)]
+        fn post_eval(&mut self, _: &mut Allocator, _: Option<NodePtr>) {}
+    }
+}
+
+#[cfg(feature = "pre-eval")]
+pub use hooks::EvalHooks;
+#[cfg(not(feature = "pre-eval"))]
+use hooks::EvalHooks;
+use hooks::NoHooks;
+
+/// Adapts the boxed-closure `PreEval`/`PostEval` API to `EvalHooks`.
+#[cfg(feature = "pre-eval")]
+struct BoxedHooks {
+    pre_eval: PreEval,
+    posteval_stack: Vec<Box<PostEval>>,
+}
+
+#[cfg(feature = "pre-eval")]
+impl EvalHooks for BoxedHooks {
+    fn pre_eval(
+        &mut self,
+        allocator: &mut Allocator,
+        program: NodePtr,
+        env: NodePtr,
+    ) -> Result<bool> {
+        let Some(post_eval) = (self.pre_eval)(allocator, program, env)? else {
+            return Ok(false);
+        };
+        self.posteval_stack.push(post_eval);
+        Ok(true)
+    }
+
+    fn post_eval(&mut self, allocator: &mut Allocator, result: Option<NodePtr>) {
+        let f = self.posteval_stack.pop().unwrap();
+        f(allocator, result);
+    }
+}
+
 #[repr(u8)]
 enum Operation {
     Apply,
@@ -44,7 +132,6 @@ enum Operation {
     SwapEval,
     RestoreAllocator,
 
-    #[cfg(feature = "pre-eval")]
     PostEval,
 }
 
@@ -120,7 +207,7 @@ impl SoftforkGuard {
 // 3. the environment stack (points to the environment for the current
 //    operation). env_stack
 
-struct RunProgramContext<'a, D> {
+struct RunProgramContext<'a, D, H = NoHooks> {
     allocator: &'a mut Allocator,
     dialect: &'a D,
     val_stack: Vec<NodePtr>,
@@ -135,13 +222,22 @@ struct RunProgramContext<'a, D> {
     #[cfg(feature = "counters")]
     pub counters: Counters,
 
-    #[cfg(feature = "pre-eval")]
-    pre_eval: Option<PreEval>,
-    #[cfg(feature = "pre-eval")]
-    posteval_stack: Vec<Box<PostEval>>,
+    hooks: H,
 }
 
 impl<'a, D: Dialect> RunProgramContext<'a, D> {
+    fn new(allocator: &'a mut Allocator, dialect: &'a D) -> Self {
+        Self::new_with_hooks(allocator, dialect, NoHooks)
+    }
+
+    fn new_with_timeout(allocator: &'a mut Allocator, dialect: &'a D, timeout: Duration) -> Self {
+        let mut rpc = Self::new(allocator, dialect);
+        rpc.timeout = Some(timeout);
+        rpc
+    }
+}
+
+impl<'a, D: Dialect, H: EvalHooks> RunProgramContext<'a, D, H> {
     #[cfg(feature = "counters")]
     #[inline(always)]
     fn account_val_push(&mut self) {
@@ -203,12 +299,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         Ok(())
     }
 
-    #[cfg(feature = "pre-eval")]
-    fn new_with_pre_eval(
-        allocator: &'a mut Allocator,
-        dialect: &'a D,
-        pre_eval: Option<PreEval>,
-    ) -> Self {
+    fn new_with_hooks(allocator: &'a mut Allocator, dialect: &'a D, hooks: H) -> Self {
         RunProgramContext {
             allocator,
             dialect,
@@ -220,34 +311,8 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             timeout: None,
             #[cfg(feature = "counters")]
             counters: Counters::new(),
-            pre_eval,
-            posteval_stack: Vec::new(),
+            hooks,
         }
-    }
-
-    fn new(allocator: &'a mut Allocator, dialect: &'a D) -> Self {
-        RunProgramContext {
-            allocator,
-            dialect,
-            val_stack: Vec::new(),
-            env_stack: Vec::new(),
-            op_stack: Vec::new(),
-            softfork_stack: Vec::new(),
-            allocator_stack: Vec::new(),
-            timeout: None,
-            #[cfg(feature = "counters")]
-            counters: Counters::new(),
-            #[cfg(feature = "pre-eval")]
-            pre_eval: None,
-            #[cfg(feature = "pre-eval")]
-            posteval_stack: Vec::new(),
-        }
-    }
-
-    fn new_with_timeout(allocator: &'a mut Allocator, dialect: &'a D, timeout: Duration) -> Self {
-        let mut rpc = Self::new(allocator, dialect);
-        rpc.timeout = Some(timeout);
-        rpc
     }
 
     fn cons_op(&mut self) -> Result<Cost> {
@@ -310,13 +375,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     }
 
     fn eval_pair(&mut self, program: NodePtr, env: NodePtr) -> Result<Cost> {
-        #[cfg(feature = "pre-eval")]
-        if let Some(pre_eval) = &self.pre_eval
-            && let Some(post_eval) = pre_eval(self.allocator, program, env)?
-        {
-            self.posteval_stack.push(post_eval);
+        if self.hooks.pre_eval(self.allocator, program, env)? {
             self.op_stack.push(Operation::PostEval);
-        };
+        }
 
         // put a bunch of ops on op_stack
         let SExp::Pair(op_node, op_list) = self.allocator.sexp(program) else {
@@ -614,11 +675,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                     }
                     0
                 }
-                #[cfg(feature = "pre-eval")]
                 Operation::PostEval => {
-                    let f = self.posteval_stack.pop().unwrap();
                     let peek: Option<NodePtr> = self.val_stack.last().copied();
-                    f(self.allocator, peek);
+                    self.hooks.post_eval(self.allocator, peek);
                     0
                 }
             };
@@ -665,7 +724,32 @@ pub fn run_program_with_pre_eval<'a, D: Dialect>(
     max_cost: Cost,
     pre_eval: Option<PreEval>,
 ) -> Response {
-    let mut rpc = RunProgramContext::new_with_pre_eval(allocator, dialect, pre_eval);
+    match pre_eval {
+        None => run_program(allocator, dialect, program, env, max_cost),
+        Some(pre_eval) => {
+            let hooks = BoxedHooks {
+                pre_eval,
+                posteval_stack: Vec::new(),
+            };
+            let mut rpc = RunProgramContext::new_with_hooks(allocator, dialect, hooks);
+            rpc.run_program(program, env, max_cost)
+        }
+    }
+}
+
+/// Run a program, calling `hooks` around every `eval_pair`. The hooks are
+/// borrowed, so their state remains available after the run (including
+/// after an `Err`).
+#[cfg(feature = "pre-eval")]
+pub fn run_program_with_hooks<D: Dialect, H: EvalHooks>(
+    allocator: &mut Allocator,
+    dialect: &D,
+    program: NodePtr,
+    env: NodePtr,
+    max_cost: Cost,
+    hooks: &mut H,
+) -> Response {
+    let mut rpc = RunProgramContext::new_with_hooks(allocator, dialect, hooks);
     rpc.run_program(program, env, max_cost)
 }
 
