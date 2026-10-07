@@ -20,24 +20,28 @@
 //!   set of frames active at the moment of failure. No inference: every
 //!   frame recorded here was handed directly to a hook by the evaluator.
 //!
-//! The bounded eviction/restore algorithm (`DiagnosticState` below) is
-//! ported verbatim from #845's client-side bookkeeping — it only operates
-//! on the `(program, env)` pairs the hooks already receive, so it carries
-//! over without change.
+//! The bookkeeping is a plain stack of every active frame. #845's bounded
+//! eviction/restore algorithm always retains exactly the newest
+//! `min(depth, max_frames)` active frames and parks each evicted frame on
+//! the evaluator's op stack until its evicting frame pops, so its total
+//! storage is also one entry per active frame. Keeping the whole stack
+//! here and trimming to the newest `max_frames` on failure yields the same
+//! `frames`/`truncated` as #845.
 //!
-//! Costs, relative to plain `run_program`: a `Box<dyn Fn>` allocation plus
-//! an indirect call for both `pre_eval` and `post_eval` on every
-//! `eval_pair`, and the build must enable the `pre-eval` cargo feature.
+//! Both hooks are zero-sized, non-capturing functions, so boxing them does
+//! not allocate. They reach the stack through a thread-local that
+//! `run_program_with_diagnostics` installs for the duration of the run.
+//! Per `eval_pair`, the remaining cost is the `pre-eval` mechanism itself
+//! (two indirect calls, a `posteval_stack` push/pop, one extra op) plus a
+//! `Vec` push/pop. The build must enable the `pre-eval` cargo feature.
 
 use crate::allocator::{Allocator, NodePtr};
 use crate::cost::Cost;
 use crate::dialect::Dialect;
-use crate::error::EvalErr;
+use crate::error::{EvalErr, Result};
 use crate::reduction::Reduction;
 use crate::run_program::{PostEval, PreEval, run_program_with_pre_eval};
 use std::cell::RefCell;
-use std::collections::VecDeque;
-use std::rc::Rc;
 
 /// A raw CLVM evaluation frame active when evaluation failed.
 ///
@@ -67,72 +71,54 @@ pub struct EvalFailure {
 /// The result of an evaluator run with failure diagnostics enabled.
 pub type DiagnosticResponse = std::result::Result<Reduction, EvalFailure>;
 
-#[derive(Clone, Copy)]
-struct RetainedEvalFrame {
-    frame: EvalFrame,
-    depth: usize,
+thread_local! {
+    /// Active frames of the `run_program_with_diagnostics` call running on
+    /// this thread, oldest first.
+    static ACTIVE_FRAMES: RefCell<Vec<EvalFrame>> = const { RefCell::new(Vec::new()) };
 }
 
-/// Bounded active-frame bookkeeping, ported verbatim from PR #845's
-/// `DiagnosticState`. The only difference from #845 is where it's driven
-/// from: there, directly inside the evaluator's op loop; here, from this
-/// module's `pre_eval`/`post_eval` closures.
-struct DiagnosticState {
-    frames: VecDeque<RetainedEvalFrame>,
-    active_depth: usize,
-    max_frames: usize,
+fn push_frame(
+    _allocator: &mut Allocator,
+    program: NodePtr,
+    environment: NodePtr,
+) -> Result<Option<Box<PostEval>>> {
+    ACTIVE_FRAMES.with_borrow_mut(|frames| {
+        frames.push(EvalFrame {
+            program,
+            environment,
+        })
+    });
+    Ok(Some(Box::new(pop_frame)))
 }
 
-impl DiagnosticState {
-    fn new(max_frames: usize) -> Self {
+fn pop_frame(_allocator: &mut Allocator, _result: Option<NodePtr>) {
+    ACTIVE_FRAMES.with_borrow_mut(|frames| frames.pop());
+}
+
+/// Owns the thread's previous `ACTIVE_FRAMES` while a run uses a fresh
+/// stack, and puts it back on drop (including on unwind). This keeps a
+/// `run_program_with_diagnostics` nested inside another one's evaluation
+/// (e.g. from a custom `Dialect` operator) from disturbing the outer run.
+struct ActiveFramesScope {
+    outer: Vec<EvalFrame>,
+}
+
+impl ActiveFramesScope {
+    fn enter() -> Self {
         Self {
-            frames: VecDeque::new(),
-            active_depth: 0,
-            max_frames,
+            outer: ACTIVE_FRAMES.take(),
         }
     }
 
-    /// Record a new active frame, evicting the oldest retained frame if
-    /// already at capacity. `max_frames == 0` means no bookkeeping: the
-    /// depth counter still advances (needed for `truncated` accounting),
-    /// but nothing is ever retained.
-    fn push(&mut self, program: NodePtr, environment: NodePtr) -> Option<RetainedEvalFrame> {
-        self.active_depth += 1;
-        if self.max_frames == 0 {
-            return None;
-        }
-        let evicted = (self.frames.len() == self.max_frames)
-            .then(|| self.frames.pop_front().expect("non-empty retained frames"));
-        self.frames.push_back(RetainedEvalFrame {
-            frame: EvalFrame {
-                program,
-                environment,
-            },
-            depth: self.active_depth,
-        });
-        evicted
+    /// Ends the scope, returning this run's active frames.
+    fn exit(self) -> Vec<EvalFrame> {
+        ACTIVE_FRAMES.take()
     }
+}
 
-    /// Pop the frame pushed at the current depth (if it's still the newest
-    /// retained one), descend a level, and restore whatever frame this
-    /// push evicted on the way in.
-    fn pop(&mut self, evicted: Option<RetainedEvalFrame>) {
-        debug_assert!(self.active_depth > 0);
-        if self.frames.back().map(|frame| frame.depth) == Some(self.active_depth) {
-            self.frames.pop_back();
-        }
-        self.active_depth -= 1;
-        if let Some(frame) = evicted {
-            self.frames.push_front(frame);
-        }
-    }
-
-    fn failure(self, error: EvalErr) -> EvalFailure {
-        EvalFailure {
-            error,
-            truncated: self.active_depth - self.frames.len(),
-            frames: self.frames.into_iter().map(|frame| frame.frame).collect(),
-        }
+impl Drop for ActiveFramesScope {
+    fn drop(&mut self) {
+        ACTIVE_FRAMES.set(std::mem::take(&mut self.outer));
     }
 }
 
@@ -152,40 +138,21 @@ pub fn run_program_with_diagnostics<D: Dialect>(
     max_cost: Cost,
     max_frames: usize,
 ) -> DiagnosticResponse {
-    let state = Rc::new(RefCell::new(DiagnosticState::new(max_frames)));
-    let pre_eval: PreEval = {
-        let state = Rc::clone(&state);
-        Box::new(move |_allocator, program, env| {
-            let evicted = state.borrow_mut().push(program, env);
-            let state = Rc::clone(&state);
-            let post_eval: Box<PostEval> = Box::new(move |_allocator, _result| {
-                state.borrow_mut().pop(evicted);
-            });
-            Ok(Some(post_eval))
-        })
-    };
-
+    let scope = ActiveFramesScope::enter();
+    let pre_eval: PreEval = Box::new(push_frame);
     let result =
         run_program_with_pre_eval(allocator, dialect, program, env, max_cost, Some(pre_eval));
+    let mut frames = scope.exit();
     match result {
         Ok(reduction) => Ok(reduction),
         Err(error) => {
-            // By the time `run_program_with_pre_eval` returns, the
-            // `RunProgramContext` it owned internally has been dropped,
-            // along with our `pre_eval` closure and every abandoned
-            // `post_eval` closure still sitting in its `posteval_stack`
-            // (the `Err` path propagates via `?` without draining that
-            // stack). Each of those held one `Rc` clone; all of them are
-            // gone now, so this is the sole remaining owner.
-            let state = Rc::try_unwrap(state)
-                .unwrap_or_else(|_| {
-                    unreachable!(
-                        "run_program_with_pre_eval must have dropped every pre_eval/post_eval \
-                         closure (and their Rc clones) before returning Err"
-                    )
-                })
-                .into_inner();
-            Err(state.failure(error))
+            let truncated = frames.len().saturating_sub(max_frames);
+            frames.drain(..truncated);
+            Err(EvalFailure {
+                error,
+                frames,
+                truncated,
+            })
         }
     }
 }

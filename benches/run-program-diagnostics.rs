@@ -3,22 +3,27 @@
 //! `run_program`, on the eval-heavy subset of `benches/run-program.rs`'s
 //! own corpus (count-even, factorial, loop_add, matrix-multiply).
 //!
-//! Three variants per program, same input/cost, same allocator-checkpoint
+//! Variants per program, same input/cost, same allocator-checkpoint
 //! discipline as the baseline bench:
 //! - `baseline`: plain `run_program` (control -- should match
 //!   `run-program.rs`'s own numbers for the same test names).
-//! - `diag-0`: `run_program_with_diagnostics(.., max_frames = 0)` -- the
-//!   `pre_eval`/`post_eval` hooks still fire on every `eval_pair` (one
-//!   `Box<dyn Fn>` alloc + indirect call each way), but no frame
-//!   bookkeeping happens. Isolates the hook-plumbing cost alone.
-//! - `diag-64`: `max_frames = 64` -- hook cost plus the bounded
-//!   `VecDeque` push/evict/pop bookkeeping on every eval.
+//! - `diag-0`: `run_program_with_diagnostics(.., max_frames = 0)`.
+//! - `diag-64`: `max_frames = 64`. The capture records every active frame
+//!   and trims to `max_frames` only on failure, so `diag-0` and `diag-64`
+//!   do the same per-eval work.
+//! - `pre-only`: a `pre_eval` hook that returns `Ok(None)` -- the cost of
+//!   one indirect call per eval, with no `PostEval` op scheduled.
+//! - `noop-hooks`: a `pre_eval` hook returning a zero-sized, non-capturing
+//!   `post_eval` -- the floor of the `pre_eval`/`post_eval` mechanism
+//!   itself (indirect calls, `posteval_stack` push/pop, extra op), with
+//!   no client work and no heap allocation.
 //!
 //! Requires the `pre-eval` cargo feature.
 
 use clvmr::allocator::{Allocator, NodePtr};
 use clvmr::chia_dialect::{ChiaDialect, ClvmFlags};
 use clvmr::run_program;
+use clvmr::run_program::{PostEval, PreEval, run_program_with_pre_eval};
 use clvmr::run_program_with_diagnostics;
 use criterion::{Criterion, SamplingMode, criterion_group, criterion_main};
 use std::fs::read_to_string;
@@ -89,7 +94,8 @@ fn run_program_diagnostics_benchmark(c: &mut Criterion) {
             b.iter(|| {
                 a.restore_checkpoint(&iter_checkpoint);
                 let start = Instant::now();
-                run_program(&mut a, &dialect, prg, env, max_cost).expect("benchmark program failed");
+                run_program(&mut a, &dialect, prg, env, max_cost)
+                    .expect("benchmark program failed");
                 start.elapsed()
             })
         });
@@ -109,6 +115,31 @@ fn run_program_diagnostics_benchmark(c: &mut Criterion) {
                 a.restore_checkpoint(&iter_checkpoint);
                 let start = Instant::now();
                 run_program_with_diagnostics(&mut a, &dialect, prg, env, max_cost, 64)
+                    .expect("benchmark program failed");
+                start.elapsed()
+            })
+        });
+
+        group.bench_function(format!("{test}/pre-only"), |b| {
+            b.iter(|| {
+                a.restore_checkpoint(&iter_checkpoint);
+                let start = Instant::now();
+                let pre_eval: PreEval = Box::new(|_, _, _| Ok(None));
+                run_program_with_pre_eval(&mut a, &dialect, prg, env, max_cost, Some(pre_eval))
+                    .expect("benchmark program failed");
+                start.elapsed()
+            })
+        });
+
+        group.bench_function(format!("{test}/noop-hooks"), |b| {
+            b.iter(|| {
+                a.restore_checkpoint(&iter_checkpoint);
+                let start = Instant::now();
+                let pre_eval: PreEval = Box::new(|_, _, _| {
+                    let post_eval: Box<PostEval> = Box::new(|_, _| {});
+                    Ok(Some(post_eval))
+                });
+                run_program_with_pre_eval(&mut a, &dialect, prg, env, max_cost, Some(pre_eval))
                     .expect("benchmark program failed");
                 start.elapsed()
             })
