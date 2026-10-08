@@ -53,7 +53,7 @@ num-traits = "0.2.19"
 num-integer = "0.1.46"
 chia-bls = "0.38.2"
 chia-sha2 = "0.38.2"
-hex-literal = "0.4.1"
+hex-literal = "1.1.0"
 # for secp sigs
 k256 = "0.14.0-rc"
 p256 = "0.14.0-rc"
