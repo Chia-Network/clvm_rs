@@ -2262,4 +2262,83 @@ mod tests {
             None => assert_eq!(result.unwrap_err(), EvalErr::Timeout),
         }
     }
+
+    /// Keeps a stack of frames whose `post_eval` is pending, and records
+    /// each completed frame with its result.
+    #[derive(Default)]
+    struct RecordingHooks {
+        active: Vec<NodePtr>,
+        completed: Vec<(NodePtr, Option<NodePtr>)>,
+    }
+
+    impl EvalHooks for RecordingHooks {
+        fn pre_eval(&mut self, _: &mut Allocator, program: NodePtr, _: NodePtr) -> Result<bool> {
+            self.active.push(program);
+            Ok(true)
+        }
+
+        fn post_eval(&mut self, _: &mut Allocator, result: Option<NodePtr>) {
+            let program = self.active.pop().expect("post_eval without pre_eval");
+            self.completed.push((program, result));
+        }
+    }
+
+    #[test]
+    fn test_eval_hooks_success() {
+        use crate::chia_dialect::ChiaDialect;
+        use crate::test_ops::node_eq;
+
+        let mut a = Allocator::new();
+        let program = check(parse_exp(&mut a, "(+ (q . 2) (q . 3))"));
+        let args = a.nil();
+        let dialect = ChiaDialect::new(ClvmFlags::ENABLE_GC);
+
+        let Reduction(expected_cost, expected) =
+            run_program(&mut a, &dialect, program, args, 10000).unwrap();
+
+        let mut hooks = RecordingHooks::default();
+        let Reduction(cost, result) =
+            RunProgramContext::new_with_hooks(&mut a, &dialect, &mut hooks)
+                .run_program(program, args, 10000)
+                .unwrap();
+
+        assert_eq!(cost, expected_cost);
+        assert!(node_eq(&a, result, expected));
+        // every scheduled `post_eval` ran, the outermost frame last, with
+        // the program's result on top of the value stack
+        assert!(hooks.active.is_empty());
+        assert_eq!(hooks.completed.len(), 3);
+        assert_eq!(hooks.completed.last(), Some(&(program, Some(result))));
+    }
+
+    #[test]
+    fn test_eval_hooks_failure_leaves_active_frames() {
+        use crate::chia_dialect::ChiaDialect;
+
+        let mut a = Allocator::new();
+        let program = check(parse_exp(&mut a, "(+ (q . 2) (x (q . 3)))"));
+        let failing = check(parse_exp(&mut a, "(x (q . 3))"));
+        let args = a.nil();
+        let dialect = ChiaDialect::new(ClvmFlags::ENABLE_GC);
+
+        let mut hooks = RecordingHooks::default();
+        let err = RunProgramContext::new_with_hooks(&mut a, &dialect, &mut hooks)
+            .run_program(program, args, 10000)
+            .unwrap_err();
+
+        assert!(matches!(err, EvalErr::Raise(_)));
+        // the frames whose evaluation was in progress at the error, outermost
+        // first
+        assert_eq!(hooks.active.len(), 2);
+        assert_eq!(hooks.active[0], program);
+        assert!(crate::test_ops::node_eq(&a, hooks.active[1], failing));
+    }
+
+    #[test]
+    fn test_no_hooks_schedules_nothing() {
+        let mut a = Allocator::new();
+        let nil = a.nil();
+        assert!(!NoHooks.pre_eval(&mut a, nil, nil).unwrap());
+        NoHooks.post_eval(&mut a, Some(nil));
+    }
 }
