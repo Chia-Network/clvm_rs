@@ -110,6 +110,11 @@ name = "run-program"
 harness = false
 
 [[bench]]
+name = "run-program-diagnostics"
+harness = false
+required-features = ["pre-eval"]
+
+[[bench]]
 name = "deserialize"
 harness = false
 
