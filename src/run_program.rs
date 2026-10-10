@@ -2334,6 +2334,60 @@ mod tests {
         assert!(crate::test_ops::node_eq(&a, hooks.active[1], failing));
     }
 
+    #[cfg(feature = "pre-eval")]
+    #[test]
+    fn test_pre_eval_none_matches_run_program() {
+        use crate::chia_dialect::ChiaDialect;
+        use crate::test_ops::node_eq;
+
+        let mut a = Allocator::new();
+        let program = check(parse_exp(&mut a, "(+ (q . 2) (q . 3))"));
+        let args = a.nil();
+        let dialect = ChiaDialect::new(ClvmFlags::ENABLE_GC);
+
+        let Reduction(expected_cost, expected) =
+            run_program(&mut a, &dialect, program, args, 10000).unwrap();
+        let Reduction(cost, result) =
+            run_program_with_pre_eval(&mut a, &dialect, program, args, 10000, None).unwrap();
+
+        assert_eq!(cost, expected_cost);
+        assert!(node_eq(&a, result, expected));
+    }
+
+    #[cfg(feature = "pre-eval")]
+    #[test]
+    fn test_boxed_pre_eval_returning_none() {
+        use crate::chia_dialect::ChiaDialect;
+        use crate::test_ops::node_eq;
+        use std::cell::Cell;
+        use std::rc::Rc;
+
+        let mut a = Allocator::new();
+        let program = check(parse_exp(&mut a, "(+ (q . 2) (q . 3))"));
+        let args = a.nil();
+        let dialect = ChiaDialect::new(ClvmFlags::ENABLE_GC);
+
+        let Reduction(expected_cost, expected) =
+            run_program(&mut a, &dialect, program, args, 10000).unwrap();
+
+        let calls = Rc::new(Cell::new(0));
+        let pre_eval: PreEval = {
+            let calls = Rc::clone(&calls);
+            Box::new(move |_, _, _| {
+                calls.set(calls.get() + 1);
+                Ok(None)
+            })
+        };
+        let Reduction(cost, result) =
+            run_program_with_pre_eval(&mut a, &dialect, program, args, 10000, Some(pre_eval))
+                .unwrap();
+
+        assert_eq!(cost, expected_cost);
+        assert!(node_eq(&a, result, expected));
+        // called for the program and each of its two operands
+        assert_eq!(calls.get(), 3);
+    }
+
     #[test]
     fn test_no_hooks_schedules_nothing() {
         let mut a = Allocator::new();
