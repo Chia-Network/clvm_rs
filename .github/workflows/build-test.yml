@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-15-intel, ubuntu-latest, windows-latest]
-        python: ["3.10"]
+        python: ["3.12"]
 
     steps:
       - uses: actions/checkout@v7
@@ -87,23 +87,11 @@ jobs:
           . .\venv\Scripts\Activate.ps1
           ln -s venv\Scripts\Activate.ps1 activate
           maturin build -m wheel/Cargo.toml -i python --release --strip
-          # this will install into the venv
-          # it'd be better to use the wheel, but I can't figure out how to do that
-          # TODO: figure this out
-          # this does NOT work: pip install target/wheels/clvm_rs-*.whl
-          maturin develop --release -m wheel/Cargo.toml
-          # the line above also doesn't seem to work
 
       - name: Install clvm_rs wheel
-        if: ${{ !startsWith(matrix.os, 'windows') }}
         run: |
           . ./activate
-          ls target/wheels/
-          # this mess puts the name of the `.whl` file into `$WHEEL_PATH`
-          # remove the dot, use the `glob` lib to grab the file from the directory
-          WHEEL_PATH=$(echo ${{ matrix.python }} | python -c 'DOTLESS=input().replace(".", ""); import glob; print(" ".join(glob.glob("target/wheels/clvm_rs-*-cp%s-abi3-*.whl" % DOTLESS)))' )
-          echo ${WHEEL_PATH}
-          pip install ${WHEEL_PATH}
+          python -m pip install --no-index --no-deps --find-links target/wheels/ clvm_rs
 
       - name: Install other wheels
         run: |
@@ -139,7 +127,7 @@ jobs:
       - name: Install python
         uses: Chia-Network/actions/setup-python@main
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
       - name: Download artifacts
         uses: actions/download-artifact@v6
@@ -178,7 +166,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-15-intel, ubuntu-latest]
-        python: ["3.10"]
+        python: ["3.12"]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -226,7 +214,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-15-intel, ubuntu-latest, windows-latest]
-        python: ["3.10"]
+        python: ["3.12"]
     steps:
       - uses: actions/checkout@v7
         with:
