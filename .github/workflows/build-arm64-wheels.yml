@@ -40,8 +40,8 @@ jobs:
               source $HOME/.cargo/env && \
               rustup target add aarch64-unknown-linux-musl && \
               rm -rf venv && \
-              export PATH=/opt/python/cp310-cp310/bin/:$PATH && \
-              /opt/python/cp310-cp310/bin/python -m venv venv && \
+              export PATH=/opt/python/cp311-cp311/bin/:$PATH && \
+              /opt/python/cp311-cp311/bin/python -m venv venv && \
               if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi && \
               . ./activate && \
               pip install maturin==1.12.2 && \
