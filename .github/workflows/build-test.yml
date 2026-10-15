@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-15-intel, ubuntu-latest, windows-latest]
-        python: ["3.11"]
+        python: ["3.12"]
 
     steps:
       - uses: actions/checkout@v7
@@ -127,7 +127,7 @@ jobs:
       - name: Install python
         uses: Chia-Network/actions/setup-python@main
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Download artifacts
         uses: actions/download-artifact@v6
@@ -166,7 +166,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-15-intel, ubuntu-latest]
-        python: ["3.11"]
+        python: ["3.12"]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -214,7 +214,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-15-intel, ubuntu-latest, windows-latest]
-        python: ["3.11"]
+        python: ["3.12"]
     steps:
       - uses: actions/checkout@v7
         with:

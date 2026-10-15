@@ -21,7 +21,7 @@ jobs:
 
       - uses: chia-network/actions/setup-python@main
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - uses: dtolnay/rust-toolchain@stable
 
