@@ -259,6 +259,10 @@ mod tests {
         "ffffffffff9b615f766572795f6c6f6e675f72657065617465645f737472696e6701ff0203ffff0405ff0607ff0809ff0afffe4180",
         "e23c73777f814e8a4e2785487b272b8b22ddaded1f7cfb808b43f1148602882f"
     )]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_deserialize_with_backrefs(
         #[case] serialization_as_hex: &str,
         #[case] expected_hash_as_hex: &str,

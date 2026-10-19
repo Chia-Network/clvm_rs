@@ -249,6 +249,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_sha_blobs() {
         check_sha_blobs(
             "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
@@ -265,6 +269,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_parse_tree() {
         check_parse_tree(
             "80",
