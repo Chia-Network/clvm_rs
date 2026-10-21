@@ -3,6 +3,8 @@ pub mod bls_ops;
 pub mod chia_dialect;
 pub mod core_ops;
 pub mod cost;
+#[cfg(feature = "pre-eval")]
+pub mod diagnostics;
 pub mod dialect;
 pub mod error;
 pub mod f_table;
@@ -31,6 +33,9 @@ pub use run_program::run_program_with_counters;
 
 #[cfg(feature = "pre-eval")]
 pub use run_program::run_program_with_pre_eval;
+
+#[cfg(feature = "pre-eval")]
+pub use diagnostics::{EvalFailure, EvalFrame, run_program_with_diagnostics};
 
 #[cfg(feature = "counters")]
 pub use run_program::Counters;
