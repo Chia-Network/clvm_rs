@@ -368,52 +368,197 @@ mod tests {
     const NEW_COST: ClvmFlags = ClvmFlags::NEW_COST_MODEL;
     const MALA: ClvmFlags = ClvmFlags::MALACHITE;
 
-    #[rstest]
-    #[case("test-core-ops", NONE)]
-    #[case("test-core-ops-v2", NEW_COST)]
-    #[case("test-more-ops", NONE)]
-    #[case("test-more-ops", MALA)]
-    #[case("test-more-ops-v2", NEW_COST)]
-    #[case("test-more-ops-v2", NEW_COST.union(MALA))]
-    #[case("test-bls-ops", NONE)]
-    #[case("test-blspy-g1", NONE)]
-    #[case("test-blspy-g1-v2", NEW_COST)]
-    #[case("test-blspy-g2", NONE)]
-    #[case("test-blspy-g2-v2", NEW_COST)]
-    #[case("test-blspy-hash", NONE)]
-    #[case("test-blspy-hash-v2", NEW_COST)]
-    #[case("test-blspy-pairing", NONE)]
-    #[case("test-blspy-pairing-v2", NEW_COST)]
-    #[case("test-blspy-verify", NONE)]
-    #[case("test-blspy-verify-v2", NEW_COST)]
-    #[case("test-bls-zk", NONE)]
-    #[case("test-bls-zk-v2", NEW_COST)]
-    #[case("test-secp-verify", NONE)]
-    #[case("test-secp-verify", NEW_COST)]
-    #[case("test-secp256k1", NONE)]
-    #[case("test-secp256k1", NEW_COST)]
-    #[case("test-secp256r1", NONE)]
-    #[case("test-secp256r1", NEW_COST)]
-    #[case("test-modpow", NONE)]
-    #[case("test-modpow", MALA)]
-    #[case("test-modpow-v2", NEW_COST)]
-    #[case("test-modpow-v2", NEW_COST.union(MALA))]
-    #[case("test-sha256", NONE)]
-    #[case("test-sha256-v2", NEW_COST)]
-    #[case("test-sha256tree", NONE)]
-    #[case("test-sha256tree-v2", NEW_COST)]
-    #[case("test-sha256tree-hash", NONE)]
-    #[case("test-sha256tree-hash-v2", NEW_COST)]
-    #[case("test-keccak256", NONE)]
-    #[case("test-keccak256-v2", NEW_COST)]
-    #[case("test-keccak256-generated", NONE)]
-    #[case("test-keccak256-generated-v2", NEW_COST)]
-    #[case("test-unknown-ops", NONE)]
-    #[case("test-unknown-ops-v2", NEW_COST)]
-    fn test_ops(#[case] filename: &str, #[case] flags: ClvmFlags) {
-        use std::fs::read_to_string;
+    // Split mixed operator fixtures so native crypto does not exclude arithmetic
+    // and argument-validation coverage from Miri.
+    #[derive(Clone, Copy, Debug)]
+    enum OpTestGroup {
+        All,
+        Other,
+        Blst,
+        Sha256,
+    }
 
-        let filename = format!("op-tests/{filename}.txt");
+    #[rstest]
+    #[case("test-core-ops", NONE, OpTestGroup::All)]
+    #[case("test-core-ops-v2", NEW_COST, OpTestGroup::All)]
+    #[case("test-more-ops", NONE, OpTestGroup::Other)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case("test-more-ops", NONE, OpTestGroup::Blst)]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
+    #[case("test-more-ops", NONE, OpTestGroup::Sha256)]
+    #[case("test-more-ops", MALA, OpTestGroup::Other)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case("test-more-ops", MALA, OpTestGroup::Blst)]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
+    #[case("test-more-ops", MALA, OpTestGroup::Sha256)]
+    #[case("test-more-ops-v2", NEW_COST, OpTestGroup::Other)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case("test-more-ops-v2", NEW_COST, OpTestGroup::Blst)]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
+    #[case("test-more-ops-v2", NEW_COST, OpTestGroup::Sha256)]
+    #[case("test-more-ops-v2", NEW_COST.union(MALA), OpTestGroup::Other)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case("test-more-ops-v2", NEW_COST.union(MALA), OpTestGroup::Blst)]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
+    #[case("test-more-ops-v2", NEW_COST.union(MALA), OpTestGroup::Sha256)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case("test-bls-ops", NONE, OpTestGroup::All)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case("test-blspy-g1", NONE, OpTestGroup::All)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case("test-blspy-g1-v2", NEW_COST, OpTestGroup::All)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case("test-blspy-g2", NONE, OpTestGroup::All)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case("test-blspy-g2-v2", NEW_COST, OpTestGroup::All)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case("test-blspy-hash", NONE, OpTestGroup::All)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case("test-blspy-hash-v2", NEW_COST, OpTestGroup::All)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case("test-blspy-pairing", NONE, OpTestGroup::All)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case("test-blspy-pairing-v2", NEW_COST, OpTestGroup::All)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case("test-blspy-verify", NONE, OpTestGroup::All)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case("test-blspy-verify-v2", NEW_COST, OpTestGroup::All)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case("test-bls-zk", NONE, OpTestGroup::All)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case("test-bls-zk-v2", NEW_COST, OpTestGroup::All)]
+    #[case("test-secp-verify", NONE, OpTestGroup::All)]
+    #[case("test-secp-verify", NEW_COST, OpTestGroup::All)]
+    #[cfg_attr(
+        miri,
+        ignore = "too slow under Miri: 30 generated signature verifications"
+    )]
+    #[case("test-secp256k1", NONE, OpTestGroup::All)]
+    #[cfg_attr(
+        miri,
+        ignore = "too slow under Miri: 30 generated signature verifications"
+    )]
+    #[case("test-secp256k1", NEW_COST, OpTestGroup::All)]
+    #[cfg_attr(
+        miri,
+        ignore = "too slow under Miri: 30 generated signature verifications"
+    )]
+    #[case("test-secp256r1", NONE, OpTestGroup::All)]
+    #[cfg_attr(
+        miri,
+        ignore = "too slow under Miri: 30 generated signature verifications"
+    )]
+    #[case("test-secp256r1", NEW_COST, OpTestGroup::All)]
+    #[cfg_attr(
+        miri,
+        ignore = "too slow under Miri: hundreds of generated modular exponentiations"
+    )]
+    #[case("test-modpow", NONE, OpTestGroup::All)]
+    #[cfg_attr(
+        miri,
+        ignore = "too slow under Miri: hundreds of generated modular exponentiations"
+    )]
+    #[case("test-modpow", MALA, OpTestGroup::All)]
+    #[cfg_attr(
+        miri,
+        ignore = "too slow under Miri: hundreds of generated modular exponentiations"
+    )]
+    #[case("test-modpow-v2", NEW_COST, OpTestGroup::All)]
+    #[cfg_attr(
+        miri,
+        ignore = "too slow under Miri: hundreds of generated modular exponentiations"
+    )]
+    #[case("test-modpow-v2", NEW_COST.union(MALA), OpTestGroup::All)]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
+    #[case("test-sha256", NONE, OpTestGroup::All)]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
+    #[case("test-sha256-v2", NEW_COST, OpTestGroup::All)]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
+    #[case("test-sha256tree", NONE, OpTestGroup::All)]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
+    #[case("test-sha256tree-v2", NEW_COST, OpTestGroup::All)]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
+    #[case("test-sha256tree-hash", NONE, OpTestGroup::All)]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
+    #[case("test-sha256tree-hash-v2", NEW_COST, OpTestGroup::All)]
+    #[case("test-keccak256", NONE, OpTestGroup::All)]
+    #[case("test-keccak256-v2", NEW_COST, OpTestGroup::All)]
+    #[cfg_attr(miri, ignore = "too slow under Miri: 1500 generated Keccak vectors")]
+    #[case("test-keccak256-generated", NONE, OpTestGroup::All)]
+    #[cfg_attr(miri, ignore = "too slow under Miri: 1500 generated Keccak vectors")]
+    #[case("test-keccak256-generated-v2", NEW_COST, OpTestGroup::All)]
+    #[case("test-unknown-ops", NONE, OpTestGroup::All)]
+    #[case("test-unknown-ops-v2", NEW_COST, OpTestGroup::All)]
+    fn test_ops(#[case] filename: &str, #[case] flags: ClvmFlags, #[case] group: OpTestGroup) {
+        let test_cases = match filename {
+            "test-bls-ops" => include_str!("../op-tests/test-bls-ops.txt"),
+            "test-bls-zk" => include_str!("../op-tests/test-bls-zk.txt"),
+            "test-bls-zk-v2" => include_str!("../op-tests/test-bls-zk-v2.txt"),
+            "test-blspy-g1" => include_str!("../op-tests/test-blspy-g1.txt"),
+            "test-blspy-g1-v2" => include_str!("../op-tests/test-blspy-g1-v2.txt"),
+            "test-blspy-g2" => include_str!("../op-tests/test-blspy-g2.txt"),
+            "test-blspy-g2-v2" => include_str!("../op-tests/test-blspy-g2-v2.txt"),
+            "test-blspy-hash" => include_str!("../op-tests/test-blspy-hash.txt"),
+            "test-blspy-hash-v2" => include_str!("../op-tests/test-blspy-hash-v2.txt"),
+            "test-blspy-pairing" => include_str!("../op-tests/test-blspy-pairing.txt"),
+            "test-blspy-pairing-v2" => include_str!("../op-tests/test-blspy-pairing-v2.txt"),
+            "test-blspy-verify" => include_str!("../op-tests/test-blspy-verify.txt"),
+            "test-blspy-verify-v2" => include_str!("../op-tests/test-blspy-verify-v2.txt"),
+            "test-core-ops" => include_str!("../op-tests/test-core-ops.txt"),
+            "test-core-ops-v2" => include_str!("../op-tests/test-core-ops-v2.txt"),
+            "test-keccak256" => include_str!("../op-tests/test-keccak256.txt"),
+            "test-keccak256-generated" => include_str!("../op-tests/test-keccak256-generated.txt"),
+            "test-keccak256-generated-v2" => {
+                include_str!("../op-tests/test-keccak256-generated-v2.txt")
+            }
+            "test-keccak256-v2" => include_str!("../op-tests/test-keccak256-v2.txt"),
+            "test-modpow" => include_str!("../op-tests/test-modpow.txt"),
+            "test-modpow-v2" => include_str!("../op-tests/test-modpow-v2.txt"),
+            "test-more-ops" => include_str!("../op-tests/test-more-ops.txt"),
+            "test-more-ops-v2" => include_str!("../op-tests/test-more-ops-v2.txt"),
+            "test-secp-verify" => include_str!("../op-tests/test-secp-verify.txt"),
+            "test-secp256k1" => include_str!("../op-tests/test-secp256k1.txt"),
+            "test-secp256r1" => include_str!("../op-tests/test-secp256r1.txt"),
+            "test-sha256" => include_str!("../op-tests/test-sha256.txt"),
+            "test-sha256-v2" => include_str!("../op-tests/test-sha256-v2.txt"),
+            "test-sha256tree" => include_str!("../op-tests/test-sha256tree.txt"),
+            "test-sha256tree-hash" => include_str!("../op-tests/test-sha256tree-hash.txt"),
+            "test-sha256tree-hash-v2" => include_str!("../op-tests/test-sha256tree-hash-v2.txt"),
+            "test-sha256tree-v2" => include_str!("../op-tests/test-sha256tree-v2.txt"),
+            "test-unknown-ops" => include_str!("../op-tests/test-unknown-ops.txt"),
+            "test-unknown-ops-v2" => include_str!("../op-tests/test-unknown-ops-v2.txt"),
+            _ => panic!("unknown operator fixture: {filename}"),
+        };
 
         let funs = HashMap::from([
             ("i", op_if as Opf),
@@ -479,7 +624,6 @@ mod tests {
         ]);
 
         println!("Test cases from: {filename}");
-        let test_cases = read_to_string(filename).expect("test file not found");
         for t in test_cases.split('\n') {
             let t = t.trim();
             if t.is_empty() {
@@ -490,6 +634,17 @@ mod tests {
                 continue;
             }
             let (op_name, t) = t.split_once(' ').unwrap();
+            let is_blst = matches!(op_name, "point_add" | "pubkey_for_exp");
+            let is_sha256 = matches!(op_name, "sha256" | "coinid");
+            let include = match group {
+                OpTestGroup::All => true,
+                OpTestGroup::Other => !is_blst && !is_sha256,
+                OpTestGroup::Blst => is_blst,
+                OpTestGroup::Sha256 => is_sha256,
+            };
+            if !include {
+                continue;
+            }
             let op = funs
                 .get(op_name)
                 .unwrap_or_else(|| panic!("couldn't find operator \"{op_name}\""));

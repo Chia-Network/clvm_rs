@@ -20,6 +20,34 @@ In order to run the unit tests, run:
 cargo test
 ```
 
+### Miri
+
+Run the library and integration tests under
+[Miri](https://github.com/rust-lang/miri):
+
+```sh
+rustup toolchain install nightly --component miri
+cargo +nightly miri setup
+MIRIFLAGS=-Zmiri-tree-borrows cargo +nightly miri test -p clvmr
+MIRIFLAGS=-Zmiri-tree-borrows cargo +nightly miri test -p clvmr --features allocator-debug
+```
+
+CI runs both configurations on pushes and pull requests. Tests that require
+BLST native code or take too long under Miri use `#[cfg_attr(miri, ignore = "...")]`
+with a reason. Tests that call OpenSSL are ignored only when both Miri and the
+`openssl` feature are enabled; the default pure-Rust SHA-256 backend remains
+covered. Mixed test tables are split into cases so compatible checks still run.
+Ordinary `cargo test` retains its existing coverage and ignored stress tests.
+CI runs the operator fixtures separately from the other tests to keep the jobs
+shorter; together they cover the same suite as the commands above.
+To list skipped tests, run either Miri command with
+`-- --ignored --list` (without `--list`, this would execute the skipped tests).
+
+Tree Borrows keeps aliasing checks enabled while accommodating `bitvec`'s pointer
+handling, which fails under Stacked Borrows. Miri still warns about that
+dependency's integer-to-pointer casts; this limits its ability to check pointer
+provenance in those operations.
+
 ## Fuzzing
 
 The fuzzing infrastructure for `clvm_rs` uses [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz).

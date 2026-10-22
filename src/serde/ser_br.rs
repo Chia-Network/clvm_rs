@@ -94,6 +94,10 @@ mod tests {
     use crate::serde::node_to_bytes_backrefs;
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_serialize_limit() {
         let mut a = Allocator::new();
 
