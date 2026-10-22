@@ -3,8 +3,10 @@ pub mod bls_ops;
 pub mod chia_dialect;
 pub mod core_ops;
 pub mod cost;
+pub mod diagnostics;
 pub mod dialect;
 pub mod error;
+mod eval_hooks;
 pub mod f_table;
 pub mod keccak256_ops;
 pub mod more_ops;
@@ -31,6 +33,8 @@ pub use run_program::run_program_with_counters;
 
 #[cfg(feature = "pre-eval")]
 pub use run_program::run_program_with_pre_eval;
+
+pub use diagnostics::{EvalFailure, EvalFrame, run_program_with_diagnostics};
 
 #[cfg(feature = "counters")]
 pub use run_program::Counters;

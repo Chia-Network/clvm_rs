@@ -8,6 +8,13 @@ use crate::chia_dialect::ClvmFlags;
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::error::{EvalErr, Result};
+#[cfg(feature = "pre-eval")]
+use crate::eval_hooks::BoxedHooks;
+#[cfg(feature = "pre-eval")]
+pub use crate::eval_hooks::EvalHooks;
+#[cfg(not(feature = "pre-eval"))]
+use crate::eval_hooks::EvalHooks;
+use crate::eval_hooks::NoHooks;
 use crate::op_utils::{first, get_args, uint_atom};
 use crate::reduction::{Reduction, Response};
 use std::time::{Duration, Instant};
@@ -44,7 +51,6 @@ enum Operation {
     SwapEval,
     RestoreAllocator,
 
-    #[cfg(feature = "pre-eval")]
     PostEval,
 }
 
@@ -120,7 +126,7 @@ impl SoftforkGuard {
 // 3. the environment stack (points to the environment for the current
 //    operation). env_stack
 
-struct RunProgramContext<'a, D> {
+struct RunProgramContext<'a, D, H = NoHooks> {
     allocator: &'a mut Allocator,
     dialect: &'a D,
     val_stack: Vec<NodePtr>,
@@ -135,13 +141,10 @@ struct RunProgramContext<'a, D> {
     #[cfg(feature = "counters")]
     pub counters: Counters,
 
-    #[cfg(feature = "pre-eval")]
-    pre_eval: Option<PreEval>,
-    #[cfg(feature = "pre-eval")]
-    posteval_stack: Vec<Box<PostEval>>,
+    hooks: H,
 }
 
-impl<'a, D: Dialect> RunProgramContext<'a, D> {
+impl<'a, D: Dialect, H: EvalHooks> RunProgramContext<'a, D, H> {
     #[cfg(feature = "counters")]
     #[inline(always)]
     fn account_val_push(&mut self) {
@@ -203,12 +206,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         Ok(())
     }
 
-    #[cfg(feature = "pre-eval")]
-    fn new_with_pre_eval(
-        allocator: &'a mut Allocator,
-        dialect: &'a D,
-        pre_eval: Option<PreEval>,
-    ) -> Self {
+    fn new_with_hooks(allocator: &'a mut Allocator, dialect: &'a D, hooks: H) -> Self {
         RunProgramContext {
             allocator,
             dialect,
@@ -220,11 +218,12 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             timeout: None,
             #[cfg(feature = "counters")]
             counters: Counters::new(),
-            pre_eval,
-            posteval_stack: Vec::new(),
+            hooks,
         }
     }
+}
 
+impl<'a, D: Dialect> RunProgramContext<'a, D> {
     fn new(allocator: &'a mut Allocator, dialect: &'a D) -> Self {
         RunProgramContext {
             allocator,
@@ -237,10 +236,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             timeout: None,
             #[cfg(feature = "counters")]
             counters: Counters::new(),
-            #[cfg(feature = "pre-eval")]
-            pre_eval: None,
-            #[cfg(feature = "pre-eval")]
-            posteval_stack: Vec::new(),
+            hooks: NoHooks,
         }
     }
 
@@ -249,7 +245,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         rpc.timeout = Some(timeout);
         rpc
     }
+}
 
+impl<'a, D: Dialect, H: EvalHooks> RunProgramContext<'a, D, H> {
     fn cons_op(&mut self) -> Result<Cost> {
         /* Join the top two operands. */
         let v1 = self.pop()?;
@@ -310,13 +308,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     }
 
     fn eval_pair(&mut self, program: NodePtr, env: NodePtr) -> Result<Cost> {
-        #[cfg(feature = "pre-eval")]
-        if let Some(pre_eval) = &self.pre_eval
-            && let Some(post_eval) = pre_eval(self.allocator, program, env)?
-        {
-            self.posteval_stack.push(post_eval);
+        if self.hooks.pre_eval(self.allocator, program, env)? {
             self.op_stack.push(Operation::PostEval);
-        };
+        }
 
         // put a bunch of ops on op_stack
         let SExp::Pair(op_node, op_list) = self.allocator.sexp(program) else {
@@ -614,11 +608,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                     }
                     0
                 }
-                #[cfg(feature = "pre-eval")]
                 Operation::PostEval => {
-                    let f = self.posteval_stack.pop().unwrap();
                     let peek: Option<NodePtr> = self.val_stack.last().copied();
-                    f(self.allocator, peek);
+                    self.hooks.post_eval(self.allocator, peek);
                     0
                 }
             };
@@ -665,8 +657,38 @@ pub fn run_program_with_pre_eval<'a, D: Dialect>(
     max_cost: Cost,
     pre_eval: Option<PreEval>,
 ) -> Response {
-    let mut rpc = RunProgramContext::new_with_pre_eval(allocator, dialect, pre_eval);
-    rpc.run_program(program, env, max_cost)
+    match pre_eval {
+        None => run_program(allocator, dialect, program, env, max_cost),
+        Some(pre_eval) => {
+            let mut rpc =
+                RunProgramContext::new_with_hooks(allocator, dialect, BoxedHooks::new(pre_eval));
+            rpc.run_program(program, env, max_cost)
+        }
+    }
+}
+
+#[cfg(feature = "pre-eval")]
+pub use with_hooks::run_program_with_hooks;
+#[cfg(not(feature = "pre-eval"))]
+pub(crate) use with_hooks::run_program_with_hooks;
+
+mod with_hooks {
+    use super::*;
+
+    /// Run a program, calling `hooks` around every `eval_pair`. The hooks are
+    /// borrowed, so their state remains available after the run (including
+    /// after an `Err`).
+    pub fn run_program_with_hooks<D: Dialect, H: EvalHooks>(
+        allocator: &mut Allocator,
+        dialect: &D,
+        program: NodePtr,
+        env: NodePtr,
+        max_cost: Cost,
+        hooks: &mut H,
+    ) -> Response {
+        let mut rpc = RunProgramContext::new_with_hooks(allocator, dialect, hooks);
+        rpc.run_program(program, env, max_cost)
+    }
 }
 
 #[cfg(feature = "counters")]
@@ -2177,5 +2199,96 @@ mod tests {
             Some(cost) => assert_eq!(result.unwrap().0, cost),
             None => assert_eq!(result.unwrap_err(), EvalErr::Timeout),
         }
+    }
+
+    /// Keeps a stack of frames whose `post_eval` is pending, and records
+    /// each completed frame with its result.
+    #[derive(Default)]
+    struct RecordingHooks {
+        active: Vec<NodePtr>,
+        completed: Vec<(NodePtr, Option<NodePtr>)>,
+    }
+
+    impl EvalHooks for RecordingHooks {
+        fn pre_eval(&mut self, _: &mut Allocator, program: NodePtr, _: NodePtr) -> Result<bool> {
+            self.active.push(program);
+            Ok(true)
+        }
+
+        fn post_eval(&mut self, _: &mut Allocator, result: Option<NodePtr>) {
+            let program = self.active.pop().expect("post_eval without pre_eval");
+            self.completed.push((program, result));
+        }
+    }
+
+    #[test]
+    fn test_eval_hooks_success() {
+        use crate::chia_dialect::ChiaDialect;
+        use crate::test_ops::node_eq;
+
+        let mut a = Allocator::new();
+        let program = check(parse_exp(&mut a, "(+ (q . 2) (q . 3))"));
+        let args = a.nil();
+        let dialect = ChiaDialect::new(ClvmFlags::ENABLE_GC);
+
+        let Reduction(expected_cost, expected) =
+            run_program(&mut a, &dialect, program, args, 10000).unwrap();
+
+        let mut hooks = RecordingHooks::default();
+        let Reduction(cost, result) =
+            RunProgramContext::new_with_hooks(&mut a, &dialect, &mut hooks)
+                .run_program(program, args, 10000)
+                .unwrap();
+
+        assert_eq!(cost, expected_cost);
+        assert!(node_eq(&a, result, expected));
+        // every scheduled `post_eval` ran, the outermost frame last, with
+        // the program's result on top of the value stack
+        assert!(hooks.active.is_empty());
+        assert_eq!(hooks.completed.len(), 3);
+        assert_eq!(hooks.completed.last(), Some(&(program, Some(result))));
+    }
+
+    #[test]
+    fn test_eval_hooks_failure_leaves_active_frames() {
+        use crate::chia_dialect::ChiaDialect;
+
+        let mut a = Allocator::new();
+        let program = check(parse_exp(&mut a, "(+ (q . 2) (x (q . 3)))"));
+        let failing = check(parse_exp(&mut a, "(x (q . 3))"));
+        let args = a.nil();
+        let dialect = ChiaDialect::new(ClvmFlags::ENABLE_GC);
+
+        let mut hooks = RecordingHooks::default();
+        let err = RunProgramContext::new_with_hooks(&mut a, &dialect, &mut hooks)
+            .run_program(program, args, 10000)
+            .unwrap_err();
+
+        assert!(matches!(err, EvalErr::Raise(_)));
+        // the frames whose evaluation was in progress at the error, outermost
+        // first
+        assert_eq!(hooks.active.len(), 2);
+        assert_eq!(hooks.active[0], program);
+        assert!(crate::test_ops::node_eq(&a, hooks.active[1], failing));
+    }
+
+    #[cfg(feature = "pre-eval")]
+    #[test]
+    fn test_pre_eval_none_matches_run_program() {
+        use crate::chia_dialect::ChiaDialect;
+        use crate::test_ops::node_eq;
+
+        let mut a = Allocator::new();
+        let program = check(parse_exp(&mut a, "(+ (q . 2) (q . 3))"));
+        let args = a.nil();
+        let dialect = ChiaDialect::new(ClvmFlags::ENABLE_GC);
+
+        let Reduction(expected_cost, expected) =
+            run_program(&mut a, &dialect, program, args, 10000).unwrap();
+        let Reduction(cost, result) =
+            run_program_with_pre_eval(&mut a, &dialect, program, args, 10000, None).unwrap();
+
+        assert_eq!(cost, expected_cost);
+        assert!(node_eq(&a, result, expected));
     }
 }
