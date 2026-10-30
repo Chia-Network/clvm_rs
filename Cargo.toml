@@ -44,38 +44,35 @@ no-fastpath = []
 lto = "thin"
 
 [workspace.dependencies]
-bitflags = "2.10"
+bitflags = "2.13.2"
 clvmr = { path = ".", version = "0.21.0" }
 clvm-fuzzing = { path = "./clvm-fuzzing", version = "0.21.0" }
-lazy_static = "1.5.0"
-num-bigint = "0.4.6"
+lazy_static = "1.5.1"
+num-bigint = "0.4.8"
 num-traits = "0.2.19"
 num-integer = "0.1.46"
-chia-bls = "0.38.2"
-chia-sha2 = "0.38.2"
+chia-bls = "0.52.1"
+chia-sha2 = "0.52.1"
 hex-literal = "1.1.0"
 # for secp sigs
-k256 = "0.14.0-rc"
-p256 = "0.14.0-rc"
+k256 = "0.14.0"
+p256 = "0.14.0"
 rstest = "0.26.1"
-criterion = "0.5.1"
+criterion = "0.8.2"
 hex = "0.4.3"
-pyo3 = "0.29.0"
-js-sys = "0.3.77"
-getrandom = "0.2.16"
+pyo3 = "0.29.3"
 libfuzzer-sys = "0.4.10"
-rand = "0.9"
+rand = "0.10.3"
 sha1 = "0.10.6"
 serde = "1.0.228"
-serde_json = "1.0.145"
-clap = "4.5.52"
-rand_chacha = "0.9.0"
-gnuplot = "0.0.46"
-bitvec = "1.0.1"
+serde_json = "1.0.154"
+clap = "4.5.60"
+rand_chacha = "0.10.0"
+bitvec = "1.1.1"
 arbitrary = { version = "1.4.2", features = ["derive"] }
 bumpalo = "3.19.0"
 anyhow = "1.0.100"
-malachite-bigint = "0.9.1"
+malachite-bigint = "0.12.0"
 
 [dependencies]
 bitflags = { workspace = true }
@@ -88,15 +85,15 @@ chia-sha2 = { workspace = true }
 hex-literal = { workspace = true }
 bitvec = { workspace = true }
 # for secp sigs
-k256 = { version = "0.14.0-rc", features = ["ecdsa"] }
-p256 = { version = "0.14.0-rc", features = ["ecdsa"] }
+k256 = { workspace = true, features = ["ecdsa"] }
+p256 = { workspace = true, features = ["ecdsa"] }
 # for keccak256
-sha3 = { version = "0.10.8", features = ["asm"] }
+sha3 = { version = "0.10.9", features = ["asm"] }
 rand = { workspace = true }
 hex = { workspace = true }
 sha1 = { workspace = true }
 bumpalo = { workspace = true }
-thiserror = "2.0"
+thiserror = "2.0.21"
 malachite-bigint = { workspace = true }
 
 

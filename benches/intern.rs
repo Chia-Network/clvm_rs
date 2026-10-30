@@ -1,6 +1,7 @@
 use clvmr::allocator::Allocator;
 use clvmr::serde::{intern_tree, node_from_bytes, node_from_bytes_backrefs, node_to_bytes_limit};
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
+use std::hint::black_box;
 use std::include_bytes;
 
 fn intern_benchmark(c: &mut Criterion) {

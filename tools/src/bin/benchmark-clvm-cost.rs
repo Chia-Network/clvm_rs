@@ -5,7 +5,7 @@ use clvmr::error::EvalErr;
 use clvmr::run_program::run_program;
 use clvmr::{ChiaDialect, ClvmFlags};
 use hex_literal::hex;
-use rand::{RngCore, SeedableRng, rngs::StdRng};
+use rand::{Rng, SeedableRng, rngs::StdRng};
 use std::fs::{File, create_dir_all};
 use std::io::Write;
 use std::ops::Range;
