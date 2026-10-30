@@ -1,7 +1,8 @@
 use clvmr::allocator::Allocator;
 use clvmr::serde::node_from_bytes_backrefs;
 use clvmr::serde_2026::serialize_2026;
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
+use std::hint::black_box;
 use std::include_bytes;
 
 fn serialize_2026_benchmark(c: &mut Criterion) {

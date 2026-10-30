@@ -4,7 +4,8 @@ use clvmr::serde::{
     node_to_bytes_backrefs, serialized_length_from_bytes, serialized_length_from_bytes_trusted,
     tree_hash_from_stream,
 };
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
+use std::hint::black_box;
 use std::include_bytes;
 use std::time::Duration;
 

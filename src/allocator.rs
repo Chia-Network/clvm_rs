@@ -9,7 +9,7 @@ use std::hash::Hasher;
 use std::ops::Deref;
 
 #[cfg(feature = "allocator-debug")]
-use rand::RngCore;
+use rand::Rng;
 
 #[cfg(feature = "allocator-debug")]
 use rand;

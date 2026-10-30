@@ -3,7 +3,7 @@ use std::fs;
 use clvmr::Allocator;
 use num_bigint::{BigInt, Sign};
 use num_integer::Integer;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 
 fn new_div_cost(a0_len: usize, a1_len: usize, result_len: usize) -> usize {
