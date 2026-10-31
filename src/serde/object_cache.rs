@@ -206,6 +206,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_treehash() {
         let check = |a, b| check_cached_function(a, Bytes32::from_hex(b).unwrap(), treehash);
         check(
@@ -294,6 +298,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_stop_token() {
         // we build a tree and insert a stop_token and ensure we get `None` in
         // the appropriate places in the tree

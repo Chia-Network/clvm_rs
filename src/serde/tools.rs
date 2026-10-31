@@ -245,6 +245,10 @@ mod tests {
     use rstest::rstest;
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_tree_hash_max_single_byte() {
         let mut ctx = Sha256::new();
         ctx.update([1_u8]);
@@ -257,6 +261,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_tree_hash_one() {
         let mut ctx = Sha256::new();
         ctx.update([1_u8]);
@@ -269,6 +277,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_tree_hash_zero() {
         let mut ctx = Sha256::new();
         ctx.update([1_u8]);
@@ -281,6 +293,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_tree_hash_nil() {
         let mut ctx = Sha256::new();
         ctx.update([1_u8]);
@@ -314,6 +330,10 @@ mod tests {
     // print(a.get_tree_hash().hex())
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_tree_hash_list() {
         // this is the list (1 (2 (3 (4 (5 ())))))
         let buf = Vec::from_hex("ff01ff02ff03ff04ff0580").unwrap();
@@ -326,6 +346,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_tree_hash_tree() {
         // this is the tree ((1, 2), (3, 4))
         let buf = Vec::from_hex("ffff0102ff0304").unwrap();
@@ -338,6 +362,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_tree_hash_tree_large_atom() {
         // this is the tree ((1, 2), (3, b"foobar"))
         let buf = Vec::from_hex("ffff0102ff0386666f6f626172").unwrap();
@@ -618,6 +646,7 @@ ae5c3c40c50832a7aecc0b3ba4646568a00c01289c45e1f03b2b488080808080"
     #[rstest]
     #[case("c040", 66)]
     #[case("e02000", 8195)]
+    #[cfg_attr(miri, ignore = "too slow under Miri: deserializes a 1 MiB atom")]
     #[case("f0100000", 1048580)]
     fn test_clvm_canonical(#[case] input: &str, #[case] size: usize) {
         let mut input = hex::decode(input).expect("invalid hex in test case");

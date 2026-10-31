@@ -202,6 +202,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_tree_hash_deterministic() {
         let mut alloc1 = Allocator::new();
         let a1 = alloc1.new_atom(&[1, 2, 3]).unwrap();

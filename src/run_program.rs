@@ -700,6 +700,7 @@ mod tests {
     use rstest::rstest;
 
     struct RunProgramTest<'a> {
+        miri: bool,
         prg: &'a str,
         args: &'a str,
         flags: ClvmFlags,
@@ -710,6 +711,7 @@ mod tests {
 
     const TEST_CASES: &[RunProgramTest] = &[
         RunProgramTest {
+            miri: true,
             prg: "(/ (q . 10) (q . -3))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -718,6 +720,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(/ (q . -10) (q . 3))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -726,6 +729,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(/ (q . -1) (q . 2))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -735,6 +739,7 @@ mod tests {
         },
         // (mod (X N) (defun sum (X N) (if (= N 0) 1 (+ X (sum X (- N 1))))) (sum X N))
         RunProgramTest {
+            miri: false, // too slow under Miri: 1000 recursive interpreter calls
             prg: "(a (q 2 2 (c 2 (c 5 (c 11 ())))) (c (q 2 (i (= 11 ()) (q 1 . 1) (q 16 5 (a 2 (c 2 (c 5 (c (- 11 (q . 1)) ())))))) 1) 1))",
             args: "(5033 1000)",
             flags: ClvmFlags::empty(),
@@ -744,6 +749,7 @@ mod tests {
         },
         // '
         RunProgramTest {
+            miri: false, // requires BLST native code
             prg: "(= (point_add (pubkey_for_exp (q . -2)) (pubkey_for_exp (q . 5))) (pubkey_for_exp (q . 3)))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -752,6 +758,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: false, // requires BLST native code
             prg: "(= (point_add (pubkey_for_exp (q . 2)) (pubkey_for_exp (q . 3))) (pubkey_for_exp (q . 5)))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -760,6 +767,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: false, // requires BLST native code
             prg: "(point_add (pubkey_for_exp (q . 1)) (pubkey_for_exp (q . 2)))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -770,6 +778,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(f (f (q . ((100 200 300) 400 500))))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -778,6 +787,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(= (f 1) (+ (f (r 1)) (f (r (r 1)))))",
             args: "(7 3 3)",
             flags: ClvmFlags::empty(),
@@ -786,6 +796,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(= (f 1) (+ (f (r 1)) (f (r (r 1)))))",
             args: "(7 3 4)",
             flags: ClvmFlags::empty(),
@@ -794,6 +805,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(i (f (r (r 1))) (f 1) (f (r 1)))",
             args: "(200 300 400)",
             flags: ClvmFlags::empty(),
@@ -802,6 +814,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(i (f (r (r 1))) (f 1) (f (r 1)))",
             args: "(200 300 1)",
             flags: ClvmFlags::empty(),
@@ -810,6 +823,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(r (r (q . ((100 200 300) 400 500))))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -818,6 +832,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(* (q . 10000000000000000000000000000000000) (q . 10000000000000000000000000000000) (q . 100000000000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000) (q . 1000000000000000000000000000000))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -829,6 +844,7 @@ mod tests {
         },
         // ## APPLY
         RunProgramTest {
+            miri: true,
             prg: "(a (q 0x0fffffffff) (q ()))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -837,6 +853,7 @@ mod tests {
             err: "invalid operator",
         },
         RunProgramTest {
+            miri: true,
             prg: "(a (q . 0) (q . 1) (q . 2))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -845,6 +862,7 @@ mod tests {
             err: "InvalidOperatorArg: apply takes exactly 2 argument(s)",
         },
         RunProgramTest {
+            miri: true,
             prg: "(a (q 0x00ffffffffffffffffffff00) (q ()))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -853,6 +871,7 @@ mod tests {
             err: "invalid operator",
         },
         RunProgramTest {
+            miri: true,
             prg: "(a (q . 1))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -861,6 +880,7 @@ mod tests {
             err: "InvalidOperatorArg: apply takes exactly 2 argument(s)",
         },
         RunProgramTest {
+            miri: true,
             prg: "(a (q . 1) (q . (100 200)))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -869,6 +889,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(a (q . (+ 2 5)) (q . (20 30)))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -877,6 +898,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "((c (q . (+ (q . 50) 1)) (q . 500)))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -885,6 +907,7 @@ mod tests {
             err: "InvalidOperatorArg: in the ((X)...) syntax, the inner list takes exactly 1 argument(s)",
         },
         RunProgramTest {
+            miri: true,
             prg: "((#c) (q . 3) (q . 4))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -893,6 +916,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "((#+) 1 2 3)",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -901,6 +925,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(a (q . 2) (q . (3 4 5)))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -912,6 +937,7 @@ mod tests {
 
         // 0
         RunProgramTest {
+            miri: true,
             prg: "0",
             args: "(((8 . 12) . (10 . 14)) . ((9 . 13) . (11 . 15)))",
             flags: ClvmFlags::empty(),
@@ -921,6 +947,7 @@ mod tests {
         },
         // 1
         RunProgramTest {
+            miri: true,
             prg: "1",
             args: "(((8 . 12) . (10 . 14)) . ((9 . 13) . (11 . 15)))",
             flags: ClvmFlags::empty(),
@@ -930,6 +957,7 @@ mod tests {
         },
         // 2
         RunProgramTest {
+            miri: true,
             prg: "2",
             args: "(((8 . 12) . (10 . 14)) . ((9 . 13) . (11 . 15)))",
             flags: ClvmFlags::empty(),
@@ -939,6 +967,7 @@ mod tests {
         },
         // 3
         RunProgramTest {
+            miri: true,
             prg: "3",
             args: "(((8 . 12) . (10 . 14)) . ((9 . 13) . (11 . 15)))",
             flags: ClvmFlags::empty(),
@@ -948,6 +977,7 @@ mod tests {
         },
         // 4
         RunProgramTest {
+            miri: true,
             prg: "4",
             args: "(((8 . 12) . (10 . 14)) . ((9 . 13) . (11 . 15)))",
             flags: ClvmFlags::empty(),
@@ -957,6 +987,7 @@ mod tests {
         },
         // 5
         RunProgramTest {
+            miri: true,
             prg: "5",
             args: "(((8 . 12) . (10 . 14)) . ((9 . 13) . (11 . 15)))",
             flags: ClvmFlags::empty(),
@@ -966,6 +997,7 @@ mod tests {
         },
         // 6
         RunProgramTest {
+            miri: true,
             prg: "6",
             args: "(((8 . 12) . (10 . 14)) . ((9 . 13) . (11 . 15)))",
             flags: ClvmFlags::empty(),
@@ -975,6 +1007,7 @@ mod tests {
         },
         // 7
         RunProgramTest {
+            miri: true,
             prg: "7",
             args: "(((8 . 12) . (10 . 14)) . ((9 . 13) . (11 . 15)))",
             flags: ClvmFlags::empty(),
@@ -983,6 +1016,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "8",
             args: "(((8 . 12) . (10 . 14)) . ((9 . 13) . (11 . 15)))",
             flags: ClvmFlags::empty(),
@@ -991,6 +1025,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "9",
             args: "(((8 . 12) . (10 . 14)) . ((9 . 13) . (11 . 15)))",
             flags: ClvmFlags::empty(),
@@ -999,6 +1034,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "10",
             args: "(((8 . 12) . (10 . 14)) . ((9 . 13) . (11 . 15)))",
             flags: ClvmFlags::empty(),
@@ -1007,6 +1043,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "11",
             args: "(((8 . 12) . (10 . 14)) . ((9 . 13) . (11 . 15)))",
             flags: ClvmFlags::empty(),
@@ -1015,6 +1052,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "12",
             args: "(((8 . 12) . (10 . 14)) . ((9 . 13) . (11 . 15)))",
             flags: ClvmFlags::empty(),
@@ -1023,6 +1061,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "13",
             args: "(((8 . 12) . (10 . 14)) . ((9 . 13) . (11 . 15)))",
             flags: ClvmFlags::empty(),
@@ -1031,6 +1070,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "14",
             args: "(((8 . 12) . (10 . 14)) . ((9 . 13) . (11 . 15)))",
             flags: ClvmFlags::empty(),
@@ -1039,6 +1079,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "15",
             args: "(((8 . 12) . (10 . 14)) . ((9 . 13) . (11 . 15)))",
             flags: ClvmFlags::empty(),
@@ -1047,6 +1088,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001",
             args: "(((0x1337 . (0x1337 . (42 . 0x1337))) . 0x1337) . 0x1337)",
             flags: ClvmFlags::empty(),
@@ -1055,6 +1097,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "0x0000C8C141AB3121E776",
             args: "((0x1337 . (0x1337 . ((0x1337 . (0x1337 . (0x1337 . ((0x1337 . (0x1337 . (0x1337 . (((0x1337 . (0x1337 . (0x1337 . (0x1337 . (((((0x1337 . (((0x1337 . ((((0x1337 . (0x1337 . (((0x1337 . (0x1337 . ((0x1337 . ((0x1337 . ((0x1337 . (0x1337 . ((((((0x1337 . ((0x1337 . ((((((0x1337 . (0x1337 . ((((0x1337 . (((0x1337 . 42) . 0x1337) . 0x1337)) . 0x1337) . 0x1337) . 0x1337))) . 0x1337) . 0x1337) . 0x1337) . 0x1337) . 0x1337)) . 0x1337)) . 0x1337) . 0x1337) . 0x1337) . 0x1337) . 0x1337))) . 0x1337)) . 0x1337)) . 0x1337))) . 0x1337) . 0x1337))) . 0x1337) . 0x1337) . 0x1337)) . 0x1337) . 0x1337)) . 0x1337) . 0x1337) . 0x1337) . 0x1337))))) . 0x1337) . 0x1337)))) . 0x1337)))) . 0x1337))) . 0x1337)",
             flags: ClvmFlags::empty(),
@@ -1063,6 +1106,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "7708975405620101644641102810267383005",
             args: "(0x1337 . ((0x1337 . (0x1337 . (0x1337 . ((0x1337 . (0x1337 . (((0x1337 . ((0x1337 . (0x1337 . (0x1337 . (0x1337 . (0x1337 . ((0x1337 . (0x1337 . ((0x1337 . (((0x1337 . (0x1337 . (0x1337 . ((0x1337 . (((0x1337 . (((0x1337 . (0x1337 . (0x1337 . (0x1337 . ((0x1337 . ((0x1337 . (((((0x1337 . ((0x1337 . ((0x1337 . (0x1337 . (0x1337 . (((0x1337 . (0x1337 . ((0x1337 . (0x1337 . ((((0x1337 . (0x1337 . (0x1337 . (0x1337 . (((((0x1337 . (0x1337 . (0x1337 . (0x1337 . (0x1337 . (((((0x1337 . (((((0x1337 . ((0x1337 . (0x1337 . ((((0x1337 . ((((0x1337 . ((0x1337 . ((0x1337 . ((0x1337 . (0x1337 . (0x1337 . ((((0x1337 . (0x1337 . ((0x1337 . (((0x1337 . (0x1337 . (((0x1337 . (0x1337 . (0x1337 . (42 . 0x1337)))) . 0x1337) . 0x1337))) . 0x1337) . 0x1337)) . 0x1337))) . 0x1337) . 0x1337) . 0x1337)))) . 0x1337)) . 0x1337)) . 0x1337)) . 0x1337) . 0x1337) . 0x1337)) . 0x1337) . 0x1337) . 0x1337))) . 0x1337)) . 0x1337) . 0x1337) . 0x1337) . 0x1337)) . 0x1337) . 0x1337) . 0x1337) . 0x1337)))))) . 0x1337) . 0x1337) . 0x1337) . 0x1337))))) . 0x1337) . 0x1337) . 0x1337))) . 0x1337))) . 0x1337) . 0x1337)))) . 0x1337)) . 0x1337)) . 0x1337) . 0x1337) . 0x1337) . 0x1337)) . 0x1337)) . 0x1337))))) . 0x1337) . 0x1337)) . 0x1337) . 0x1337)) . 0x1337)))) . 0x1337) . 0x1337)) . 0x1337))) . 0x1337)))))) . 0x1337)) . 0x1337) . 0x1337))) . 0x1337)))) . 0x1337))",
             flags: ClvmFlags::empty(),
@@ -1071,6 +1115,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "1",
             args: "1",
             flags: ClvmFlags::empty(),
@@ -1079,6 +1124,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(> 3 3)",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1091,6 +1137,7 @@ mod tests {
         // the arguments to softfork are checked in mempool mode, but in consensus
         // mode, only the cost argument is
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 979))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1099,6 +1146,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 979))",
             args: "()",
             flags: ClvmFlags::NO_UNKNOWN_OPS,
@@ -1107,6 +1155,7 @@ mod tests {
             err: "InvalidOperatorArg: softfork takes exactly 4 argument(s)",
         },
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 959) (q . 9))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1115,6 +1164,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 959) (q . 9))",
             args: "()",
             flags: ClvmFlags::NO_UNKNOWN_OPS,
@@ -1123,6 +1173,7 @@ mod tests {
             err: "InvalidOperatorArg: softfork takes exactly 4 argument(s)",
         },
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 939) (q . 9) (q x))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1131,6 +1182,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 939) (q . 9) (q x))",
             args: "()",
             flags: ClvmFlags::NO_UNKNOWN_OPS,
@@ -1141,6 +1193,7 @@ mod tests {
         // this is a valid invocation, but we don't implement any extensions (yet)
         // so the extension specifier 0 is still unknown
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 919) (q . 9) (q x) (q . ()))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1150,6 +1203,7 @@ mod tests {
         },
         // when parsing the cost argument, we ignore redundant leading zeroes
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 0x00000397) (q . 9) (q x) (q . ()))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1158,6 +1212,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 919) (q . 9) (q x) (q . ()))",
             args: "()",
             flags: ClvmFlags::NO_UNKNOWN_OPS,
@@ -1167,6 +1222,7 @@ mod tests {
         },
         // this is a valid invocation, but we don't implement any extensions (yet)
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 919) (q . 0x00ffffffff) (q x) (q . ()))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1175,6 +1231,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 919) (q . 0x00ffffffff) (q x) (q . ()))",
             args: "()",
             flags: ClvmFlags::NO_UNKNOWN_OPS,
@@ -1184,6 +1241,7 @@ mod tests {
         },
         // we don't allow negative "extension" parameters
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 919) (q . -1) (q x) (q . ()))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1192,6 +1250,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 919) (q . -1) (q x) (q . ()))",
             args: "()",
             flags: ClvmFlags::NO_UNKNOWN_OPS,
@@ -1201,6 +1260,7 @@ mod tests {
         },
         // we don't allow "extension" parameters > u32::MAX
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 919) (q . 0x0100000000) (q x) (q . ()))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1209,6 +1269,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 919) (q . 0x0100000000) (q x) (q . ()))",
             args: "()",
             flags: ClvmFlags::NO_UNKNOWN_OPS,
@@ -1218,6 +1279,7 @@ mod tests {
         },
         // we don't allow pairs as extension specifier
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 919) (q 1 2 3) (q x) (q . ()))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1226,6 +1288,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 919) (q 1 2 3) (q x) (q . ()))",
             args: "()",
             flags: ClvmFlags::NO_UNKNOWN_OPS,
@@ -1235,6 +1298,7 @@ mod tests {
         },
         // the cost value is checked in consensus mode as well
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 1000))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1244,6 +1308,7 @@ mod tests {
         },
         // the cost parameter is mandatory
         RunProgramTest {
+            miri: true,
             prg: "(softfork)",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1252,6 +1317,7 @@ mod tests {
             err: "InvalidOperatorArg: first of non-cons",
         },
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 0))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1261,6 +1327,7 @@ mod tests {
         },
         // negative costs are not allowed
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . -1))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1269,6 +1336,7 @@ mod tests {
             err: "InvalidOperatorArg: softfork requires positive int arg",
         },
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q 1 2 3))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1278,6 +1346,7 @@ mod tests {
         },
         // test mismatching cost
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 160) (q . 0) (q . (q . 42)) (q . ()))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1287,6 +1356,7 @@ mod tests {
         },
         // the program under the softfork is restricted by the specified cost
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 159) (q . 0) (q . (q . 42)) (q . ()))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1297,6 +1367,7 @@ mod tests {
         // the cost specified on the softfork must match exactly the cost of
         // executing the program
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 161) (q . 0) (q . (q . 42)) (q . ()))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1308,6 +1379,7 @@ mod tests {
         // exact cost match. In consensus mode the unknown extension is ignored
         // but the specified cost is still consumed.
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 919) (q . 9) (q x) (q . ()))",
             args: "()",
             flags: ClvmFlags::NEW_COST_MODEL,
@@ -1317,6 +1389,7 @@ mod tests {
         },
         // in mempool mode with NEW_COST_MODEL, unknown extensions are rejected
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 919) (q . 9) (q x) (q . ()))",
             args: "()",
             flags: ClvmFlags::NEW_COST_MODEL.union(ClvmFlags::NO_UNKNOWN_OPS),
@@ -1328,6 +1401,7 @@ mod tests {
         // succeeds for grandfathered extensions because the specified cost is
         // not used as a budget limit inside the guard (cost_exempt = true)
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 100) (q . 0) (q . (q . 42)) (q . ()))",
             args: "()",
             flags: ClvmFlags::NEW_COST_MODEL,
@@ -1336,6 +1410,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 100) (q . 1) (q . (q . 42)) (q . ()))",
             args: "()",
             flags: ClvmFlags::NEW_COST_MODEL,
@@ -1345,6 +1420,7 @@ mod tests {
         },
         // without the flag to enable the keccak extensions, it's an unknown extension
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 161) (q . 2) (q . (q . 42)) (q . ()))",
             args: "()",
             flags: ClvmFlags::NO_UNKNOWN_OPS,
@@ -1354,6 +1430,7 @@ mod tests {
         },
         // coinid is also available under softfork extension 1
         RunProgramTest {
+            miri: !cfg!(feature = "openssl"), // OpenSSL requires native code
             prg: "(softfork (q . 1432) (q . 1) (q a (i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x)) (q . ())) (q . ()))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1363,6 +1440,7 @@ mod tests {
         },
         // keccak256 is available when the softfork has activated
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 1134) (q . 1) (q a (i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ())) (q . ()))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1372,6 +1450,7 @@ mod tests {
         },
         // make sure keccak is actually executed, by comparing with the wrong output
         RunProgramTest {
+            miri: true,
             prg: "(softfork (q . 1134) (q . 1) (q a (i (= (keccak256 (q . \"foobar\")) (q . 0x58d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ())) (q . ()))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1384,6 +1463,7 @@ mod tests {
 
         // keccak256 is available outside the guard with the appropriate flag
         RunProgramTest {
+            miri: true,
             prg: "(a (i (= (keccak256 (q . \"foobar\")) (q . 0x38d18acb67d25c8bb9942764b62f18e17054f66a817bd4295423adf9ed98873e)) (q . 0) (q x)) (q . ()))",
             args: "()",
             flags: ClvmFlags::ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
@@ -1396,6 +1476,7 @@ mod tests {
         // this program raises an exception if the computed coin ID matches the
         // expected
         RunProgramTest {
+            miri: !cfg!(feature = "openssl"), // OpenSSL requires native code
             prg: "(softfork (q . 1432) (q . 0) (q a (i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q x) (q . 0)) (q . ())) (q . ()))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1406,6 +1487,7 @@ mod tests {
         // also test the opposite. This program is the same as above but it raises
         // if the coin ID is a mismatch
         RunProgramTest {
+            miri: !cfg!(feature = "openssl"), // OpenSSL requires native code
             prg: "(softfork (q . 1432) (q . 0) (q a (i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x)) (q . ())) (q . ()))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1416,6 +1498,7 @@ mod tests {
         // coinid operator after hardfork, where coinid is available outside the
         // softfork guard.
         RunProgramTest {
+            miri: !cfg!(feature = "openssl"), // OpenSSL requires native code
             prg: "(coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1424,6 +1507,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: !cfg!(feature = "openssl"), // OpenSSL requires native code
             prg: "(coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 0x000123456789))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1433,6 +1517,7 @@ mod tests {
         },
         // secp261k1
         RunProgramTest {
+            miri: true,
             prg: "(secp256k1_verify (q . 0x02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439) (q . 0x74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668) (q . 0x1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c018))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1442,6 +1527,7 @@ mod tests {
         },
         // invalid signature
         RunProgramTest {
+            miri: true,
             prg: "(secp256k1_verify (q . 0x02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439) (q . 0x74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668) (q . 0x1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c019))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1451,6 +1537,7 @@ mod tests {
         },
         // secp261r1
         RunProgramTest {
+            miri: true,
             prg: "(secp256r1_verify (q . 0x0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9) (q . 0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08) (q . 0xe8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffc))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1460,6 +1547,7 @@ mod tests {
         },
         // invalid signature
         RunProgramTest {
+            miri: true,
             prg: "(secp256r1_verify (q . 0x0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9) (q . 0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08) (q . 0xe8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffd))",
             args: "()",
             flags: ClvmFlags::empty(),
@@ -1469,6 +1557,7 @@ mod tests {
         },
         // Opcode 64 (secp256k1_verify) with ENABLE_SECP_OPS
         RunProgramTest {
+            miri: true,
             prg: "(secp256k1_verify_64 (q . 0x02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439) (q . 0x74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668) (q . 0x1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c018))",
             args: "()",
             flags: ClvmFlags::ENABLE_SECP_OPS,
@@ -1478,6 +1567,7 @@ mod tests {
         },
         // Opcode 65 (secp256r1_verify) with ENABLE_SECP_OPS
         RunProgramTest {
+            miri: true,
             prg: "(secp256r1_verify_65 (q . 0x0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9) (q . 0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08) (q . 0xe8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffc))",
             args: "()",
             flags: ClvmFlags::ENABLE_SECP_OPS,
@@ -1487,6 +1577,7 @@ mod tests {
         },
         // Opcode 64 without ENABLE_SECP_OPS is unimplemented
         RunProgramTest {
+            miri: true,
             prg: "(secp256k1_verify_64 (q . 0x02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439) (q . 0x74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668) (q . 0x1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c018))",
             args: "()",
             flags: ClvmFlags::NO_UNKNOWN_OPS,
@@ -1496,6 +1587,7 @@ mod tests {
         },
         // Opcode 65 without ENABLE_SECP_OPS is unimplemented
         RunProgramTest {
+            miri: true,
             prg: "(secp256r1_verify_65 (q . 0x0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9) (q . 0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08) (q . 0xe8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffc))",
             args: "()",
             flags: ClvmFlags::NO_UNKNOWN_OPS,
@@ -1504,6 +1596,7 @@ mod tests {
             err: "unimplemented operator",
         },
         RunProgramTest {
+            miri: !cfg!(feature = "openssl"), // OpenSSL requires native code
             prg: "(sha256tree (q . 10))",
             args: "()",
             flags: ClvmFlags::NO_UNKNOWN_OPS.union(ClvmFlags::ENABLE_SHA256_TREE),
@@ -1512,6 +1605,7 @@ mod tests {
             err: "",
         },
         RunProgramTest {
+            miri: !cfg!(feature = "openssl"), // OpenSSL requires native code
             prg: "(sha256tree (q . 10))",
             args: "()",
             flags: ClvmFlags::NO_UNKNOWN_OPS,
@@ -1520,7 +1614,6 @@ mod tests {
             err: "unimplemented operator",
         },
     ];
-
     fn check(res: (NodePtr, &str)) -> NodePtr {
         assert_eq!(res.1, "");
         res.0
@@ -1559,6 +1652,10 @@ mod tests {
     #[test]
     fn test_run_program() {
         for t in TEST_CASES {
+            if cfg!(miri) && !t.miri {
+                println!("skipping under Miri: {}", t.prg);
+                continue;
+            }
             run_test_case(t);
         }
     }
@@ -1692,6 +1789,10 @@ mod tests {
     // make sure we can execute the coinid operator under softfork 0
     // this program raises an exception if the computed coin ID matches the
     // expected
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     #[case::coinid(
         "(i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bd)) (q . 0) (q x))",
         (1432, 0, ClvmFlags::empty()),
@@ -1699,6 +1800,10 @@ mod tests {
     ]
     // also test the opposite. This program is the same as above but it raises
     // if the coin ID is a mismatch
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     #[case::coinid(
         "(i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x))",
         (1432, 0, ClvmFlags::empty()),
@@ -1727,31 +1832,37 @@ mod tests {
         "clvm raise"
     )]
     // g1_multiply
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case::g1_mul(
         "(i (= (g1_multiply  (q . 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb) (q . 2)) (q . 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e)) (q . 0) (q x))",
         (706634, 0, ClvmFlags::empty()),
         ""
     )]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case::g1_mul(
         "(i (= (g1_multiply  (q . 0x97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb) (q . 2)) (q . 0xa572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4f)) (q . 0) (q x))",
         (706634, 0, ClvmFlags::empty()),
         "clvm raise"
     )]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case::g1_neg(
         "(i (= (g1_negate (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))",
         (706634, 0, ClvmFlags::empty()),
         "clvm raise"
     )]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case::g1_neg(
         "(i (= (g1_negate (q . 0xb2f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0xb7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)) (q . 0) (q x))",
         (706634, 0, ClvmFlags::empty()),
         "InvalidOperatorArg: atom is not a G1 point"
     )]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case::g2_add(
         "(i (= (g2_add (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))",
         (3981700, 0, ClvmFlags::empty()),
         ""
     )]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case::g2_add(
         "(i (= (g2_add (q . 0x93e12b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8) (q . 0x93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8)) (q . 0xaa4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1031e1572c6c886f6b57ec72a6178288c47c335771638533957d540a9d2370f17cc7ed5863bc0b995b8825e0ee1ea1e1e4d00dbae81f14b0bf3611b78c952aacab827a053)) (q . 0) (q x))",
         (3981700, 0, ClvmFlags::empty()),
@@ -1835,6 +1946,7 @@ mod tests {
 
         println!("expect: {expect_err} cost: {cost}");
         let t = RunProgramTest {
+            miri: true,
             prg: softfork_prg.as_str(),
             args: "()",
             flags,
@@ -1856,6 +1968,7 @@ mod tests {
         // without the hard fork flag
         println!("outside guard, no hard fork");
         let t = RunProgramTest {
+            miri: true,
             prg: outside_guard_prg.as_str(),
             args: "()",
             flags,
@@ -1878,6 +1991,7 @@ mod tests {
         // with the hard fork flag
         println!("outside guard, hard fork activated");
         let t = RunProgramTest {
+            miri: true,
             prg: outside_guard_prg.as_str(),
             args: "()",
             flags: flags | hard_fork_flag,
@@ -2100,6 +2214,7 @@ mod tests {
 
     #[cfg(feature = "counters")]
     #[test]
+    #[cfg_attr(miri, ignore = "too slow under Miri: 1000 recursive interpreter calls")]
     fn test_counters() {
         use crate::chia_dialect::ChiaDialect;
 
@@ -2140,6 +2255,10 @@ mod tests {
 
     #[rstest]
     // A 1µs timeout is far too short for a ~2.5M-cost program.
+    #[cfg_attr(
+        miri,
+        ignore = "too slow under Miri: 10000 recursive interpreter calls and wall-clock timeout"
+    )]
     #[case::expires_1us(
         EXPENSIVE_PRG,
         EXPENSIVE_ARGS,
@@ -2147,7 +2266,15 @@ mod tests {
         Duration::from_micros(1),
         None
     )]
+    #[cfg_attr(
+        miri,
+        ignore = "too slow under Miri: 10000 recursive interpreter calls and wall-clock timeout"
+    )]
     #[case::expires_zero(EXPENSIVE_PRG, EXPENSIVE_ARGS, EXPENSIVE_COST, Duration::ZERO, None)]
+    #[cfg_attr(
+        miri,
+        ignore = "too slow under Miri: 10000 recursive interpreter calls and wall-clock timeout"
+    )]
     #[case::completes(
         EXPENSIVE_PRG,
         EXPENSIVE_ARGS,
