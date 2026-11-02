@@ -58,13 +58,11 @@ pub fn run_program_with_diagnostics<D: Dialect>(
     });
     let result =
         run_program_with_pre_eval(allocator, dialect, program, env, max_cost, Some(pre_eval));
-    // On error, pending post-eval callbacks are dropped without being called.
-    // The evaluator has now dropped all callbacks, leaving us sole ownership
-    // of the frames whose evaluations were still active when it returned.
-    let mut frames = Rc::try_unwrap(frames).unwrap().into_inner();
     match result {
         Ok(reduction) => Ok(reduction),
         Err(error) => {
+            // On failure, frames remain in the stack when their post-eval callbacks do not run.
+            let mut frames = frames.take();
             let truncated = frames.len().saturating_sub(max_frames);
             frames.drain(..truncated);
             Err(EvalFailure {
