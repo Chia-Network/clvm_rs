@@ -3,8 +3,8 @@ use clvmr::serde::{
     Serializer, node_from_bytes, node_from_bytes_backrefs, node_to_bytes_backrefs,
     node_to_bytes_limit,
 };
-use criterion::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
+use std::hint::black_box;
 use std::include_bytes;
 use std::time::Duration;
 use std::time::Instant;

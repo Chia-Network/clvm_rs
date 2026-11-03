@@ -705,7 +705,7 @@ pub fn op_sha256(
 // sizes use the raw atom length (buf.len() / len_for_value) to account for
 // possible leading-zero padding in CLVM-serialized atoms.
 pub fn op_add(a: &mut Allocator, mut input: NodePtr, max_cost: Cost, flags: ClvmFlags) -> Response {
-    use rand::Rng;
+    use rand::RngExt;
 
     let new_cost_model = flags.contains(ClvmFlags::NEW_COST_MODEL);
     let (base_cost, cost_per_arg, cost_per_byte) = if new_cost_model {
@@ -814,7 +814,7 @@ pub fn op_subtract(
     flags: ClvmFlags,
 ) -> Response {
     use crate::number::number_from_u8;
-    use rand::Rng;
+    use rand::RngExt;
 
     let new_cost_model = flags.contains(ClvmFlags::NEW_COST_MODEL);
     let (base_cost, cost_per_arg, cost_per_byte) = if new_cost_model {
