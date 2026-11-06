@@ -206,13 +206,13 @@ dependencies = [
 
 [[package]]
 name = "chia-bls"
-version = "0.52.1"
+version = "0.53.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24bbab499266cf15a3b6bcdbd751d320c7beb420e79de940f88ab7abbaead565"
+checksum = "dde18a35ddd6ef44d4216a56f37f62388d202d069740c6a12258dff5fc50c1de"
 dependencies = [
  "arbitrary",
  "blst",
- "chia-sha2",
+ "chia-sha2 0.53.0",
  "chia-traits",
  "hex",
  "hkdf",
@@ -232,21 +232,30 @@ dependencies = [
 ]
 
 [[package]]
-name = "chia-traits"
-version = "0.52.1"
+name = "chia-sha2"
+version = "0.53.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4675206e4334db1ca01defcfdcd8d62e4a3b4685fa6fa8850c9276938e124139"
+checksum = "33f2141a6e5ab2f923f95a96c8ee99a707a0e4fd8f7e10bc0bdde99c6fd4e0e5"
 dependencies = [
- "chia-sha2",
+ "sha2 0.10.9",
+]
+
+[[package]]
+name = "chia-traits"
+version = "0.53.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1222a2cf43296036af72e84197798e724bdd8df7b213da0c81aecd2508ada12"
+dependencies = [
+ "chia-sha2 0.53.0",
  "chia_streamable_macro",
  "thiserror",
 ]
 
 [[package]]
 name = "chia_streamable_macro"
-version = "0.52.1"
+version = "0.53.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28c4ba1005aa98a7c3a007e701449ea679f61840bbcc63a9f9d9564d90f277b6"
+checksum = "079db85b6a5c9cde487852552f70ae935c664cfcf024db35de2b67e2341aaef1"
 dependencies = [
  "proc-macro-crate 1.3.1",
  "proc-macro2",
@@ -328,7 +337,7 @@ dependencies = [
  "anyhow",
  "arbitrary",
  "chia-bls",
- "chia-sha2",
+ "chia-sha2 0.52.1",
  "clap",
  "clvmr",
  "hex",
@@ -382,7 +391,7 @@ dependencies = [
  "bitvec",
  "bumpalo",
  "chia-bls",
- "chia-sha2",
+ "chia-sha2 0.52.1",
  "criterion",
  "hex",
  "hex-literal",
