@@ -72,7 +72,7 @@ bitvec = "1.1.1"
 arbitrary = { version = "1.4.2", features = ["derive"] }
 bumpalo = "3.19.0"
 anyhow = "1.0.100"
-malachite-bigint = "0.12.0"
+malachite-bigint = "0.14.0"
 
 [dependencies]
 bitflags = { workspace = true }
