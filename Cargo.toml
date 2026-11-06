@@ -57,7 +57,7 @@ hex-literal = "1.1.0"
 # for secp sigs
 k256 = "0.14.0"
 p256 = "0.14.0"
-rstest = "0.26.1"
+rstest = "0.28.0"
 criterion = "0.8.2"
 hex = "0.4.3"
 pyo3 = "0.29.3"
