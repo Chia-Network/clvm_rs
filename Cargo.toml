@@ -51,7 +51,7 @@ lazy_static = "1.5.1"
 num-bigint = "0.4.8"
 num-traits = "0.2.19"
 num-integer = "0.1.46"
-chia-bls = "0.52.1"
+chia-bls = "0.53.0"
 chia-sha2 = "0.52.1"
 hex-literal = "1.1.0"
 # for secp sigs
