@@ -323,7 +323,7 @@ checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 
 [[package]]
 name = "clvm-fuzzing"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -337,7 +337,7 @@ dependencies = [
 
 [[package]]
 name = "clvm-rs-test-tools"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "bitflags",
  "chia-bls",
@@ -355,7 +355,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_rs"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "clvmr",
  "pyo3",
@@ -363,7 +363,7 @@ dependencies = [
 
 [[package]]
 name = "clvm_rs-fuzz"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "arbitrary",
  "clvm-fuzzing",
@@ -376,7 +376,7 @@ dependencies = [
 
 [[package]]
 name = "clvmr"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "bitflags",
  "bitvec",
