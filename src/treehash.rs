@@ -123,6 +123,14 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
+    #[cfg_attr(
+        all(miri, not(feature = "openssl")),
+        ignore = "too slow under Miri: hashes more than 750 small atoms"
+    )]
     fn test_tree_hash_atom() {
         test_sha256_atom(&[]);
         for val in 0..=255 {
@@ -139,6 +147,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_precomputed_atoms() {
         assert_eq!(tree_hash_atom(&[]), PRECOMPUTED_HASHES[0]);
         for val in 1..(PRECOMPUTED_HASHES.len() as u8) {

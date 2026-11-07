@@ -142,6 +142,10 @@ mod tests {
     use hex_literal::hex;
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_simple_incremental() {
         let mut a = Allocator::new();
 
@@ -191,6 +195,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_incremental() {
         let mut a = Allocator::new();
 

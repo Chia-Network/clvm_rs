@@ -248,19 +248,24 @@ mod tests {
 
         // check a short atom
         check_parse_atom_str("83666f6f", "666f6f");
+    }
 
-        // check long atoms near boundary conditions
-        let n = 3;
-        let base_lengths = [0, 0x40 - n, 0x2000 - n, 0x100000 - n, 0x08000000 - n];
+    #[rstest]
+    #[case(0)]
+    #[case(0x40 - 3)]
+    #[case(0x2000 - 3)]
+    #[cfg_attr(miri, ignore = "too slow under Miri: serializes megabyte atoms")]
+    #[case(0x100000 - 3)]
+    #[cfg_attr(miri, ignore = "too slow under Miri: serializes 128 MiB atoms")]
+    #[case(0x08000000 - 3)]
+    fn test_parse_atom_boundaries(#[case] base_length: usize) {
         let mut atom_vec = vec![];
-        for base_length in base_lengths.iter() {
-            for size_offset in 0..6 {
-                let size = base_length + size_offset;
-                atom_vec.resize(size, 0x66);
-                let mut buffer: Vec<u8> = vec![];
-                let mut cursor = Cursor::new(&mut buffer);
-                write_atom(&mut cursor, &atom_vec).unwrap();
-            }
+        for size_offset in 0..6 {
+            let size = base_length + size_offset;
+            atom_vec.resize(size, 0x66);
+            let mut buffer: Vec<u8> = vec![];
+            let mut cursor = Cursor::new(&mut buffer);
+            write_atom(&mut cursor, &atom_vec).unwrap();
         }
     }
 

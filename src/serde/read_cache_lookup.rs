@@ -273,6 +273,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
     fn test_read_cache_lookup() {
         let large_max = 30;
         let mut rcl = ReadCacheLookup::new();

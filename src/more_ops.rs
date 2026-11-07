@@ -1829,6 +1829,14 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        all(miri, feature = "openssl"),
+        ignore = "requires OpenSSL native code"
+    )]
+    #[cfg_attr(
+        all(miri, not(feature = "openssl")),
+        ignore = "too slow under Miri: hashes more than 750 small atoms"
+    )]
     fn sha256_small_values() {
         test_sha256_atom(&[]);
         for val in 0..255 {
@@ -2083,12 +2091,28 @@ mod tests {
     #[case(true, true, true, ClvmFlags::MALACHITE | ClvmFlags::LIMITS, false)]
     // without LIMITS: 257-byte operands must be allowed
     #[case(true, false, false, ClvmFlags::empty(), true)]
+    #[cfg_attr(
+        miri,
+        ignore = "too slow under Miri: modular exponentiation with a 257-byte exponent"
+    )]
     #[case(false, true, false, ClvmFlags::empty(), true)]
     #[case(false, false, true, ClvmFlags::empty(), true)]
+    #[cfg_attr(
+        miri,
+        ignore = "too slow under Miri: modular exponentiation with a 257-byte exponent"
+    )]
     #[case(true, true, true, ClvmFlags::empty(), true)]
     #[case(true, false, false, ClvmFlags::MALACHITE, true)]
+    #[cfg_attr(
+        miri,
+        ignore = "too slow under Miri: modular exponentiation with a 257-byte exponent"
+    )]
     #[case(false, true, false, ClvmFlags::MALACHITE, true)]
     #[case(false, false, true, ClvmFlags::MALACHITE, true)]
+    #[cfg_attr(
+        miri,
+        ignore = "too slow under Miri: modular exponentiation with a 257-byte exponent"
+    )]
     #[case(true, true, true, ClvmFlags::MALACHITE, true)]
     fn test_modpow_oversized(
         #[case] big_base: bool,

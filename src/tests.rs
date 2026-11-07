@@ -30,7 +30,15 @@ fn test_roundtrip() {
         let n = a.new_atom(&[idx]).unwrap();
         test_serialize_roundtrip(&mut a, n);
     }
+}
 
+#[test]
+#[cfg_attr(
+    miri,
+    ignore = "too slow under Miri: million-byte atom and 4000-deep trees"
+)]
+fn test_roundtrip_large() {
+    let mut a = Allocator::new();
     // large blob
     let buf = vec![0; 1000000];
     let n = a.new_atom(&buf).unwrap();

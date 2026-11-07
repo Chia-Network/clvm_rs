@@ -1,0 +1,40 @@
+name: Miri
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  miri:
+    name: Miri (${{ matrix.features || 'default' }}, ${{ matrix.suite }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # bitvec's pointer handling fails under Stacked Borrows. Keep aliasing
+      # checks enabled using Miri's alternative Tree Borrows model.
+      MIRIFLAGS: -Zmiri-tree-borrows
+    strategy:
+      fail-fast: false
+      matrix:
+        features: ["", "allocator-debug"]
+        suite: [library, operators]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+      - name: Prepare Miri sysroot
+        run: cargo +nightly miri setup
+      # The fixture tests take much longer than individual unit tests. Run them
+      # in a separate job, with the two jobs together covering the full suite.
+      - name: Run library and integration tests
+        if: matrix.suite == 'library'
+        run: cargo +nightly miri test -p clvmr --features "${{ matrix.features }}" -- --skip test_ops::tests::test_ops
+      - name: Run operator fixtures
+        if: matrix.suite == 'operators'
+        run: cargo +nightly miri test -p clvmr --lib --features "${{ matrix.features }}" test_ops::tests::test_ops

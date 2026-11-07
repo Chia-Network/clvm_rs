@@ -62,6 +62,10 @@ fn check_round_trip(obj_ser_br_hex: &str, serializer_output: Option<&str>) {
 }
 
 #[test]
+#[cfg_attr(
+    all(miri, feature = "openssl"),
+    ignore = "requires OpenSSL native code"
+)]
 fn test_round_trip() {
     let check = check_round_trip;
     check("01", None); // 1

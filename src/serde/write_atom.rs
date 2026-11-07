@@ -158,28 +158,28 @@ mod tests {
         let mut buf = Vec::<u8>::new();
         assert!(write_atom(&mut buf, &[0xaa, 0xbb]).is_ok());
         assert_eq!(buf, vec![0x82, 0xaa, 0xbb]);
+    }
 
-        for (size, mut expected_prefix) in [
-            (0x1, vec![0x81]),
-            (0x2, vec![0x82]),
-            (0x3f, vec![0xbf]),
-            (0x40, vec![0xc0, 0x40]),
-            (0x1fff, vec![0xdf, 0xff]),
-            (0x2000, vec![0xe0, 0x20, 0x00]),
-            (0xf_ffff, vec![0xef, 0xff, 0xff]),
-            (0x10_0000, vec![0xf0, 0x10, 0x00, 0x00]),
-            (0x7ff_ffff, vec![0xf7, 0xff, 0xff, 0xff]),
-            (0x800_0000, vec![0xf8, 0x08, 0x00, 0x00, 0x00]),
-            // the next one represents 17 GB of memory, which it then has to serialize
-            // so let's not do it until some time in the future when all machines have
-            // 64 GB of memory
-            // (0x3_ffff_ffff, vec![0xfb, 0xff, 0xff, 0xff, 0xff]),
-        ] {
-            let mut buf = Vec::<u8>::new();
-            let atom = vec![0xaa; size];
-            assert!(write_atom(&mut buf, &atom).is_ok());
-            expected_prefix.extend(atom);
-            assert_eq!(buf, expected_prefix);
-        }
+    #[rstest::rstest]
+    #[case(0x1, vec![0x81])]
+    #[case(0x2, vec![0x82])]
+    #[case(0x3f, vec![0xbf])]
+    #[case(0x40, vec![0xc0, 0x40])]
+    #[case(0x1fff, vec![0xdf, 0xff])]
+    #[case(0x2000, vec![0xe0, 0x20, 0x00])]
+    #[cfg_attr(miri, ignore = "too slow under Miri: serializes atoms of 1–128 MiB")]
+    #[case(0xf_ffff, vec![0xef, 0xff, 0xff])]
+    #[cfg_attr(miri, ignore = "too slow under Miri: serializes atoms of 1–128 MiB")]
+    #[case(0x10_0000, vec![0xf0, 0x10, 0x00, 0x00])]
+    #[cfg_attr(miri, ignore = "too slow under Miri: serializes atoms of 1–128 MiB")]
+    #[case(0x7ff_ffff, vec![0xf7, 0xff, 0xff, 0xff])]
+    #[cfg_attr(miri, ignore = "too slow under Miri: serializes atoms of 1–128 MiB")]
+    #[case(0x800_0000, vec![0xf8, 0x08, 0x00, 0x00, 0x00])]
+    fn test_write_atom_sizes(#[case] size: usize, #[case] mut expected_prefix: Vec<u8>) {
+        let mut buf = Vec::<u8>::new();
+        let atom = vec![0xaa; size];
+        assert!(write_atom(&mut buf, &atom).is_ok());
+        expected_prefix.extend(atom);
+        assert_eq!(buf, expected_prefix);
     }
 }

@@ -1650,6 +1650,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     fn test_new_g1_heap_limit() {
         let g1_bytes = hex::decode(VALID_G1).unwrap();
         let g1 = G1Element::from_bytes(g1_bytes.as_slice().try_into().unwrap()).unwrap();
@@ -1662,6 +1663,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     fn test_new_g2_heap_limit() {
         let g2_bytes = hex::decode(VALID_G2).unwrap();
         let g2 = G2Element::from_bytes(g2_bytes.as_slice().try_into().unwrap()).unwrap();
@@ -1686,6 +1688,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "too slow under Miri: allocates 62.5 million nodes")]
     fn test_allocate_atom_limit() {
         let mut a = Allocator::new();
 
@@ -1699,6 +1702,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "too slow under Miri: allocates 62.5 million nodes")]
     fn test_allocate_small_number_limit() {
         let mut a = Allocator::new();
 
@@ -1712,6 +1716,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "too slow under Miri: allocates 62.5 million nodes")]
     fn test_allocate_substr_limit() {
         let mut a = Allocator::new();
 
@@ -1726,6 +1731,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "too slow under Miri: allocates 62.5 million nodes")]
     fn test_allocate_concat_limit() {
         let mut a = Allocator::new();
 
@@ -1740,6 +1746,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "too slow under Miri: allocates 62.5 million nodes")]
     fn test_allocate_pair_limit() {
         let mut a = Allocator::new();
         let atom = a.new_atom(b"foo").unwrap();
@@ -2253,11 +2260,13 @@ mod tests {
     #[case(test_g1, 3, "atom is not G1 size, 48 bytes")]
     #[case(test_g1, 47, "atom is not G1 size, 48 bytes")]
     #[case(test_g1, 49, "atom is not G1 size, 48 bytes")]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case(test_g1, 48, "atom is not a G1 point")]
     #[case(test_g2, 0, "atom is not G2 size, 96 bytes")]
     #[case(test_g2, 3, "atom is not G2 size, 96 bytes")]
     #[case(test_g2, 95, "atom is not G2 size, 96 bytes")]
     #[case(test_g2, 97, "atom is not G2 size, 96 bytes")]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case(test_g2, 96, "atom is not a G2 point")]
     fn test_point_size_error(#[case] fun: TestFun, #[case] size: usize, #[case] expected: &str) {
         let mut a = Allocator::new();
@@ -2291,6 +2300,7 @@ a572cbea904d67468808c8eb50a9450c\
 9721db309128012543902d0ac358a62a\
 e28f75bb8f1c7c42c39a8c5529bf0f4e"
     )]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     fn test_g1_roundtrip(#[case] atom: &str) {
         let mut a = Allocator::new();
         let n = a.new_atom(&hex::decode(atom).unwrap()).unwrap();
@@ -2338,6 +2348,7 @@ c6c886f6b57ec72a6178288c47c33577\
 3bc0b995b8825e0ee1ea1e1e4d00dbae\
 81f14b0bf3611b78c952aacab827a053"
     )]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     fn test_g2_roundtrip(#[case] atom: &str) {
         let mut a = Allocator::new();
         let n = a.new_atom(&hex::decode(atom).unwrap()).unwrap();
@@ -2503,36 +2514,50 @@ c6c886f6b57ec72a6178288c47c33577\
     // round trip G1 point
     #[case(VALID_G1, make_buf, check_buf)]
     #[case(VALID_G1, make_buf, check_number)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case(VALID_G1, make_buf, check_g1)]
     #[case(VALID_G1, make_buf, check_g2_fail)]
     #[case(VALID_G1, make_number, check_buf)]
     #[case(VALID_G1, make_number, check_number)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case(VALID_G1, make_number, check_g1)]
     #[case(VALID_G1, make_number, check_g2_fail)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case(VALID_G1, make_g1, check_buf)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case(VALID_G1, make_g1, check_number)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case(VALID_G1, make_g1, check_g1)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case(VALID_G1, make_g1, check_g2_fail)]
     #[case(VALID_G1, make_g2_fail, check_buf)]
     #[case(VALID_G1, make_g2_fail, check_number)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case(VALID_G1, make_g2_fail, check_g1)]
     #[case(VALID_G1, make_g2_fail, check_g2_fail)]
     // round trip G2 point
     #[case(VALID_G2, make_buf, check_buf)]
     #[case(VALID_G2, make_buf, check_number)]
     #[case(VALID_G2, make_buf, check_g1_fail)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case(VALID_G2, make_buf, check_g2)]
     #[case(VALID_G2, make_number, check_buf)]
     #[case(VALID_G2, make_number, check_number)]
     #[case(VALID_G2, make_number, check_g1_fail)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case(VALID_G2, make_number, check_g2)]
     #[case(VALID_G2, make_g1_fail, check_buf)]
     #[case(VALID_G2, make_g1_fail, check_number)]
     #[case(VALID_G2, make_g1_fail, check_g1_fail)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case(VALID_G2, make_g1_fail, check_g2)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case(VALID_G2, make_g2, check_buf)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case(VALID_G2, make_g2, check_number)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case(VALID_G2, make_g2, check_g1_fail)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     #[case(VALID_G2, make_g2, check_g2)]
     fn test_roundtrip(#[case] test_value: &str, #[case] make: MakeFun, #[case] check: CheckFun) {
         let value = hex::decode(test_value).unwrap();
@@ -2598,6 +2623,7 @@ a572cbea904d67468808c8eb50a9450c\
 e28f75bb8f1c7c42c39a8c5529bf0f4e",
         48
     )]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     fn test_atom_len_g1(#[case] buffer_hex: &str, #[case] expected: usize) {
         let mut a = Allocator::new();
         let buffer = &hex::decode(buffer_hex).unwrap();
@@ -2627,6 +2653,7 @@ c6c886f6b57ec72a6178288c47c33577\
 81f14b0bf3611b78c952aacab827a053",
         96
     )]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
     fn test_atom_len_g2(#[case] buffer_hex: &str, #[case] expected: usize) {
         let mut a = Allocator::new();
 
@@ -3103,9 +3130,21 @@ mod debug_tests {
     }
 
     #[rstest]
+    #[case::create_0(0)]
+    #[case::create_1(1)]
+    #[case::create_2(2)]
+    #[case::create_3(3)]
+    #[case::create_4(4)]
+    #[case::create_5(5)]
+    #[case::create_6(6)]
+    #[case::create_7(7)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case::create_8(8)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case::create_9(9)]
     #[should_panic(expected = "using a NodePtr on the wrong Allocator")]
     fn mixing_allocators(
-        #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)] create_case: u8,
+        #[case] create_case: u8,
         #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] access_case: u8,
     ) {
         let mut a1 = Allocator::new();
@@ -3116,9 +3155,21 @@ mod debug_tests {
     }
 
     #[rstest]
+    #[case::create_0(0)]
+    #[case::create_1(1)]
+    #[case::create_2(2)]
+    #[case::create_3(3)]
+    #[case::create_4(4)]
+    #[case::create_5(5)]
+    #[case::create_6(6)]
+    #[case::create_7(7)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case::create_8(8)]
+    #[cfg_attr(miri, ignore = "requires BLST native code")]
+    #[case::create_9(9)]
     #[should_panic(expected = "was invalidated by restore_checkpoint()")]
     fn invalidating_node(
-        #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)] create_case: u8,
+        #[case] create_case: u8,
         #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] access_case: u8,
     ) {
         let mut a1 = Allocator::new();
